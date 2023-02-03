@@ -1,7 +1,7 @@
 """AWS Glue Catalog Module."""
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import boto3
 
@@ -11,6 +11,9 @@ from awswrangler.catalog._definitions import _csv_table_definition, _json_table_
 from awswrangler.catalog._delete import delete_all_partitions, delete_table_if_exists
 from awswrangler.catalog._get import _get_table_input
 from awswrangler.catalog._utils import _catalog_id, _transaction_id, sanitize_column_name, sanitize_table_name
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue import GlueClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -124,7 +127,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
 
     _logger.debug("table_input: %s", table_input)
 
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     skip_archive: bool = not catalog_versioning
     if mode not in ("overwrite", "append", "overwrite_partitions", "update"):
         raise exceptions.InvalidArgument(
@@ -170,7 +173,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
 
 
 def _overwrite_table(
-    client_glue: boto3.client,
+    client_glue: "GlueClient",
     catalog_id: Optional[str],
     database: str,
     table: str,
@@ -234,7 +237,7 @@ def _overwrite_table_parameters(
     boto3_session: Optional[boto3.Session],
 ) -> Dict[str, str]:
     table_input["Parameters"] = parameters
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     skip_archive: bool = not catalog_versioning
     client_glue.update_table(
         **_catalog_id(
@@ -611,7 +614,7 @@ def create_database(
     ...     name='awswrangler_test'
     ... )
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     args: Dict[str, str] = {"Name": name}
     if description is not None:
         args["Description"] = description

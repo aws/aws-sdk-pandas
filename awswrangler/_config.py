@@ -165,7 +165,10 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                 f"{key} is not a valid configuration. Please use: {list(_CONFIG_ARGS.keys())}"
             )
         value_casted: _ConfigValueType = self._apply_type(
-            name=key, value=value, dtype=_CONFIG_ARGS[key].dtype, nullable=_CONFIG_ARGS[key].nullable
+            name=key,
+            value=value,
+            dtype=_CONFIG_ARGS[key].dtype,  # type: ignore[arg-type]
+            nullable=_CONFIG_ARGS[key].nullable,
         )
         self._loaded_values[key] = value_casted
 
@@ -437,7 +440,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="timestream_write_endpoint_url", value=value)
 
     @property
-    def botocore_config(self) -> botocore.config.Config:
+    def botocore_config(self) -> Optional[botocore.config.Config]:
         """Property botocore_config."""
         return cast(Optional[botocore.config.Config], self["botocore_config"])
 

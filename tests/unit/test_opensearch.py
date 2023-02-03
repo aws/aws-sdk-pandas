@@ -192,7 +192,7 @@ def opensearch_serverless_collection_endpoint() -> str:
 
         yield collection_endpoint
     finally:
-        client: boto3.client = boto3.client(service_name="opensearchserverless")
+        client = boto3.client(service_name="opensearchserverless")
 
         # Cleanup collection
         client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
@@ -439,7 +439,7 @@ def test_index_json_s3_large_file(client):
 
 def test_opensearch_serverless_create_collection(opensearch_serverless_client) -> str:
     collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
-    client: boto3.client = boto3.client(service_name="opensearchserverless")
+    client = boto3.client(service_name="opensearchserverless")
 
     collection: Dict[str, Any] = wr.opensearch.create_collection(
         name=collection_name,

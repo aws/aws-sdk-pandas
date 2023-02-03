@@ -27,9 +27,9 @@ def _add_partitions(
     catalog_id: Optional[str] = None,
 ) -> None:
     chunks: List[List[Dict[str, Any]]] = _utils.chunkify(lst=inputs, max_length=100)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     for chunk in chunks:  # pylint: disable=too-many-nested-blocks
-        res: Dict[str, Any] = client_glue.batch_create_partition(
+        res = client_glue.batch_create_partition(
             **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableName=table, PartitionInputList=chunk)
         )
         if ("Errors" in res) and res["Errors"]:
@@ -343,8 +343,8 @@ def add_column(
     ... )
     """
     if _check_column_type(column_type):
-        client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-        table_res: Dict[str, Any] = client_glue.get_table(
+        client_glue = _utils.client(service_name="glue", session=boto3_session)
+        table_res = client_glue.get_table(
             **_catalog_id(
                 catalog_id=catalog_id,
                 **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table),

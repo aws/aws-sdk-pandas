@@ -1,9 +1,8 @@
 """Modin on Ray S3 write parquet module (PRIVATE)."""
 import logging
 import math
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-import boto3
 import modin.pandas as pd
 import pyarrow as pa
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
@@ -11,6 +10,9 @@ from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvi
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import ArrowParquetDatasource, UserProvidedKeyBlockWritePathProvider
 from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
     pyarrow_additional_kwargs: Optional[Dict[str, Any]],
     cpus: int,
     dtype: Dict[str, str],
-    s3_client: Optional["boto3.client"],
+    s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     path: Optional[str] = None,

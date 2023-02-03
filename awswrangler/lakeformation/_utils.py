@@ -3,7 +3,7 @@ import logging
 import time
 from math import inf
 from threading import Thread
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import boto3
 import botocore.exceptions
@@ -72,7 +72,7 @@ def _get_table_objects(
     partitions_values: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Get Governed Table Objects from Lake Formation Engine."""
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
     scan_kwargs: Dict[str, Union[str, int]] = _catalog_id(
         catalog_id=catalog_id,
@@ -114,7 +114,7 @@ def _update_table_objects(
     del_objects: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """Register Governed Table Objects changes to Lake Formation Engine."""
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
     update_kwargs: Dict[str, Union[str, int, List[Dict[str, Dict[str, Any]]]]] = _catalog_id(
         catalog_id=catalog_id, **_transaction_id(transaction_id=transaction_id, DatabaseName=database, TableName=table)
@@ -127,7 +127,7 @@ def _update_table_objects(
         write_operations.extend({"DeleteObject": _without_keys(obj, ["Size"])} for obj in del_objects)
     update_kwargs["WriteOperations"] = write_operations
 
-    client_lakeformation.update_table_objects(**update_kwargs)
+    client_lakeformation.update_table_objects(**update_kwargs)  # type: ignore[arg-type]
 
 
 def _monitor_transaction(transaction_id: str, time_out: float, boto3_session: Optional[boto3.Session] = None) -> None:
@@ -169,11 +169,9 @@ def describe_transaction(transaction_id: str, boto3_session: Optional[boto3.Sess
     >>> status = wr.lakeformation.describe_transaction(transaction_id="...")
 
     """
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
-    details: Dict[str, Any] = client_lakeformation.describe_transaction(TransactionId=transaction_id)[
-        "TransactionDescription"
-    ]
-    return details["TransactionStatus"]  # type: ignore
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
+    details = client_lakeformation.describe_transaction(TransactionId=transaction_id)["TransactionDescription"]
+    return details["TransactionStatus"]
 
 
 def cancel_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
@@ -197,7 +195,7 @@ def cancel_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
     >>> wr.lakeformation.cancel_transaction(transaction_id="...")
 
     """
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
     client_lakeformation.cancel_transaction(TransactionId=transaction_id)
 
@@ -231,8 +229,8 @@ def start_transaction(
     >>> transaction_id = wr.lakeformation.start_transaction(read_only=False)
 
     """
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
-    transaction_type: str = "READ_ONLY" if read_only else "READ_AND_WRITE"
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
+    transaction_type: Literal["READ_AND_WRITE", "READ_ONLY"] = "READ_ONLY" if read_only else "READ_AND_WRITE"
     transaction_id: str = client_lakeformation.start_transaction(TransactionType=transaction_type)["TransactionId"]
     # Extend the transaction while in "active" state in a separate thread
     t = Thread(target=_monitor_transaction, args=(transaction_id, time_out, boto3_session))
@@ -263,13 +261,13 @@ def commit_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation = _utils.client(service_name="lakeformation", session=session)
 
     client_lakeformation.commit_transaction(TransactionId=transaction_id)
     committed: bool = False
     # Confirm transaction was committed
     while not committed:
-        state: str = describe_transaction(transaction_id=transaction_id, boto3_session=session)
+        state = describe_transaction(transaction_id=transaction_id, boto3_session=session)
         if state == "committed":
             committed = True
         elif state == "aborted":
@@ -298,7 +296,7 @@ def extend_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
     >>> wr.lakeformation.extend_transaction(transaction_id="...")
 
     """
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
     client_lakeformation.extend_transaction(TransactionId=transaction_id)
 
@@ -324,10 +322,10 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
     >>> res = wr.lakeformation.wait_query(query_id='query-id')
 
     """
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
-    response: Dict[str, Any] = client_lakeformation.get_query_state(QueryId=query_id)
-    state: str = response["State"]
+    response = client_lakeformation.get_query_state(QueryId=query_id)
+    state = response["State"]
     while state not in _QUERY_FINAL_STATES:
         time.sleep(_QUERY_WAIT_POLLING_DELAY)
         response = client_lakeformation.get_query_state(QueryId=query_id)
@@ -335,4 +333,4 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
     _logger.debug("state: %s", state)
     if state == "ERROR":
         raise exceptions.QueryFailed(response.get("Error"))
-    return response
+    return response  # type: ignore[return-value]

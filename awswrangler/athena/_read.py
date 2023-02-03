@@ -35,7 +35,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
     """Get the list of paths of the generated files."""
     bucket_name, key_path = _utils.parse_path(path)
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
     body: bytes = client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read()
     return [x for x in body.decode("utf-8").split("\n") if x != ""]
 
@@ -71,7 +71,7 @@ def _delete_after_iterate(
     dfs: Iterator[pd.DataFrame],
     paths: List[str],
     use_threads: Union[bool, int],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Iterator[pd.DataFrame]:
     for df in dfs:
@@ -87,7 +87,7 @@ def _fetch_parquet_result(
     categories: Optional[List[str]],
     chunksize: Optional[int],
     use_threads: Union[bool, int],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     temp_table_fqn: Optional[str] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -164,7 +164,7 @@ def _fetch_csv_result(
     keep_files: bool,
     chunksize: Optional[int],
     use_threads: Union[bool, int],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
@@ -273,7 +273,7 @@ def _resolve_query_without_cache_ctas(
     ctas_write_compression: Optional[str],
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ctas_query_info: Dict[str, Union[str, _QueryMetadata]] = create_ctas_table(
@@ -324,7 +324,7 @@ def _resolve_query_without_cache_unload(
     workgroup: Optional[str],
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     query_metadata = _unload(
@@ -368,7 +368,7 @@ def _resolve_query_without_cache_regular(
     kms_key: Optional[str],
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
@@ -423,7 +423,7 @@ def _resolve_query_without_cache(
     ctas_write_compression: Optional[str],
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """
@@ -510,7 +510,7 @@ def _unload(
     database: Optional[str],
     encryption: Optional[str],
     kms_key: Optional[str],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     data_source: Optional[str],
 ) -> _QueryMetadata:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
@@ -546,7 +546,7 @@ def _unload(
         )
     except botocore.exceptions.ClientError as ex:
         msg: str = str(ex)
-        error: Dict[str, Any] = ex.response["Error"]
+        error = ex.response["Error"]
         if error["Code"] == "InvalidRequestException":
             raise exceptions.InvalidArgumentValue(f"Exception parsing query. Root error message: {msg}")
         raise ex
@@ -687,10 +687,8 @@ def get_query_results(
         categories=categories,
         metadata_cache_manager=_cache_manager,
     )
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    query_info: Dict[str, Any] = client_athena.get_query_execution(QueryExecutionId=query_execution_id)[
-        "QueryExecution"
-    ]
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
+    query_info = client_athena.get_query_execution(QueryExecutionId=query_execution_id)["QueryExecution"]
     statement_type: Optional[str] = query_info.get("StatementType")
     if (statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE")) or (
         statement_type == "DML" and query_info["Query"].startswith("UNLOAD")

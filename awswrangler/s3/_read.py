@@ -1,7 +1,7 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -10,6 +10,9 @@ from pandas.api.types import union_categoricals
 from awswrangler import exceptions
 from awswrangler._arrow import _extract_partitions_from_path
 from awswrangler.s3._list import _prefix_cleanup
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -85,7 +88,7 @@ def _apply_partitions(df: pd.DataFrame, dataset: bool, path: str, path_root: Opt
     return df
 
 
-def _extract_partitions_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, str]:
+def _extract_partitions_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> Dict[str, str]:
     dtypes: Dict[str, str] = {}
     for par in response["Table"].get("PartitionKeys", []):
         dtypes[par["Name"]] = par["Type"]

@@ -11,7 +11,9 @@ from awswrangler.quicksight._get_list import list_data_sources
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def extract_athena_table_columns(database: str, table: str, boto3_session: boto3.Session) -> List[Dict[str, str]]:
+def extract_athena_table_columns(
+    database: str, table: str, boto3_session: Optional[boto3.Session]
+) -> List[Dict[str, str]]:
     """Extract athena columns data types from table and raising an exception if not exist."""
     dtypes: Optional[Dict[str, str]] = catalog.get_table_types(
         database=database, table=table, boto3_session=boto3_session
@@ -22,7 +24,7 @@ def extract_athena_table_columns(database: str, table: str, boto3_session: boto3
 
 
 def extract_athena_query_columns(
-    sql: str, data_source_arn: str, account_id: str, boto3_session: boto3.Session
+    sql: str, data_source_arn: str, account_id: str, boto3_session: Optional[boto3.Session]
 ) -> List[Dict[str, str]]:
     """Extract athena columns data types from a SQL query."""
     data_sources: List[Dict[str, Any]] = list_data_sources(account_id=account_id, boto3_session=boto3_session)

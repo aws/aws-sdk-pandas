@@ -3,7 +3,7 @@
 import csv
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 import pandas as pd
@@ -18,6 +18,9 @@ from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 from awswrangler.typing import GlueTableSettings, _S3WriteDataReturnValue
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -36,7 +39,7 @@ def _to_text(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     file_format: str,
     use_threads: Union[bool, int],
-    s3_client: Optional[boto3.client],
+    s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
@@ -453,7 +456,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         table_type = "GOVERNED"
 
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
@@ -897,7 +900,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         table_type = "GOVERNED"
 
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):

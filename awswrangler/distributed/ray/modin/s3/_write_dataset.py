@@ -31,7 +31,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
     path_root: str,
     bucketing_info: Tuple[List[str], int],
     filename_prefix: str,
-    boto3_session: "boto3.Session",
+    boto3_session: Optional["boto3.Session"],
     use_threads: Union[bool, int],
     proxy: Optional[_WriteProxy] = None,
     **func_kwargs: Any,
@@ -101,7 +101,7 @@ def _write_partitions_distributed(
             **func_kwargs,
         )
     else:
-        s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+        s3_client = _utils.client(service_name="s3", session=boto3_session)
         paths = write_func(
             df_group.drop(partition_cols, axis="columns"),
             path_root=prefix,

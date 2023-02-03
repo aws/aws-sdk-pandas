@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union, cast
 
 import boto3
 import botocore
@@ -12,6 +12,11 @@ from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
 from awswrangler import _utils, exceptions
+
+if TYPE_CHECKING:
+    from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
+    from mypy_boto3_opensearchserverless.literals import CollectionTypeType, SecurityPolicyTypeType
+    from mypy_boto3_opensearchserverless.type_defs import BatchGetCollectionResponseTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -103,8 +108,8 @@ def _get_default_network_policy(collection_name: str, vpc_endpoints: Optional[Li
 def _create_security_policy(
     collection_name: str,
     policy: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
-    policy_type: str,
-    client: boto3.client,
+    policy_type: "SecurityPolicyTypeType",
+    client: "OpenSearchServiceServerlessClient",
     **kwargs: Any,
 ) -> None:
     if not kwargs:
@@ -130,7 +135,9 @@ def _create_security_policy(
         raise error
 
 
-def _create_data_policy(collection_name: str, policy: List[Dict[str, Any]], client: boto3.client) -> None:
+def _create_data_policy(
+    collection_name: str, policy: List[Dict[str, Any]], client: "OpenSearchServiceServerlessClient"
+) -> None:
     try:
         client.create_access_policy(
             name=f"{collection_name}-data-policy",
@@ -295,8 +302,9 @@ def create_collection(
     """
     if collection_type not in ["SEARCH", "TIMESERIES"]:
         raise exceptions.InvalidArgumentValue("Collection `type` must be either 'SEARCH' or 'TIMESERIES'.")
+    collection_type = cast("CollectionTypeType", collection_type)
 
-    client: boto3.client = _utils.client(service_name="opensearchserverless", session=boto3_session)
+    client = _utils.client(service_name="opensearchserverless", session=boto3_session)
     # Create encryption and network policies
     _create_security_policy(
         collection_name=name,
@@ -323,17 +331,18 @@ def create_collection(
         )
         # Wait for the collection to become active
         status: Optional[str] = None
-        response: Optional[Dict[str, Any]] = {}
+        response: Optional["BatchGetCollectionResponseTypeDef"] = None
         while status not in _CREATE_COLLECTION_FINAL_STATUSES:
             time.sleep(_CREATE_COLLECTION_WAIT_POLLING_DELAY)
             response = client.batch_get_collection(names=[name])
-            status = response["collectionDetails"][0]["status"]  # type: ignore
+            status = response["collectionDetails"][0]["status"]
 
+        response = cast("BatchGetCollectionResponseTypeDef", response)
         if status == "FAILED":
-            error_details: str = response.get("collectionErrorDetails")[0]  # type: ignore
+            error_details = response["collectionErrorDetails"][0]
             raise exceptions.QueryFailed(f"Failed to create collection `{name}`: {error_details}.")
 
-        return response["collectionDetails"][0]  # type: ignore
+        return response["collectionDetails"][0]  # type: ignore[return-value]
     except botocore.exceptions.ClientError as error:
         if error.response["Error"]["Code"] == "ConflictException":
             raise exceptions.AlreadyExists(f"A collection with name `{name}` already exists.") from error

@@ -3,7 +3,21 @@
 import itertools
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Sequence, TypeVar, Union, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 import boto3
 import pandas as pd
@@ -17,6 +31,9 @@ from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
 from awswrangler.distributed.ray import ray_get
 from awswrangler.dynamodb._utils import _serialize_kwargs, execute_statement, get_table
+
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.client import DynamoDBClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -176,7 +193,10 @@ def _convert_items(
             [
                 _utils.list_to_arrow_table(
                     # Convert DynamoDB "Binary" type to native Python data type
-                    mapping=[{k: v.value if isinstance(v, Binary) else v for k, v in d.items()} for d in items]
+                    mapping=[
+                        {k: v.value if isinstance(v, Binary) else v for k, v in d.items()}  # type: ignore[attr-defined]
+                        for d in items
+                    ]
                 )
             ],
             arrow_kwargs,
@@ -192,21 +212,21 @@ def _convert_items(
     ex_code="ProvisionedThroughputExceededException",
 )
 def _read_scan(
-    dynamodb_client: Optional[boto3.client],
+    dynamodb_client: Optional["DynamoDBClient"],
     as_dataframe: bool,
     kwargs: Dict[str, Any],
     segment: int,
 ) -> Union[pa.Table, List[Dict[str, Any]]]:
     # SEE: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan
-    client_dynamodb: boto3.client = dynamodb_client if dynamodb_client else _utils.client(service_name="dynamodb")
+    client_dynamodb = dynamodb_client if dynamodb_client else _utils.client(service_name="dynamodb")
 
     deserializer = boto3.dynamodb.types.TypeDeserializer()
-    next_token: str = "init_token"  # Dummy token
+    next_token = "init_token"  # Dummy token
     items: List[Dict[str, Any]] = []
 
     while next_token:
         _logger.debug("segment: %s", segment)
-        response = _handle_reserved_keyword_error(client_dynamodb.scan)(**kwargs, Segment=segment)
+        response = _handle_reserved_keyword_error(client_dynamodb.scan)(**kwargs, Segment=segment)  # type: ignore
         # Unlike a resource, the DynamoDB client returns serialized results, so they must be deserialized
         # Additionally, the DynamoDB "Binary" type is converted to a native Python data type
         # SEE: https://boto3.amazonaws.com/v1/documentation/api/latest/_modules/boto3/dynamodb/types.html
@@ -216,7 +236,7 @@ def _read_scan(
                 for d in response.get("Items", [])
             ]
         )
-        next_token = response.get("LastEvaluatedKey", None)
+        next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
         kwargs["ExclusiveStartKey"] = next_token
     return _utils.list_to_arrow_table(mapping=items) if as_dataframe else items
 
@@ -225,7 +245,7 @@ def _read_scan(
 def _read_query(table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any) -> List[Dict[str, Any]]:
     table = get_table(table_name=table_name, boto3_session=boto3_session)
     response = table.query(**kwargs)
-    items: List[Dict[str, Any]] = response.get("Items", [])
+    items = response.get("Items", [])
 
     # Handle pagination
     while "LastEvaluatedKey" in response:
@@ -240,8 +260,8 @@ def _read_batch_items(
     table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
 ) -> List[Dict[str, Any]]:
     resource = _utils.resource(service_name="dynamodb", session=boto3_session)
-    response = resource.batch_get_item(RequestItems={table_name: kwargs})
-    items: List[Dict[str, Any]] = response.get("Responses", {table_name: []}).get(table_name, [])
+    response = resource.batch_get_item(RequestItems={table_name: kwargs})  # type: ignore[dict-item]
+    items = response.get("Responses", {table_name: []}).get(table_name, [])
 
     # SEE: handle possible unprocessed keys. As suggested in Boto3 docs,
     # this approach should involve exponential backoff, but this should be
@@ -249,7 +269,7 @@ def _read_batch_items(
     # [here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html)
     while response["UnprocessedKeys"]:
         kwargs["Keys"] = response["UnprocessedKeys"][table_name]["Keys"]
-        response = resource.batch_get_item(RequestItems={table_name: kwargs})
+        response = resource.batch_get_item(RequestItems={table_name: kwargs})  # type: ignore[dict-item]
         items.extend(response.get("Responses", {table_name: []}).get(table_name, []))
     return items
 

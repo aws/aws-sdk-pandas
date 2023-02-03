@@ -1,8 +1,7 @@
 """Amazon S3 Read Core Module (PRIVATE)."""
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
-import boto3
 import botocore.exceptions
 import pandas as pd
 import pandas.io.parsers
@@ -11,6 +10,9 @@ from pandas.io.common import infer_compression
 from awswrangler import exceptions
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read import _apply_partitions
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ def _read_text_chunked(
     chunksize: int,
     parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
-    s3_client: boto3.client,
+    s3_client: Optional["S3Client"],
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
@@ -60,7 +62,7 @@ def _read_text_files_chunked(
     chunksize: int,
     parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
@@ -85,7 +87,7 @@ def _read_text_files_chunked(
 
 
 def _read_text_file(
-    s3_client: boto3.client,
+    s3_client: Optional["S3Client"],
     path: str,
     version_id: Optional[str],
     parser_func: Callable[..., pd.DataFrame],

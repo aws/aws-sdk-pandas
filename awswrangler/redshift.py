@@ -81,7 +81,7 @@ def _does_table_exist(cursor: redshift_connector.Cursor, schema: Optional[str], 
 
 
 def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
-    resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
+    resource_s3 = _utils.resource(service_name="s3", session=boto3_session)
     bucket, key = _utils.parse_path(path)
     content_object = resource_s3.Object(bucket, key)
     manifest_content = json.loads(content_object.get()["Body"].read().decode("utf-8"))
@@ -128,7 +128,7 @@ def _copy(
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
     aws_session_token: Optional[str] = None,
-    boto3_session: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
     schema: Optional[str] = None,
     manifest: Optional[bool] = False,
     sql_copy_extra_params: Optional[List[str]] = None,
@@ -620,7 +620,7 @@ def connect_temp(
     >>> con.close()
 
     """
-    client_redshift: boto3.client = _utils.client(service_name="redshift", session=boto3_session)
+    client_redshift = _utils.client(service_name="redshift", session=boto3_session)
     args: Dict[str, Any] = {
         "DbUser": user,
         "ClusterIdentifier": cluster_identifier,
@@ -631,8 +631,8 @@ def connect_temp(
         args["DbGroups"] = db_groups
     else:
         db_groups = []
-    res: Dict[str, Any] = client_redshift.get_cluster_credentials(**args)
-    cluster: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
+    res = client_redshift.get_cluster_credentials(**args)
+    cluster = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
     return redshift_connector.connect(
         user=res["DbUser"],
         database=database if database else cluster["DBName"],

@@ -30,9 +30,9 @@ class ConnectionAttributes(NamedTuple):
 
 
 def _get_dbname(cluster_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
-    client_redshift: boto3.client = _utils.client(service_name="redshift", session=boto3_session)
-    res: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
-    return cast(str, res["DBName"])
+    client_redshift = _utils.client(service_name="redshift", session=boto3_session)
+    res = client_redshift.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
+    return res["DBName"]
 
 
 def _get_connection_attributes_from_catalog(
@@ -52,10 +52,10 @@ def _get_connection_attributes_from_catalog(
         ssl_cadata: Optional[str] = None
         if ssl_cert_path:
             bucket_name, key_path = _utils.parse_path(ssl_cert_path)
-            client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+            client_s3 = _utils.client(service_name="s3", session=boto3_session)
             try:
                 ssl_cadata = client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read().decode("utf-8")
-            except client_s3.exception.NoSuchKey:
+            except client_s3.exceptions.NoSuchKey:
                 raise exceptions.NoFilesFound(  # pylint: disable=raise-missing-from
                     f"No CA certificate found at {ssl_cert_path}."
                 )

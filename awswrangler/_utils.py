@@ -8,19 +8,44 @@ import random
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
 from functools import partial, wraps
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Type, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Type, Union, overload
 
 import boto3
-import botocore.config
+import botocore.credentials
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+from botocore.config import Config
 
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
+
+if TYPE_CHECKING:
+    from boto3.resources.base import ServiceResource
+    from botocore.client import BaseClient
+    from mypy_boto3_athena import AthenaClient
+    from mypy_boto3_athena.literals import ServiceName
+    from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
+    from mypy_boto3_ec2 import EC2Client
+    from mypy_boto3_emr.client import EMRClient
+    from mypy_boto3_glue import GlueClient
+    from mypy_boto3_kms.client import KMSClient
+    from mypy_boto3_lakeformation.client import LakeFormationClient
+    from mypy_boto3_logs.client import CloudWatchLogsClient
+    from mypy_boto3_opensearch.client import OpenSearchServiceClient
+    from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
+    from mypy_boto3_quicksight.client import QuickSightClient
+    from mypy_boto3_redshift.client import RedshiftClient
+    from mypy_boto3_redshift_data.client import RedshiftDataAPIServiceClient
+    from mypy_boto3_s3 import S3Client, S3ServiceResource
+    from mypy_boto3_secretsmanager import SecretsManagerClient
+    from mypy_boto3_sts.client import STSClient
+    from mypy_boto3_timestream_query.client import TimestreamQueryClient
+    from mypy_boto3_timestream_write.client import TimestreamWriteClient
+    from typing_extensions import Literal
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -61,11 +86,11 @@ def default_botocore_config() -> botocore.config.Config:
     retries_config: Dict[str, Union[str, int]] = {
         "max_attempts": int(os.getenv("AWS_MAX_ATTEMPTS", "5")),
     }
-    mode: Optional[str] = os.getenv("AWS_RETRY_MODE")
+    mode = os.getenv("AWS_RETRY_MODE")
     if mode:
         retries_config["mode"] = mode
-    return botocore.config.Config(
-        retries=retries_config,
+    return Config(
+        retries=retries_config,  # type: ignore[arg-type]
         connect_timeout=10,
         max_pool_connections=10,
         user_agent_extra=f"awswrangler/{__version__}",
@@ -102,13 +127,203 @@ def _get_endpoint_url(service_name: str) -> Optional[str]:
     return endpoint_url
 
 
+@overload
+def client(
+    service_name: 'Literal["athena"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "AthenaClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["lakeformation"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "LakeFormationClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["logs"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "CloudWatchLogsClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["dynamodb"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "DynamoDBClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["ec2"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "EC2Client":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["emr"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "EMRClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["glue"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "GlueClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["kms"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "KMSClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["opensearch"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "OpenSearchServiceClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["opensearchserverless"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "OpenSearchServiceServerlessClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["quicksight"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "QuickSightClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["redshift"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "RedshiftClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["redshift-data"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "RedshiftDataAPIServiceClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["s3"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "S3Client":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["secretsmanager"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "SecretsManagerClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["sts"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "STSClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["timestream-query"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "TimestreamQueryClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["timestream-write"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "TimestreamWriteClient":
+    ...
+
+
+@overload
+def client(
+    service_name: "ServiceName",
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "BaseClient":
+    ...
+
+
 @apply_configs
 def client(
-    service_name: str,
+    service_name: "ServiceName",
     session: Optional[boto3.Session] = None,
-    botocore_config: Optional[botocore.config.Config] = None,
+    botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
-) -> boto3.client:
+) -> "BaseClient":
     """Create a valid boto3.client."""
     endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
     return ensure_session(session=session).client(
@@ -120,13 +335,33 @@ def client(
     )
 
 
+@overload
+def resource(
+    service_name: 'Literal["dynamodb"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "DynamoDBServiceResource":
+    ...
+
+
+@overload
+def resource(
+    service_name: 'Literal["s3"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "S3ServiceResource":
+    ...
+
+
 @apply_configs
 def resource(
-    service_name: str,
+    service_name: Union['Literal["dynamodb"]', 'Literal["s3"]'],
     session: Optional[boto3.Session] = None,
-    botocore_config: Optional[botocore.config.Config] = None,
+    botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
-) -> boto3.resource:
+) -> "ServiceResource":
     """Create a valid boto3.resource."""
     endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
     return ensure_session(session=session).resource(
@@ -258,8 +493,8 @@ def get_directory(path: str) -> str:
 def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
     """Extract region from Subnet ID."""
     session: boto3.Session = ensure_session(session=boto3_session)
-    client_ec2: boto3.client = client(service_name="ec2", session=session)
-    return cast(str, client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:-1])
+    client_ec2 = client(service_name="ec2", session=session)
+    return client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:-1]
 
 
 def get_region_from_session(boto3_session: Optional[boto3.Session] = None, default_region: Optional[str] = None) -> str:

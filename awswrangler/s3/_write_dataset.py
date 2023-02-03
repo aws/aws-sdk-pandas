@@ -140,12 +140,12 @@ def _to_partitions(
     transaction_id: Optional[str],
     bucketing_info: Optional[Tuple[List[str], int]],
     filename_prefix: str,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     partitions_values: Dict[str, List[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
-    s3_client: boto3.client = client(service_name="s3", session=boto3_session)
+    s3_client = client(service_name="s3", session=boto3_session)
     for keys, subgroup in df.groupby(by=partition_cols, observed=True):
         # Keys are either a primitive type or a tuple if partitioning by multiple cols
         keys = (keys,) if not isinstance(keys, tuple) else keys
@@ -199,13 +199,13 @@ def _to_buckets(
     path_root: str,
     bucketing_info: Tuple[List[str], int],
     filename_prefix: str,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     use_threads: Union[bool, int],
     proxy: Optional[_WriteProxy] = None,
     **func_kwargs: Any,
 ) -> List[str]:
     _proxy: _WriteProxy = proxy if proxy else _WriteProxy(use_threads=False)
-    s3_client: boto3.client = client(service_name="s3", session=boto3_session)
+    s3_client = client(service_name="s3", session=boto3_session)
     for bucket_number, subgroup in df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info)):
         _proxy.write(
             func,
@@ -239,7 +239,7 @@ def _to_dataset(
     table_type: Optional[str],
     transaction_id: Optional[str],
     bucketing_info: Optional[Tuple[List[str], int]],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     path_root = path_root if path_root.endswith("/") else f"{path_root}/"
@@ -306,7 +306,7 @@ def _to_dataset(
             **func_kwargs,
         )
     else:
-        s3_client: boto3.client = client(service_name="s3", session=boto3_session)
+        s3_client = client(service_name="s3", session=boto3_session)
         paths = func(
             df,
             path_root=path_root,

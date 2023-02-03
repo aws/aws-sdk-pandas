@@ -1,8 +1,7 @@
 """Modin on Ray S3 write text module (PRIVATE)."""
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-import boto3
 import modin.pandas as pd
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
@@ -17,6 +16,9 @@ from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import
 from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters, _ray_dataset_from_df
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -69,7 +71,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     file_format: str,
     use_threads: Union[bool, int],
-    s3_client: Optional["boto3.client"],
+    s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,

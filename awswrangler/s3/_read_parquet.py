@@ -4,7 +4,20 @@ import datetime
 import functools
 import itertools
 import logging
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+)
 
 import boto3
 import pandas as pd
@@ -29,6 +42,9 @@ from awswrangler.s3._read import (
     _get_path_ignore_suffix,
     _get_path_root,
 )
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 BATCH_READ_BLOCK_SIZE = 65_536
 CHUNKED_READ_S3_BLOCK_SIZE = 10_485_760  # 10 MB (20 * 2**20)
@@ -62,7 +78,7 @@ def _pyarrow_parquet_file_wrapper(
 
 @engine.dispatch_on_engine
 def _read_parquet_metadata_file(
-    s3_client: Optional[boto3.client],
+    s3_client: Optional["S3Client"],
     path: str,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
@@ -90,7 +106,7 @@ def _read_schemas_from_files(
     paths: List[str],
     sampling: float,
     use_threads: Union[bool, int],
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
@@ -131,7 +147,7 @@ def _validate_schemas_from_files(
     paths: List[str],
     sampling: float,
     use_threads: Union[bool, int],
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
@@ -158,13 +174,13 @@ def _read_parquet_metadata(
     sampling: float,
     dataset: bool,
     use_threads: Union[bool, int],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Handle wr.s3.read_parquet_metadata internally."""
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
     paths: List[str] = _path2list(
         path=path,
@@ -212,7 +228,7 @@ def _read_parquet_metadata(
 
 
 def _read_parquet_file(
-    s3_client: Optional[boto3.client],
+    s3_client: Optional["S3Client"],
     path: str,
     path_root: Optional[str],
     columns: Optional[List[str]],
@@ -245,7 +261,7 @@ def _read_parquet_file(
 
 
 def _read_parquet_chunked(
-    s3_client: Optional[boto3.client],
+    s3_client: Optional["S3Client"],
     paths: List[str],
     path_root: Optional[str],
     columns: Optional[List[str]],
@@ -312,7 +328,7 @@ def _read_parquet(  # pylint: disable=W0613
     use_threads: Union[bool, int],
     parallelism: int,
     version_ids: Optional[Dict[str, str]],
-    s3_client: Optional[boto3.client],
+    s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -592,7 +608,7 @@ def read_parquet(
     >>> df = wr.s3.read_parquet(path, dataset=True, partition_filter=my_filter)
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     paths: List[str] = _path2list(
         path=path,
         s3_client=s3_client,
@@ -872,9 +888,9 @@ def read_parquet_table(
     >>> df = wr.s3.read_parquet_table(path, dataset=True, partition_filter=my_filter)
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    res: Dict[str, Any] = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
+    res = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
     try:
         location: str = res["Table"]["StorageDescriptor"]["Location"]
         path: str = location if location.endswith("/") else f"{location}/"

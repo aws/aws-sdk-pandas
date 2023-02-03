@@ -3,7 +3,7 @@
 import datetime
 import fnmatch
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Sequence, Union
 
 import boto3
 import botocore.exceptions
@@ -11,12 +11,15 @@ import botocore.exceptions
 from awswrangler import _utils, exceptions
 from awswrangler.s3 import _fs
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _path2list(
     path: Union[str, Sequence[str]],
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, Any]],
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -75,7 +78,7 @@ def _prefix_cleanup(prefix: str) -> str:
 
 def _list_objects(  # pylint: disable=too-many-branches
     path: str,
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, Any]],
     delimiter: Optional[str] = None,
     suffix: Union[str, List[str], None] = None,
@@ -191,7 +194,7 @@ def does_object_exist(
     False
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     bucket: str
     key: str
     bucket, key = _utils.parse_path(path=path)
@@ -259,7 +262,7 @@ def list_directories(
     ['s3://bucket/prefix/dir0/', 's3://bucket/prefix/dir1/', 's3://bucket/prefix/dir2/']
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     result_iterator = _list_objects(
         path=path,
         delimiter="/",
@@ -339,7 +342,7 @@ def list_objects(
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     # On top of user provided ignore_suffix input, add "/"
     ignore_suffix_acc = set("/")
     if isinstance(ignore_suffix, str):
@@ -376,6 +379,6 @@ def list_buckets(boto3_session: Optional[boto3.Session] = None) -> List[str]:
         List of bucket names.
 
     """
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
     buckets = client_s3.list_buckets()["Buckets"]
     return [bucket["Name"] for bucket in buckets]

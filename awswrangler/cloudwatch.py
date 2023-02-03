@@ -80,9 +80,9 @@ def start_query(
     }
     if limit is not None:
         args["limit"] = limit
-    client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
-    response: Dict[str, Any] = client_logs.start_query(**args)
-    return cast(str, response["queryId"])
+    client_logs = _utils.client(service_name="logs", session=boto3_session)
+    response = client_logs.start_query(**args)
+    return response["queryId"]
 
 
 def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
@@ -113,9 +113,9 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
 
     """
     final_states: List[str] = ["Complete", "Failed", "Cancelled"]
-    client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
-    response: Dict[str, Any] = client_logs.get_query_results(queryId=query_id)
-    status: str = response["status"]
+    client_logs = _utils.client(service_name="logs", session=boto3_session)
+    response = client_logs.get_query_results(queryId=query_id)
+    status = response["status"]
     while status not in final_states:
         time.sleep(_QUERY_WAIT_POLLING_DELAY)
         response = client_logs.get_query_results(queryId=query_id)
@@ -125,7 +125,7 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
         raise exceptions.QueryFailed(f"query ID: {query_id}")
     if status == "Cancelled":
         raise exceptions.QueryCancelled(f"query ID: {query_id}")
-    return response
+    return cast(Dict[str, Any], response)
 
 
 def run_query(
@@ -291,7 +291,7 @@ def describe_log_streams(
     ... )
 
     """
-    client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
+    client_logs = _utils.client(service_name="logs", session=boto3_session)
     args: Dict[str, Any] = {
         "logGroupName": log_group_name,
         "descending": descending,
@@ -305,15 +305,15 @@ def describe_log_streams(
             "Cannot call describe_log_streams with both `log_stream_name_prefix` and order_by equal 'LastEventTime'"
         )
     log_streams: List[Dict[str, Any]] = []
-    response: Dict[str, Any] = client_logs.describe_log_streams(**args)
+    response = client_logs.describe_log_streams(**args)
 
-    log_streams += response["logStreams"]
+    log_streams += cast(List[Dict[str, Any]], response["logStreams"])
     while "nextToken" in response:
         response = client_logs.describe_log_streams(
             **args,
             nextToken=response["nextToken"],
         )
-        log_streams += response["logStreams"]
+        log_streams += cast(List[Dict[str, Any]], response["logStreams"])
     if log_streams:
         df: pd.DataFrame = pd.DataFrame(log_streams)
         df["logGroupName"] = log_group_name
@@ -330,7 +330,7 @@ def _filter_log_events(
     limit: Optional[int] = 10000,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[Dict[str, Any]]:
-    client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
+    client_logs = _utils.client(service_name="logs", session=boto3_session)
     events: List[Dict[str, Any]] = []
     args: Dict[str, Any] = {
         "logGroupName": log_group_name,
@@ -343,14 +343,14 @@ def _filter_log_events(
         args["endTime"] = end_timestamp
     if filter_pattern:
         args["filterPattern"] = filter_pattern
-    response: Dict[str, Any] = client_logs.filter_log_events(**args)
-    events += response["events"]
+    response = client_logs.filter_log_events(**args)
+    events += cast(List[Dict[str, Any]], response["events"])
     while "nextToken" in response:
         response = client_logs.filter_log_events(
             **args,
             nextToken=response["nextToken"],
         )
-        events += response["events"]
+        events += cast(List[Dict[str, Any]], response["events"])
     return events
 
 

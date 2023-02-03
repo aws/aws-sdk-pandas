@@ -1,7 +1,10 @@
 """AWS Glue Catalog Delete Module."""
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -273,7 +276,7 @@ def _check_column_type(column_type: str) -> bool:
     return True
 
 
-def _update_table_definition(current_definition: Dict[str, Any]) -> Dict[str, Any]:
+def _update_table_definition(current_definition: "GetTableResponseTypeDef") -> Dict[str, Any]:
     definition: Dict[str, Any] = {}
     keep_keys = [
         "Name",
@@ -292,5 +295,5 @@ def _update_table_definition(current_definition: Dict[str, Any]) -> Dict[str, An
     ]
     for key in current_definition["Table"]:
         if key in keep_keys:
-            definition[key] = current_definition["Table"][key]
+            definition[key] = current_definition["Table"][key]  # type: ignore[literal-required]
     return definition

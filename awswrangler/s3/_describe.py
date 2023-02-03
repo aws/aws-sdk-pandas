@@ -4,7 +4,7 @@ import concurrent.futures
 import datetime
 import itertools
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 
@@ -12,12 +12,15 @@ from awswrangler import _utils
 from awswrangler.s3 import _fs
 from awswrangler.s3._list import _path2list
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _describe_object(
     path: str,
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, Any]],
     version_id: Optional[str] = None,
 ) -> Tuple[str, Dict[str, Any]]:
@@ -41,7 +44,7 @@ def _describe_object(
 
 def _describe_object_concurrent(
     path: str,
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, Any]],
     version_id: Optional[str] = None,
 ) -> Tuple[str, Dict[str, Any]]:
@@ -52,7 +55,7 @@ def _describe_object_concurrent(
 
 def _describe_objects(
     path: Union[str, List[str]],
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
@@ -173,7 +176,7 @@ def describe_objects(
     >>> descs1 = wr.s3.describe_objects('s3://bucket/prefix')  # Describe all objects under the prefix
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     return _describe_objects(
         path=path,
         s3_client=s3_client,
@@ -187,12 +190,12 @@ def describe_objects(
 
 def _size_objects(
     path: Union[str, List[str]],
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     use_threads: Union[bool, int] = True,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Optional[int]]:
-    desc_list: Dict[str, Dict[str, Any]] = _describe_objects(
+    desc_list = _describe_objects(
         path=path,
         s3_client=s3_client,
         version_id=version_id,
@@ -253,7 +256,7 @@ def size_objects(
     >>> sizes1 = wr.s3.size_objects('s3://bucket/prefix')  # Get the sizes of all objects under the received prefix
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     return _size_objects(
         path=path,
         s3_client=s3_client,
@@ -292,7 +295,7 @@ def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None
     >>> region = wr.s3.get_bucket_region('bucket-name', boto3_session=boto3.Session())
 
     """
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
     _logger.debug("bucket: %s", bucket)
     region: str = client_s3.get_bucket_location(Bucket=bucket)["LocationConstraint"]
     region = "us-east-1" if region is None else region

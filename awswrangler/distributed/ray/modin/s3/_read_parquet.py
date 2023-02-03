@@ -1,13 +1,15 @@
 """Modin on Ray S3 read parquet module (PRIVATE)."""
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 
-import boto3
 import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource
 
 from awswrangler.distributed.ray.datasources import ArrowParquetDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 
 def _read_parquet_distributed(  # pylint: disable=unused-argument
@@ -19,7 +21,7 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     use_threads: Union[bool, int],
     parallelism: int,
     version_ids: Optional[Dict[str, str]],
-    s3_client: Optional[boto3.client],
+    s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:

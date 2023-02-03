@@ -8,7 +8,7 @@ import math
 import socket
 from contextlib import contextmanager
 from errno import ESPIPE
-from typing import Any, BinaryIO, Dict, Iterator, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, Dict, Iterator, List, Optional, Tuple, Union, cast
 
 import boto3
 from botocore.exceptions import ReadTimeoutError
@@ -18,6 +18,10 @@ from botocore.model import ServiceModel
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.s3._describe import _size_objects
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -46,7 +50,7 @@ def _fetch_range(
     range_values: Tuple[int, int],
     bucket: str,
     key: str,
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     boto3_kwargs: Dict[str, Any],
     version_id: Optional[str] = None,
 ) -> Tuple[int, bytes]:
@@ -91,7 +95,7 @@ class _UploadProxy:
         part: int,
         upload_id: str,
         data: bytes,
-        s3_client: boto3.client,
+        s3_client: "S3Client",
         boto3_kwargs: Dict[str, Any],
     ) -> Dict[str, Union[str, int]]:
         _logger.debug("Upload part %s started.", part)
@@ -117,7 +121,7 @@ class _UploadProxy:
         part: int,
         upload_id: str,
         data: bytes,
-        s3_client: boto3.client,
+        s3_client: "S3Client",
         boto3_kwargs: Dict[str, Any],
     ) -> None:
         """Upload Part."""
@@ -170,7 +174,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
         s3_block_size: int,
         mode: str,
         use_threads: Union[bool, int],
-        s3_client: boto3.client,
+        s3_client: "S3Client",
         s3_additional_kwargs: Optional[Dict[str, str]],
         newline: Optional[str],
         encoding: Optional[str],
@@ -197,7 +201,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
         self._s3_block_size: int = s3_block_size
         self._s3_half_block_size: int = s3_block_size // 2
         self._s3_additional_kwargs: Dict[str, str] = {} if s3_additional_kwargs is None else s3_additional_kwargs
-        self._client: boto3.client = s3_client
+        self._client: "S3Client" = s3_client
         self._loc: int = 0
 
         if self.readable() is True:
@@ -548,7 +552,7 @@ def open_s3_object(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     s3_block_size: int = -1,  # One shot download
     boto3_session: Optional[boto3.Session] = None,
-    s3_client: Optional[boto3.client] = None,
+    s3_client: Optional["S3Client"] = None,
     newline: Optional[str] = "\n",
     encoding: Optional[str] = "utf-8",
 ) -> Iterator[Union[_S3ObjectBase, io.TextIOWrapper]]:

@@ -3,12 +3,13 @@
 import concurrent.futures
 import itertools
 import logging
-from typing import Any, Callable, List, Optional, Union
-
-import boto3
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 
 from awswrangler import _utils
 from awswrangler._distributed import EngineEnum, engine
+
+if TYPE_CHECKING:
+    from botocore.client import BaseClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class _ThreadPoolExecutor:
         if self._cpus > 1:
             self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)  # pylint: disable=R1732
 
-    def map(self, func: Callable[..., Any], boto3_client: boto3.client, *iterables: Any) -> List[Any]:
+    def map(self, func: Callable[..., Any], boto3_client: Optional["BaseClient"], *iterables: Any) -> List[Any]:
         """Map iterables to multi-threaded function."""
         _logger.debug("Map: %s", func)
         if self._exec is not None:

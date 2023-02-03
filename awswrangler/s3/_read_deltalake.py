@@ -13,7 +13,7 @@ if _deltalake_found:
 
 
 def _set_default_storage_options_kwargs(
-    boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, Any]]
+    boto3_session: Optional[boto3.Session], s3_additional_kwargs: Optional[Dict[str, Any]]
 ) -> Dict[str, Any]:
     defaults = {key.upper(): value for key, value in _utils.boto3_to_primitives(boto3_session=boto3_session).items()}
     s3_additional_kwargs = s3_additional_kwargs or {}
