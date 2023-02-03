@@ -75,4 +75,4 @@ def modin_repartition(function: FunctionType) -> FunctionType:
                 df = from_partitions(unwrap_partitions(df, axis=axis), axis=axis, row_lengths=row_lengths)
         return function(df, *args, **kwargs)
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]
