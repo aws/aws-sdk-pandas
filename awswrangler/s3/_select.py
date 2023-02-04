@@ -13,7 +13,7 @@ import pyarrow as pa
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._threading import _get_executor, _ThreadPoolExecutor
 from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._describe import size_objects
 from awswrangler.s3._list import _path2list
@@ -82,7 +82,7 @@ def _select_object_content(
 @engine.dispatch_on_engine
 def _select_query(
     path: str,
-    executor: Any,
+    executor: _ThreadPoolExecutor,
     sql: str,
     input_serialization: str,
     input_serialization_params: Dict[str, Union[bool, str]],
@@ -131,7 +131,7 @@ def _select_query(
         # and JSON objects (in LINES mode only)
         scan_ranges = [None]  # type: ignore
 
-    return executor.map(_select_object_content, s3_client, itertools.repeat(args), scan_ranges)  # type: ignore
+    return executor.map(_select_object_content, s3_client, itertools.repeat(args), scan_ranges)
 
 
 def select_query(
