@@ -6,6 +6,7 @@ import uuid
 from typing import Any, Dict, List
 
 import boto3
+import botocore
 import opensearchpy
 import pandas as pd
 import pytest  # type: ignore
@@ -179,26 +180,21 @@ def _get_opensearch_data_access_policy() -> List[Dict[str, Any]]:
 
 
 @pytest.fixture(scope="session")
-def opensearch_serverless_collection_endpoint() -> str:
-    # Create collection and get the endpoint
-    collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
+def opensearch_serverless_collection_endpoint(cloudformation_outputs) -> str:
+    collection_name: str = cloudformation_outputs["CollectionNamesdkpandasaoss"]
+    client: boto3.client = boto3.client(service_name="opensearchserverless")
+
     try:
-        collection: Dict[str, Any] = wr.opensearch.create_collection(
-            name=collection_name,
-            data_policy=_get_opensearch_data_access_policy(),
+        client.create_access_policy(
+            name=f"{collection_name}-access",
+            type="data",
+            policy=json.dumps(_get_opensearch_data_access_policy()),
         )
-        collection_endpoint: str = collection["collectionEndpoint"]
-        collection_id: str = collection["id"]
+    except botocore.exceptions.ClientError as error:
+        if not error.response["Error"]["Code"] == "ConflictException":
+            raise error
 
-        yield collection_endpoint
-    finally:
-        client: boto3.client = boto3.client(service_name="opensearchserverless")
-
-        # Cleanup collection
-        client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
-        client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
-        client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")
-        client.delete_collection(id=collection_id)
+    return cloudformation_outputs["CollectionEndpointsdkpandasaoss"]
 
 
 def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
@@ -255,7 +251,7 @@ def client(request, opensearch_1_0_client, elasticsearch_7_10_fgac_client, opens
 def test_create_index(client):
     index = "test_create_index"
     wr.opensearch.delete_index(client, index)
-    time.sleep(0.5)  # let the cluster clean up
+    time.sleep(30)  # let the cluster clean up
     response = wr.opensearch.create_index(
         client=client,
         index=index,
@@ -437,7 +433,7 @@ def test_index_json_s3_large_file(client):
     assert response.get("success", 0) > 0
 
 
-def test_opensearch_serverless_create_collection(opensearch_serverless_client) -> str:
+def test_opensearch_serverless_create_collection(opensearch_serverless_client) -> None:
     collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
     client: boto3.client = boto3.client(service_name="opensearchserverless")
 
