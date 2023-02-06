@@ -4,7 +4,7 @@ import concurrent.futures
 import datetime
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 
@@ -33,13 +33,12 @@ def _describe_object(
         )
     else:
         extra_kwargs = {}
-    desc: Dict[str, Any]
     if version_id:
         extra_kwargs["VersionId"] = version_id
     desc = _utils.try_it(
         f=s3_client.head_object, ex=s3_client.exceptions.NoSuchKey, Bucket=bucket, Key=key, **extra_kwargs
     )
-    return path, desc
+    return path, cast(Dict[str, Any], desc)
 
 
 def _describe_object_concurrent(
