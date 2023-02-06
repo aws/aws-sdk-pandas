@@ -23,6 +23,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
     overload,
 )
 
@@ -66,6 +67,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 Boto3PrimitivesType = Dict[str, Optional[str]]
+FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
 # A mapping from import name to package name (on PyPI) for packages where
 # these two names are different.
@@ -82,8 +84,8 @@ INSTALL_MAPPING = {
 def check_optional_dependency(
     module: Optional[ModuleType],
     name: str,
-) -> Callable[..., Any]:
-    def decorator(func: Callable[..., Any]) -> Any:
+) -> Callable[[FunctionType], FunctionType]:
+    def decorator(func: FunctionType) -> FunctionType:
         @wraps(func)
         def inner(*args: Any, **kwargs: Any) -> Any:
             if not module:
@@ -94,7 +96,7 @@ def check_optional_dependency(
                 )
             return func(*args, **kwargs)
 
-        return inner
+        return cast(FunctionType, inner)
 
     return decorator
 
