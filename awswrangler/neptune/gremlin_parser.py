@@ -2,9 +2,7 @@
 """Amazon Neptune GremlinParser Module (PRIVATE)."""
 from typing import Any, Dict, List
 
-from awswrangler import _utils
-
-gremlin = _utils.import_optional_dependency("gremlin_python")
+import awswrangler.neptune.gremlin_init as gremlin
 
 
 class GremlinParser:
@@ -27,7 +25,7 @@ class GremlinParser:
         res = []
 
         # For lists or paths unwind them
-        if isinstance(result, (list, gremlin.structure.graph.Path)):
+        if isinstance(result, (list, gremlin.Path)):
             for x in result:
                 res.append(GremlinParser._parse_dict(x))
 
@@ -45,7 +43,7 @@ class GremlinParser:
         d: Dict[str, Any] = {}
 
         # If this is a list or Path then unwind it
-        if isinstance(data, (list, gremlin.structure.graph.Path)):
+        if isinstance(data, (list, gremlin.Path)):
             res = []
             for x in data:
                 res.append(GremlinParser._parse_dict(x))
@@ -55,10 +53,10 @@ class GremlinParser:
         if isinstance(
             data,
             (
-                gremlin.structure.graph.Vertex,
-                gremlin.structure.graph.Edge,
-                gremlin.structure.graph.VertexProperty,
-                gremlin.structure.graph.Property,
+                gremlin.Vertex,
+                gremlin.Edge,
+                gremlin.VertexProperty,
+                gremlin.Property,
             ),
         ):
             data = data.__dict__
@@ -69,7 +67,7 @@ class GremlinParser:
 
         for k, v in data.items():
             # If the key is a Vertex or an Edge do special processing
-            if isinstance(k, (gremlin.structure.graph.Vertex, gremlin.structure.graph.Edge)):
+            if isinstance(k, (gremlin.Vertex, gremlin.Edge)):
                 k = k.id
 
             # If the value is a list do special processing to make it a scalar if the list is of length 1
@@ -82,10 +80,10 @@ class GremlinParser:
             if isinstance(
                 data,
                 (
-                    gremlin.structure.graph.Vertex,
-                    gremlin.structure.graph.Edge,
-                    gremlin.structure.graph.VertexProperty,
-                    gremlin.structure.graph.Property,
+                    gremlin.Vertex,
+                    gremlin.Edge,
+                    gremlin.VertexProperty,
+                    gremlin.Property,
                 ),
             ):
                 d[k] = d[k].__dict__

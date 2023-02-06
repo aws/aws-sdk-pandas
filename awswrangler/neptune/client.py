@@ -8,13 +8,14 @@ import boto3
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSPreparedRequest, AWSRequest
 
+import awswrangler.neptune.gremlin_init as gremlin
 from awswrangler import _utils, exceptions
 from awswrangler.neptune.gremlin_parser import GremlinParser
 
-gremlin = _utils.import_optional_dependency("gremlin_python")
+gremlin_python = _utils.import_optional_dependency("gremlin_python")
 opencypher = _utils.import_optional_dependency("requests")
 sparql = _utils.import_optional_dependency("SPARQLWrapper")
-if any((gremlin, opencypher, sparql)):
+if any((gremlin_python, opencypher, sparql)):
     import requests
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ class NeptuneClient:
 
     def __del__(self) -> None:
         """Close the Gremlin connection."""
-        if isinstance(self.gremlin_connection, gremlin.driver.client.Client):
+        if isinstance(self.gremlin_connection, gremlin.Client):
             self.gremlin_connection.close()
 
     def __get_region_from_session(self) -> str:
@@ -190,18 +191,18 @@ class NeptuneClient:
             results = future_results.result()
             return GremlinParser.gremlin_results_to_dict(results)
         except Exception as e:
-            if isinstance(self.gremlin_connection, gremlin.driver.client.Client):
+            if isinstance(self.gremlin_connection, gremlin.Client):
                 self.gremlin_connection.close()
             self.gremlin_connection = None
             _logger.error(e)
             raise exceptions.QueryFailed(e)
 
-    def _get_gremlin_connection(self, headers: Any = None) -> "gremlin.driver.client.Client":
+    def _get_gremlin_connection(self, headers: Any = None) -> "gremlin.Client":
         if self.gremlin_connection is None:
             uri = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin"
             request = self._prepare_request("GET", uri, headers=headers)
             ws_url = f"{WS_PROTOCOL}://{self.host}:{self.port}/gremlin"
-            self.gremlin_connection = gremlin.driver.client.Client(
+            self.gremlin_connection = gremlin.Client(
                 ws_url, "g", headers=dict(request.headers), call_from_event_loop=True
             )
         return self.gremlin_connection

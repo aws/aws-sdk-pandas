@@ -7,10 +7,11 @@ from typing import Any, Callable, TypeVar
 
 import pandas as pd
 
+import awswrangler.neptune.gremlin_init as gremlin
 from awswrangler import _utils, exceptions
 from awswrangler.neptune.client import NeptuneClient
 
-gremlin = _utils.import_optional_dependency("gremlin_python")
+gremlin_python = _utils.import_optional_dependency("gremlin_python")
 opencypher = _utils.import_optional_dependency("requests")
 sparql = _utils.import_optional_dependency("SPARQLWrapper")
 
@@ -18,7 +19,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
-@_utils.check_optional_dependency(gremlin, "gremlin_python")
+@_utils.check_optional_dependency(gremlin_python, "gremlin_python")
 def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
     """Return results of a Gremlin traversal as pandas dataframe.
 
@@ -114,7 +115,7 @@ def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
     return df
 
 
-@_utils.check_optional_dependency(gremlin, "gremlin_python")
+@_utils.check_optional_dependency(gremlin_python, "gremlin_python")
 def to_property_graph(
     client: NeptuneClient, df: pd.DataFrame, batch_size: int = 50, use_header_cardinality: bool = True
 ) -> bool:
@@ -160,7 +161,7 @@ def to_property_graph(
     ... )
     """
     # check if ~id and ~label column exist and if not throw error
-    g = gremlin.process.anonymous_traversal.traversal().withGraph(gremlin.structure.graph.Graph())
+    g = gremlin.traversal().withGraph(gremlin.Graph())
     is_edge_df = False
     is_update_df = True
     if "~id" in df.columns:
@@ -186,7 +187,7 @@ def to_property_graph(
         if index > 0 and index % batch_size == 0:
             res = _run_gremlin_insert(client, g)
             if res:
-                g = gremlin.structure.graph.Graph().traversal()
+                g = gremlin.Graph().traversal()
 
     return _run_gremlin_insert(client, g)
 
@@ -293,11 +294,11 @@ def _get_column_name(column: str) -> str:
 
 
 def _set_properties(
-    g: "gremlin.process.graph_traversal.GraphTraversalSource",
+    g: "gremlin.GraphTraversalSource",
     use_header_cardinality: bool,
     row: Any,
     ignore_cardinality: bool = False,
-) -> "gremlin.process.graph_traversal.GraphTraversalSource":
+) -> "gremlin.GraphTraversalSource":
     for column, value in row.items():
         if column not in ["~id", "~label", "~to", "~from"]:
             if ignore_cardinality and pd.notna(value):
@@ -306,7 +307,7 @@ def _set_properties(
                 # If the column header is specifying the cardinality then use it
                 if use_header_cardinality:
                     if column.lower().find("(single)") > 0 and pd.notna(value):
-                        g = g.property(gremlin.process.traversal.Cardinality.single, _get_column_name(column), value)
+                        g = g.property(gremlin.Cardinality.single, _get_column_name(column), value)
                     else:
                         g = _expand_properties(g, _get_column_name(column), value)
                 else:
@@ -315,37 +316,33 @@ def _set_properties(
     return g
 
 
-def _expand_properties(
-    g: "gremlin.process.graph_traversal.GraphTraversalSource", column: str, value: Any
-) -> "gremlin.process.graph_traversal.GraphTraversalSource":
+def _expand_properties(g: "gremlin.GraphTraversalSource", column: str, value: Any) -> "gremlin.GraphTraversalSource":
     # If this is a list then expand it out into multiple property calls
     if isinstance(value, list) and len(value) > 0:
         for item in value:
-            g = g.property(gremlin.process.traversal.Cardinality.set_, column, item)
+            g = g.property(gremlin.Cardinality.set_, column, item)
     elif pd.notna(value):
-        g = g.property(gremlin.process.traversal.Cardinality.set_, column, value)
+        g = g.property(gremlin.Cardinality.set_, column, value)
     return g
 
 
 def _build_gremlin_update(
-    g: "gremlin.process.graph_traversal.GraphTraversalSource", row: Any, use_header_cardinality: bool
-) -> "gremlin.process.graph_traversal.GraphTraversalSource":
+    g: "gremlin.GraphTraversalSource", row: Any, use_header_cardinality: bool
+) -> "gremlin.GraphTraversalSource":
     g = g.V(str(row["~id"]))
     g = _set_properties(g, use_header_cardinality, row)
     return g
 
 
 def _build_gremlin_insert_vertices(
-    g: "gremlin.process.graph_traversal.GraphTraversalSource", row: Any, use_header_cardinality: bool = False
-) -> "gremlin.process.graph_traversal.GraphTraversalSource":
+    g: "gremlin.GraphTraversalSource", row: Any, use_header_cardinality: bool = False
+) -> "gremlin.GraphTraversalSource":
     g = (
         g.V(str(row["~id"]))
         .fold()
         .coalesce(
-            gremlin.process.graph_traversal.__.unfold(),
-            gremlin.process.graph_traversal.__.addV(row["~label"]).property(
-                gremlin.process.traversal.T.id, str(row["~id"])
-            ),
+            gremlin.__.unfold(),
+            gremlin.__.addV(row["~label"]).property(gremlin.T.id, str(row["~id"])),
         )
     )
     g = _set_properties(g, use_header_cardinality, row)
@@ -353,27 +350,23 @@ def _build_gremlin_insert_vertices(
 
 
 def _build_gremlin_insert_edges(
-    g: "gremlin.process.graph_traversal.GraphTraversalSource", row: pd.Series, use_header_cardinality: bool
-) -> "gremlin.process.graph_traversal.GraphTraversalSource":
+    g: "gremlin.GraphTraversalSource", row: pd.Series, use_header_cardinality: bool
+) -> "gremlin.GraphTraversalSource":
     g = (
         g.V(str(row["~from"]))
         .fold()
         .coalesce(
-            gremlin.process.graph_traversal.__.unfold(),
-            _build_gremlin_insert_vertices(
-                gremlin.process.graph_traversal.__, {"~id": row["~from"], "~label": "Vertex"}
-            ),
+            gremlin.__.unfold(),
+            _build_gremlin_insert_vertices(gremlin.__, {"~id": row["~from"], "~label": "Vertex"}),
         )
         .addE(row["~label"])
-        .property(gremlin.process.traversal.T.id, str(row["~id"]))
+        .property(gremlin.T.id, str(row["~id"]))
         .to(
-            gremlin.process.graph_traversal.__.V(str(row["~to"]))
+            gremlin.__.V(str(row["~to"]))
             .fold()
             .coalesce(
-                gremlin.process.graph_traversal.__.unfold(),
-                _build_gremlin_insert_vertices(
-                    gremlin.process.graph_traversal.__, {"~id": row["~to"], "~label": "Vertex"}
-                ),
+                gremlin.__.unfold(),
+                _build_gremlin_insert_vertices(gremlin.__, {"~id": row["~to"], "~label": "Vertex"}),
             )
         )
     )
@@ -382,8 +375,8 @@ def _build_gremlin_insert_edges(
     return g
 
 
-def _run_gremlin_insert(client: NeptuneClient, g: "gremlin.process.graph_traversal.GraphTraversalSource") -> bool:
-    translator = gremlin.process.translator.Translator("g")
+def _run_gremlin_insert(client: NeptuneClient, g: "gremlin.GraphTraversalSource") -> bool:
+    translator = gremlin.Translator("g")
     s = translator.translate(g.bytecode)
     s = s.replace("Cardinality.", "")  # hack to fix parser error for set cardinality
     s = s.replace(

@@ -17,7 +17,9 @@ def _get_storage_options():
 
 
 @pytest.mark.parametrize("s3_additional_kwargs", [None, {"ServerSideEncryption": "AES256"}])
-@pytest.mark.parametrize("pyarrow_additional_kwargs", [None, {"safe": True, "deduplicate_objects": False}])
+@pytest.mark.parametrize(
+    "pyarrow_additional_kwargs", [{"safe": True, "deduplicate_objects": False, "types_mapper": None}]
+)
 def test_read_deltalake(path, s3_additional_kwargs, pyarrow_additional_kwargs):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", None, "bar"], "c2": [3.0, 4.0, 5.0], "c3": [True, False, None]})
     write_deltalake(table_or_uri=path, data=df, storage_options=_get_storage_options())
@@ -28,22 +30,23 @@ def test_read_deltalake(path, s3_additional_kwargs, pyarrow_additional_kwargs):
     assert df2.equals(df)
 
 
-def test_read_deltalake_versioned(path):
+@pytest.mark.parametrize("pyarrow_additional_kwargs", [{"types_mapper": None}])
+def test_read_deltalake_versioned(path, pyarrow_additional_kwargs):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "baz", "bar"]})
     storage_options = _get_storage_options()
     write_deltalake(table_or_uri=path, data=df, storage_options=storage_options)
     table = DeltaTable(path, version=0, storage_options=storage_options)
 
-    df2 = wr.s3.read_deltalake(path=path)
+    df2 = wr.s3.read_deltalake(path=path, pyarrow_additional_kwargs=pyarrow_additional_kwargs)
     assert df2.equals(df)
 
     df["c2"] = [True, False, True]
     write_deltalake(table_or_uri=table, data=df, mode="overwrite", overwrite_schema=True)
 
-    df3 = wr.s3.read_deltalake(path=path, version=0)
+    df3 = wr.s3.read_deltalake(path=path, version=0, pyarrow_additional_kwargs=pyarrow_additional_kwargs)
     assert df3.equals(df.drop("c2", axis=1))
 
-    df4 = wr.s3.read_deltalake(path=path, version=1)
+    df4 = wr.s3.read_deltalake(path=path, version=1, pyarrow_additional_kwargs=pyarrow_additional_kwargs)
     assert df4.equals(df)
 
 

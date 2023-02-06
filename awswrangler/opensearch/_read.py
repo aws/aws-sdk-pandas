@@ -118,7 +118,7 @@ def search(
         if isinstance(filter_path, str):
             filter_path = [filter_path]
         filter_path = ["_scroll_id", "_shards"] + list(filter_path)  # required for scroll
-        documents_generator = opensearchpy.helper.scan(
+        documents_generator = opensearchpy.helpers.scan(
             client, index=index, query=search_body, filter_path=filter_path, **kwargs
         )
         documents = [_hit_to_row(doc) for doc in documents_generator]

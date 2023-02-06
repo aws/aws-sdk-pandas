@@ -117,14 +117,14 @@ def _start_query_execution(
 
     client_athena = _utils.client(service_name="athena", session=boto3_session)
     _logger.debug("args: \n%s", pprint.pformat(args))
-    response: Dict[str, Any] = _utils.try_it(
+    response = _utils.try_it(
         f=client_athena.start_query_execution,
         ex=botocore.exceptions.ClientError,
         ex_code="ThrottlingException",
         max_num_tries=5,
         **args,
     )
-    return cast(str, response["QueryExecutionId"])
+    return response["QueryExecutionId"]
 
 
 def _get_workgroup_config(session: Optional[boto3.Session] = None, workgroup: Optional[str] = None) -> _WorkGroupConfig:
@@ -1216,7 +1216,7 @@ def get_query_execution(query_execution_id: str, boto3_session: Optional[boto3.S
 
     """
     client_athena = _utils.client(service_name="athena", session=boto3_session)
-    response: Dict[str, Any] = _utils.try_it(
+    response = _utils.try_it(
         f=client_athena.get_query_execution,
         ex=botocore.exceptions.ClientError,
         ex_code="ThrottlingException",
@@ -1306,7 +1306,7 @@ def list_query_executions(workgroup: Optional[str] = None, boto3_session: Option
     if workgroup:
         kwargs["WorkGroup"] = workgroup
     query_list: List[str] = []
-    response: Dict[str, Any] = _utils.try_it(
+    response = _utils.try_it(
         f=client_athena.list_query_executions,
         ex=botocore.exceptions.ClientError,
         ex_code="ThrottlingException",

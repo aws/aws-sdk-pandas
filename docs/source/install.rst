@@ -50,6 +50,7 @@ The optional modules are:
 - gremlin
 - sparql
 - opencypher
+- openpyxl
 - opensearch
 - deltalake
 

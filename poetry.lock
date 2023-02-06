@@ -909,7 +909,7 @@ python-versions = ">=3.7"
 name = "et-xmlfile"
 version = "1.1.0"
 description = "An implementation of lxml.xmlfile for the standard library"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -2225,7 +2225,7 @@ python-versions = "*"
 name = "openpyxl"
 version = "3.1.0"
 description = "A Python library to read/write Excel 2010 xlsx/xlsm files"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -3527,6 +3527,7 @@ gremlin = ["gremlinpython", "requests"]
 modin = ["modin"]
 mysql = ["pymysql"]
 opencypher = ["requests"]
+openpyxl = ["openpyxl"]
 opensearch = ["opensearch-py", "jsonpath-ng", "requests-aws4auth"]
 oracle = ["oracledb"]
 postgres = ["pg8000"]
@@ -3539,7 +3540,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "21cd1ed395f93915cd9412cd2ed26618927c795984651ce9262297cafbc128f6"
+content-hash = "633b5a8d1fb8759299526921d55e283da1f68d6ed14c8f72bb16f0a828f7706c"
 
 [metadata.files]
 aenum = [
