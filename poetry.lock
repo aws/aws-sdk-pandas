@@ -2592,7 +2592,7 @@ name = "pyparsing"
 version = "3.0.9"
 description = "pyparsing module - Classes and methods to define and execute parsing grammars"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.6.8"
 
 [package.extras]
@@ -3540,7 +3540,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "320d9c5c9b3eee1ad4ec831e5563962cfdcaeeca40c9e6add15ce6998f9d2a0e"
+content-hash = "e24a4291d95d7a1ed684f9ac62e10d9f33b2f10bca23db6d8285dbc9d4f63321"
 
 [metadata.files]
 aenum = [
