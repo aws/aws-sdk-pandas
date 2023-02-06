@@ -23,7 +23,6 @@ pytestmark = pytest.mark.distributed
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_partitioning):
-
     # Round 1 - Warm up
     df = pd.DataFrame({"c0": [0, 1]}, dtype="Int64")
     wr.s3.to_csv(

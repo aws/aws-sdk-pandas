@@ -10,12 +10,13 @@ Some good practices to follow for options below are:
 - Use new and isolated Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
 - On Notebooks, always restart your kernel after installations.
 
-.. note:: If you want to use ``awswrangler`` to connect to Microsoft SQL Server or Oracle, some additional configuration is needed. Please have a look at the corresponding section below.
-
 PyPI (pip)
 ----------
 
     >>> pip install awswrangler
+
+    >>> # Optional modules are installed with:
+    >>> pip install 'awswrangler[redshift]'
 
 Conda
 -----
@@ -33,6 +34,26 @@ As a result existing scripts can run on significantly larger datasets with no co
 
 .. note:: AWS SDK for pandas at scale is still in pre-release, meaning frequent breaking changes are possible.
 
+Optional dependencies
+---------------------
+
+Starting version 3.0, some ``awswrangler`` modules are optional and must be installed explicitly using:
+
+    >>> pip install 'awswrangler[optional-module1, optional-module2]'
+
+The optional modules are:
+- redshift
+- mysql
+- postgres
+- sqlserver
+- oracle
+- gremlin
+- sparql
+- opencypher
+- opensearch
+- deltalake
+
+Attempting to use an API from these modules without the required dependencies will raise an error prompting you to install the missing package. 
 
 AWS Lambda Layer
 ----------------
@@ -291,7 +312,7 @@ After installing these header files you can either just install ``pyodbc`` or
 ``awswrangler`` with the ``sqlserver`` extra, which will also install ``pyodbc``:
 
     >>> pip install pyodbc
-    >>> pip install awswrangler[sqlserver]
+    >>> pip install 'awswrangler[sqlserver]'
 
 Finally you also need the correct ODBC Driver for SQL Server. You can have a look at the
 `documentation from Microsoft <https://docs.microsoft.com/sql/connect/odbc/
@@ -321,19 +342,9 @@ After installing these client libraries you can either just install ``oracledb``
 ``awswrangler`` with the ``oracle`` extra, which will also install ``oracledb``:
 
     >>> pip install oracledb
-    >>> pip install awswrangler[oracle]
+    >>> pip install 'awswrangler[oracle]'
 
 If you maintain your own environment, you need to take care of the above steps.
 Because of this limitation usage in combination with Glue jobs is limited and you need to rely on the
 provided `functionality inside Glue itself <https://docs.aws.amazon.com/glue/latest/dg/
 aws-glue-programming-etl-connect.html#aws-glue-programming-etl-connect-jdbc>`_.
-
-
-Notes for SPARQL support
-------------------------------
-
-To be able to use SPARQL either just install ``SPARQLWrapper`` or
-``awswrangler`` with the ``sparql`` extra, which will also install ``SPARQLWrapper``:
-
-    >>> pip install SPARQLWrapper
-    >>> pip install awswrangler[sparql]

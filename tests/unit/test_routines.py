@@ -12,7 +12,6 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 @pytest.mark.parametrize("table_type", ["EXTERNAL_TABLE", "GOVERNED"])
 def test_routine_0(glue_database, glue_table, table_type, path, use_threads, concurrent_partitioning):
-
     # Round 1 - Warm up
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(
@@ -183,7 +182,6 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 @pytest.mark.parametrize("table_type", ["EXTERNAL_TABLE", "GOVERNED"])
 def test_routine_1(glue_database, glue_table, table_type, path, use_threads, concurrent_partitioning):
-
     # Round 1 - Overwrite Partitioned
     df = pd.DataFrame({"c0": ["foo", None], "c1": [0, 1]})
     wr.s3.to_parquet(
@@ -290,7 +288,6 @@ def test_routine_1(glue_database, glue_table, table_type, path, use_threads, con
 
 
 def test_routine_2(glue_database, glue_table, path):
-
     # Round 1 - Warm up
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite")

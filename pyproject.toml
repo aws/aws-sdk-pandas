@@ -26,69 +26,86 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.8, <4.0"
 
-boto3 = "^1.24.11"
-botocore = "^1.27.11"
-pandas = "^1.2.0, <=1.5.1, !=1.5.0" # Exclusion per: https://github.com/aws/aws-sdk-pandas/issues/1678
-numpy = [
-    { version = ">=1.21.0 <=1.23.4", markers = "python_full_version >= '3.7.1' and python_full_version < '3.11.0'" },
-    { version = "^1.23.5", markers = "python_full_version >= '3.11.0'" },
-]
-pyarrow = ">=7.0.0, <10.1.0"
-redshift-connector = "~2.0.889"
-pymysql = "^1.0.0"
-pg8000 = "^1.29.0"
-openpyxl = "~3.0.0"
-requests-aws4auth = "^1.1.1"
-jsonpath-ng = "^1.5.3"
-progressbar2 = "^4.0.0"
-opensearch-py = "^2.0.0"
-gremlinpython = "^3.5.2"
-backoff = ">=2.0.0,<3.0.0"
+# Required
+boto3 = "^1.26.42"
+pandas = "^1.0"
+numpy = "^1.18"
+pyarrow = ">=7.0.0"
+typing-extensions = "^4.4.0"
+
+# Databases
+redshift-connector = { version = "^2.0.0", optional = true }
+pymysql = { version = "^1.0.0", optional = true }
+pg8000 = { version = "^1.29.0", optional = true }
+pyodbc = { version = "^4.0.0", optional = true }
+oracledb = { version = "^1.0.0", optional = true }
+
+# Graph
+gremlinpython = { version = "^3.5.2", optional = true }
 SPARQLWrapper = { version = "^2.0.0", optional = true }
-pyodbc = { version = "~4.0.32", optional = true }
-modin = { version = "~0.16.0", optional = true }
+requests = { version = "^2.0.0", optional = true }
+
+# OpenSearch
+opensearch-py = { version = "^2.0.0", optional = true }
+requests-aws4auth = { version = "^1.1.1", optional = true }
+jsonpath-ng = { version = "^1.5.3", optional = true }
+
+# Other
+progressbar2 = { version = "^4.0.0", optional = true }
+deltalake = { version = "^0.6.4", optional = true }
+
+# Distributed
+modin = { version = "~0.18.0", optional = true }
 ray = { version = ">=2.0.0,<2.3.0", extras = ["default", "data"], optional = true}
-oracledb = { version = "~1.0.0", optional = true }
-deltalake = { version = "~0.6.4", optional = true }
-typing-extensions = { version = "^4.4.0", python = "<3.11" }
 
 [tool.poetry.extras]
+redshift = ["redshift-connector"]
+mysql = ["pymysql"]
+postgres = ["pg8000"]
 sqlserver = ["pyodbc"]
 oracle = ["oracledb"]
-sparql = ["SPARQLWrapper"]
+gremlin = ["gremlinpython", "requests"]
+sparql = ["SPARQLWrapper", "requests"]
+opencypher = ["requests"]
+opensearch = ["opensearch-py", "jsonpath-ng", "requests-aws4auth"]
+progressbar = ["progressbar2"]
+deltalake = ["deltalake"]
 modin = ["modin"]
 ray = ["ray"]
-deltalake = ["deltalake"]
 
 [tool.poetry.dev-dependencies]
-wheel = "^0.38.1"
-isort = "^5.9.2"
-black = "^22.1.0"
-pylint = "^2.11.1"
-flake8 = "^5.0.1"
-mypy = "^0.991"
-pydocstyle = "^6.1.1"
-doc8 = "^0.11.1"
-tox = "^3.25.1"
-pytest = "^7.1.2"
-pytest-cov = "^4.0.0"
-pytest-rerunfailures = "^10.2"
-pytest-xdist = "^3.0.2"
-pytest-timeout = "^2.1.0"
-pydot = "^1.4.2"
-sphinx = "^5.0.0"
-sphinx-bootstrap-theme = "^0.8.0"
-sphinx-copybutton = "^0.5.1"
-nbsphinx = "^0.8.8"
-nbsphinx-link = "^1.3.0"
-IPython = "^7.34.0"
-moto = "^4.0.3"
-jupyterlab = "^3.1.4"
-s3fs = "0.4.2"
-python-Levenshtein = "^0.12.2"
-bump2version = "^1.0.1"
+# Build
 setuptools = "*"
+wheel = "^0.38.1"
+
+# Lint
+black = "^23.1.0"
 boto3-stubs = {version = "1.26.47", extras = ["athena", "chime", "cloudwatch", "dynamodb", "ec2", "emr", "glue", "kms", "lakeformation", "logs", "neptune", "opensearch", "opensearchserverless", "quicksight", "rds", "redshift", "redshift-data", "s3", "secretsmanager", "ssm", "sts", "timestream-query", "timestream-write"]}
+doc8 = "^1.0"
+mypy = "^0.991"
+pylint = "^2.0"
+ruff = "^0.0.240"
+
+# Test
+moto = "^4.0"
+openpyxl = "^3.0"
+pytest = "^7.0"
+pytest-cov = "^4.0"
+pytest-rerunfailures = "^10.0"
+pytest-timeout = "^2.1.0"
+pytest-xdist = "^3.0"
+s3fs = "0.4.2"  # Must be pinned to 0.4.2
+tox = "^3.25.1"
+
+# Docs
+bump2version = "^1.0.1"
+IPython = "^7.34.0"
+jupyterlab = "^3.0"
+nbsphinx = "^0.8"
+nbsphinx-link = "^1.3.0"
+sphinx = "^6.0"
+sphinx-bootstrap-theme = "^0.8"
+sphinx-copybutton = "^0.5"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -116,16 +133,28 @@ extend_exclude = '''
 )/
 '''
 
-[tool.isort]
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
-line_length = 120
-src_paths = ["awswrangler"]
-py_version = 38
-skip_gitignore = true
+[tool.ruff]
+select = ["D", "E", "F", "I001", "I002", "PL", "W"]
+ignore = ["E501", "PLR2004", "PLR0913", "PLR0915"]
+fixable = ["I001"]
+exclude = [
+    ".eggs",
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "build",
+    "dist",
+    "venv",
+]
+line-length = 120
+target-version = "py38"
+
+[tool.ruff.pydocstyle]
+convention = "numpy"
 
 [tool.mypy]
 python_version = 3.8

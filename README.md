@@ -26,8 +26,8 @@ Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, Q
 | **[PyPi](https://pypi.org/project/awswrangler/)**  | [![PyPI Downloads](https://pepy.tech/badge/awswrangler)](https://pypi.org/project/awswrangler/) | `pip install awswrangler` |
 | **[Conda](https://anaconda.org/conda-forge/awswrangler)** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
-> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/install.html#emr-cluster), [Glue PySpark Job](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
-➡️ `pip install pyarrow==2 awswrangler`
+> ⚠️ **Starting version 3.0, optional modules must be installed explicitly:**<br>
+➡️`pip install 'awswrangler[redshift]'`
 
 Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](https://arrow.apache.org/powered_by/)
 
@@ -45,8 +45,8 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 
 Installation command: `pip install awswrangler`
 
-> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/install.html#emr-cluster), [Glue PySpark Job](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
-➡️`pip install pyarrow==2 awswrangler`
+> ⚠️ **Starting version 3.0, optional modules must be installed explicitly:**<br>
+➡️`pip install 'awswrangler[redshift]'`
 
 ```py3
 import awswrangler as wr
@@ -129,6 +129,7 @@ As a result existing scripts can run on significantly larger datasets with no co
 |  `Redshift`    | `copy`                                               | ✅ |
 |    | `unload`                                               | ✅ |
 |  `Athena`    | `read_sql_query`                                               | ✅ |
+|  `DynamoDB`    | `scan`                                               | ✅ |
 |  `LakeFormation`    | `read_sql_query`                                               | ✅ |
 |  `Timestream`    | `write`                                               | ✅ |
 </p>

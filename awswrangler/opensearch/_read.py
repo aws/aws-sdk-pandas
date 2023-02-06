@@ -1,13 +1,14 @@
+# mypy: disable-error-code=name-defined
 """Amazon OpenSearch Read Module (PRIVATE)."""
 
 from typing import Any, Collection, Dict, List, Mapping, Optional, Union
 
 import pandas as pd
-from opensearchpy import OpenSearch
-from opensearchpy.helpers import scan
 
-from awswrangler import exceptions
+from awswrangler import _utils, exceptions
 from awswrangler.opensearch._utils import _get_distribution, _is_serverless
+
+opensearchpy = _utils.import_optional_dependency("opensearchpy")
 
 
 def _resolve_fields(row: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -41,8 +42,9 @@ def _search_response_to_df(response: Union[Mapping[str, Any], Any]) -> pd.DataFr
     return pd.DataFrame(_search_response_to_documents(response))
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def search(
-    client: OpenSearch,
+    client: "opensearchpy.OpenSearch",
     index: Optional[str] = "_all",
     search_body: Optional[Dict[str, Any]] = None,
     doc_type: Optional[str] = None,
@@ -116,7 +118,9 @@ def search(
         if isinstance(filter_path, str):
             filter_path = [filter_path]
         filter_path = ["_scroll_id", "_shards"] + list(filter_path)  # required for scroll
-        documents_generator = scan(client, index=index, query=search_body, filter_path=filter_path, **kwargs)
+        documents_generator = opensearchpy.helper.scan(
+            client, index=index, query=search_body, filter_path=filter_path, **kwargs
+        )
         documents = [_hit_to_row(doc) for doc in documents_generator]
         df = pd.DataFrame(documents)
     else:
@@ -125,7 +129,8 @@ def search(
     return df
 
 
-def search_by_sql(client: OpenSearch, sql_query: str, **kwargs: Any) -> pd.DataFrame:
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
+def search_by_sql(client: "opensearchpy.OpenSearch", sql_query: str, **kwargs: Any) -> pd.DataFrame:
     """Return results matching `SQL query <https://opensearch.org/docs/search-plugins/sql/index/>`_ as pandas dataframe.
 
     Parameters

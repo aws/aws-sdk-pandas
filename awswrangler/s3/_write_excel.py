@@ -1,12 +1,13 @@
 """Amazon S3 Excel Write Module (PRIVATE)."""
 
 import logging
+import warnings
 from typing import Any, Dict, Optional, Union
 
 import boto3
 import pandas as pd
 
-from awswrangler import exceptions
+from awswrangler import _utils, exceptions
 from awswrangler.s3._fs import open_s3_object
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ def to_excel(
     Note
     ----
     Depending on the file extension ('xlsx', 'xls', 'odf'...), an additional library
-    might have to be installed first (e.g. xlrd).
+    might have to be installed first. Installing openpyxl is highly recommended.
 
     Note
     ----
@@ -72,6 +73,12 @@ def to_excel(
     >>> wr.s3.to_excel(df, 's3://bucket/filename.xlsx')
 
     """
+    if not _utils.import_optional_dependency("openpyxl"):
+        warnings.warn(
+            "Optional dependency `openpyxl` is not installed. Some extensions might not be writable.",
+            UserWarning,
+        )
+
     if "pandas_kwargs" in pandas_kwargs:
         raise exceptions.InvalidArgument(
             "You can NOT pass `pandas_kwargs` explicit, just add valid "
