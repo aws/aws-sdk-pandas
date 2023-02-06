@@ -60,7 +60,6 @@ def _get_connection_attributes_from_catalog(
                     f"No CA certificate found at {ssl_cert_path}."
                 )
         ssl_context = ssl.create_default_context(cadata=ssl_cadata)
-    print("CONNECTION DETAILS", details)
     if details.get("USERNAME") is None:
         user = details["username"]
     else:
