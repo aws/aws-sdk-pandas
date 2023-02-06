@@ -54,7 +54,7 @@ The optional modules are:
 - opensearch
 - deltalake
 
-Attempting to use an API from these modules without the required dependencies will raise an error prompting you to install the missing package. 
+Calling these modules without the required dependencies raises an error prompting you to install the missing package. 
 
 AWS Lambda Layer
 ----------------
