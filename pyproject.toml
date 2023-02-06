@@ -89,7 +89,7 @@ pylint = "^2.0"
 ruff = "^0.0.240"
 
 # Test
-moto = "^4.0"
+moto = {version = "^4.0", extras =["pyparsing"]}
 openpyxl = "^3.0"
 pytest = "^7.0"
 pytest-cov = "^4.0"
