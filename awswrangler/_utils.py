@@ -1,5 +1,6 @@
 """Internal (private) Utilities Module."""
 
+import importlib
 import itertools
 import logging
 import math
@@ -8,6 +9,7 @@ import random
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
 from functools import partial, wraps
+from types import ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -21,6 +23,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
     overload,
 )
 
@@ -64,6 +67,59 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 Boto3PrimitivesType = Dict[str, Optional[str]]
+FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
+
+# A mapping from import name to package name (on PyPI) for packages where
+# these two names are different.
+INSTALL_MAPPING = {
+    "redshift_connector": "redshift",
+    "pymysql": "mysql",
+    "pg8000": "postgres",
+    "pyodbc": "sqlserver",
+    "gremlin_python": "gremlin",
+    "opensearchpy": "opensearch",
+}
+
+
+def check_optional_dependency(
+    module: Optional[ModuleType],
+    name: str,
+) -> Callable[[FunctionType], FunctionType]:
+    def decorator(func: FunctionType) -> FunctionType:
+        @wraps(func)
+        def inner(*args: Any, **kwargs: Any) -> Any:
+            if not module:
+                package_name = INSTALL_MAPPING.get(name)
+                install_name = package_name if package_name is not None else name
+                raise ModuleNotFoundError(
+                    f"Missing optional dependency '{name}'. " f"Use pip awswrangler[{install_name}] to install it."
+                )
+            return func(*args, **kwargs)
+
+        return cast(FunctionType, inner)
+
+    return decorator
+
+
+def import_optional_dependency(name: str) -> ModuleType:
+    """Import an optional dependency.
+
+    Parameters
+    ----------
+    name : str
+        The module name.
+
+    Returns
+    -------
+    maybe_module : Optional[ModuleType]
+        The imported module, when found.
+    """
+    try:
+        module = importlib.import_module(name)
+    except ImportError:
+        return None  # type: ignore
+
+    return module
 
 
 def flatten_list(elements: List[List[Any]]) -> List[Any]:

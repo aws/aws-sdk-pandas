@@ -62,7 +62,7 @@ jobs:
           }
           EOT
           python -m pip install --upgrade pip
-          curl -sSL https://install.python-poetry.org | python - --version 1.2.2
+          python -m pip install poetry
           poetry env use python
           poetry env info
           source $(poetry env info --path)/bin/activate

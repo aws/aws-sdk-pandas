@@ -1,3 +1,4 @@
+# mypy: disable-error-code=name-defined
 """Amazon OpenSearch Utils Module (PRIVATE)."""
 
 import json
@@ -8,10 +9,12 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union, ca
 
 import boto3
 import botocore
-from opensearchpy import OpenSearch, RequestsHttpConnection
-from requests_aws4auth import AWS4Auth
 
 from awswrangler import _utils, exceptions
+
+opensearchpy = _utils.import_optional_dependency("opensearchpy")
+if opensearchpy:
+    from requests_aws4auth import AWS4Auth
 
 if TYPE_CHECKING:
     from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
@@ -24,26 +27,26 @@ _CREATE_COLLECTION_FINAL_STATUSES: List[str] = ["ACTIVE", "FAILED"]
 _CREATE_COLLECTION_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 
-def _get_distribution(client: OpenSearch) -> Any:
+def _get_distribution(client: "opensearchpy.OpenSearch") -> Any:
     if _is_serverless(client):
         return "opensearch"
     return client.info().get("version", {}).get("distribution", "elasticsearch")
 
 
-def _get_version(client: OpenSearch) -> Any:
+def _get_version(client: "opensearchpy.OpenSearch") -> Any:
     if _is_serverless(client):
         return None
     return client.info().get("version", {}).get("number")
 
 
-def _get_version_major(client: OpenSearch) -> Any:
+def _get_version_major(client: "opensearchpy.OpenSearch") -> Any:
     version = _get_version(client)
     if version:
         return int(version.split(".")[0])
     return None
 
 
-def _is_serverless(client: OpenSearch) -> bool:
+def _is_serverless(client: "opensearchpy.OpenSearch") -> bool:
     return getattr(client, "_serverless", False)
 
 
@@ -153,6 +156,7 @@ def _create_data_policy(
         raise error
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def connect(
     host: str,
     port: Optional[int] = 443,
@@ -165,7 +169,7 @@ def connect(
     max_retries: int = 5,
     retry_on_timeout: bool = True,
     retry_on_status: Optional[Sequence[int]] = None,
-) -> OpenSearch:
+) -> "opensearchpy.OpenSearch":
     """Create a secure connection to the specified Amazon OpenSearch domain.
 
     Note
@@ -230,25 +234,26 @@ def connect(
             )
         http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, service, session_token=creds.token)
     try:
-        es = OpenSearch(
+        es = opensearchpy.OpenSearch(
             host=_strip_endpoint(host),
             port=port,
             http_auth=http_auth,
             use_ssl=_is_https(port),
             verify_certs=_is_https(port),
-            connection_class=RequestsHttpConnection,
+            connection_class=opensearchpy.RequestsHttpConnection,
             timeout=timeout,
             max_retries=max_retries,
             retry_on_timeout=retry_on_timeout,
             retry_on_status=retry_on_status,
         )
-        es._serverless = service == "aoss"  # type: ignore # pylint: disable=protected-access
+        es._serverless = service == "aoss"  # pylint: disable=protected-access
     except Exception as e:
         _logger.error("Error connecting to Opensearch cluster. Please verify authentication details")
         raise e
     return es
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def create_collection(
     name: str,
     collection_type: str = "SEARCH",

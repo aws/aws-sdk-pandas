@@ -1,7 +1,8 @@
+# mypy: disable-error-code=name-defined
 """Amazon Neptune GremlinParser Module (PRIVATE)."""
 from typing import Any, Dict, List
 
-from gremlin_python.structure.graph import Edge, Path, Property, Vertex, VertexProperty
+import awswrangler.neptune._gremlin_init as gremlin
 
 
 class GremlinParser:
@@ -14,7 +15,7 @@ class GremlinParser:
         Parameters
         ----------
         result : Any
-            The Gremlin resultset to convert
+            The Gremlin result set to convert
 
         Returns
         -------
@@ -24,7 +25,7 @@ class GremlinParser:
         res = []
 
         # For lists or paths unwind them
-        if isinstance(result, (list, Path)):
+        if isinstance(result, (list, gremlin.Path)):
             for x in result:
                 res.append(GremlinParser._parse_dict(x))
 
@@ -42,23 +43,31 @@ class GremlinParser:
         d: Dict[str, Any] = {}
 
         # If this is a list or Path then unwind it
-        if isinstance(data, (list, Path)):
+        if isinstance(data, (list, gremlin.Path)):
             res = []
             for x in data:
                 res.append(GremlinParser._parse_dict(x))
             return res
 
         # If this is an element then make it a dictionary
-        if isinstance(data, (Vertex, Edge, VertexProperty, Property)):
+        if isinstance(
+            data,
+            (
+                gremlin.Vertex,
+                gremlin.Edge,
+                gremlin.VertexProperty,
+                gremlin.Property,
+            ),
+        ):
             data = data.__dict__
 
         # If this is a scalar then create a Map with it
         elif not hasattr(data, "__len__") or isinstance(data, str):
             data = {0: data}
 
-        for (k, v) in data.items():
+        for k, v in data.items():
             # If the key is a Vertex or an Edge do special processing
-            if isinstance(k, (Vertex, Edge)):
+            if isinstance(k, (gremlin.Vertex, gremlin.Edge)):
                 k = k.id
 
             # If the value is a list do special processing to make it a scalar if the list is of length 1
@@ -68,6 +77,14 @@ class GremlinParser:
                 d[k] = v
 
             # If the value is a Vertex or Edge do special processing
-            if isinstance(data, (Vertex, Edge, VertexProperty, Property)):
+            if isinstance(
+                data,
+                (
+                    gremlin.Vertex,
+                    gremlin.Edge,
+                    gremlin.VertexProperty,
+                    gremlin.Property,
+                ),
+            ):
                 d[k] = d[k].__dict__
         return d

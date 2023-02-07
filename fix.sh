@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -ex
 
-isort .
 black .
+ruff --fix --select "I001" --select "I002" awswrangler

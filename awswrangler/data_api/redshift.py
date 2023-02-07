@@ -7,10 +7,10 @@ import boto3
 import pandas as pd
 
 from awswrangler import _utils
-from awswrangler.data_api import connector
+from awswrangler.data_api import _connector
 
 
-class RedshiftDataApi(connector.DataApiConnector):
+class RedshiftDataApi(_connector.DataApiConnector):
     """Provides access to a Redshift cluster via the Data API.
 
     Note
@@ -114,7 +114,7 @@ class RedshiftDataApi(connector.DataApiConnector):
             column_metadata = response["ColumnMetadata"]
             for record in response["Records"]:
                 row: List[Any] = [
-                    connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
+                    _connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
                     for column in record
                 ]
                 rows.append(row)
@@ -141,7 +141,7 @@ class RedshiftDataApiWaiter:
 
     def __init__(self, client: Any, sleep: float, backoff: float, retries: int) -> None:
         self.client = client
-        self.wait_config = connector.WaitConfig(sleep, backoff, retries)
+        self.wait_config = _connector.WaitConfig(sleep, backoff, retries)
         self.logger: logging.Logger = logging.getLogger(__name__)
 
     def wait(self, request_id: str) -> bool:

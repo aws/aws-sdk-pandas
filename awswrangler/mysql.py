@@ -1,3 +1,4 @@
+# mypy: disable-error-code=name-defined
 """Amazon MySQL Module."""
 
 import logging
@@ -7,13 +8,12 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union, over
 import boto3
 import pandas as pd
 import pyarrow as pa
-import pymysql
-from pymysql.cursors import Cursor
 
-from awswrangler import _data_types
+from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
-from awswrangler import exceptions
 from awswrangler._config import apply_configs
+
+pymysql = _utils.import_optional_dependency("pymysql")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -27,14 +27,14 @@ def _validate_connection(con: "pymysql.connections.Connection[Any]") -> None:
         )
 
 
-def _drop_table(cursor: Cursor, schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "pymysql.cursors.Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f"`{schema}`." if schema else ""
     sql = f"DROP TABLE IF EXISTS {schema_str}`{table}`"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: Cursor, schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "pymysql.cursors.Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE " f"{schema_str} TABLE_NAME = '{table}'")
     return len(cursor.fetchall()) > 0
@@ -42,7 +42,7 @@ def _does_table_exist(cursor: Cursor, schema: Optional[str], table: str) -> bool
 
 def _create_table(
     df: pd.DataFrame,
-    cursor: Cursor,
+    cursor: "pymysql.cursors.Cursor",
     table: str,
     schema: str,
     mode: str,
@@ -68,6 +68,7 @@ def _create_table(
     cursor.execute(sql)
 
 
+@_utils.check_optional_dependency(pymysql, "pymysql")
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
@@ -77,7 +78,7 @@ def connect(
     read_timeout: Optional[int] = None,
     write_timeout: Optional[int] = None,
     connect_timeout: int = 10,
-    cursorclass: Type[Cursor] = Cursor,
+    cursorclass: Optional[Type["pymysql.cursors.Cursor"]] = None,
 ) -> "pymysql.connections.Connection[Any]":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
@@ -163,11 +164,11 @@ def connect(
         password=attrs.password,
         port=attrs.port,
         host=attrs.host,
-        ssl=attrs.ssl_context,  # type: ignore
+        ssl=attrs.ssl_context,
         read_timeout=read_timeout,
         write_timeout=write_timeout,
         connect_timeout=connect_timeout,
-        cursorclass=cursorclass,
+        cursorclass=cursorclass or pymysql.cursors.Cursor,
     )
 
 
@@ -215,6 +216,7 @@ def read_sql_query(
     ...
 
 
+@_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_query(
     sql: str,
     con: "pymysql.connections.Connection[Any]",
@@ -328,6 +330,7 @@ def read_sql_table(
     ...
 
 
+@_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_table(
     table: str,
     con: "pymysql.connections.Connection[Any]",
@@ -399,6 +402,7 @@ def read_sql_table(
     )
 
 
+@_utils.check_optional_dependency(pymysql, "pymysql")
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
@@ -411,7 +415,7 @@ def to_sql(
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
     chunksize: int = 200,
-    cursorclass: Type[Cursor] = Cursor,
+    cursorclass: Optional[Type["pymysql.cursors.Cursor"]] = None,
 ) -> None:
     """Write records stored in a DataFrame into MySQL.
 
@@ -492,7 +496,7 @@ def to_sql(
     _db_utils.validate_mode(mode=mode, allowed_modes=allowed_modes)
     _validate_connection(con=con)
     try:
-        with con.cursor(cursor=cursorclass) as cursor:
+        with con.cursor(cursor=cursorclass or pymysql.cursors.Cursor) as cursor:
             _create_table(
                 df=df,
                 cursor=cursor,

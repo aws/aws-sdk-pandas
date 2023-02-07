@@ -6,12 +6,15 @@ from typing import Any, Dict, Optional, Union
 import boto3
 import pandas as pd
 
-from awswrangler import exceptions
+from awswrangler import _utils, exceptions
 from awswrangler.s3._fs import open_s3_object
+
+openpyxl = _utils.import_optional_dependency("openpyxl")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+@_utils.check_optional_dependency(openpyxl, "openpyxl")
 def read_excel(
     path: str,
     version_id: Optional[str] = None,
@@ -30,7 +33,7 @@ def read_excel(
     Note
     ----
     Depending on the file extension ('xlsx', 'xls', 'odf'...), an additional library
-    might have to be installed first (e.g. xlrd).
+    might have to be installed first.
 
     Note
     ----

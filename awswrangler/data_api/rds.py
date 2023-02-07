@@ -8,10 +8,10 @@ import boto3
 import pandas as pd
 
 from awswrangler import _utils
-from awswrangler.data_api import connector
+from awswrangler.data_api import _connector
 
 
-class RdsDataApi(connector.DataApiConnector):
+class RdsDataApi(_connector.DataApiConnector):
     """Provides access to the RDS Data API.
 
     Parameters
@@ -45,7 +45,7 @@ class RdsDataApi(connector.DataApiConnector):
         self.resource_arn = resource_arn
         self.database = database
         self.secret_arn = secret_arn
-        self.wait_config = connector.WaitConfig(sleep, backoff, retries)
+        self.wait_config = _connector.WaitConfig(sleep, backoff, retries)
         self.client = _utils.client(service_name="rds-data", session=boto3_session)
         self.results: Dict[str, Dict[str, Any]] = {}
         logger: logging.Logger = logging.getLogger(__name__)
@@ -106,7 +106,7 @@ class RdsDataApi(connector.DataApiConnector):
         rows: List[List[Any]] = []
         for record in result["records"]:
             row: List[Any] = [
-                connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
+                _connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
                 for column in record
             ]
             rows.append(row)

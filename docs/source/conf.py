@@ -19,7 +19,7 @@ import sphinx_bootstrap_theme
 sys.path.append(os.path.abspath("./_ext"))
 # Insert awswrangler"s path into the system.
 sys.path.insert(0, os.path.abspath("../.."))
-import awswrangler
+import awswrangler  # noqa: E402
 
 # -- Project information -----------------------------------------------------
 

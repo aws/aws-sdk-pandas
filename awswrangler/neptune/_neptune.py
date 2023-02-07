@@ -1,42 +1,25 @@
+# mypy: disable-error-code=name-defined
 """Amazon Neptune Module."""
 
-import importlib.util
-import inspect
 import logging
 import re
 from typing import Any, Callable, TypeVar
 
 import pandas as pd
-from gremlin_python.process.anonymous_traversal import traversal
-from gremlin_python.process.graph_traversal import GraphTraversalSource, __
-from gremlin_python.process.translator import Translator
-from gremlin_python.process.traversal import Cardinality, T
-from gremlin_python.structure.graph import Graph
 
-from awswrangler import exceptions
-from awswrangler.neptune.client import NeptuneClient
+import awswrangler.neptune._gremlin_init as gremlin
+from awswrangler import _utils, exceptions
+from awswrangler.neptune._client import NeptuneClient
 
-_SPARQLWrapper_found = importlib.util.find_spec("SPARQLWrapper")
+gremlin_python = _utils.import_optional_dependency("gremlin_python")
+opencypher = _utils.import_optional_dependency("requests")
+sparql = _utils.import_optional_dependency("SPARQLWrapper")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
-def _check_for_sparqlwrapper(func: FuncT) -> FuncT:
-    def inner(*args: Any, **kwargs: Any) -> Any:
-        if not _SPARQLWrapper_found:
-            raise ModuleNotFoundError(
-                "You need to install SPARQLWrapper respectively the "
-                "AWS SDK for pandas package with the `sparql` extra for being able to use SPARQL "
-            )
-        return func(*args, **kwargs)
-
-    inner.__doc__ = func.__doc__
-    inner.__name__ = func.__name__
-    inner.__setattr__("__signature__", inspect.signature(func))  # pylint: disable=no-member
-    return inner  # type: ignore
-
-
+@_utils.check_optional_dependency(gremlin_python, "gremlin_python")
 def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
     """Return results of a Gremlin traversal as pandas dataframe.
 
@@ -44,7 +27,7 @@ def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
     ----------
     client : neptune.Client
         instance of the neptune client to use
-    traversal : str
+    query : str
         The gremlin traversal to execute
 
     Returns
@@ -65,6 +48,7 @@ def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
     return df
 
 
+@_utils.check_optional_dependency(opencypher, "opencypher")
 def execute_opencypher(client: NeptuneClient, query: str) -> pd.DataFrame:
     """Return results of a openCypher traversal as pandas dataframe.
 
@@ -93,7 +77,7 @@ def execute_opencypher(client: NeptuneClient, query: str) -> pd.DataFrame:
     return df
 
 
-@_check_for_sparqlwrapper
+@_utils.check_optional_dependency(sparql, "SPARQLWrapper")
 def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
     """Return results of a SPARQL query as pandas dataframe.
 
@@ -131,6 +115,7 @@ def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
     return df
 
 
+@_utils.check_optional_dependency(gremlin_python, "gremlin_python")
 def to_property_graph(
     client: NeptuneClient, df: pd.DataFrame, batch_size: int = 50, use_header_cardinality: bool = True
 ) -> bool:
@@ -176,7 +161,7 @@ def to_property_graph(
     ... )
     """
     # check if ~id and ~label column exist and if not throw error
-    g = traversal().withGraph(Graph())
+    g = gremlin.traversal().withGraph(gremlin.Graph())
     is_edge_df = False
     is_update_df = True
     if "~id" in df.columns:
@@ -190,7 +175,7 @@ def to_property_graph(
         )
 
     # Loop through items in the DF
-    for (index, row) in df.iterrows():
+    for index, row in df.iterrows():
         # build up a query
         if is_update_df:
             g = _build_gremlin_update(g, row, use_header_cardinality)
@@ -202,12 +187,12 @@ def to_property_graph(
         if index > 0 and index % batch_size == 0:
             res = _run_gremlin_insert(client, g)
             if res:
-                g = Graph().traversal()
+                g = gremlin.Graph().traversal()
 
     return _run_gremlin_insert(client, g)
 
 
-@_check_for_sparqlwrapper
+@_utils.check_optional_dependency(sparql, "SPARQLWrapper")
 def to_rdf_graph(
     client: NeptuneClient,
     df: pd.DataFrame,
@@ -264,7 +249,7 @@ def to_rdf_graph(
 
     query = ""
     # Loop through items in the DF
-    for (index, row) in df.iterrows():
+    for index, row in df.iterrows():
         # build up a query
         if is_quads:
             insert = f"""INSERT DATA {{ GRAPH <{row[graph_column]}> {{<{row[subject_column]}>
@@ -309,9 +294,12 @@ def _get_column_name(column: str) -> str:
 
 
 def _set_properties(
-    g: GraphTraversalSource, use_header_cardinality: bool, row: Any, ignore_cardinality: bool = False
-) -> GraphTraversalSource:
-    for (column, value) in row.items():
+    g: "gremlin.GraphTraversalSource",
+    use_header_cardinality: bool,
+    row: Any,
+    ignore_cardinality: bool = False,
+) -> "gremlin.GraphTraversalSource":
+    for column, value in row.items():
         if column not in ["~id", "~label", "~to", "~from"]:
             if ignore_cardinality and pd.notna(value):
                 g = g.property(_get_column_name(column), value)
@@ -319,7 +307,7 @@ def _set_properties(
                 # If the column header is specifying the cardinality then use it
                 if use_header_cardinality:
                     if column.lower().find("(single)") > 0 and pd.notna(value):
-                        g = g.property(Cardinality.single, _get_column_name(column), value)
+                        g = g.property(gremlin.Cardinality.single, _get_column_name(column), value)
                     else:
                         g = _expand_properties(g, _get_column_name(column), value)
                 else:
@@ -328,43 +316,58 @@ def _set_properties(
     return g
 
 
-def _expand_properties(g: GraphTraversalSource, column: str, value: Any) -> GraphTraversalSource:
+def _expand_properties(g: "gremlin.GraphTraversalSource", column: str, value: Any) -> "gremlin.GraphTraversalSource":
     # If this is a list then expand it out into multiple property calls
     if isinstance(value, list) and len(value) > 0:
         for item in value:
-            g = g.property(Cardinality.set_, column, item)
+            g = g.property(gremlin.Cardinality.set_, column, item)
     elif pd.notna(value):
-        g = g.property(Cardinality.set_, column, value)
+        g = g.property(gremlin.Cardinality.set_, column, value)
     return g
 
 
-def _build_gremlin_update(g: GraphTraversalSource, row: Any, use_header_cardinality: bool) -> GraphTraversalSource:
+def _build_gremlin_update(
+    g: "gremlin.GraphTraversalSource", row: Any, use_header_cardinality: bool
+) -> "gremlin.GraphTraversalSource":
     g = g.V(str(row["~id"]))
     g = _set_properties(g, use_header_cardinality, row)
     return g
 
 
 def _build_gremlin_insert_vertices(
-    g: GraphTraversalSource, row: Any, use_header_cardinality: bool = False
-) -> GraphTraversalSource:
-    g = g.V(str(row["~id"])).fold().coalesce(__.unfold(), __.addV(row["~label"]).property(T.id, str(row["~id"])))
+    g: "gremlin.GraphTraversalSource", row: Any, use_header_cardinality: bool = False
+) -> "gremlin.GraphTraversalSource":
+    g = (
+        g.V(str(row["~id"]))
+        .fold()
+        .coalesce(
+            gremlin.__.unfold(),
+            gremlin.__.addV(row["~label"]).property(gremlin.T.id, str(row["~id"])),
+        )
+    )
     g = _set_properties(g, use_header_cardinality, row)
     return g
 
 
 def _build_gremlin_insert_edges(
-    g: GraphTraversalSource, row: pd.Series, use_header_cardinality: bool
-) -> GraphTraversalSource:
+    g: "gremlin.GraphTraversalSource", row: pd.Series, use_header_cardinality: bool
+) -> "gremlin.GraphTraversalSource":
     g = (
         g.V(str(row["~from"]))
         .fold()
-        .coalesce(__.unfold(), _build_gremlin_insert_vertices(__, {"~id": row["~from"], "~label": "Vertex"}))
+        .coalesce(
+            gremlin.__.unfold(),
+            _build_gremlin_insert_vertices(gremlin.__, {"~id": row["~from"], "~label": "Vertex"}),
+        )
         .addE(row["~label"])
-        .property(T.id, str(row["~id"]))
+        .property(gremlin.T.id, str(row["~id"]))
         .to(
-            __.V(str(row["~to"]))
+            gremlin.__.V(str(row["~to"]))
             .fold()
-            .coalesce(__.unfold(), _build_gremlin_insert_vertices(__, {"~id": row["~to"], "~label": "Vertex"}))
+            .coalesce(
+                gremlin.__.unfold(),
+                _build_gremlin_insert_vertices(gremlin.__, {"~id": row["~to"], "~label": "Vertex"}),
+            )
         )
     )
     g = _set_properties(g, use_header_cardinality, row, ignore_cardinality=True)
@@ -372,8 +375,8 @@ def _build_gremlin_insert_edges(
     return g
 
 
-def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
-    translator = Translator("g")
+def _run_gremlin_insert(client: NeptuneClient, g: "gremlin.GraphTraversalSource") -> bool:
+    translator = gremlin.Translator("g")
     s = translator.translate(g.bytecode)
     s = s.replace("Cardinality.", "")  # hack to fix parser error for set cardinality
     s = s.replace(
@@ -385,7 +388,7 @@ def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
 
 
 def flatten_nested_df(
-    df: pd.DataFrame, include_prefix: bool = True, seperator: str = "_", recursive: bool = True
+    df: pd.DataFrame, include_prefix: bool = True, separator: str = "_", recursive: bool = True
 ) -> pd.DataFrame:
     """Flatten the lists and dictionaries of the input data frame.
 
@@ -396,8 +399,8 @@ def flatten_nested_df(
     include_prefix : bool, optional
         If True, then it will prefix the new column name with the original column name.
         Defaults to True.
-    seperator : str, optional
-        The seperator to use between field names when a dictionary is exploded.
+    separator : str, optional
+        The separator to use between field names when a dictionary is exploded.
         Defaults to "_".
     recursive : bool, optional
         If True, then this will recurse the fields in the data frame. Defaults to True.
@@ -406,8 +409,8 @@ def flatten_nested_df(
     -------
         pd.DataFrame: The flattened data frame
     """
-    if seperator is None:
-        seperator = "_"
+    if separator is None:
+        separator = "_"
     df = df.reset_index()
 
     # search for list and map
@@ -424,9 +427,9 @@ def flatten_nested_df(
             # expand dictionaries horizontally
             expanded = None
             if include_prefix:
-                expanded = pd.json_normalize(df[col], sep=seperator).add_prefix(f"{col}{seperator}")
+                expanded = pd.json_normalize(df[col], sep=separator).add_prefix(f"{col}{separator}")
             else:
-                expanded = pd.json_normalize(df[col], sep=seperator).add_prefix(f"{seperator}")
+                expanded = pd.json_normalize(df[col], sep=separator).add_prefix(f"{separator}")
             expanded.index = df.index
             df = pd.concat([df, expanded], axis=1).drop(columns=[col])
             new_columns.extend(expanded.columns)
@@ -442,6 +445,6 @@ def flatten_nested_df(
         s = (df[new_columns].applymap(type) == dict).all()
         dict_columns = s[s].index.tolist()
         if recursive and (len(list_columns) > 0 or len(dict_columns) > 0):
-            df = flatten_nested_df(df, include_prefix=include_prefix, seperator=seperator, recursive=recursive)
+            df = flatten_nested_df(df, include_prefix=include_prefix, separator=separator, recursive=recursive)
 
     return df
