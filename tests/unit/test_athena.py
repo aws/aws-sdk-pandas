@@ -659,7 +659,6 @@ def test_athena_undefined_column(glue_database):
 
 
 def test_glue_database():
-
     # Round 1 - Create Database
     glue_database_name = f"database_{get_time_str_with_random_suffix()}"
     wr.catalog.create_database(name=glue_database_name, description="Database Description")
@@ -1221,7 +1220,6 @@ def test_start_query_execution_wait(path, glue_database, glue_table):
 
 
 def test_get_query_results(path, glue_table, glue_database):
-
     sql = (
         "SELECT CAST("
         "    ROW(1, ROW(2, ROW(3, '4'))) AS"

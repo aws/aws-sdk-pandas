@@ -3,7 +3,7 @@
 import concurrent.futures
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, TypeVar, Union
 
 from awswrangler import _utils
 from awswrangler._distributed import EngineEnum, engine
@@ -14,6 +14,9 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+MapOutputType = TypeVar("MapOutputType")
+
+
 class _ThreadPoolExecutor:
     def __init__(self, use_threads: Union[bool, int]):
         super().__init__()
@@ -22,7 +25,9 @@ class _ThreadPoolExecutor:
         if self._cpus > 1:
             self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)  # pylint: disable=R1732
 
-    def map(self, func: Callable[..., Any], boto3_client: Optional["BaseClient"], *iterables: Any) -> List[Any]:
+    def map(
+        self, func: Callable[..., MapOutputType], boto3_client: Optional["BaseClient"], *iterables: Any
+    ) -> List[MapOutputType]:
         """Map iterables to multi-threaded function."""
         _logger.debug("Map: %s", func)
         if self._exec is not None:

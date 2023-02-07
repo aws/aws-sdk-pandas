@@ -11,7 +11,7 @@ from gremlin_python.process.traversal import Cardinality, T
 from gremlin_python.structure.graph import Graph
 
 from awswrangler import exceptions
-from awswrangler.neptune.client import NeptuneClient
+from awswrangler.neptune._client import NeptuneClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType,
     """
     g = Graph().traversal()
     # Loop through items in the DF
-    for (index, row) in df.iterrows():
+    for index, row in df.iterrows():
         # build up a query
         if mode == WriteDFType.EDGE:
             g = _build_gremlin_edges(g, row.to_dict())
@@ -108,7 +108,7 @@ def _build_gremlin_edges(g: GraphTraversalSource, row: pd.Series) -> GraphTraver
 
 
 def _build_gremlin_properties(g: GraphTraversalSource, row: Any) -> GraphTraversalSource:
-    for (column, value) in row.items():
+    for column, value in row.items():
         if column not in ["~id", "~label", "~to", "~from"]:
             if isinstance(value, list) and len(value) > 0:
                 for item in value:

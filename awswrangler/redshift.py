@@ -1,5 +1,6 @@
-"""Amazon Redshift Module."""
+# mypy: disable-error-code=name-defined
 # pylint: disable=too-many-lines
+"""Amazon Redshift Module."""
 
 import json
 import logging
@@ -10,13 +11,13 @@ import boto3
 import botocore
 import pandas as pd
 import pyarrow as pa
-import redshift_connector
 
-from awswrangler import _data_types
+from awswrangler import _data_types, _utils, exceptions, s3
 from awswrangler import _databases as _db_utils
-from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
+
+redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ _RS_DISTSTYLES: List[str] = ["AUTO", "EVEN", "ALL", "KEY"]
 _RS_SORTSTYLES: List[str] = ["COMPOUND", "INTERLEAVED"]
 
 
-def _validate_connection(con: redshift_connector.Connection) -> None:
+def _validate_connection(con: "redshift_connector.Connection") -> None:
     if not isinstance(con, redshift_connector.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -33,13 +34,13 @@ def _validate_connection(con: redshift_connector.Connection) -> None:
         )
 
 
-def _begin_transaction(cursor: redshift_connector.Cursor) -> None:
+def _begin_transaction(cursor: "redshift_connector.Cursor") -> None:
     sql = "BEGIN TRANSACTION"
     _logger.debug("Begin transaction query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _drop_table(cursor: redshift_connector.Cursor, schema: Optional[str], table: str, cascade: bool = False) -> None:
+def _drop_table(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str, cascade: bool = False) -> None:
     schema_str = f'"{schema}".' if schema else ""
     cascade_str = " CASCADE" if cascade else ""
     sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"' f"{cascade_str}"
@@ -47,21 +48,21 @@ def _drop_table(cursor: redshift_connector.Cursor, schema: Optional[str], table:
     cursor.execute(sql)
 
 
-def _truncate_table(cursor: redshift_connector.Cursor, schema: Optional[str], table: str) -> None:
+def _truncate_table(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f'"{schema}".' if schema else ""
     sql = f'TRUNCATE TABLE {schema_str}"{table}"'
     _logger.debug("Truncate table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _delete_all(cursor: redshift_connector.Cursor, schema: Optional[str], table: str) -> None:
+def _delete_all(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f'"{schema}".' if schema else ""
     sql = f'DELETE FROM {schema_str}"{table}"'
     _logger.debug("Delete query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _get_primary_keys(cursor: redshift_connector.Cursor, schema: str, table: str) -> List[str]:
+def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: str) -> List[str]:
     cursor.execute(f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'")
     result: str = cursor.fetchall()[0][0]
     rfields: List[str] = result.split("(")[1].strip(")").split(",")
@@ -69,7 +70,7 @@ def _get_primary_keys(cursor: redshift_connector.Cursor, schema: str, table: str
     return fields
 
 
-def _does_table_exist(cursor: redshift_connector.Cursor, schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     cursor.execute(
         f"SELECT true WHERE EXISTS ("
@@ -120,7 +121,7 @@ def _make_s3_auth_string(
 
 
 def _copy(
-    cursor: redshift_connector.Cursor,
+    cursor: "redshift_connector.Cursor",
     path: str,
     table: str,
     serialize_to_json: bool,
@@ -160,7 +161,7 @@ def _copy(
 
 
 def _lock(
-    cursor: redshift_connector.Cursor,
+    cursor: "redshift_connector.Cursor",
     table_names: List[str],
     schema: Optional[str] = None,
 ) -> None:
@@ -172,7 +173,7 @@ def _lock(
 
 
 def _upsert(
-    cursor: redshift_connector.Cursor,
+    cursor: "redshift_connector.Cursor",
     table: str,
     temp_table: str,
     schema: str,
@@ -289,8 +290,8 @@ def _redshift_types_from_path(
 def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-many-branches,too-many-statements
     df: Optional[pd.DataFrame],
     path: Optional[Union[str, List[str]]],
-    con: redshift_connector.Connection,
-    cursor: redshift_connector.Cursor,
+    con: "redshift_connector.Connection",
+    cursor: "redshift_connector.Cursor",
     table: str,
     schema: str,
     mode: str,
@@ -436,6 +437,7 @@ def _read_parquet_iterator(
         )
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
@@ -447,7 +449,7 @@ def connect(
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
     **kwargs: Any,
-) -> redshift_connector.Connection:
+) -> "redshift_connector.Connection":
     """Return a redshift_connector connection from a Glue Catalog or Secret Manager.
 
     Note
@@ -547,6 +549,7 @@ def connect(
     )
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def connect_temp(
     cluster_identifier: str,
     user: str,
@@ -560,7 +563,7 @@ def connect_temp(
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
     **kwargs: Any,
-) -> redshift_connector.Connection:
+) -> "redshift_connector.Connection":
     """Return a redshift_connector temporary connection (No password required).
 
     https://github.com/aws/amazon-redshift-python-driver
@@ -651,7 +654,7 @@ def connect_temp(
 @overload
 def read_sql_query(
     sql: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     index_col: Optional[Union[str, List[str]]] = ...,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
     chunksize: None = ...,
@@ -665,7 +668,7 @@ def read_sql_query(
 @overload
 def read_sql_query(
     sql: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     *,
     index_col: Optional[Union[str, List[str]]] = ...,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
@@ -680,7 +683,7 @@ def read_sql_query(
 @overload
 def read_sql_query(
     sql: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     *,
     index_col: Optional[Union[str, List[str]]] = ...,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
@@ -692,9 +695,10 @@ def read_sql_query(
     ...
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def read_sql_query(
     sql: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
@@ -766,7 +770,7 @@ def read_sql_query(
 @overload
 def read_sql_table(
     table: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     *,
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = ...,
@@ -782,7 +786,7 @@ def read_sql_table(
 @overload
 def read_sql_table(
     table: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     *,
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = ...,
@@ -798,7 +802,7 @@ def read_sql_table(
 @overload
 def read_sql_table(
     table: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     *,
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = ...,
@@ -811,9 +815,10 @@ def read_sql_table(
     ...
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def read_sql_table(
     table: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
@@ -887,10 +892,11 @@ def read_sql_table(
     )
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 @apply_configs
 def to_sql(  # pylint: disable=too-many-locals
     df: pd.DataFrame,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     table: str,
     schema: str,
     mode: str = "append",
@@ -1058,10 +1064,11 @@ def to_sql(  # pylint: disable=too-many-locals
         con.autocommit = autocommit_temp
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def unload_to_files(
     sql: str,
     path: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     iam_role: Optional[str] = None,
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
@@ -1183,10 +1190,11 @@ def unload_to_files(
         cursor.execute(sql)
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def unload(
     sql: str,
     path: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     iam_role: Optional[str] = None,
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
@@ -1345,9 +1353,10 @@ def unload(
     )
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     path: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     table: str,
     schema: str,
     iam_role: Optional[str] = None,
@@ -1566,10 +1575,11 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         con.autocommit = autocommit_temp
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def copy(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
     path: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     table: str,
     schema: str,
     iam_role: Optional[str] = None,

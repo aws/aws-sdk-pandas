@@ -74,7 +74,7 @@ def _get_table_objects(
     """Get Governed Table Objects from Lake Formation Engine."""
     client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
-    scan_kwargs: Dict[str, Union[str, int]] = _catalog_id(
+    scan_kwargs: Dict[str, Union[str, int, None]] = _catalog_id(
         catalog_id=catalog_id,
         **_transaction_id(transaction_id=transaction_id, DatabaseName=database, TableName=table, MaxResults=100),
     )
@@ -83,7 +83,7 @@ def _get_table_objects(
             partition_cols=partition_cols, partitions_types=partitions_types, partitions_values=partitions_values
         )
 
-    next_token: str = "init_token"  # Dummy token
+    next_token: Optional[str] = "init_token"  # Dummy token
     table_objects: List[Dict[str, Any]] = []
     while next_token:
         response = _utils.try_it(
@@ -97,8 +97,8 @@ def _get_table_objects(
         for objects in response["Objects"]:
             for table_object in objects["Objects"]:
                 if objects["PartitionValues"]:
-                    table_object["PartitionValues"] = objects["PartitionValues"]
-                table_objects.append(table_object)
+                    table_object["PartitionValues"] = objects["PartitionValues"]  # type: ignore[typeddict-item]
+                table_objects.append(table_object)  # type: ignore[arg-type]
         next_token = response.get("NextToken", None)
         scan_kwargs["NextToken"] = next_token
     return table_objects

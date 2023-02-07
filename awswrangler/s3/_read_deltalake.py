@@ -1,15 +1,13 @@
 """Amazon S3 Read Delta Lake Module (PRIVATE)."""
-import importlib.util
+
 from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 import pandas as pd
 
-from awswrangler import _utils
+from awswrangler import _data_types, _utils
 
-_deltalake_found = importlib.util.find_spec("deltalake")
-if _deltalake_found:
-    from deltalake import DeltaTable  # pylint: disable=import-error
+deltalake = _utils.import_optional_dependency("deltalake")
 
 
 def _set_default_storage_options_kwargs(
@@ -23,12 +21,14 @@ def _set_default_storage_options_kwargs(
     }
 
 
+@_utils.check_optional_dependency(deltalake, "deltalake")
 def read_deltalake(
     path: Optional[str] = None,
     version: Optional[int] = None,
     partitions: Optional[List[Tuple[str, str, Any]]] = None,
     columns: Optional[List[str]] = None,
     without_files: bool = False,
+    use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -56,6 +56,9 @@ def read_deltalake(
     without_files: bool
         If True, load the table without tracking files (memory-friendly).
         Some append-only applications might not need to track files.
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        When enabled, os.cpu_count() is used as the max number of threads.
     boto3_session: Optional[boto3.Session()]
         Boto3 Session. If None, the default boto3 session is used.
     s3_additional_kwargs: Optional[Dict[str, str]]
@@ -72,15 +75,15 @@ def read_deltalake(
     --------
     deltalake.DeltaTable : Create a DeltaTable instance with the deltalake library.
     """
-    pyarrow_additional_kwargs = pyarrow_additional_kwargs or {}  # TODO: Use defaults in 3.0.0 # pylint: disable=fixme
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
     storage_options = _set_default_storage_options_kwargs(boto3_session, s3_additional_kwargs)
     return (
-        DeltaTable(
+        deltalake.DeltaTable(
             table_uri=path,
             version=version,
             storage_options=storage_options,
             without_files=without_files,
         )
         .to_pyarrow_table(partitions=partitions, columns=columns)
-        .to_pandas(**pyarrow_additional_kwargs)
+        .to_pandas(**arrow_kwargs)
     )

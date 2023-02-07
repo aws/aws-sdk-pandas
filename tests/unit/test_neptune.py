@@ -87,7 +87,7 @@ def test_flatten_df(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     row = df_test.iloc[0]
     assert row["_~properties_name"]
 
-    df_test = wr.neptune.flatten_nested_df(df, seperator="|")
+    df_test = wr.neptune.flatten_nested_df(df, separator="|")
     assert isinstance(df_test, pd.DataFrame)
     assert df_test.shape == (1, 6)
     row = df_test.iloc[0]

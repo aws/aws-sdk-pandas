@@ -51,6 +51,7 @@ def test_read_parquet_metadata_nulls(path):
     assert columns_types.get("c2") == "string"
 
 
+@pytest.mark.xfail(is_ray_modin, raises=ValueError, reason="https://github.com/modin-project/modin/issues/5552")
 @pytest.mark.parametrize("partition_cols", [None, ["c2"], ["value", "c2"]])
 def test_parquet_cast_string_dataset(path, partition_cols):
     df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"], "c2": [4, 5, 6], "c3": [7.0, 8.0, 9.0]})

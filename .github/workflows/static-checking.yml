@@ -31,20 +31,18 @@ jobs:
       - name: Install Requirements
         run: |
           python -m pip install --upgrade pip
-          python -m pip install poetry==1.2.2
+          python -m pip install poetry
           poetry config virtualenvs.create false --local
-          poetry install --extras "sqlserver deltalake sparql modin ray" -vvv
-      - name: mypy check
-        run: mypy --install-types --non-interactive awswrangler
-      - name: Flake8 Lint
-        run: flake8 .
-      - name: Pylint Lint
-        run: pylint -j 2 awswrangler
+          poetry install --all-extras -vvv
       - name: Black style
         run: black --check .
-      - name: Imports order check (isort)
-        run: isort --check .
-      - name: Documentation Lint
-        run: pydocstyle awswrangler/ --convention=numpy
+      - name: ruff check
+        run: |
+          ruff . --ignore "PL" --ignore "D"
+          ruff awswrangler
+      - name: mypy check
+        run: mypy --install-types --non-interactive awswrangler
+      - name: Pylint Lint
+        run: pylint -j 0 --disable=all --enable=R0913,R0915 awswrangler
       - name: Documentation check
         run: doc8 --ignore D005,D002 --max-line-length 120 docs/source

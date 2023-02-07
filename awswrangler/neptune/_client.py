@@ -1,21 +1,22 @@
+# mypy: disable-error-code=name-defined
 """Amazon NeptuneClient Module."""
 
-import importlib.util
 import logging
 from typing import Any, Dict, List, Optional, Union
 
 import boto3
-import requests
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSPreparedRequest, AWSRequest
-from gremlin_python.driver import client
 
-from awswrangler import exceptions
-from awswrangler.neptune.gremlin_parser import GremlinParser
+import awswrangler.neptune._gremlin_init as gremlin
+from awswrangler import _utils, exceptions
+from awswrangler.neptune._gremlin_parser import GremlinParser
 
-_SPARQLWrapper_found = importlib.util.find_spec("SPARQLWrapper")
-if _SPARQLWrapper_found:
-    from SPARQLWrapper import SPARQLWrapper  # pylint: disable=import-error
+gremlin_python = _utils.import_optional_dependency("gremlin_python")
+opencypher = _utils.import_optional_dependency("requests")
+sparql = _utils.import_optional_dependency("SPARQLWrapper")
+if any((gremlin_python, opencypher, sparql)):
+    import requests
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class NeptuneClient:
 
     def __del__(self) -> None:
         """Close the Gremlin connection."""
-        if isinstance(self.gremlin_connection, client.Client):
+        if isinstance(self.gremlin_connection, gremlin.Client):
             self.gremlin_connection.close()
 
     def __get_region_from_session(self) -> str:
@@ -79,7 +80,7 @@ class NeptuneClient:
         params: Any = None,
         headers: Any = None,
         service: str = NEPTUNE_SERVICE_NAME,
-    ) -> requests.PreparedRequest:
+    ) -> "requests.PreparedRequest":
         request = requests.Request(method=method, url=url, data=data, params=params, headers=headers)
         if self.boto3_session is not None:
             aws_request = self._get_aws_request(
@@ -190,18 +191,18 @@ class NeptuneClient:
             results = future_results.result()
             return GremlinParser.gremlin_results_to_dict(results)
         except Exception as e:
-            if isinstance(self.gremlin_connection, client.Client):
+            if isinstance(self.gremlin_connection, gremlin.Client):
                 self.gremlin_connection.close()
             self.gremlin_connection = None
             _logger.error(e)
             raise exceptions.QueryFailed(e)
 
-    def _get_gremlin_connection(self, headers: Any = None) -> client.Client:
+    def _get_gremlin_connection(self, headers: Any = None) -> "gremlin.Client":
         if self.gremlin_connection is None:
             uri = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin"
             request = self._prepare_request("GET", uri, headers=headers)
             ws_url = f"{WS_PROTOCOL}://{self.host}:{self.port}/gremlin"
-            self.gremlin_connection = client.Client(
+            self.gremlin_connection = gremlin.Client(
                 ws_url, "g", headers=dict(request.headers), call_from_event_loop=True
             )
         return self.gremlin_connection
@@ -247,7 +248,7 @@ class NeptuneClient:
         if headers is None:
             headers = {}
 
-        s = SPARQLWrapper("")
+        s = sparql.SPARQLWrapper("")
         s.setQuery(query)
         query_type = str(s.queryType).upper()
         if query_type in ["SELECT", "CONSTRUCT", "ASK", "DESCRIBE"]:
