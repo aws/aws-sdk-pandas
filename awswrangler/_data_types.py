@@ -316,7 +316,7 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
         return pa.float64()
     if dtype == "boolean":
         return pa.bool_()
-    if (dtype == "string") or dtype.startswith("char") or dtype.startswith("varchar"):
+    if (dtype in ("string", "uuid")) or dtype.startswith("char") or dtype.startswith("varchar"):
         return pa.string()
     if dtype == "timestamp":
         return pa.timestamp(unit="ns")

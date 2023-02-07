@@ -1,7 +1,11 @@
+import json
+from typing import Any, Dict, List, Optional
+
 from aws_cdk import CfnOutput, RemovalPolicy, Stack
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
+from aws_cdk import aws_opensearchserverless as opensearchserverless
 from aws_cdk import aws_opensearchservice as opensearch
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_secretsmanager as secrets
@@ -39,6 +43,7 @@ class OpenSearchStack(Stack):  # type: ignore
         self._set_opensearch_infra()
         self._setup_opensearch_1()
         self._setup_elasticsearch_7_10_fgac()
+        self._setup_opensearch_serverless()
 
     def _set_opensearch_infra(self) -> None:
         self.username = "test"
@@ -119,3 +124,99 @@ class OpenSearchStack(Stack):  # type: ignore
         CfnOutput(self, "DomainEndpointsdkpandases710fgac", value=domain.domain_endpoint).override_logical_id(
             "DomainEndpointsdkpandases710fgac"
         )
+
+    def _setup_opensearch_serverless(self) -> None:
+        collection_name = "sdk-pandas-aoss-1"
+        self.cfn_collection = opensearchserverless.CfnCollection(
+            self,
+            collection_name,
+            name=collection_name,
+            type="SEARCH",
+        )
+
+        key = kms.Key(
+            self,
+            f"{collection_name}-key",
+            removal_policy=RemovalPolicy.DESTROY,
+            alias=f"{collection_name}-key",
+            enable_key_rotation=True,
+        )
+
+        cfn_encryption_policy = opensearchserverless.CfnSecurityPolicy(
+            self,
+            f"{collection_name}-encryption",
+            name=f"{collection_name}-encryption",
+            type="encryption",
+            policy=self._get_encryption_policy(
+                collection_name=self.cfn_collection.name,
+                kms_key_arn=key.key_arn,
+            ),
+        )
+
+        cfn_network_policy = opensearchserverless.CfnSecurityPolicy(
+            self,
+            f"{collection_name}-network",
+            name=f"{collection_name}-network",
+            type="network",
+            policy=self._get_network_policy(
+                collection_name=self.cfn_collection.name,
+            ),
+        )
+
+        self.cfn_collection.add_depends_on(cfn_encryption_policy)
+        self.cfn_collection.add_depends_on(cfn_network_policy)
+
+        CfnOutput(
+            self,
+            "CollectionNamesdkpandasaoss",
+            value=self.cfn_collection.name,
+        ).override_logical_id("CollectionNamesdkpandasaoss")
+        CfnOutput(
+            self,
+            "CollectionEndpointsdkpandasaoss",
+            value=str(self.cfn_collection.attr_collection_endpoint).replace("https://", ""),
+        ).override_logical_id("CollectionEndpointsdkpandasaoss")
+
+    @staticmethod
+    def _get_encryption_policy(collection_name: str, kms_key_arn: Optional[str] = None) -> str:
+        policy: Dict[str, Any] = {
+            "Rules": [
+                {
+                    "ResourceType": "collection",
+                    "Resource": [
+                        f"collection/{collection_name}",
+                    ],
+                }
+            ],
+        }
+        if kms_key_arn:
+            policy["KmsARN"] = kms_key_arn
+        else:
+            policy["AWSOwnedKey"] = True
+        return json.dumps(policy)
+
+    @staticmethod
+    def _get_network_policy(collection_name: str, vpc_endpoints: Optional[List[str]] = None) -> str:
+        policy: List[Dict[str, Any]] = [
+            {
+                "Rules": [
+                    {
+                        "ResourceType": "dashboard",
+                        "Resource": [
+                            f"collection/{collection_name}",
+                        ],
+                    },
+                    {
+                        "ResourceType": "collection",
+                        "Resource": [
+                            f"collection/{collection_name}",
+                        ],
+                    },
+                ],
+            }
+        ]
+        if vpc_endpoints:
+            policy[0]["SourceVPCEs"] = vpc_endpoints
+        else:
+            policy[0]["AllowFromPublic"] = True
+        return json.dumps(policy)
