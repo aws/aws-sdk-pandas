@@ -5,7 +5,7 @@ import csv
 import logging
 import sys
 import uuid
-from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast, overload
 
 import boto3
 import botocore.exceptions
@@ -292,7 +292,7 @@ def _resolve_query_without_cache_ctas(
         boto3_session=boto3_session,
     )
     fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
-    ctas_query_metadata: _QueryMetadata = ctas_query_info["ctas_query_metadata"]  # type: ignore
+    ctas_query_metadata = cast(_QueryMetadata, ctas_query_info["ctas_query_metadata"])
     _logger.debug("ctas_query_metadata: %s", ctas_query_metadata)
     return _fetch_parquet_result(
         query_metadata=ctas_query_metadata,

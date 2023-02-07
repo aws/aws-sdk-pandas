@@ -41,5 +41,5 @@ def _get_executor(use_threads: Union[bool, int]) -> _ThreadPoolExecutor:
     if engine.get() == EngineEnum.RAY:
         from awswrangler.distributed.ray._pool import _RayPoolExecutor  # pylint: disable=import-outside-toplevel
 
-        return _RayPoolExecutor()  # type: ignore
+        return _RayPoolExecutor()  # type: ignore[return-value]
     return _ThreadPoolExecutor(use_threads)

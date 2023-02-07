@@ -117,7 +117,7 @@ def import_optional_dependency(name: str) -> ModuleType:
     try:
         module = importlib.import_module(name)
     except ImportError:
-        return None  # type: ignore
+        return None  # type: ignore[return-value]
 
     return module
 
@@ -708,19 +708,19 @@ def get_even_chunks_sizes(total_size: int, chunk_size: int, upper_bound: bool) -
     return tuple(sizes)
 
 
-def get_running_futures(seq: Sequence[Future]) -> Tuple[Future, ...]:  # type: ignore
+def get_running_futures(seq: Sequence[Future]) -> Tuple[Future, ...]:  # type: ignore[type-arg]
     """Filter only running futures."""
     return tuple(f for f in seq if f.running())
 
 
-def wait_any_future_available(seq: Sequence[Future]) -> None:  # type: ignore
+def wait_any_future_available(seq: Sequence[Future]) -> None:  # type: ignore[type-arg]
     """Wait until any future became available."""
     wait(fs=seq, timeout=None, return_when=FIRST_COMPLETED)
 
 
-def block_waiting_available_thread(seq: Sequence[Future], max_workers: int) -> None:  # type: ignore
+def block_waiting_available_thread(seq: Sequence[Future], max_workers: int) -> None:  # type: ignore[type-arg]
     """Block until any thread became available."""
-    running: Tuple[Future, ...] = get_running_futures(seq=seq)  # type: ignore
+    running: Tuple[Future, ...] = get_running_futures(seq=seq)  # type: ignore[type-arg]
     while len(running) >= max_workers:
         wait_any_future_available(seq=running)
         running = get_running_futures(seq=running)
@@ -747,7 +747,7 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
 @engine.dispatch_on_engine
 def split_pandas_frame(df: pd.DataFrame, splits: int) -> List[pd.DataFrame]:
     """Split a DataFrame into n chunks."""
-    return [sub_df for sub_df in np.array_split(df, splits) if not sub_df.empty]  # type: ignore
+    return [sub_df for sub_df in np.array_split(df, splits) if not sub_df.empty]  # type: ignore[attr-defined]
 
 
 @engine.dispatch_on_engine

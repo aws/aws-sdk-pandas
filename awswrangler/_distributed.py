@@ -66,9 +66,9 @@ class Engine:
     @classmethod
     def set(cls, name: str) -> None:
         """Set the distribution engine."""
-        cls._engine = EngineEnum._member_map_[  # pylint: disable=protected-access,no-member
+        cls._engine = EngineEnum._member_map_[  # type: ignore[assignment]  # pylint: disable=protected-access,no-member
             name.upper()
-        ]  # type: ignore
+        ]
 
     @classmethod
     def dispatch_func(cls, source_func: FunctionType, value: Optional[Any] = None) -> FunctionType:
@@ -93,7 +93,7 @@ class Engine:
             return cls.dispatch_func(func)(*args, **kw)
 
         # Save the original function
-        wrapper._source_func = func  # type: ignore  # pylint: disable=protected-access
+        wrapper._source_func = func  # type: ignore[attr-defined]  # pylint: disable=protected-access
         return wrapper  # type: ignore[return-value]
 
     @classmethod

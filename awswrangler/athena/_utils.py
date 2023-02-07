@@ -373,7 +373,7 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     bucket = resource.Bucket(bucket_name)
     args = {} if region_name == "us-east-1" else {"CreateBucketConfiguration": {"LocationConstraint": region_name}}
     try:
-        bucket.create(**args)  # type: ignore
+        bucket.create(**args)  # type: ignore[arg-type]
     except resource.meta.client.exceptions.BucketAlreadyOwnedByYou as err:
         _logger.debug("Bucket %s already exists.", err.response["Error"]["BucketName"])
     except botocore.exceptions.ClientError as err:

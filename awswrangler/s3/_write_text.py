@@ -521,7 +521,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             s3_additional_kwargs=s3_additional_kwargs,
             **pandas_kwargs,
         )
-        paths = [path]  # type: ignore
+        paths = [path]  # type: ignore[list-item]
     else:
         compression: Optional[str] = pandas_kwargs.get("compression", None)
         if database and table:
@@ -595,7 +595,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             func=_to_text,
             concurrent_partitioning=concurrent_partitioning,
             df=df,
-            path_root=path,  # type: ignore
+            path_root=path,  # type: ignore[arg-type]
             index=index,
             sep=sep,
             compression=compression,
@@ -644,7 +644,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     )
                 if commit_trans:
                     lakeformation.commit_transaction(
-                        transaction_id=transaction_id,  # type: ignore
+                        transaction_id=transaction_id,  # type: ignore[arg-type]
                         boto3_session=boto3_session,
                     )
             except Exception:
@@ -1015,7 +1015,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         func=_to_text,
         concurrent_partitioning=concurrent_partitioning,
         df=df,
-        path_root=path,  # type: ignore
+        path_root=path,  # type: ignore[arg-type]
         filename_prefix=filename_prefix,
         index=index,
         compression=compression,
@@ -1058,7 +1058,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 )
                 if commit_trans:
                     lakeformation.commit_transaction(
-                        transaction_id=transaction_id,  # type: ignore
+                        transaction_id=transaction_id,  # type: ignore[arg-type]
                         boto3_session=boto3_session,
                     )
         except Exception:
