@@ -5,7 +5,7 @@ import csv
 import logging
 import sys
 import uuid
-from typing import Any, Dict, Iterator, List, Literal, Optional, Union, cast, overload
+from typing import Any, Dict, Iterator, List, Literal, Optional, Union, overload
 
 import boto3
 import botocore.exceptions
@@ -464,7 +464,7 @@ def _resolve_query_without_cache(
             unload_parameters = {}
         return _resolve_query_without_cache_unload(
             sql=sql,
-            file_format=cast(str, unload_parameters.get("file_format") or "PARQUET"),
+            file_format=unload_parameters.get("file_format", "PARQUET"),
             compression=unload_parameters.get("compression"),
             field_delimiter=unload_parameters.get("field_delimiter"),
             partitioned_by=unload_parameters.get("partitioned_by"),

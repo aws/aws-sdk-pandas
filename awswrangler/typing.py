@@ -67,7 +67,7 @@ class AthenaCTASSettings(TypedDict):
 class AthenaUNLOADSettings(TypedDict):
     """Typed dictionary defining the settings for using UNLOAD."""
 
-    format: NotRequired[str]
+    file_format: NotRequired[str]
     """
     Specifies the file format of the output. Only `PARQUET` is currently supported.
     """
