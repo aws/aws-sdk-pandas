@@ -18,21 +18,6 @@ RUN yum install -y \
 
 WORKDIR /root
 
-FROM base AS python37
-# Install C devtools & Python37
-ARG PYTHON_VERSION="3.7.15"
-RUN yum -y group install "C Development Tools and Libraries" "Development Tools" \
-    && yum -y install openssl openssl-devel libffi-devel bzip2-devel \
-    && curl -fsSL https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz | tar xzf - \
-    && cd Python-${PYTHON_VERSION}/ \
-    && ./configure --enable-optimizations --prefix=/var/lang \
-    && make altinstall \
-    && ln -fs /var/lang/bin/python3.7 /var/lang/bin/python \
-    && ln -fs /var/lang/bin/python3.7 /var/lang/bin/python3 \
-    && ln -fs /var/lang/bin/pip3.7 /var/lang/bin/pip \
-    && ln -fs /var/lang/bin/pip3.7 /var/lang/bin/pip3 \
-    && rm -Rf ./Python-${PYTHON_VERSION}
-
 FROM ${python_version}
 COPY pyproject.toml poetry.lock ./
 
