@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource
+from ray.data.datasource import FastFileMetadataProvider
 
 from awswrangler.distributed.ray.datasources import ArrowParquetDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
@@ -37,5 +38,6 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
         columns=columns,
         dataset_kwargs=dataset_kwargs,
         path_root=path_root,
+        meta_provider=FastFileMetadataProvider(),
     )
     return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs, ignore_index=bool(path_root))
