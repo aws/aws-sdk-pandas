@@ -9,7 +9,6 @@ from aws_cdk import aws_opensearchserverless as opensearchserverless
 from aws_cdk import aws_opensearchservice as opensearch
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_secretsmanager as secrets
-from aws_cdk import aws_ssm as ssm
 from constructs import Construct
 
 
