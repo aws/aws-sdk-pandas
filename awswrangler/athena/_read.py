@@ -5,7 +5,7 @@ import csv
 import logging
 import sys
 import uuid
-from typing import Any, Dict, Iterator, List, Literal, Optional, Union, overload
+from typing import Any, Dict, Iterator, List, Literal, Optional, Union, cast, overload
 
 import boto3
 import botocore.exceptions
@@ -409,7 +409,7 @@ def _resolve_query_without_cache(
     data_source: Optional[str],
     ctas_approach: bool,
     unload_approach: bool,
-    unload_parameters: Optional[Dict[str, Any]],
+    unload_parameters: Optional[typing.AthenaUNLOADSettings],
     categories: Optional[List[str]],
     chunksize: Union[int, bool, None],
     s3_output: Optional[str],
@@ -464,7 +464,7 @@ def _resolve_query_without_cache(
             unload_parameters = {}
         return _resolve_query_without_cache_unload(
             sql=sql,
-            file_format=unload_parameters.get("file_format") or "PARQUET",
+            file_format=cast(str, unload_parameters.get("file_format") or "PARQUET"),
             compression=unload_parameters.get("compression"),
             field_delimiter=unload_parameters.get("field_delimiter"),
             partitioned_by=unload_parameters.get("partitioned_by"),
@@ -721,7 +721,8 @@ def read_sql_query(  # pylint: disable=too-many-arguments
     database: str,
     ctas_approach: bool = ...,
     unload_approach: bool = ...,
-    unload_parameters: Optional[Dict[str, Any]] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: Union[None, Literal[False]] = ...,
     s3_output: Optional[str] = ...,
@@ -729,7 +730,6 @@ def read_sql_query(  # pylint: disable=too-many-arguments
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -751,7 +751,8 @@ def read_sql_query(
     *,
     ctas_approach: bool = ...,
     unload_approach: bool = ...,
-    unload_parameters: Optional[Dict[str, Any]] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: Literal[True],
     s3_output: Optional[str] = ...,
@@ -759,7 +760,6 @@ def read_sql_query(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -781,7 +781,8 @@ def read_sql_query(
     *,
     ctas_approach: bool = ...,
     unload_approach: bool = ...,
-    unload_parameters: Optional[Dict[str, Any]] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: bool,
     s3_output: Optional[str] = ...,
@@ -789,7 +790,6 @@ def read_sql_query(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -811,7 +811,8 @@ def read_sql_query(
     *,
     ctas_approach: bool = ...,
     unload_approach: bool = ...,
-    unload_parameters: Optional[Dict[str, Any]] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: int,
     s3_output: Optional[str] = ...,
@@ -819,7 +820,6 @@ def read_sql_query(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -841,7 +841,8 @@ def read_sql_query(
     *,
     ctas_approach: bool = ...,
     unload_approach: bool = ...,
-    unload_parameters: Optional[Dict[str, Any]] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: Optional[Union[int, bool]],
     s3_output: Optional[str] = ...,
@@ -849,7 +850,6 @@ def read_sql_query(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -870,7 +870,8 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     database: str,
     ctas_approach: bool = True,
     unload_approach: bool = False,
-    unload_parameters: Optional[Dict[str, Any]] = None,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = None,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = None,
     categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
@@ -878,7 +879,6 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     keep_files: bool = True,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
@@ -1015,7 +1015,9 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     unload_approach: bool
         Wraps the query using UNLOAD, and read the results from S3.
         Only PARQUET format is supported.
-    unload_parameters : Optional[Dict[str, Any]]
+    ctas_settings: typing.AthenaCTASSettings, optional
+        Params of the CTAS such as database, temp_table_name, bucketing_info, and compression.
+    unload_settings : typing.AthenaUNLOADSettings, optional
         Params of the UNLOAD such as format, compression, field_delimiter, and partitioned_by.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
@@ -1034,20 +1036,6 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         For SSE-KMS, this is the KMS key ARN or ID.
     keep_files : bool
         Whether staging files produced by Athena are retained. 'True' by default.
-    ctas_database : str, optional
-        The name of the alternative database where the CTAS temporary table is stored.
-        If None, the default `database` is used.
-    ctas_temp_table_name : str, optional
-        The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
-        If None, it will use the follow random pattern: `f"temp_table_{uuid.uuid4().hex()}"`.
-        On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
-    ctas_bucketing_info: Tuple[List[str], int], optional
-        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
-        second element.
-        Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    ctas_write_compression: str, optional
-        Write compression for the temporary table where the CTAS result is stored.
-        Corresponds to the `write_compression` parameters for CREATE TABLE AS statement in Athena.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1116,7 +1104,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         )
     if ctas_approach and unload_approach:
         raise exceptions.InvalidArgumentCombination("Only one of ctas_approach=True or unload_approach=True is allowed")
-    if unload_parameters and unload_parameters.get("file_format") not in (None, "PARQUET"):
+    if unload_settings and unload_settings.get("file_format") not in (None, "PARQUET"):
         raise exceptions.InvalidArgumentCombination("Only PARQUET file format is supported if unload_approach=True")
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
 
@@ -1152,10 +1140,10 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
             _logger.debug("Corrupted cache. Continuing to execute query...")
 
     ctas_settings = ctas_settings if ctas_settings else {}
-    ctas_database = ctas_settings.get("ctas_database")
-    ctas_temp_table_name = ctas_settings.get("ctas_temp_table_name")
-    ctas_bucketing_info = ctas_settings.get("ctas_bucketing_info")
-    ctas_write_compression = ctas_settings.get("ctas_write_compression")
+    ctas_database = ctas_settings.get("database")
+    ctas_temp_table_name = ctas_settings.get("temp_table_name")
+    ctas_bucketing_info = ctas_settings.get("bucketing_info")
+    ctas_write_compression = ctas_settings.get("compression")
 
     return _resolve_query_without_cache(
         sql=sql,
@@ -1163,7 +1151,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         data_source=data_source,
         ctas_approach=ctas_approach,
         unload_approach=unload_approach,
-        unload_parameters=unload_parameters,
+        unload_parameters=unload_settings,
         categories=categories,
         chunksize=chunksize,
         s3_output=s3_output,
@@ -1186,9 +1174,11 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
 def read_sql_table(
     table: str,
     database: str,
+    *,
     ctas_approach: bool = ...,
     unload_approach: bool = ...,
-    unload_parameters: Optional[Dict[str, Any]] = ...,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: Union[None, Literal[False]] = ...,
     s3_output: Optional[str] = ...,
@@ -1196,7 +1186,6 @@ def read_sql_table(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -1217,7 +1206,8 @@ def read_sql_table(
     *,
     ctas_approach: bool = ...,
     unload_approach: bool = ...,
-    unload_parameters: Optional[Dict[str, Any]] = ...,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: Literal[True],
     s3_output: Optional[str] = ...,
@@ -1225,7 +1215,6 @@ def read_sql_table(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -1246,7 +1235,8 @@ def read_sql_table(
     *,
     ctas_approach: bool = ...,
     unload_approach: bool = ...,
-    unload_parameters: Optional[Dict[str, Any]] = ...,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: bool,
     s3_output: Optional[str] = ...,
@@ -1254,7 +1244,6 @@ def read_sql_table(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -1275,7 +1264,8 @@ def read_sql_table(
     *,
     ctas_approach: bool = ...,
     unload_approach: bool = ...,
-    unload_parameters: Optional[Dict[str, Any]] = ...,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: int,
     s3_output: Optional[str] = ...,
@@ -1283,7 +1273,6 @@ def read_sql_table(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -1304,7 +1293,8 @@ def read_sql_table(
     *,
     ctas_approach: bool = ...,
     unload_approach: bool = ...,
-    unload_parameters: Optional[Dict[str, Any]] = ...,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: Optional[Union[int, bool]],
     s3_output: Optional[str] = ...,
@@ -1312,7 +1302,6 @@ def read_sql_table(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -1332,7 +1321,8 @@ def read_sql_table(
     database: str,
     ctas_approach: bool = True,
     unload_approach: bool = False,
-    unload_parameters: Optional[Dict[str, Any]] = None,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = None,
+    unload_settings: Optional[typing.AthenaUNLOADSettings] = None,
     categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
@@ -1340,7 +1330,6 @@ def read_sql_table(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     keep_files: bool = True,
-    ctas_settings: Optional[typing.AthenaCTASSettings] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
@@ -1455,7 +1444,9 @@ def read_sql_table(
     unload_approach: bool
         Wraps the query using UNLOAD, and read the results from S3.
         Only PARQUET format is supported.
-    unload_parameters : Optional[Dict[str, Any]]
+    ctas_settings: typing.AthenaCTASSettings, optional
+        Params of the CTAS such as database, temp_table_name, bucketing_info, and compression.
+    unload_settings : typing.AthenaUNLOADSettings, optional
         Params of the UNLOAD such as format, compression, field_delimiter, and partitioned_by.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
@@ -1540,10 +1531,10 @@ def read_sql_table(
     return read_sql_query(
         sql=f'SELECT * FROM "{table}"',
         database=database,
-        data_source=data_source,
         ctas_approach=ctas_approach,
         unload_approach=unload_approach,
-        unload_parameters=unload_parameters,
+        ctas_settings=ctas_settings,
+        unload_settings=unload_settings,
         categories=categories,
         chunksize=chunksize,
         s3_output=s3_output,
@@ -1551,13 +1542,13 @@ def read_sql_table(
         encryption=encryption,
         kms_key=kms_key,
         keep_files=keep_files,
-        ctas_settings=ctas_settings,
         use_threads=use_threads,
         boto3_session=boto3_session,
         max_cache_seconds=max_cache_seconds,
         max_cache_query_inspections=max_cache_query_inspections,
         max_remote_cache_entries=max_remote_cache_entries,
         max_local_cache_entries=max_local_cache_entries,
+        data_source=data_source,
         s3_additional_kwargs=s3_additional_kwargs,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
