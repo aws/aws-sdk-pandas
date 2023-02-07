@@ -82,7 +82,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
         chunksize=1,
         keep_files=False,
         ctas_parameters=wr.typing.AthenaCTASSettings(
-            ctas_temp_table_name=glue_table2,
+            temp_table_name=glue_table2,
         ),
         s3_output=path3,
     )
@@ -151,9 +151,11 @@ def test_athena_read_sql_ctas_bucketing(path, path2, glue_table, glue_table2, gl
         sql=f"SELECT * FROM {glue_table}",
         ctas_approach=True,
         database=glue_database,
-        ctas_database=glue_ctas_database,
-        ctas_temp_table_name=glue_table2,
-        ctas_bucketing_info=(["c0"], 1),
+        ctas_parameters=wr.typing.AthenaCTASSettings(
+            database=glue_ctas_database,
+            temp_table_name=glue_table2,
+            bucketing_info=(["c0"], 1),
+        ),
         s3_output=path2,
     )
     df_no_ctas = wr.athena.read_sql_query(
@@ -1376,7 +1378,9 @@ def test_read_sql_query_ctas_write_compression(path, glue_database, glue_table, 
             sql=f"SELECT * FROM {glue_table}",
             database=glue_database,
             ctas_approach=True,
-            ctas_write_compression=compression,
+            ctas_parameters={
+                "compression": compression,
+            },
         )
 
         mock_create_ctas_table.assert_called_once()
