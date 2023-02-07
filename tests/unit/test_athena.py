@@ -81,7 +81,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
         ctas_approach=True,
         chunksize=1,
         keep_files=False,
-        ctas_settings=wr.typing.AthenaCTASSettings(
+        ctas_parameters=wr.typing.AthenaCTASSettings(
             ctas_temp_table_name=glue_table2,
         ),
         s3_output=path3,
@@ -102,7 +102,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
         ctas_approach=True,
         chunksize=2,
         keep_files=True,
-        ctas_settings=wr.typing.AthenaCTASSettings(
+        ctas_parameters=wr.typing.AthenaCTASSettings(
             ctas_temp_table_name=glue_table2,
         ),
         s3_output=path3,
@@ -123,7 +123,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
         ctas_approach=True,
         chunksize=1,
         keep_files=False,
-        ctas_settings=wr.typing.AthenaCTASSettings(
+        ctas_parameters=wr.typing.AthenaCTASSettings(
             ctas_database=glue_ctas_database,
             ctas_temp_table_name=glue_table2,
         ),
@@ -597,7 +597,7 @@ def test_athena_encryption(
         workgroup=workgroup,
         kms_key=kms_key,
         keep_files=True,
-        ctas_settings=wr.typing.AthenaCTASSettings(
+        ctas_parameters=wr.typing.AthenaCTASSettings(
             ctas_temp_table_name=glue_table2,
         ),
         s3_output=path2,
