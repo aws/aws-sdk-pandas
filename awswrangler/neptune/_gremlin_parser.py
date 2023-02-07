@@ -2,7 +2,7 @@
 """Amazon Neptune GremlinParser Module (PRIVATE)."""
 from typing import Any, Dict, List
 
-import awswrangler.neptune.gremlin_init as gremlin
+import awswrangler.neptune._gremlin_init as gremlin
 
 
 class GremlinParser:
@@ -15,7 +15,7 @@ class GremlinParser:
         Parameters
         ----------
         result : Any
-            The Gremlin resultset to convert
+            The Gremlin result set to convert
 
         Returns
         -------

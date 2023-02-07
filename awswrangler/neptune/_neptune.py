@@ -7,9 +7,9 @@ from typing import Any, Callable, TypeVar
 
 import pandas as pd
 
-import awswrangler.neptune.gremlin_init as gremlin
+import awswrangler.neptune._gremlin_init as gremlin
 from awswrangler import _utils, exceptions
-from awswrangler.neptune.client import NeptuneClient
+from awswrangler.neptune._client import NeptuneClient
 
 gremlin_python = _utils.import_optional_dependency("gremlin_python")
 opencypher = _utils.import_optional_dependency("requests")

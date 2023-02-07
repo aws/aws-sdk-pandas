@@ -11,7 +11,7 @@ from gremlin_python.process.traversal import Cardinality, T
 from gremlin_python.structure.graph import Graph
 
 from awswrangler import exceptions
-from awswrangler.neptune.client import NeptuneClient
+from awswrangler.neptune._client import NeptuneClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

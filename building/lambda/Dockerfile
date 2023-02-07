@@ -22,7 +22,7 @@ FROM ${python_version}
 COPY pyproject.toml poetry.lock ./
 
 RUN pip3 install --upgrade pip wheel && pip3 install --upgrade six cython cmake hypothesis poetry
-RUN poetry config virtualenvs.create false --local && poetry install --extras "redshift, mysql, postgres, gremlin, opensearch, openpyxl" --no-root
+RUN poetry config virtualenvs.create false --local && poetry install --extras "redshift mysql postgres gremlin opensearch openpyxl" --no-root
 
 RUN rm -f pyproject.toml poetry.lock
 

@@ -8,9 +8,9 @@ import boto3
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSPreparedRequest, AWSRequest
 
-import awswrangler.neptune.gremlin_init as gremlin
+import awswrangler.neptune._gremlin_init as gremlin
 from awswrangler import _utils, exceptions
-from awswrangler.neptune.gremlin_parser import GremlinParser
+from awswrangler.neptune._gremlin_parser import GremlinParser
 
 gremlin_python = _utils.import_optional_dependency("gremlin_python")
 opencypher = _utils.import_optional_dependency("requests")
