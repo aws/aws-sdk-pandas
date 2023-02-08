@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from awswrangler import _data_types, _utils, catalog, exceptions
+from awswrangler import _data_types, _utils, catalog, exceptions, typing
 from awswrangler._distributed import EngineEnum
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ def _validate_args(
     dataset: bool,
     path: Optional[str],
     partition_cols: Optional[List[str]],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     mode: Optional[str],
     description: Optional[str],
     parameters: Optional[Dict[str, str]],

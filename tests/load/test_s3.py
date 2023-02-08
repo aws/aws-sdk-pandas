@@ -79,7 +79,7 @@ def test_s3_write_parquet_dataset(
     df_s: pd.DataFrame,
     path: str,
     partition_cols: Optional[List[str]],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[wr.typing.BucketingInfoTuple],
     benchmark_time: float,
     request: pytest.FixtureRequest,
 ) -> None:

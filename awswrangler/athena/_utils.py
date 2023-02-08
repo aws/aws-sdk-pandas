@@ -28,7 +28,7 @@ import boto3
 import botocore.exceptions
 import pandas as pd
 
-from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
+from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts, typing
 from awswrangler._config import apply_configs
 from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
@@ -723,7 +723,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     storage_format: Optional[str] = None,
     write_compression: Optional[str] = None,
     partitioning_info: Optional[List[str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     field_delimiter: Optional[str] = None,
     schema_only: bool = False,
     workgroup: Optional[str] = None,

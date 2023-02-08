@@ -6,7 +6,7 @@ import modin.pandas as pd
 import numpy as np
 from pandas import DataFrame as PandasDataFrame
 
-from awswrangler import _utils
+from awswrangler import _utils, typing
 from awswrangler._distributed import engine
 from awswrangler.distributed.ray import ray_get, ray_remote
 from awswrangler.distributed.ray.modin import modin_repartition
@@ -29,7 +29,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     func: Callable[..., List[str]],
     path_root: str,
-    bucketing_info: Tuple[List[str], int],
+    bucketing_info: typing.BucketingInfoTuple,
     filename_prefix: str,
     boto3_session: Optional["boto3.Session"],
     use_threads: Union[bool, int],
@@ -70,7 +70,7 @@ def _write_partitions_distributed(
     table_type: Optional[str],
     transaction_id: Optional[str],
     filename_prefix: str,
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     boto3_session: Optional["boto3.Session"] = None,
     **func_kwargs: Any,
 ) -> pd.DataFrame:
@@ -128,7 +128,7 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     table: Optional[str],
     table_type: Optional[str],
     transaction_id: Optional[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     filename_prefix: str,
     boto3_session: Optional["boto3.Session"],
     **func_kwargs: Any,

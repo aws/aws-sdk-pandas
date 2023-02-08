@@ -1,11 +1,11 @@
 """AWS Glue Catalog Delete Module."""
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import boto3
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, typing
 from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import (
     _check_column_type,
@@ -45,7 +45,7 @@ def add_csv_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     sep: str = ",",
@@ -135,7 +135,7 @@ def add_json_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     serde_library: Optional[str] = None,
@@ -221,7 +221,7 @@ def add_parquet_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
