@@ -703,7 +703,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             func=_to_parquet,
             concurrent_partitioning=concurrent_partitioning,
             df=df,
-            path_root=path,  # type: ignore
+            path_root=path,  # type: ignore[arg-type]
             filename_prefix=filename_prefix,
             index=index,
             compression=compression,
@@ -743,7 +743,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                     )
                 if commit_trans:
                     lakeformation.commit_transaction(
-                        transaction_id=transaction_id,  # type: ignore
+                        transaction_id=transaction_id,  # type: ignore[arg-type]
                         boto3_session=boto3_session,
                     )
             except Exception:

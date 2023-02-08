@@ -21,7 +21,7 @@ from pyarrow.lib import Schema
 from ray import cloudpickle
 from ray.data.block import Block, BlockAccessor
 from ray.data.context import DatasetContext
-from ray.data.dataset import BlockOutputBuffer  # type: ignore
+from ray.data.dataset import BlockOutputBuffer  # type: ignore[attr-defined]
 from ray.data.datasource import Reader, ReadTask
 from ray.data.datasource.file_based_datasource import _resolve_paths_and_filesystem
 from ray.data.datasource.file_meta_provider import (
@@ -86,9 +86,9 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
 
     def create_reader(self, **kwargs: Dict[str, Any]) -> Reader[Any]:
         """Return a Reader for the given read arguments."""
-        return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore
+        return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore[arg-type]
 
-    def _write_block(  # type: ignore  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
+    def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
         self,
         f: "pyarrow.NativeFile",
         block: BlockAccessor[Any],
@@ -113,7 +113,7 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
 
     def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
         if compression is not None:
-            return f"{_COMPRESSION_2_EXT.get(compression)[1:]}.{file_format}"  # type: ignore
+            return f"{_COMPRESSION_2_EXT.get(compression)[1:]}.{file_format}"  # type: ignore[index]
         return file_format
 
 
@@ -121,7 +121,7 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
 # raw pyarrow file fragment causes S3 network calls.
 class _SerializedPiece:
     def __init__(self, frag: ParquetFileFragment):
-        self._data = cloudpickle.dumps(  # type: ignore
+        self._data = cloudpickle.dumps(  # type: ignore[attr-defined]
             (frag.format, frag.path, frag.filesystem, frag.partition_expression)
         )
 
@@ -184,7 +184,7 @@ def _deserialize_pieces_with_retry(
             time.sleep(min_interval)
             min_interval = min_interval * 2
             final_exception = e
-    raise final_exception  # type: ignore
+    raise final_exception  # type: ignore[misc]
 
 
 class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-instance-attributes
@@ -219,7 +219,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             # Try to infer dataset schema by passing dummy table through UDF.
             dummy_table = schema.empty_table()
             try:
-                inferred_schema = _block_udf(dummy_table).schema  # type: ignore
+                inferred_schema = _block_udf(dummy_table).schema  # type: ignore[union-attr]
                 inferred_schema = inferred_schema.with_metadata(schema.metadata)
             except Exception:  # pylint: disable=broad-except
                 _logger.debug(
@@ -251,7 +251,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             for row_group_idx in range(file_metadata.num_row_groups):
                 row_group_metadata = file_metadata.row_group(row_group_idx)
                 total_size += row_group_metadata.total_byte_size
-        return total_size * self._encoding_ratio  # type: ignore
+        return total_size * self._encoding_ratio  # type: ignore[return-value]
 
     def get_read_tasks(self, parallelism: int) -> List[ReadTask]:
         """Override the base class FileBasedDatasource.get_read_tasks().
@@ -285,7 +285,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
                 meta.size_bytes = int(meta.size_bytes * self._encoding_ratio)
             read_tasks.append(
                 ReadTask(
-                    lambda p=serialized_pieces: _read_pieces(  # type: ignore
+                    lambda p=serialized_pieces: _read_pieces(  # type: ignore[misc]
                         block_udf,
                         reader_args,
                         columns,
@@ -336,7 +336,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         if sampling_duration > 5:
             _logger.info("Parquet input size estimation took %s seconds.", round(sampling_duration, 2))
         _logger.debug("Estimated Parquet encoding ratio from sampling is %s.", ratio)
-        return max(ratio, PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND)  # type: ignore
+        return max(ratio, PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND)  # type: ignore[no-any-return]
 
 
 # (AWS SDK for pandas) The following are the changes to the original ray implementation:
@@ -350,7 +350,7 @@ def _read_pieces(
     serialized_pieces: List[_SerializedPiece],
 ) -> Iterator["pyarrow.Table"]:
     # This import is necessary to load the tensor extension type.
-    from ray.data.extensions.tensor_extension import (  # type: ignore # noqa: F401, E501 # pylint: disable=import-outside-toplevel, unused-import
+    from ray.data.extensions.tensor_extension import (  # type: ignore[attr-defined]  # noqa: F401, E501 # pylint: disable=import-outside-toplevel, unused-import
         ArrowTensorType,
     )
 

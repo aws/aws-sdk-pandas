@@ -608,7 +608,7 @@ def apply_configs(function: FunctionType) -> FunctionType:
     wrapper.__doc__ = _inject_config_doc(doc=function.__doc__, available_configs=available_configs)
     wrapper.__name__ = function.__name__
     wrapper.__setattr__("__signature__", signature)  # pylint: disable=no-member
-    return wrapper  # type: ignore
+    return wrapper  # type: ignore[return-value]
 
 
 config: _Config = _Config()

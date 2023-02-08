@@ -207,7 +207,7 @@ def create_index(
     if settings:
         body["settings"] = settings
     if not body:
-        body = None  # type: ignore
+        body = None  # type: ignore[assignment]
 
     # ignore 400 cause by IndexAlreadyExistsException when creating an index
     response: Dict[str, Any] = client.indices.create(index, body=body, ignore=400)

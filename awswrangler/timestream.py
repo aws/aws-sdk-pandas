@@ -11,7 +11,7 @@ from botocore.config import Config
 
 from awswrangler import _data_types, _utils
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._threading import _get_executor, _ThreadPoolExecutor
 from awswrangler.distributed.ray import ray_get
 
 if TYPE_CHECKING:
@@ -100,7 +100,7 @@ def _write_batch(
 @engine.dispatch_on_engine
 def _write_df(
     df: pd.DataFrame,
-    executor: Any,
+    executor: _ThreadPoolExecutor,
     database: str,
     table: str,
     cols_names: List[str],
@@ -117,8 +117,8 @@ def _write_df(
     )
     batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df), max_length=100)
     _logger.debug("len(batches): %s", len(batches))
-    return executor.map(  # type: ignore
-        _write_batch,
+    return executor.map(
+        _write_batch,  # type: ignore[arg-type]
         timestream_client,
         itertools.repeat(database),
         itertools.repeat(table),
@@ -159,7 +159,7 @@ def _process_row(schema: List[Dict[str, str]], row: "RowTypeDef") -> List[Any]:
         elif "ScalarValue" in col:
             row_processed.append(_cast_value(value=col["ScalarValue"], dtype=col_schema["type"]))
         elif "ArrayValue" in col:
-            row_processed.append(_cast_value(value=col["ArrayValue"], dtype="ARRAY"))  # type: ignore
+            row_processed.append(_cast_value(value=col["ArrayValue"], dtype="ARRAY"))  # type: ignore[arg-type]
         else:
             raise ValueError(
                 f"Query with non ScalarType/ArrayColumnInfo/NullValue for column {col_schema['name']}. "

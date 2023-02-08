@@ -528,7 +528,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
             end = self._size if end > self._size else end
             self._fetch(self._loc, end)
 
-    def write(self, data: Union[bytes, bytearray, memoryview]) -> int:  # type: ignore
+    def write(self, data: Union[bytes, bytearray, memoryview]) -> int:  # type: ignore[override]
         """Write data to buffer and only upload on close() or if buffer is greater than or equal to _MIN_WRITE_BLOCK."""
         if self.writable() is False:
             raise RuntimeError("File not in write mode.")

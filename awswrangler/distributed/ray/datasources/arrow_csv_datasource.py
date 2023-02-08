@@ -14,7 +14,7 @@ class ArrowCSVDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract
 
     _FILE_EXTENSION = "csv"
 
-    def _read_stream(  # type: ignore  # pylint: disable=arguments-differ
+    def _read_stream(  # type: ignore[override]  # pylint: disable=arguments-differ
         self,
         f: pa.NativeFile,
         path: str,
@@ -56,11 +56,11 @@ class ArrowCSVDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract
             except StopIteration:
                 return
 
-    def _write_block(  # type: ignore  # pylint: disable=arguments-differ
+    def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ
         self,
         f: pa.NativeFile,
         block: BlockAccessor[Any],
-        **writer_args,
+        **writer_args: Any,
     ) -> None:
         write_options_dict = writer_args.get("write_options", {})
         write_options = csv.WriteOptions(**write_options_dict)

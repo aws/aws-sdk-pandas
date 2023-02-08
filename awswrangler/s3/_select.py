@@ -111,7 +111,7 @@ def _select_query(
         args.update(s3_additional_kwargs)
     _logger.debug("args:\n%s", pprint.pformat(args))
 
-    obj_size: int = size_objects(  # type: ignore
+    obj_size: int = size_objects(  # type: ignore[assignment]
         path=[path],
         use_threads=False,
         boto3_session=boto3_session,
@@ -129,7 +129,7 @@ def _select_query(
         ]
     ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
         # and JSON objects (in LINES mode only)
-        scan_ranges = [None]  # type: ignore
+        scan_ranges = [None]  # type: ignore[assignment]
 
     return executor.map(_select_object_content, s3_client, itertools.repeat(args), scan_ranges)
 

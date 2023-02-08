@@ -67,4 +67,4 @@ def register_ray() -> None:
             split_pandas_frame: _split_modin_frame,
             table_refs_to_df: _arrow_refs_to_df,
         }.items():
-            engine.register_func(o_f, d_f)  # type: ignore
+            engine.register_func(o_f, d_f)  # type: ignore[arg-type]

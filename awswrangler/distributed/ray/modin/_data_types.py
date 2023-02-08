@@ -15,7 +15,7 @@ def pyarrow_types_from_pandas_distributed(
     """Extract the related Pyarrow data types from a pandas DataFrame."""
     func = ray_remote()(pyarrow_types_from_pandas)
     first_block_object_ref = _ray_dataset_from_df(df).get_internal_block_refs()[0]
-    return ray_get(  # type: ignore
+    return ray_get(  # type: ignore[no-any-return]
         func(
             df=first_block_object_ref,
             index=index,
