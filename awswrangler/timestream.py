@@ -309,26 +309,28 @@ def write(
     _logger.debug("len(dfs): %s", len(dfs))
 
     executor = _get_executor(use_threads=use_threads)
-    errors = _utils.flatten_list(
-        ray_get(
-            [
-                _write_df(
-                    df=df,
-                    executor=executor,
-                    database=database,
-                    table=table,
-                    cols_names=cols_names,
-                    measure_cols_names=measure_cols_names,
-                    measure_types=measure_types,
-                    version=version,
-                    boto3_session=boto3_session,
-                    measure_name=measure_name,
-                )
-                for df in dfs
-            ]
+    errors = list(
+        itertools.chain(
+            *ray_get(
+                [
+                    _write_df(
+                        df=df,
+                        executor=executor,
+                        database=database,
+                        table=table,
+                        cols_names=cols_names,
+                        measure_cols_names=measure_cols_names,
+                        measure_types=measure_types,
+                        version=version,
+                        boto3_session=boto3_session,
+                        measure_name=measure_name,
+                    )
+                    for df in dfs
+                ]
+            )
         )
     )
-    return _utils.flatten_list(ray_get(errors))
+    return list(itertools.chain(*ray_get(errors)))
 
 
 @overload

@@ -187,7 +187,7 @@ def _convert_items(
     arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
     if use_scan:
-        return _utils.table_refs_to_df(items, arrow_kwargs) if as_dataframe else _utils.flatten_list(ray_get(items))
+        return _utils.table_refs_to_df(items, arrow_kwargs) if as_dataframe else list(itertools.chain(*ray_get(items)))
     return (
         _utils.table_refs_to_df(
             [

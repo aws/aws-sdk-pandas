@@ -122,11 +122,6 @@ def import_optional_dependency(name: str) -> ModuleType:
     return module
 
 
-def flatten_list(elements: List[List[Any]]) -> List[Any]:
-    """Flatten a list of lists."""
-    return [item for sublist in elements for item in sublist]
-
-
 def ensure_session(session: Union[None, boto3.Session] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
     if session is not None:
