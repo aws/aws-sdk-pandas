@@ -69,7 +69,7 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
-    def _write_block(  # type: ignore  # pylint: disable=arguments-differ, arguments-renamed
+    def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed
         self,
         f: io.TextIOWrapper,
         block: BlockAccessor[Any],
@@ -81,7 +81,7 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
         if not pandas_kwargs:
             pandas_kwargs = {}
 
-        write_text_func(block.to_pandas(), f, **pandas_kwargs)  # type: ignore
+        write_text_func(block.to_pandas(), f, **pandas_kwargs)  # type: ignore[misc]
 
 
 class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
@@ -92,7 +92,7 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
     def __init__(self) -> None:
         super().__init__(pd.read_csv, pd.DataFrame.to_csv)
 
-    def _read_stream(  # type: ignore
+    def _read_stream(  # type: ignore[override]
         self,
         f: pyarrow.NativeFile,
         path: str,
@@ -140,7 +140,7 @@ class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-me
     def __init__(self) -> None:
         super().__init__(pd.read_json, pd.DataFrame.to_json)
 
-    def _read_stream(  # type: ignore
+    def _read_stream(  # type: ignore[override]
         self,
         f: pyarrow.NativeFile,
         path: str,

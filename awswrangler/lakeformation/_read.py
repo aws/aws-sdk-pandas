@@ -190,7 +190,7 @@ def read_sql_query(
         arrow_kwargs=arrow_kwargs,
     )
     if commit_trans:
-        commit_transaction(transaction_id=transaction_id)  # type: ignore
+        commit_transaction(transaction_id=transaction_id)  # type: ignore[arg-type]
     return df
 
 

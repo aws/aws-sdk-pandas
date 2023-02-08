@@ -129,7 +129,7 @@ class _MapType(_AbstractType[Dict[_PythonType, _PythonTypeMapValue]]):
         return f"MAP(ARRAY [{', '.join(map(str, map_keys))}], ARRAY [{', '.join(map(str, map_values))}])"
 
 
-_FORMATS: Dict[Type[Any], Type[_AbstractType[_PythonType]]] = {  # type: ignore
+_FORMATS: Dict[Type[Any], Type[_AbstractType[_PythonType]]] = {  # type: ignore[valid-type]
     bool: _BooleanType,
     str: _StringType,
     int: _IntegerType,
@@ -139,13 +139,13 @@ _FORMATS: Dict[Type[Any], Type[_AbstractType[_PythonType]]] = {  # type: ignore
     float: _FloatType,
 }
 
-_ARRAY_FORMATS: Dict[Type[Any], Type[_AbstractType[_PythonType]]] = {  # type: ignore
+_ARRAY_FORMATS: Dict[Type[Any], Type[_AbstractType[_PythonType]]] = {  # type: ignore[valid-type]
     list: _ArrayType,
     tuple: _ArrayType,
     set: _ArrayType,
 }
 
-_MAP_FORMATS: Dict[Type[Any], Type[_AbstractType[_PythonType]]] = {  # type: ignore
+_MAP_FORMATS: Dict[Type[Any], Type[_AbstractType[_PythonType]]] = {  # type: ignore[valid-type]
     dict: _MapType,
 }
 
@@ -200,7 +200,7 @@ def _process_sql_params(sql: str, params: Optional[Dict[str, Any]], engine: _Eng
 
     processed_params = _format_parameters(params, engine=engine)
 
-    def replace(match: re.Match) -> str:  # type: ignore
+    def replace(match: re.Match) -> str:  # type: ignore[type-arg]
         key = match.group(1)
 
         if key not in processed_params:

@@ -116,7 +116,7 @@ def read_partiql_query(
     ... )
     """
     _logger.debug("Reading results for PartiQL query:  '%s'", query)
-    iterator: Iterator[Dict[str, Any]] = execute_statement(  # type: ignore
+    iterator: Iterator[Dict[str, Any]] = execute_statement(  # type: ignore[assignment]
         query, parameters=parameters, boto3_session=boto3_session
     )
     if chunked:
@@ -226,7 +226,7 @@ def _read_scan(
 
     while next_token:
         _logger.debug("segment: %s", segment)
-        response = _handle_reserved_keyword_error(client_dynamodb.scan)(**kwargs, Segment=segment)  # type: ignore
+        response = _handle_reserved_keyword_error(client_dynamodb.scan)(**kwargs, Segment=segment)  # type: ignore[type-var]
         # Unlike a resource, the DynamoDB client returns serialized results, so they must be deserialized
         # Additionally, the DynamoDB "Binary" type is converted to a native Python data type
         # SEE: https://boto3.amazonaws.com/v1/documentation/api/latest/_modules/boto3/dynamodb/types.html

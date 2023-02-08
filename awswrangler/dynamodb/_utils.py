@@ -159,7 +159,7 @@ def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
     if "FilterExpression" in kwargs and not isinstance(kwargs["FilterExpression"], str):
         builder = ConditionExpressionBuilder()
-        exp_string, names, values = builder.build_expression(kwargs["FilterExpression"], False)  # type: ignore
+        exp_string, names, values = builder.build_expression(kwargs["FilterExpression"], False)  # type: ignore[assignment]
         kwargs["FilterExpression"] = exp_string
 
     if "ExpressionAttributeNames" in kwargs:

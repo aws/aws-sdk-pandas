@@ -1,7 +1,7 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 import numpy as np
@@ -94,13 +94,14 @@ def _delete_objects(
     prefix = _get_subgroup_prefix(keys, partition_cols, path_root)
     if mode == "overwrite_partitions":
         if (table_type == "GOVERNED") and (table is not None) and (database is not None):
+            transaction_id = cast(str, transaction_id)
             del_objects: List[Dict[str, Any]] = lakeformation._get_table_objects(  # pylint: disable=protected-access
                 catalog_id=catalog_id,
                 database=database,
                 table=table,
-                transaction_id=transaction_id,  # type: ignore
+                transaction_id=transaction_id,
                 partition_cols=partition_cols,
-                partitions_values=keys,  # type: ignore
+                partitions_values=keys,  # type: ignore[arg-type]
                 partitions_types=partitions_types,
                 boto3_session=boto3_session,
             )
@@ -109,7 +110,7 @@ def _delete_objects(
                     catalog_id=catalog_id,
                     database=database,
                     table=table,
-                    transaction_id=transaction_id,  # type: ignore
+                    transaction_id=transaction_id,
                     del_objects=del_objects,
                     boto3_session=boto3_session,
                 )
@@ -250,11 +251,12 @@ def _to_dataset(
         )
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
         if (table_type == "GOVERNED") and (table is not None) and (database is not None):
+            transaction_id = cast(str, transaction_id)
             del_objects: List[Dict[str, Any]] = lakeformation._get_table_objects(  # pylint: disable=protected-access
                 catalog_id=catalog_id,
                 database=database,
                 table=table,
-                transaction_id=transaction_id,  # type: ignore
+                transaction_id=transaction_id,
                 boto3_session=boto3_session,
             )
             if del_objects:
@@ -262,7 +264,7 @@ def _to_dataset(
                     catalog_id=catalog_id,
                     database=database,
                     table=table,
-                    transaction_id=transaction_id,  # type: ignore
+                    transaction_id=transaction_id,
                     del_objects=del_objects,
                     boto3_session=boto3_session,
                 )
@@ -331,7 +333,7 @@ def _to_dataset(
                         catalog_id=catalog_id,
                         database=database,
                         table=table,
-                        transaction_id=transaction_id,  # type: ignore
+                        transaction_id=transaction_id,  # type: ignore[arg-type]
                         add_objects=add_objects,
                         boto3_session=boto3_session,
                     )

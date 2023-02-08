@@ -92,7 +92,7 @@ def ray_remote(**options: Any) -> Callable[..., Any]:
             remote_fn = ray.remote(ray_logger(function))
             if options:
                 remote_fn = remote_fn.options(**options)
-            return remote_fn.remote(*args, **kwargs)  # type: ignore
+            return remote_fn.remote(*args, **kwargs)
 
         return wrapper
 

@@ -500,7 +500,7 @@ def to_sql(
                 insertion_columns = f"({', '.join(column_names)})"
             if mode == "upsert":
                 upsert_columns = ", ".join(f"{column}=EXCLUDED.{column}" for column in column_names)
-                conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore
+                conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore[arg-type]
                 upsert_str = f" ON CONFLICT ({conflict_columns}) DO UPDATE SET {upsert_columns}"
             if mode == "append" and insert_conflict_columns:
                 conflict_columns = ", ".join(insert_conflict_columns)

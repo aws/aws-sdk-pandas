@@ -3,7 +3,7 @@
 
 import logging
 import pprint
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import boto3
 
@@ -73,7 +73,7 @@ def _get_default_logging_path(
     elif (region is None) and (subnet_id is None):
         raise exceptions.InvalidArgumentCombination("You must pass region or subnet_id or both.")
     else:
-        _region = region  # type: ignore
+        _region = cast(str, region)
     return f"s3://aws-logs-{_account_id}-{_region}/elasticmapreduce/"
 
 
