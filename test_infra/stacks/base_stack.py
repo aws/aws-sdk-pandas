@@ -3,6 +3,7 @@ from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
+from aws_cdk import aws_lakeformation as lf
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_ssm as ssm
@@ -99,6 +100,20 @@ class BaseStack(Stack):  # type: ignore
             id="aws_sdk_pandas_glue_database",
             database_name="aws_sdk_pandas",
             location_uri=f"s3://{self.bucket.bucket_name}",
+        )
+        lf.CfnPermissions(
+            self,
+            "GlueDataQualitytRoleLFPermissions",
+            data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
+                data_lake_principal_identifier=glue_data_quality_role.role_arn,
+            ),
+            resource=lf.CfnPermissions.ResourceProperty(
+                table_resource=lf.CfnPermissions.TableResourceProperty(
+                    database_name=glue_db.database_name,
+                    table_wildcard={},
+                )
+            ),
+            permissions=["SELECT", "ALTER", "DESCRIBE", "DROP", "DELETE", "INSERT"],
         )
         log_group = logs.LogGroup(
             self,
