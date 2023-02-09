@@ -281,14 +281,14 @@ wcwidth = ">=0.1.4"
 
 [[package]]
 name = "boto3"
-version = "1.26.66"
+version = "1.26.67"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 
 [package.dependencies]
-botocore = ">=1.29.66,<1.30.0"
+botocore = ">=1.29.67,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -675,7 +675,7 @@ xray = ["mypy-boto3-xray (>=1.26.0,<1.27.0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.66"
+version = "1.29.67"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
@@ -691,7 +691,7 @@ crt = ["awscrt (==0.16.9)"]
 
 [[package]]
 name = "botocore-stubs"
-version = "1.29.66"
+version = "1.29.67"
 description = "Type annotations and code completion for botocore"
 category = "dev"
 optional = false
@@ -1809,8 +1809,8 @@ typing-extensions = ">=4.1.0"
 
 [[package]]
 name = "mypy-boto3-glue"
-version = "1.26.53"
-description = "Type annotations for boto3.Glue 1.26.53 service generated with mypy-boto3-builder 7.12.3"
+version = "1.26.67"
+description = "Type annotations for boto3.Glue 1.26.67 service generated with mypy-boto3-builder 7.12.3"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
@@ -1831,8 +1831,8 @@ typing-extensions = ">=4.1.0"
 
 [[package]]
 name = "mypy-boto3-lakeformation"
-version = "1.26.9"
-description = "Type annotations for boto3.LakeFormation 1.26.9 service generated with mypy-boto3-builder 7.11.10"
+version = "1.26.67"
+description = "Type annotations for boto3.LakeFormation 1.26.67 service generated with mypy-boto3-builder 7.12.3"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
@@ -2704,7 +2704,7 @@ python-versions = ">=3.5"
 
 [[package]]
 name = "python-utils"
-version = "3.4.5"
+version = "3.5.2"
 description = "Python Utils is a module with some convenient utilities not included with the standard Python install"
 category = "main"
 optional = true
@@ -3542,7 +3542,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "e24a4291d95d7a1ed684f9ac62e10d9f33b2f10bca23db6d8285dbc9d4f63321"
+content-hash = "a6155880ecd587cbb0c2ffadab7f1553d262b9799341d5c0c2c823728d14516c"
 
 [metadata.files]
 aenum = [
@@ -3751,20 +3751,20 @@ blessed = [
     {file = "blessed-1.20.0.tar.gz", hash = "sha256:2cdd67f8746e048f00df47a2880f4d6acbcdb399031b604e34ba8f71d5787680"},
 ]
 boto3 = [
-    {file = "boto3-1.26.66-py3-none-any.whl", hash = "sha256:3a1ffeecfe6e61d414617294b822b008e604ccfd83434c483f429a2922db314d"},
-    {file = "boto3-1.26.66.tar.gz", hash = "sha256:ebea98f3054b467caf6c8aead9f0ef78395a78bce78b04db12fde452c02b3734"},
+    {file = "boto3-1.26.67-py3-none-any.whl", hash = "sha256:159ab54ab301a213aea0dbebfe97c12909fd9180110a2b78aaa712c2d7d1a929"},
+    {file = "boto3-1.26.67.tar.gz", hash = "sha256:c2e21ac64370fee1f3dccd97b4767e89d046c45c00faec27c36405618e34c7e5"},
 ]
 boto3-stubs = [
     {file = "boto3-stubs-1.26.47.tar.gz", hash = "sha256:ac5e77c18dedf6b5110fa7b2836b4d79f591bd27defd0bc0c4d3dc1ace97481e"},
     {file = "boto3_stubs-1.26.47-py3-none-any.whl", hash = "sha256:6495673707e8a04dbb58e2c4a0f98b9a217a6c6d312f5f489de0181fc1c70805"},
 ]
 botocore = [
-    {file = "botocore-1.29.66-py3-none-any.whl", hash = "sha256:772da07d2a49a9d2dc8d23e060e88eb72881e58074be7c813aa946ecdbd0e5b5"},
-    {file = "botocore-1.29.66.tar.gz", hash = "sha256:4d1ac019e677cc39e615f9d473fa658ea22a8d906c1c562f9406b5d0cd854cbd"},
+    {file = "botocore-1.29.67-py3-none-any.whl", hash = "sha256:424c5fa21913d85ea990928acf35622a4f2b7f0750133b96adaa8c642bb6a878"},
+    {file = "botocore-1.29.67.tar.gz", hash = "sha256:0ccec4a906b6b8c7bb6bc5226509059ee9ed94d3cf1014487ef5b8e56801e6a3"},
 ]
 botocore-stubs = [
-    {file = "botocore_stubs-1.29.66-py3-none-any.whl", hash = "sha256:5b18615b27f2976762b3aba635b838c9aabedf4dbe5e3eb87c5c3f5227e19698"},
-    {file = "botocore_stubs-1.29.66.tar.gz", hash = "sha256:66eb9182d3204d303c8704ec4c491cb78116249fa46cc0bc98efcbe065062490"},
+    {file = "botocore_stubs-1.29.67-py3-none-any.whl", hash = "sha256:26ae5135e681a3dd3500b1b1ac1969aba149ba54195f105fff4fafab943d713b"},
+    {file = "botocore_stubs-1.29.67.tar.gz", hash = "sha256:87bb60ff0b718bc9877bd0d926e5f71e2b33bb7e7e110f87ee21ccb472ff1ede"},
 ]
 bump2version = [
     {file = "bump2version-1.0.1-py2.py3-none-any.whl", hash = "sha256:37f927ea17cde7ae2d7baf832f8e80ce3777624554a653006c9144f8017fe410"},
@@ -4658,16 +4658,16 @@ mypy-boto3-emr = [
     {file = "mypy_boto3_emr-1.26.40-py3-none-any.whl", hash = "sha256:8cd29ce815c6bf3e73578a83923c5d0e90b9f10d5e9269fc69910ad667451678"},
 ]
 mypy-boto3-glue = [
-    {file = "mypy-boto3-glue-1.26.53.tar.gz", hash = "sha256:03e1c962f74ec10276d535030bf5b8b57dea48eeb8d1ca0f6f71aa547af17c1b"},
-    {file = "mypy_boto3_glue-1.26.53-py3-none-any.whl", hash = "sha256:29883c788df91595912fbffa585dd65867700971323883bf6a0a2eb3009eb59e"},
+    {file = "mypy-boto3-glue-1.26.67.tar.gz", hash = "sha256:3158471b8345339e36376a2817ae800782c58b09a52bcc2e4a8d2b0c133f97a1"},
+    {file = "mypy_boto3_glue-1.26.67-py3-none-any.whl", hash = "sha256:6074b9057292dfaf0a1a8d592ffc10030e3c16f016ba94f9c2962ab0cfac67cf"},
 ]
 mypy-boto3-kms = [
     {file = "mypy-boto3-kms-1.26.25.tar.gz", hash = "sha256:6afa3da65914606e7bd8a0fae2518e8b18bb20b8de39eef72e1436390ff8adf4"},
     {file = "mypy_boto3_kms-1.26.25-py3-none-any.whl", hash = "sha256:479dc1b6d099f3cbabd42ce31b514361ceabb52e8a1b5408dcae32d71c23ee37"},
 ]
 mypy-boto3-lakeformation = [
-    {file = "mypy-boto3-lakeformation-1.26.9.tar.gz", hash = "sha256:d97915e5e95b7a89dbe041bd5a5ba11856589a88e666d8cce506d24b3e0b2ca2"},
-    {file = "mypy_boto3_lakeformation-1.26.9-py3-none-any.whl", hash = "sha256:d9525a9c4b498a95f1340cf510859d5176a87a57ccc7586d528ea727ed2968d5"},
+    {file = "mypy-boto3-lakeformation-1.26.67.tar.gz", hash = "sha256:d1f809f4bb25120109756147eafe9184b2fd0a925d3f8e91df38d8ae1f7d33e1"},
+    {file = "mypy_boto3_lakeformation-1.26.67-py3-none-any.whl", hash = "sha256:f02dc13739b5b72a4e15960c6c68b5e3395036d9bc521140edafc3c871106cfa"},
 ]
 mypy-boto3-logs = [
     {file = "mypy-boto3-logs-1.26.53.tar.gz", hash = "sha256:9b2d70e9a8f33e5f141ebf4abd3a78c50e80b60152eb400e69a23b5085f50ce0"},
@@ -5172,8 +5172,8 @@ python-json-logger = [
     {file = "python_json_logger-2.0.4-py3-none-any.whl", hash = "sha256:3b03487b14eb9e4f77e4fc2a023358b5394b82fd89cecf5586259baed57d8c6f"},
 ]
 python-utils = [
-    {file = "python-utils-3.4.5.tar.gz", hash = "sha256:7e329c427a6d23036cfcc4501638afb31b2ddc8896f25393562833874b8c6e0a"},
-    {file = "python_utils-3.4.5-py2.py3-none-any.whl", hash = "sha256:22990259324eae88faa3389d302861a825dbdd217ab40e3ec701851b3337d592"},
+    {file = "python-utils-3.5.2.tar.gz", hash = "sha256:68198854fc276bc4b2403b261703c218e01ef564dcb072a7096ed9ea7aa5130c"},
+    {file = "python_utils-3.5.2-py2.py3-none-any.whl", hash = "sha256:8bfefc3430f1c48408fa0e5958eee51d39840a5a987c2181a579e99ab6fe5ca6"},
 ]
 pytz = [
     {file = "pytz-2022.7.1-py2.py3-none-any.whl", hash = "sha256:78f4f37d8198e0627c5f1143240bb0206b8691d8d7ac6d78fee88b78733f8c4a"},
