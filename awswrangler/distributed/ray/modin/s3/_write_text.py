@@ -56,15 +56,15 @@ def _parse_configuration(
     if file_format == "csv":
         return _parse_csv_configuration(pandas_kwargs)
 
-    raise exceptions.InvalidArgument()
+    raise exceptions.InvalidArgument(f"File is in the {format} format")
 
 
-def _datasource_for_format(read_format: str, can_use_arrow: bool) -> PandasFileBasedDatasource:
-    if read_format == "csv":
+def _datasource_for_format(write_format: str, can_use_arrow: bool) -> PandasFileBasedDatasource:
+    if write_format == "csv":
         return ArrowCSVDatasource() if can_use_arrow else PandasCSVDataSource()
-    if read_format == "json":
+    if write_format == "json":
         return PandasJSONDatasource()
-    raise exceptions.UnsupportedType("Unsupported read format")
+    raise exceptions.UnsupportedType(f"Unsupported write format {write_format}")
 
 
 def _to_text_distributed(  # pylint: disable=unused-argument

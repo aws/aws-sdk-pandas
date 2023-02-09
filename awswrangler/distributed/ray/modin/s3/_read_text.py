@@ -25,6 +25,7 @@ _CSV_SUPPORTED_PARAMS = {
     "delimiter": ParamConfig(default=","),
     "quotechar": ParamConfig(default='"'),
     "doublequote": ParamConfig(default=True),
+    "names": ParamConfig(default=None),
 }
 
 
@@ -35,6 +36,7 @@ def _parse_csv_configuration(
 
     read_options = csv.ReadOptions(
         use_threads=False,
+        column_names=pandas_kwargs.get("names", _CSV_SUPPORTED_PARAMS["names"].default),
     )
     parse_options = csv.ParseOptions(
         delimiter=pandas_kwargs.get("sep", _CSV_SUPPORTED_PARAMS["sep"].default),
@@ -61,7 +63,7 @@ def _parse_configuration(
     if file_format == "csv":
         return _parse_csv_configuration(pandas_kwargs)
 
-    raise exceptions.InvalidArgument()
+    raise exceptions.InvalidArgument(f"File is in the {format} format")
 
 
 def _resolve_format(read_format: str, can_use_arrow: bool) -> Any:
