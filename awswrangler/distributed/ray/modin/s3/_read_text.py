@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 import modin.pandas as pd
 from pyarrow import csv
 from ray.data import read_datasource
+from ray.data.datasource import FastFileMetadataProvider
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import (
@@ -116,5 +117,6 @@ def _read_text_distributed(  # pylint: disable=unused-argument
         read_options=read_options,
         parse_options=parse_options,
         convert_options=convert_options,
+        meta_provider=FastFileMetadataProvider(),
     )
     return _to_modin(dataset=ray_dataset, ignore_index=ignore_index)
