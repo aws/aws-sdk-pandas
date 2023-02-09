@@ -28,6 +28,7 @@ python = ">=3.8, <4.0"
 
 # Required
 boto3 = "^1.26.42"
+botocore = "^1.29.42"
 pandas = "^1.0"
 numpy = "^1.18"
 pyarrow = ">=7.0.0"
