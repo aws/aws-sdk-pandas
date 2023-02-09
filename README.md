@@ -124,7 +124,6 @@ As a result existing scripts can run on significantly larger datasets with no co
 |    | `to_json`                                               | ✅ |
 |    | `select_query`                                               | ✅ |
 |    | `delete`                                               | ✅ |
-|    | `copy`                                               | ✅ |
 |    | `wait`                                               | ✅ |
 |  `Redshift`    | `copy`                                               | ✅ |
 |    | `unload`                                               | ✅ |
