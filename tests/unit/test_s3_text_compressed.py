@@ -25,7 +25,15 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 pytestmark = pytest.mark.distributed
 
 
-@pytest.mark.parametrize("compression", ["gzip", "bz2", "xz"])
+# XFail issue: https://github.com/aws/aws-sdk-pandas/issues/2005
+@pytest.mark.parametrize(
+    "compression",
+    [
+        "gzip",
+        "bz2",
+        pytest.param("xz", marks=pytest.mark.xfail(is_ray_modin, reason="Arrow compression errors")),
+    ],
+)
 def test_csv_read(bucket, path, compression):
     key_prefix = path.replace(f"s3://{bucket}/", "")
     wr.s3.delete_objects(path=path)
