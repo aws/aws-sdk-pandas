@@ -393,10 +393,7 @@ def start_query_execution(
     kms_key: Optional[str] = ...,
     params: Optional[Dict[str, Any]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    max_cache_seconds: int = ...,
-    max_cache_query_inspections: int = ...,
-    max_remote_cache_entries: int = ...,
-    max_local_cache_entries: int = ...,
+    athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     wait: Literal[False] = ...,
 ) -> str:
@@ -414,10 +411,7 @@ def start_query_execution(
     kms_key: Optional[str] = ...,
     params: Optional[Dict[str, Any]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    max_cache_seconds: int = ...,
-    max_cache_query_inspections: int = ...,
-    max_remote_cache_entries: int = ...,
-    max_local_cache_entries: int = ...,
+    athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     wait: Literal[True],
 ) -> Dict[str, Any]:
@@ -435,10 +429,7 @@ def start_query_execution(
     kms_key: Optional[str] = ...,
     params: Optional[Dict[str, Any]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    max_cache_seconds: int = ...,
-    max_cache_query_inspections: int = ...,
-    max_remote_cache_entries: int = ...,
-    max_local_cache_entries: int = ...,
+    athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     wait: bool,
 ) -> Union[str, Dict[str, Any]]:
@@ -455,10 +446,7 @@ def start_query_execution(
     kms_key: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
-    max_cache_seconds: int = 0,
-    max_cache_query_inspections: int = 50,
-    max_remote_cache_entries: int = 50,
-    max_local_cache_entries: int = 100,
+    athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
     data_source: Optional[str] = None,
     wait: bool = False,
 ) -> Union[str, Dict[str, Any]]:
@@ -532,6 +520,12 @@ def start_query_execution(
 
     """
     sql = _process_sql_params(sql, params)
+
+    athena_cache_settings = athena_cache_settings if athena_cache_settings else {}
+    max_cache_seconds = athena_cache_settings.get("max_cache_seconds", 0)
+    max_cache_query_inspections = athena_cache_settings.get("max_cache_query_inspections", 50)
+    max_remote_cache_entries = athena_cache_settings.get("max_remote_cache_entries", 50)
+    max_local_cache_entries = athena_cache_settings.get("max_local_cache_entries", 100)
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 

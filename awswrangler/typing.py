@@ -3,11 +3,7 @@
 import sys
 from typing import Dict, List, Literal, Tuple, TypedDict
 
-if sys.version_info >= (3, 11):
-    from typing import NotRequired, Required
-else:
-    from typing_extensions import NotRequired, Required
-
+from typing_extensions import NotRequired, Required
 
 BucketingInfoTuple = Tuple[List[str], int]
 
@@ -85,6 +81,15 @@ class AthenaUNLOADSettings(TypedDict):
     """
     A list of columns by which the output is partitioned.
     """
+
+
+class AthenaCacheSettings(TypedDict):
+    """Typed dictionary defining the settings for using cached Athena results."""
+
+    max_cache_seconds: NotRequired[int]
+    max_cache_query_inspections: NotRequired[int]
+    max_remote_cache_entries: NotRequired[int]
+    max_local_cache_entries: NotRequired[int]
 
 
 class _S3WriteDataReturnValue(TypedDict):
