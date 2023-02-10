@@ -219,7 +219,7 @@ def read_sql_query(
         boto3_session=boto3_session,
     )
     if commit_trans:
-        commit_transaction(transaction_id=transaction_id)  # type: ignore
+        commit_transaction(transaction_id=transaction_id, boto3_session=boto3_session)  # type: ignore
     return df
 
 
