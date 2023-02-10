@@ -1,4 +1,5 @@
 from aws_cdk import CfnOutput, Duration, Stack, Tags
+from aws_cdk import aws_cloudtrail as cloudtrail
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
@@ -125,6 +126,17 @@ class BaseStack(Stack):  # type: ignore
             id="aws_sdk_pandas_log_stream",
             log_group=log_group,
         )
+
+        self.trail = cloudtrail.Trail(
+            self,
+            id="Bucket Trail",
+        )
+        self.trail.add_s3_event_selector(
+            [
+                cloudtrail.S3EventSelector(bucket=self.bucket),
+            ]
+        )
+
         CfnOutput(self, "Region", value=self.region)
         CfnOutput(
             self,
@@ -133,7 +145,7 @@ class BaseStack(Stack):  # type: ignore
             export_name="aws-sdk-pandas-base-VPC",
         )
         ssm.StringParameter(self, "SSM VPC",
-            parameter_name="aws-sdk-pandas/base/VPC",
+            parameter_name="/sdk-pandas/base/VPC",
             string_value=self.vpc.vpc_id,
         )
         CfnOutput(
@@ -143,7 +155,7 @@ class BaseStack(Stack):  # type: ignore
             export_name="aws-sdk-pandas-base-PublicSubnet1",
         )
         ssm.StringParameter(self, "SSM PublicSubnet1",
-            parameter_name="aws-sdk-pandas/base/PublicSubnet1",
+            parameter_name="/sdk-pandas/base/PublicSubnet1",
             string_value=self.vpc.public_subnets[0].subnet_id,
         )
         CfnOutput(
@@ -153,7 +165,7 @@ class BaseStack(Stack):  # type: ignore
             export_name="aws-sdk-pandas-base-PublicSubnet2",
         )
         ssm.StringParameter(self, "SSM PublicSubnet2",
-            parameter_name="aws-sdk-pandas/base/PublicSubnet2",
+            parameter_name="/sdk-pandas/base/PublicSubnet2",
             string_value=self.vpc.public_subnets[1].subnet_id,
         )
         CfnOutput(
@@ -163,7 +175,7 @@ class BaseStack(Stack):  # type: ignore
             export_name="aws-sdk-pandas-base-PublicSubnet3",
         )
         ssm.StringParameter(self, "SSM PublicSubnet3",
-            parameter_name="aws-sdk-pandas/base/PublicSubnet3",
+            parameter_name="/sdk-pandas/base/PublicSubnet3",
             string_value=self.vpc.public_subnets[2].subnet_id,
         )
         CfnOutput(
@@ -173,7 +185,7 @@ class BaseStack(Stack):  # type: ignore
             export_name="aws-sdk-pandas-base-PrivateSubnet",
         )
         ssm.StringParameter(self, "SSM PrivateSubnet",
-            parameter_name="aws-sdk-pandas/base/PrivateSubnet",
+            parameter_name="/sdk-pandas/base/PrivateSubnet",
             string_value=self.vpc.private_subnets[0].subnet_id,
         )
         CfnOutput(
@@ -183,7 +195,7 @@ class BaseStack(Stack):  # type: ignore
             export_name="aws-sdk-pandas-base-KmsKeyArn",
         )
         ssm.StringParameter(self, "SSM KmsKeyArn",
-            parameter_name="aws-sdk-pandas/base/KmsKeyArn",
+            parameter_name="/sdk-pandas/base/KmsKeyArn",
             string_value=self.vpc.public_subnets[0].subnet_id,
         )
         CfnOutput(
@@ -192,8 +204,8 @@ class BaseStack(Stack):  # type: ignore
             value=self.bucket.bucket_name,
             export_name="aws-sdk-pandas-base-BucketName",
         )
-        ssm.StringParamater(self, "SSM BucketName",
-            value=self.bucket.bucket_name,
+        ssm.StringParameter(self, "SSM BucketName",
+            parameter_name="/sdk-pandas/base/BucketName",
             string_value=self.bucket.bucket_name,
         )
         CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
