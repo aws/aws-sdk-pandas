@@ -142,61 +142,31 @@ class BaseStack(Stack):  # type: ignore
             self,
             "VPC",
             value=self.vpc.vpc_id,
-            export_name="aws-sdk-pandas-base-VPC",
-        )
-        ssm.StringParameter(self, "SSM VPC",
-            parameter_name="/sdk-pandas/base/VPC",
-            string_value=self.vpc.vpc_id,
         )
         CfnOutput(
             self,
             "PublicSubnet1",
             value=self.vpc.public_subnets[0].subnet_id,
-            export_name="aws-sdk-pandas-base-PublicSubnet1",
-        )
-        ssm.StringParameter(self, "SSM PublicSubnet1",
-            parameter_name="/sdk-pandas/base/PublicSubnet1",
-            string_value=self.vpc.public_subnets[0].subnet_id,
         )
         CfnOutput(
             self,
             "PublicSubnet2",
             value=self.vpc.public_subnets[1].subnet_id,
-            export_name="aws-sdk-pandas-base-PublicSubnet2",
-        )
-        ssm.StringParameter(self, "SSM PublicSubnet2",
-            parameter_name="/sdk-pandas/base/PublicSubnet2",
-            string_value=self.vpc.public_subnets[1].subnet_id,
         )
         CfnOutput(
             self,
             "PublicSubnet3",
             value=self.vpc.public_subnets[2].subnet_id,
-            export_name="aws-sdk-pandas-base-PublicSubnet3",
-        )
-        ssm.StringParameter(self, "SSM PublicSubnet3",
-            parameter_name="/sdk-pandas/base/PublicSubnet3",
-            string_value=self.vpc.public_subnets[2].subnet_id,
         )
         CfnOutput(
             self,
             "PrivateSubnet",
             value=self.vpc.private_subnets[0].subnet_id,
-            export_name="aws-sdk-pandas-base-PrivateSubnet",
-        )
-        ssm.StringParameter(self, "SSM PrivateSubnet",
-            parameter_name="/sdk-pandas/base/PrivateSubnet",
-            string_value=self.vpc.private_subnets[0].subnet_id,
         )
         CfnOutput(
             self,
             "KmsKeyArn",
             value=self.key.key_arn,
-            export_name="aws-sdk-pandas-base-KmsKeyArn",
-        )
-        ssm.StringParameter(self, "SSM KmsKeyArn",
-            parameter_name="/sdk-pandas/base/KmsKeyArn",
-            string_value=self.vpc.public_subnets[0].subnet_id,
         )
         CfnOutput(
             self,

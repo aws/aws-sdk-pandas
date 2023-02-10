@@ -2,6 +2,7 @@ from aws_cdk import Fn, Stack
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lakeformation as lf
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_ssm as ssm
 from constructs import Construct
 
 
@@ -20,8 +21,11 @@ class LakeFormationStack(Stack):  # type: ignore
         self._set_lakeformation_infra()
 
     def _set_lakeformation_infra(self) -> None:
+        bucket_name = ssm.StringParameter.from_string_parameter_attributes(self, "Bucket Name from Base Stack",
+            parameter_name="/sdk-pandas/base/BucketName"
+        ).string_value
         bucket = s3.Bucket.from_bucket_name(
-            self, "aws-sdk-pandas-bucket", bucket_name=Fn.import_value("aws-sdk-pandas-base-BucketName")
+            self, "aws-sdk-pandas-bucket", bucket_name=bucket_name
         )
 
         transaction_role = iam.Role(
