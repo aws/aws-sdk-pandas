@@ -174,7 +174,9 @@ class BaseStack(Stack):  # type: ignore
             value=self.bucket.bucket_name,
             export_name="aws-sdk-pandas-base-BucketName",
         )
-        ssm.StringParameter(self, "SSM BucketName",
+        ssm.StringParameter(
+            self,
+            "SSM BucketName",
             parameter_name="/sdk-pandas/base/BucketName",
             string_value=self.bucket.bucket_name,
         )
