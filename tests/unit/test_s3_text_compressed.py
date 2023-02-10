@@ -85,7 +85,7 @@ def test_csv_read(bucket: str, path: str, compression: str) -> None:
         None,
     ],
 )
-def test_csv_write(path: str, compression: Optional[str]):
+def test_csv_write(path: str, compression: Optional[str]) -> None:
     # Ensure we use the pd.read_csv native to Pandas, not Modin.
     # Modin's read_csv has an issue in this scenario, making the test fail.
     import pandas as pd
@@ -103,7 +103,7 @@ def test_csv_write(path: str, compression: Optional[str]):
 
 
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
-def test_csv_write_dataset_filename_extension(path, compression):
+def test_csv_write_dataset_filename_extension(path: str, compression: Optional[str]) -> None:
     df = get_df_csv()
     if version_info < (3, 7) and compression:
         with pytest.raises(wr.exceptions.InvalidArgument):
@@ -115,7 +115,7 @@ def test_csv_write_dataset_filename_extension(path, compression):
 
 
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
-def test_json(path, compression):
+def test_json(path: str, compression: Optional[str]) -> None:
     path_file = f"{path}test.json{EXT.get(compression, '')}"
     df = pd.DataFrame({"id": [1, 2, 3]})
     if version_info < (3, 7) and compression:
@@ -130,7 +130,7 @@ def test_json(path, compression):
 
 @pytest.mark.parametrize("chunksize", [None, 1])
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
-def test_partitioned_json(path, compression, chunksize):
+def test_partitioned_json(path: str, compression: Optional[str], chunksize: Optional[int]) -> None:
     df = pd.DataFrame(
         {
             "c0": [0, 1, 2, 3],
@@ -171,7 +171,7 @@ def test_partitioned_json(path, compression, chunksize):
 
 @pytest.mark.parametrize("chunksize", [None, 1])
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
-def test_partitioned_csv(path, compression, chunksize):
+def test_partitioned_csv(path: str, compression: Optional[str], chunksize: Optional[int]) -> None:
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
     paths = [f"{path}year={y}/month={m}/0.csv{EXT.get(compression, '')}" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
     if version_info < (3, 7) and compression:
