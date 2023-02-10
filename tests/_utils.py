@@ -100,7 +100,7 @@ def dt(x: str) -> date:
     return datetime.strptime(x, "%Y-%m-%d").date()
 
 
-def get_df(governed=False):
+def get_df(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -134,7 +134,7 @@ def get_df(governed=False):
     return df
 
 
-def get_df_list(governed=False):
+def get_df_list(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -171,7 +171,7 @@ def get_df_list(governed=False):
     return df
 
 
-def get_df_cast(governed=False):
+def get_df_cast(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [None, None, None],
@@ -197,7 +197,7 @@ def get_df_cast(governed=False):
     return df
 
 
-def get_df_csv():
+def get_df_csv() -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "id": [1, 2, 3],
@@ -218,7 +218,7 @@ def get_df_csv():
     return df
 
 
-def get_df_txt():
+def get_df_txt() -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "col_name": [
@@ -284,7 +284,7 @@ def get_df_category():
     return df
 
 
-def get_df_quicksight():
+def get_df_quicksight() -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -314,7 +314,7 @@ def get_df_quicksight():
     return df
 
 
-def ensure_data_types(df, has_list=False):
+def ensure_data_types(df: pd.DataFrame, has_list: bool = False) -> None:
     if "iint8" in df.columns:
         assert str(df["iint8"].dtype).startswith("Int")
     assert str(df["iint16"].dtype).startswith("Int")
@@ -351,7 +351,7 @@ def ensure_data_types(df, has_list=False):
             assert str(type(row["list_list"][0][0]).__name__) == "int64"
 
 
-def ensure_data_types_category(df):
+def ensure_data_types_category(df: pd.DataFrame) -> None:
     assert len(df.columns) in (7, 8)
     assert str(df["id"].dtype) in ("category", "Int64")
     assert str(df["string_object"].dtype) == "category"
@@ -364,7 +364,7 @@ def ensure_data_types_category(df):
     assert str(df["par1"].dtype) == "category"
 
 
-def ensure_data_types_csv(df, governed=False):
+def ensure_data_types_csv(df: pd.DataFrame, governed: bool = False) -> None:
     if "__index_level_0__" in df:
         assert str(df["__index_level_0__"].dtype).startswith("Int")
     assert str(df["id"].dtype).startswith("Int")
