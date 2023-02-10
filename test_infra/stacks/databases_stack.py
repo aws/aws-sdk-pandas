@@ -72,33 +72,23 @@ class DatabasesStack(Stack):  # type: ignore
             vpc=self.vpc,
             description="AWS SDK for pandas Test Athena - Database security group",
         )
-        self.db_security_group.add_ingress_rule(
-            self.db_security_group, ec2.Port.all_traffic()
-        )
+        self.db_security_group.add_ingress_rule(self.db_security_group, ec2.Port.all_traffic())
 
         if self.node.try_get_context("network") == "public":
             self.connectivity = {
                 "vpc": self.vpc,
                 "vpc_subnets": ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
             }
-            self.redshift_serverless_subnet_ids = [
-                subnet.subnet_id for subnet in self.vpc.public_subnets
-            ]
+            self.redshift_serverless_subnet_ids = [subnet.subnet_id for subnet in self.vpc.public_subnets]
             self.publicly_accessible = True
         else:
             self.connectivity = {
                 "vpc": self.vpc,
-                "vpc_subnets": ec2.SubnetSelection(
-                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
-                ),
+                "vpc_subnets": ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
             }
-            self.redshift_serverless_subnet_ids = [
-                subnet.subnet_id for subnet in self.vpc.private_subnets
-            ]
+            self.redshift_serverless_subnet_ids = [subnet.subnet_id for subnet in self.vpc.private_subnets]
             self.publicly_accessible = False
-        self.glue_connection_subnet = self.vpc.private_subnets[
-            0
-        ]  # a glue connection is never public anyway
+        self.glue_connection_subnet = self.vpc.private_subnets[0]  # a glue connection is never public anyway
         ssm.StringParameter(
             self,
             "db-security-group-parameter",
@@ -354,11 +344,7 @@ class DatabasesStack(Stack):  # type: ignore
             ),
         )
         CfnOutput(self, "RedshiftServerlessSecretArn", value=secret.secret_arn)
-        CfnOutput(
-            self,
-            "RedshiftServerlessWorkgroup",
-            value=redshift_cfn_workgroup.workgroup_name,
-        )
+        CfnOutput(self, "RedshiftServerlessWorkgroup", value=redshift_cfn_workgroup.workgroup_name)
         CfnOutput(self, "RedshiftServerlessDatabase", value=database)
 
     def _setup_postgresql(self) -> None:
@@ -573,9 +559,7 @@ class DatabasesStack(Stack):  # type: ignore
         )
         CfnOutput(self, "MysqlServerlessSecretArn", value=secret.secret_arn)
         CfnOutput(self, "MysqlServerlessClusterArn", value=aurora_mysql.cluster_arn)
-        CfnOutput(
-            self, "MysqlServerlessAddress", value=aurora_mysql.cluster_endpoint.hostname
-        )
+        CfnOutput(self, "MysqlServerlessAddress", value=aurora_mysql.cluster_endpoint.hostname)
         CfnOutput(self, "MysqlServerlessPort", value=str(port))
         CfnOutput(self, "MysqlServerlessDatabase", value=database)
         CfnOutput(self, "MysqlServerlessSchema", value=schema)
@@ -589,12 +573,8 @@ class DatabasesStack(Stack):  # type: ignore
             "aws-sdk-pandas-sqlserver-instance",
             removal_policy=RemovalPolicy.DESTROY,
             instance_identifier="sqlserver-instance-sdk-pandas",
-            engine=rds.DatabaseInstanceEngine.sql_server_ex(
-                version=rds.SqlServerEngineVersion.VER_15
-            ),
-            instance_type=ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL
-            ),
+            engine=rds.DatabaseInstanceEngine.sql_server_ex(version=rds.SqlServerEngineVersion.VER_15),
+            instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
                 password=self.db_password_secret,
@@ -655,12 +635,8 @@ class DatabasesStack(Stack):  # type: ignore
             "aws-sdk-pandas-oracle-instance",
             removal_policy=RemovalPolicy.DESTROY,
             instance_identifier="oracle-instance-sdk-pandas",
-            engine=rds.DatabaseInstanceEngine.oracle_ee(
-                version=rds.OracleEngineVersion.VER_19
-            ),
-            instance_type=ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL
-            ),
+            engine=rds.DatabaseInstanceEngine.oracle_ee(version=rds.OracleEngineVersion.VER_19),
+            instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
                 password=self.db_password_secret,
@@ -724,11 +700,7 @@ class DatabasesStack(Stack):  # type: ignore
             security_groups=[self.db_security_group],
         )
 
-        CfnOutput(
-            self, "NeptuneClusterEndpoint", value=cluster.cluster_endpoint.hostname
-        )
-        CfnOutput(
-            self, "NeptuneReaderEndpoint", value=cluster.cluster_read_endpoint.hostname
-        )
+        CfnOutput(self, "NeptuneClusterEndpoint", value=cluster.cluster_endpoint.hostname)
+        CfnOutput(self, "NeptuneReaderEndpoint", value=cluster.cluster_read_endpoint.hostname)
         CfnOutput(self, "NeptunePort", value=str(port))
         CfnOutput(self, "NeptuneIAMEnabled", value=str(iam_enabled))

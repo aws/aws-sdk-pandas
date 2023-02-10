@@ -83,9 +83,7 @@ class BaseStack(Stack):  # type: ignore
             assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AWSGlueConsoleFullAccess"
-                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
             ],
             inline_policies={
                 "GetDataAccess": iam.PolicyDocument(
@@ -174,10 +172,9 @@ class BaseStack(Stack):  # type: ignore
             self,
             "BucketName",
             value=self.bucket.bucket_name,
+            export_name="aws-sdk-pandas-base-BucketName",
         )
-        ssm.StringParameter(
-            self,
-            "SSM BucketName",
+        ssm.StringParameter(self, "SSM BucketName",
             parameter_name="/sdk-pandas/base/BucketName",
             string_value=self.bucket.bucket_name,
         )

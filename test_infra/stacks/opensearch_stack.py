@@ -59,10 +59,7 @@ class OpenSearchStack(Stack):  # type: ignore
         if self.node.try_get_context("network") == "public":
             self.connectivity = {}
         else:
-            self.connectivity = {
-                "vpc": self.vpc,
-                "vpc_subnets": [{"subnets": [self.vpc.private_subnets[0]]}],
-            }
+            self.connectivity = {"vpc": self.vpc, "vpc_subnets": [{"subnets": [self.vpc.private_subnets[0]]}]}
 
     def _setup_opensearch_1(self) -> None:
         domain_name = "sdk-pandas-os-1"
@@ -73,9 +70,7 @@ class OpenSearchStack(Stack):  # type: ignore
             domain_name,
             domain_name=domain_name,
             version=opensearch.EngineVersion.OPENSEARCH_1_3,
-            capacity=opensearch.CapacityConfig(
-                data_node_instance_type="t3.medium.search", data_nodes=1
-            ),
+            capacity=opensearch.CapacityConfig(data_node_instance_type="t3.medium.search", data_nodes=1),
             **self.connectivity,
             access_policies=[
                 iam.PolicyStatement(
@@ -93,9 +88,9 @@ class OpenSearchStack(Stack):  # type: ignore
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        CfnOutput(
-            self, "DomainEndpointsdkpandasos1", value=domain.domain_endpoint
-        ).override_logical_id("DomainEndpointsdkpandasos1")
+        CfnOutput(self, "DomainEndpointsdkpandasos1", value=domain.domain_endpoint).override_logical_id(
+            "DomainEndpointsdkpandasos1"
+        )
 
     def _setup_elasticsearch_7_10_fgac(self) -> None:
         domain_name = "sdk-pandas-es-7-10-fgac"
@@ -106,9 +101,7 @@ class OpenSearchStack(Stack):  # type: ignore
             domain_name,
             domain_name=domain_name,
             version=opensearch.EngineVersion.ELASTICSEARCH_7_10,
-            capacity=opensearch.CapacityConfig(
-                data_node_instance_type="t3.medium.search", data_nodes=1
-            ),
+            capacity=opensearch.CapacityConfig(data_node_instance_type="t3.medium.search", data_nodes=1),
             **self.connectivity,
             access_policies=[
                 iam.PolicyStatement(
@@ -123,16 +116,14 @@ class OpenSearchStack(Stack):  # type: ignore
                 master_user_password=self.password_secret,
             ),
             node_to_node_encryption=True,
-            encryption_at_rest=opensearch.EncryptionAtRestOptions(
-                enabled=True, kms_key=self.key
-            ),
+            encryption_at_rest=opensearch.EncryptionAtRestOptions(enabled=True, kms_key=self.key),
             enforce_https=True,
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        CfnOutput(
-            self, "DomainEndpointsdkpandases710fgac", value=domain.domain_endpoint
-        ).override_logical_id("DomainEndpointsdkpandases710fgac")
+        CfnOutput(self, "DomainEndpointsdkpandases710fgac", value=domain.domain_endpoint).override_logical_id(
+            "DomainEndpointsdkpandases710fgac"
+        )
 
     def _setup_opensearch_serverless(self) -> None:
         collection_name = "sdk-pandas-aoss-1"
@@ -183,15 +174,11 @@ class OpenSearchStack(Stack):  # type: ignore
         CfnOutput(
             self,
             "CollectionEndpointsdkpandasaoss",
-            value=str(self.cfn_collection.attr_collection_endpoint).replace(
-                "https://", ""
-            ),
+            value=str(self.cfn_collection.attr_collection_endpoint).replace("https://", ""),
         ).override_logical_id("CollectionEndpointsdkpandasaoss")
 
     @staticmethod
-    def _get_encryption_policy(
-        collection_name: str, kms_key_arn: Optional[str] = None
-    ) -> str:
+    def _get_encryption_policy(collection_name: str, kms_key_arn: Optional[str] = None) -> str:
         policy: Dict[str, Any] = {
             "Rules": [
                 {
@@ -209,9 +196,7 @@ class OpenSearchStack(Stack):  # type: ignore
         return json.dumps(policy)
 
     @staticmethod
-    def _get_network_policy(
-        collection_name: str, vpc_endpoints: Optional[List[str]] = None
-    ) -> str:
+    def _get_network_policy(collection_name: str, vpc_endpoints: Optional[List[str]] = None) -> str:
         policy: List[Dict[str, Any]] = [
             {
                 "Rules": [
