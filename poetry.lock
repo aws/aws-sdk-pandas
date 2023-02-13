@@ -770,18 +770,19 @@ files = [
 
 [[package]]
 name = "deltalake"
-version = "0.6.4"
+version = "0.7.0"
 description = "Native Delta Lake Python binding based on delta-rs with Pandas integration"
 category = "main"
 optional = true
 python-versions = ">=3.7"
 files = [
-    {file = "deltalake-0.6.4-cp37-abi3-macosx_10_7_x86_64.whl", hash = "sha256:9803a4aefc1dd83024c29077725ce0892198db1e3e08b1aa0f7f3c0cadefb274"},
-    {file = "deltalake-0.6.4-cp37-abi3-macosx_10_9_arm64.whl", hash = "sha256:86c590ceac97016dd2ba9f38ea188d1fafc509c3093777ab261203ecc464fefd"},
-    {file = "deltalake-0.6.4-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:688725750097cd1d6351e44b8ebd199e69751ff4992eeb8a0156374794f5f724"},
-    {file = "deltalake-0.6.4-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f54ba14251cc4d2caf23ff36a5e1045250dcd40e5e5d330406ac3c69143fc188"},
-    {file = "deltalake-0.6.4-cp37-abi3-win_amd64.whl", hash = "sha256:200ec6316decf91f39c435d520d6c5183f24af2c990ac9154c415b0909c04e19"},
-    {file = "deltalake-0.6.4.tar.gz", hash = "sha256:2f3cf70d67c17a7d5928c7da214ff795283f628311d91643602176dc50f7099e"},
+    {file = "deltalake-0.7.0-cp37-abi3-macosx_10_7_x86_64.whl", hash = "sha256:b267ef2dbcd7becce38fd83557e93d945c2180a2a862c5c76c1c5d0941d65403"},
+    {file = "deltalake-0.7.0-cp37-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl", hash = "sha256:ae081446cf941a23c231b916447054f4319410c72d4e53184d2a7eceba22673e"},
+    {file = "deltalake-0.7.0-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:95c79d87df73b4097a04d46e9a209e981b8a7c4cb7f3500eecb7ac54207102d7"},
+    {file = "deltalake-0.7.0-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:5bbcf1ee1823aefe4587ecd5d8e9096cb66c2debd9604d2d4590669d52d09999"},
+    {file = "deltalake-0.7.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2589708696175323d8082f2b7e83484271433fa88ba80cc56f57510dc9b7ce4e"},
+    {file = "deltalake-0.7.0-cp37-abi3-win_amd64.whl", hash = "sha256:a6bc4aef5dc32b215e89f0283d29c1a44bda2276b5579eae8274260017632180"},
+    {file = "deltalake-0.7.0.tar.gz", hash = "sha256:99c74b676abd010ee5375ca2a9d8b89385676171adbb3cd0e1068a4c67055de6"},
 ]
 
 [package.dependencies]
@@ -789,9 +790,9 @@ pyarrow = ">=7"
 typing-extensions = {version = "*", markers = "python_version < \"3.8\""}
 
 [package.extras]
-devel = ["black", "isort", "mypy", "packaging (>=20)", "pytest", "pytest-cov", "pytest-mock", "pytest-timeout", "sphinx (<=4.5)", "sphinx-rtd-theme", "toml"]
+devel = ["black", "isort", "mypy", "packaging (>=20)", "pytest", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-timeout", "sphinx (<=4.5)", "sphinx-rtd-theme", "toml", "wheel"]
 pandas = ["pandas"]
-pyspark = ["delta-spark", "pyspark"]
+pyspark = ["delta-spark", "numpy (==1.22.2)", "pyspark"]
 
 [[package]]
 name = "dill"
@@ -4140,4 +4141,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7.1, <4.0"
-content-hash = "c56018eba975579533d9aafd4dbbb9ccb25a02b65b1c863f58d4e04d622c1d31"
+content-hash = "a4d08b8709a6fea7f71d2dab7c254c0ede9ad206c12b3cb77358a26ffb45b69a"
