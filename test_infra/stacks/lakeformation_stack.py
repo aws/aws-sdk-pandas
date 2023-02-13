@@ -24,7 +24,7 @@ class LakeFormationStack(Stack):  # type: ignore
         bucket_name = ssm.StringParameter.from_string_parameter_attributes(
             self,
             "Bucket Name from Base Stack",
-            parameter_name="/sdk-pandas/base/BucketName"
+            parameter_name="/sdk-pandas/base/BucketName",
         ).string_value
         bucket = s3.Bucket.from_bucket_name(
             self, "aws-sdk-pandas-bucket", bucket_name=bucket_name
