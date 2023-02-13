@@ -101,7 +101,7 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     with pytest.raises(TypeError):
         wr.catalog.does_table_exist(table=glue_table)
 
-    assert wr.config.to_pandas().shape == (len(wr._config._CONFIG_ARGS), 7)
+    assert wr.config.to_pandas().shape == (len(wr._config._CONFIG_ARGS) - 1, 8)
 
     # Workgroup
     wr.config.workgroup = workgroup0
