@@ -200,7 +200,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         loaded_values: Dict[str, Optional[_ConfigValueType]]
         parent_key = _CONFIG_ARGS[item].parent_parameter_key
         if parent_key:
-            loaded_values = self[parent_key] # type: ignore[assignment]
+            loaded_values = self[parent_key]  # type: ignore[assignment]
         else:
             loaded_values = self._loaded_values
 
