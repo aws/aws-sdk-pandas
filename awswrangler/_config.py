@@ -9,11 +9,12 @@ import botocore.config
 import pandas as pd
 
 from awswrangler import exceptions
+from awswrangler.typing import AthenaCacheSettings
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_ConfigValueType = Union[str, bool, int, botocore.config.Config]
+_ConfigValueType = Union[str, bool, int, botocore.config.Config, dict]
 
 
 class _ConfigArg(NamedTuple):
@@ -22,6 +23,8 @@ class _ConfigArg(NamedTuple):
     enforced: bool = False
     loaded: bool = False
     default: Optional[_ConfigValueType] = None
+    parent_key: Optional[str] = None
+    is_parent: bool = False
 
 
 # Please, also add any new argument as a property in the _Config class
@@ -30,10 +33,11 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "concurrent_partitioning": _ConfigArg(dtype=bool, nullable=False),
     "ctas_approach": _ConfigArg(dtype=bool, nullable=False),
     "database": _ConfigArg(dtype=str, nullable=True),
-    "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False),
-    "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
-    "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False),
-    "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False),
+    "athena_cache_settings": _ConfigArg(dtype=dict, nullable=False, is_parent=True),
+    "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False, parent_key="athena_cache_settings"),
+    "max_cache_seconds": _ConfigArg(dtype=int, nullable=False, parent_key="athena_cache_settings"),
+    "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_key="athena_cache_settings"),
+    "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_key="athena_cache_settings"),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
@@ -149,14 +153,19 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return pd.DataFrame(args)
 
     def _load_config(self, name: str) -> bool:
+        if _CONFIG_ARGS[name].is_parent:
+            return False
+
         loaded_config: bool = False
         if _CONFIG_ARGS[name].loaded:
             self._set_config_value(key=name, value=_CONFIG_ARGS[name].default)
             loaded_config = True
+
         env_var: Optional[str] = os.getenv(f"WR_{name.upper()}")
         if env_var is not None:
             self._set_config_value(key=name, value=env_var)
             loaded_config = True
+
         return loaded_config
 
     def _set_config_value(self, key: str, value: Any) -> None:
@@ -170,7 +179,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             dtype=_CONFIG_ARGS[key].dtype,
             nullable=_CONFIG_ARGS[key].nullable,
         )
-        self._loaded_values[key] = value_casted
+
+        parent_key = _CONFIG_ARGS[key].parent_key
+        if parent_key:
+            if self._loaded_values.get(parent_key) is None:
+                self._loaded_values[parent_key] = {}
+
+            self._loaded_values[parent_key][key] = value_casted  # type: ignore[index]
+        else:
+            self._loaded_values[key] = value_casted
 
     def __getitem__(self, item: str) -> Optional[_ConfigValueType]:
         if item not in self._loaded_values:
@@ -248,9 +265,13 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="database", value=value)
 
     @property
+    def athena_cache_settings(self) -> AthenaCacheSettings:
+        return cast(AthenaCacheSettings, self._loaded_values.get("athena_cache_settings"))
+
+    @property
     def max_cache_query_inspections(self) -> int:
         """Property max_cache_query_inspections."""
-        return cast(int, self["max_cache_query_inspections"])
+        return self.athena_cache_settings["max_cache_query_inspections"]
 
     @max_cache_query_inspections.setter
     def max_cache_query_inspections(self, value: int) -> None:
@@ -259,7 +280,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @property
     def max_cache_seconds(self) -> int:
         """Property max_cache_seconds."""
-        return cast(int, self["max_cache_seconds"])
+        return self.athena_cache_settings["max_cache_seconds"]
 
     @max_cache_seconds.setter
     def max_cache_seconds(self, value: int) -> None:
@@ -268,7 +289,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @property
     def max_local_cache_entries(self) -> int:
         """Property max_local_cache_entries."""
-        return cast(int, self["max_local_cache_entries"])
+        return self.athena_cache_settings["max_local_cache_entries"]
 
     @max_local_cache_entries.setter
     def max_local_cache_entries(self, value: int) -> None:
@@ -288,7 +309,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @property
     def max_remote_cache_entries(self) -> int:
         """Property max_remote_cache_entries."""
-        return cast(int, self["max_remote_cache_entries"])
+        return self.athena_cache_settings["max_remote_cache_entries"]
 
     @max_remote_cache_entries.setter
     def max_remote_cache_entries(self, value: int) -> None:
@@ -579,6 +600,22 @@ def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -
 FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
 
+def _assign_args_value(args: Dict[str, Any], name: str, value: Any) -> None:
+    if _CONFIG_ARGS[name].is_parent:
+        nested_args = cast(Dict[str, Any], value)
+        for nested_arg_name, nested_arg_value in nested_args.items():
+            _assign_args_value(args[name], nested_arg_name, nested_arg_value)
+        return
+
+    if name not in args:
+        _logger.debug("Applying default config argument %s with value %s.", name, value)
+        args[name] = value
+
+    elif _CONFIG_ARGS[name].enforced is True:
+        _logger.debug("Applying ENFORCED config argument %s with value %s.", name, value)
+        args[name] = value
+
+
 def apply_configs(function: FunctionType) -> FunctionType:
     """Decorate some function with configs."""
     signature = inspect.signature(function)
@@ -590,12 +627,7 @@ def apply_configs(function: FunctionType) -> FunctionType:
         for name in available_configs:
             if hasattr(config, name) is True:
                 value = config[name]
-                if name not in args:
-                    _logger.debug("Applying default config argument %s with value %s.", name, value)
-                    args[name] = value
-                elif _CONFIG_ARGS[name].enforced is True:
-                    _logger.debug("Applying ENFORCED config argument %s with value %s.", name, value)
-                    args[name] = value
+                _assign_args_value(args, name, value)
         for name, param in signature.parameters.items():
             if param.kind == param.VAR_KEYWORD and name in args:
                 if isinstance(args[name], dict) is False:
