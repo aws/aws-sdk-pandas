@@ -131,8 +131,24 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
 
 def test_athena_cache_configuration():
     wr.config.max_remote_cache_entries = 50
-    wr.config.max_local_cache_entries = 20
-    assert wr.config.max_remote_cache_entries == 20
+    wr.config.max_cache_seconds = 20
+
+    assert wr.config.max_remote_cache_entries == 50
+    assert wr.config.athena_cache_settings["max_remote_cache_entries"] == 50
+
+    assert wr.config.max_cache_seconds == 20
+    assert wr.config.athena_cache_settings["max_cache_seconds"] == 20
+
+
+def test_athena_cache_configuration_dict():
+    wr.config.athena_cache_settings["max_remote_cache_entries"] = 50
+    wr.config.athena_cache_settings["max_cache_seconds"] = 20
+
+    assert wr.config.max_remote_cache_entries == 50
+    assert wr.config.athena_cache_settings["max_remote_cache_entries"] == 50
+
+    assert wr.config.max_cache_seconds == 20
+    assert wr.config.athena_cache_settings["max_cache_seconds"] == 20
 
 
 def test_botocore_config(path):

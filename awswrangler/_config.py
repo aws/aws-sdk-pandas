@@ -33,7 +33,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "concurrent_partitioning": _ConfigArg(dtype=bool, nullable=False),
     "ctas_approach": _ConfigArg(dtype=bool, nullable=False),
     "database": _ConfigArg(dtype=str, nullable=True),
-    "athena_cache_settings": _ConfigArg(dtype=dict, nullable=False, is_parent=True),
+    "athena_cache_settings": _ConfigArg(dtype=dict, nullable=False, is_parent=True, default={}, loaded=True),
     "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
@@ -158,6 +158,9 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     def _load_config(self, name: str) -> bool:
         if _CONFIG_ARGS[name].is_parent:
+            if self._loaded_values.get(name) is None:
+                self._set_config_value(key=name, value={})
+                return True
             return False
 
         loaded_config: bool = False
@@ -186,16 +189,13 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
         parent_key = _CONFIG_ARGS[key].parent_parameter_key
         if parent_key:
-            if self._loaded_values.get(parent_key) is None:
-                self._loaded_values[parent_key] = {}
-
             self._loaded_values[parent_key][key] = value_casted  # type: ignore[index]
         else:
             self._loaded_values[key] = value_casted
 
     def __getitem__(self, item: str) -> Optional[_ConfigValueType]:
-        if _CONFIG_ARGS[item].is_parent:
-            return self._loaded_values.get(item, {})
+        if issubclass(_CONFIG_ARGS[item].dtype, dict):
+            return self._loaded_values[item]
 
         loaded_values: Dict[str, Optional[_ConfigValueType]]
         parent_key = _CONFIG_ARGS[item].parent_parameter_key
@@ -612,9 +612,6 @@ def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -
     return _insert_str(text=doc, token="\n    Parameters", insert=insertion)
 
 
-FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
-
-
 def _assign_args_value(args: Dict[str, Any], name: str, value: Any) -> None:
     if _CONFIG_ARGS[name].is_parent:
         nested_args = cast(Dict[str, Any], value)
@@ -629,6 +626,9 @@ def _assign_args_value(args: Dict[str, Any], name: str, value: Any) -> None:
     elif _CONFIG_ARGS[name].enforced is True:
         _logger.debug("Applying ENFORCED config argument %s with value %s.", name, value)
         args[name] = value
+
+
+FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
 
 def apply_configs(function: FunctionType) -> FunctionType:
