@@ -23,7 +23,7 @@ class _ConfigArg(NamedTuple):
     enforced: bool = False
     loaded: bool = False
     default: Optional[_ConfigValueType] = None
-    parent_key: Optional[str] = None
+    parent_parameter_key: Optional[str] = None
     is_parent: bool = False
 
 
@@ -34,10 +34,10 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "ctas_approach": _ConfigArg(dtype=bool, nullable=False),
     "database": _ConfigArg(dtype=str, nullable=True),
     "athena_cache_settings": _ConfigArg(dtype=dict, nullable=False, is_parent=True),
-    "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False, parent_key="athena_cache_settings"),
-    "max_cache_seconds": _ConfigArg(dtype=int, nullable=False, parent_key="athena_cache_settings"),
-    "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_key="athena_cache_settings"),
-    "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_key="athena_cache_settings"),
+    "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
+    "max_cache_seconds": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
+    "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
+    "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
@@ -136,12 +136,16 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         """
         args: List[Dict[str, Any]] = []
         for k, v in _CONFIG_ARGS.items():
+            if v.is_parent:
+                continue
+
             arg: Dict[str, Any] = {
                 "name": k,
                 "Env.Variable": f"WR_{k.upper()}",
                 "type": v.dtype,
                 "nullable": v.nullable,
                 "enforced": v.enforced,
+                "parent_parameter_name": v.parent_parameter_key,
             }
             if k in self._loaded_values:
                 arg["configured"] = True
@@ -180,7 +184,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             nullable=_CONFIG_ARGS[key].nullable,
         )
 
-        parent_key = _CONFIG_ARGS[key].parent_key
+        parent_key = _CONFIG_ARGS[key].parent_parameter_key
         if parent_key:
             if self._loaded_values.get(parent_key) is None:
                 self._loaded_values[parent_key] = {}
@@ -190,9 +194,20 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             self._loaded_values[key] = value_casted
 
     def __getitem__(self, item: str) -> Optional[_ConfigValueType]:
-        if item not in self._loaded_values:
+        if _CONFIG_ARGS[item].is_parent:
+            return self._loaded_values.get(item, {})
+
+        loaded_values: Dict[str, Optional[_ConfigValueType]]
+        parent_key = _CONFIG_ARGS[item].parent_parameter_key
+        if parent_key:
+            loaded_values = self[parent_key] # type: ignore[assignment]
+        else:
+            loaded_values = self._loaded_values
+
+        if item not in loaded_values:
             raise AttributeError(f"{item} not configured yet.")
-        return self._loaded_values[item]
+
+        return loaded_values[item]
 
     def _reset_item(self, item: str) -> None:
         if item in self._loaded_values:
@@ -266,12 +281,12 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @property
     def athena_cache_settings(self) -> AthenaCacheSettings:
-        return cast(AthenaCacheSettings, self._loaded_values.get("athena_cache_settings"))
+        return cast(AthenaCacheSettings, self["athena_cache_settings"])
 
     @property
     def max_cache_query_inspections(self) -> int:
         """Property max_cache_query_inspections."""
-        return self.athena_cache_settings["max_cache_query_inspections"]
+        return cast(int, self["max_cache_query_inspections"])
 
     @max_cache_query_inspections.setter
     def max_cache_query_inspections(self, value: int) -> None:
@@ -280,7 +295,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @property
     def max_cache_seconds(self) -> int:
         """Property max_cache_seconds."""
-        return self.athena_cache_settings["max_cache_seconds"]
+        return cast(int, self["max_cache_seconds"])
 
     @max_cache_seconds.setter
     def max_cache_seconds(self, value: int) -> None:
@@ -289,7 +304,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @property
     def max_local_cache_entries(self) -> int:
         """Property max_local_cache_entries."""
-        return self.athena_cache_settings["max_local_cache_entries"]
+        return cast(int, self["max_local_cache_entries"])
 
     @max_local_cache_entries.setter
     def max_local_cache_entries(self, value: int) -> None:
@@ -309,7 +324,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @property
     def max_remote_cache_entries(self) -> int:
         """Property max_remote_cache_entries."""
-        return self.athena_cache_settings["max_remote_cache_entries"]
+        return cast(int, self["max_remote_cache_entries"])
 
     @max_remote_cache_entries.setter
     def max_remote_cache_entries(self, value: int) -> None:
@@ -628,6 +643,7 @@ def apply_configs(function: FunctionType) -> FunctionType:
             if hasattr(config, name) is True:
                 value = config[name]
                 _assign_args_value(args, name, value)
+
         for name, param in signature.parameters.items():
             if param.kind == param.VAR_KEYWORD and name in args:
                 if isinstance(args[name], dict) is False:
