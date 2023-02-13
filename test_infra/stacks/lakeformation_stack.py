@@ -26,9 +26,7 @@ class LakeFormationStack(Stack):  # type: ignore
             "Bucket Name from Base Stack",
             parameter_name="/sdk-pandas/base/BucketName",
         ).string_value
-        bucket = s3.Bucket.from_bucket_name(
-            self, "aws-sdk-pandas-bucket", bucket_name=bucket_name
-        )
+        bucket = s3.Bucket.from_bucket_name(self, "aws-sdk-pandas-bucket", bucket_name=bucket_name)
 
         transaction_role = iam.Role(
             self,
