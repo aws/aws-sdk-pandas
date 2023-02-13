@@ -1,6 +1,5 @@
 """Module with parameter types."""
 
-import sys
 from typing import Dict, List, Literal, Tuple, TypedDict
 
 from typing_extensions import NotRequired, Required

@@ -13,11 +13,11 @@ from awswrangler import exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_ConfigValueType = Union[str, bool, int, botocore.config.Config, None]
+_ConfigValueType = Union[str, bool, int, botocore.config.Config]
 
 
 class _ConfigArg(NamedTuple):
-    dtype: Type[Union[str, bool, int, botocore.config.Config]]
+    dtype: Type[_ConfigValueType]
     nullable: bool
     enforced: bool = False
     loaded: bool = False
@@ -71,7 +71,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     """AWS Wrangler's Configuration class."""
 
     def __init__(self) -> None:
-        self._loaded_values: Dict[str, _ConfigValueType] = {}
+        self._loaded_values: Dict[str, Optional[_ConfigValueType]] = {}
         name: str
         self.s3_endpoint_url = None
         self.athena_endpoint_url = None
@@ -134,7 +134,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         for k, v in _CONFIG_ARGS.items():
             arg: Dict[str, Any] = {
                 "name": k,
-                "Env. Variable": f"WR_{k.upper()}",
+                "Env.Variable": f"WR_{k.upper()}",
                 "type": v.dtype,
                 "nullable": v.nullable,
                 "enforced": v.enforced,
@@ -164,15 +164,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             raise exceptions.InvalidArgumentValue(
                 f"{key} is not a valid configuration. Please use: {list(_CONFIG_ARGS.keys())}"
             )
-        value_casted: _ConfigValueType = self._apply_type(
+        value_casted = self._apply_type(
             name=key,
             value=value,
-            dtype=_CONFIG_ARGS[key].dtype,  # type: ignore[arg-type]
+            dtype=_CONFIG_ARGS[key].dtype,
             nullable=_CONFIG_ARGS[key].nullable,
         )
         self._loaded_values[key] = value_casted
 
-    def __getitem__(self, item: str) -> _ConfigValueType:
+    def __getitem__(self, item: str) -> Optional[_ConfigValueType]:
         if item not in self._loaded_values:
             raise AttributeError(f"{item} not configured yet.")
         return self._loaded_values[item]
@@ -189,7 +189,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return self.to_pandas().to_html()
 
     @staticmethod
-    def _apply_type(name: str, value: Any, dtype: Type[Union[str, bool, int]], nullable: bool) -> _ConfigValueType:
+    def _apply_type(name: str, value: Any, dtype: Type[_ConfigValueType], nullable: bool) -> Optional[_ConfigValueType]:
         if _Config._is_null(value=value):
             if nullable is True:
                 return None
@@ -202,7 +202,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.") from ex
 
     @staticmethod
-    def _is_null(value: _ConfigValueType) -> bool:
+    def _is_null(value: Optional[_ConfigValueType]) -> bool:
         if value is None:
             return True
         if isinstance(value, str) is True:
@@ -589,7 +589,7 @@ def apply_configs(function: FunctionType) -> FunctionType:
         args: Dict[str, Any] = signature.bind_partial(*args_raw, **kwargs).arguments
         for name in available_configs:
             if hasattr(config, name) is True:
-                value: _ConfigValueType = config[name]
+                value = config[name]
                 if name not in args:
                     _logger.debug("Applying default config argument %s with value %s.", name, value)
                     args[name] = value
