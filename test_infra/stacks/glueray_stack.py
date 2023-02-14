@@ -2,6 +2,7 @@ from aws_cdk import CfnOutput, RemovalPolicy, Stack
 from aws_cdk import aws_athena as athena
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_ssm as ssm
 from constructs import Construct
 
 
@@ -58,33 +59,49 @@ class GlueRayStack(Stack):  # type: ignore
             self,
             "Script Bucket Name",
             value=self.script_bucket.bucket_name,
-            export_name="ScriptBucketName",
+        )
+
+        ssm.StringParameter(
+            self,
+            "SSM Script Bucket Name",
+            parameter_name="/sdk-pandas/glueray/ScriptBucketName",
+            string_value=self.script_bucket.bucket_name,
         )
 
         CfnOutput(
             self,
             "AWS SDK for pandas ZIP Key",
             value=zip_key,
-            export_name="AWSSDKforpandasZIPKey",
+        )
+
+        ssm.StringParameter(
+            self,
+            "SSM Zip Key",
+            parameter_name="/sdk-pandas/glueray/ZIPKey",
+            string_value="AWSSDKforpandasZIPKey",
         )
 
         CfnOutput(
             self,
             "AWS SDK for pandas ZIP Location",
             value=self.wrangler_asset_path,
-            export_name="AWSSDKforpandasZIPLocation",
         )
 
         CfnOutput(
             self,
             "Glue Job Role Arn",
             value=self.glue_service_role.role_arn,
-            export_name="GlueRayJobRoleArn",
+        )
+
+        ssm.StringParameter(
+            self,
+            "SSM Glue Job Role Arn",
+            parameter_name="/sdk-pandas/glueray/GlueRayJobRoleArn",
+            string_value=self.glue_service_role.role_arn,
         )
 
         CfnOutput(
             self,
             "Glue Ray Athena Workgroup Name",
             value=self.athena_workgroup.ref,
-            export_name="GlueRayAthenaWorkgroupName",
         )
