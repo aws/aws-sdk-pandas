@@ -281,6 +281,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @property
     def athena_cache_settings(self) -> AthenaCacheSettings:
+        """Property athena_cache_settings."""
         return cast(AthenaCacheSettings, self["athena_cache_settings"])
 
     @property

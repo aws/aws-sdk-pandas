@@ -1024,26 +1024,12 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    max_cache_seconds : int
-        awswrangler can look up in Athena's history if this query has been run before.
-        If so, and its completion time is less than `max_cache_seconds` before now, awswrangler
-        skips query execution and just returns the same results as last time.
+    athena_cache_settings: typing.AthenaCacheSettings, optional
+        Params of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
+        max_remote_cache_entries, and max_local_cache_entries.
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
-    max_cache_query_inspections : int
-        Max number of queries that will be inspected from the history to try to find some result to reuse.
-        The bigger the number of inspection, the bigger will be the latency for not cached queries.
-        Only takes effect if max_cache_seconds > 0.
-    max_remote_cache_entries : int
-        Max number of queries that will be retrieved from AWS for cache inspection.
-        The bigger the number of inspection, the bigger will be the latency for not cached queries.
-        Only takes effect if max_cache_seconds > 0 and default value is 50.
-    max_local_cache_entries : int
-        Max number of queries for which metadata will be cached locally. This will reduce the latency and also
-        enables keeping more than `max_remote_cache_entries` available for the cache. This value should not be
-        smaller than max_remote_cache_entries.
-        Only takes effect if max_cache_seconds > 0 and default value is 100.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     params: Dict[str, any], optional
@@ -1455,26 +1441,12 @@ def read_sql_table(
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    max_cache_seconds: int
-        awswrangler can look up in Athena's history if this table has been read before.
-        If so, and its completion time is less than `max_cache_seconds` before now, awswrangler
-        skips query execution and just returns the same results as last time.
+    athena_cache_settings: typing.AthenaCacheSettings, optional
+        Params of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
+        max_remote_cache_entries, and max_local_cache_entries.
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
-    max_cache_query_inspections : int
-        Max number of queries that will be inspected from the history to try to find some result to reuse.
-        The bigger the number of inspection, the bigger will be the latency for not cached queries.
-        Only takes effect if max_cache_seconds > 0.
-    max_remote_cache_entries : int
-        Max number of queries that will be retrieved from AWS for cache inspection.
-        The bigger the number of inspection, the bigger will be the latency for not cached queries.
-        Only takes effect if max_cache_seconds > 0 and default value is 50.
-    max_local_cache_entries : int
-        Max number of queries for which metadata will be cached locally. This will reduce the latency and also
-        enables keeping more than `max_remote_cache_entries` available for the cache. This value should not be
-        smaller than max_remote_cache_entries.
-        Only takes effect if max_cache_seconds > 0 and default value is 100.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     s3_additional_kwargs : Optional[Dict[str, Any]]
