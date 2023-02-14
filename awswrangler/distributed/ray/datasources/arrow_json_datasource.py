@@ -21,11 +21,11 @@ class ArrowJSONDatasource(PandasFileBasedDatasource):  # pylint: disable=abstrac
         dataset: bool,
         **reader_args: Any,
     ) -> pa.Table:
-        read_options = reader_args.get("read_options", json.ReadOptions(use_threads=False))
-        parse_options = reader_args.get(
-            "parse_options",
-            json.ParseOptions(),
-        )
+        read_options_dict = reader_args.get("read_options", dict(use_threads=False))
+        parse_options_dict = reader_args.get("parse_options", {})
+
+        read_options = json.ReadOptions(**read_options_dict)
+        parse_options = json.ParseOptions(**parse_options_dict)
 
         table = json.read_json(f, read_options=read_options, parse_options=parse_options)
 

@@ -3,7 +3,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypedDict, Union
 
 import modin.pandas as pd
-from pyarrow import csv, json
+from pyarrow import csv
 from ray.data import read_datasource
 from ray.data.datasource import FastFileMetadataProvider
 
@@ -43,8 +43,8 @@ class CSVReadConfiguration(TypedDict):
 
 
 class JSONReadConfiguration(TypedDict):
-    read_options: json.ReadOptions
-    parse_options: json.ParseOptions
+    read_options: Dict[str, Any]
+    parse_options: Dict[str, Any]
 
 
 def _parse_csv_configuration(
@@ -75,9 +75,10 @@ def _parse_json_configuration(
 ) -> JSONReadConfiguration:
     _check_parameters(pandas_kwargs, _JSON_SUPPORTED_PARAMS)
 
+    # json.ReadOptions and json.ParseOptions cannot be pickled for some reason so we're building a Python dict
     return JSONReadConfiguration(
-        read_options=json.ReadOptions(use_threads=False),
-        parse_options=json.ParseOptions(),
+        read_options=dict(use_threads=False),
+        parse_options={},
     )
 
 
