@@ -1,15 +1,16 @@
 """Modin on Ray S3 read text module (PRIVATE)."""
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypedDict, Union
 
 import modin.pandas as pd
-from pyarrow import csv
+from pyarrow import csv, json
 from ray.data import read_datasource
 from ray.data.datasource import FastFileMetadataProvider
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import (
     ArrowCSVDatasource,
+    ArrowJSONDatasource,
     PandasCSVDataSource,
     PandasFWFDataSource,
     PandasJSONDatasource,
@@ -29,10 +30,26 @@ _CSV_SUPPORTED_PARAMS = {
     "names": ParamConfig(default=None),
 }
 
+_JSON_SUPPORTED_PARAMS = {
+    "orient": ParamConfig(default="columns", supported_values={"records"}),
+    "lines": ParamConfig(default=False, supported_values={True}),
+}
+
+
+class CSVReadConfiguration(TypedDict):
+    read_options: csv.ReadOptions
+    parse_options: csv.ParseOptions
+    convert_options: csv.ConvertOptions
+
+
+class JSONReadConfiguration(TypedDict):
+    read_options: json.ReadOptions
+    parse_options: json.ParseOptions
+
 
 def _parse_csv_configuration(
     pandas_kwargs: Dict[str, Any],
-) -> Tuple[csv.ReadOptions, csv.ParseOptions, csv.ConvertOptions]:
+) -> CSVReadConfiguration:
     _check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
 
     read_options = csv.ReadOptions(
@@ -46,7 +63,22 @@ def _parse_csv_configuration(
     )
     convert_options = csv.ConvertOptions()
 
-    return read_options, parse_options, convert_options
+    return CSVReadConfiguration(
+        read_options=read_options,
+        parse_options=parse_options,
+        convert_options=convert_options,
+    )
+
+
+def _parse_json_configuration(
+    pandas_kwargs: Dict[str, Any],
+) -> JSONReadConfiguration:
+    _check_parameters(pandas_kwargs, _JSON_SUPPORTED_PARAMS)
+
+    return JSONReadConfiguration(
+        read_options=json.ReadOptions(use_threads=False),
+        parse_options=json.ParseOptions(),
+    )
 
 
 def _parse_configuration(
@@ -54,7 +86,7 @@ def _parse_configuration(
     version_ids: Dict[str, Optional[str]],
     s3_additional_kwargs: Optional[Dict[str, str]],
     pandas_kwargs: Dict[str, Any],
-) -> Tuple[csv.ReadOptions, csv.ParseOptions, csv.ConvertOptions]:
+) -> Union[CSVReadConfiguration, JSONReadConfiguration]:
     if {key: value for key, value in version_ids.items() if value is not None}:
         raise exceptions.InvalidArgument("Specific version ID found for object")
 
@@ -63,6 +95,9 @@ def _parse_configuration(
 
     if file_format == "csv":
         return _parse_csv_configuration(pandas_kwargs)
+
+    if file_format == "json":
+        return _parse_json_configuration(pandas_kwargs)
 
     raise exceptions.InvalidArgument(f"File is in the {format} format")
 
@@ -73,7 +108,7 @@ def _resolve_format(read_format: str, can_use_arrow: bool) -> Any:
     if read_format == "fwf":
         return PandasFWFDataSource()
     if read_format == "json":
-        return PandasJSONDatasource()
+        return ArrowJSONDatasource() if can_use_arrow else PandasJSONDatasource()
     raise exceptions.UnsupportedType("Unsupported read format")
 
 
@@ -91,7 +126,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
     s3_client: Optional["S3Client"],
 ) -> pd.DataFrame:
     try:
-        read_options, parse_options, convert_options = _parse_configuration(
+        configuration: Dict[str, Any] = _parse_configuration(  # type: ignore[assignment]
             read_format,
             version_id_dict,
             s3_additional_kwargs,
@@ -104,7 +139,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
             "This will result in slower performance of the read operations",
             e,
         )
-        read_options, parse_options, convert_options = None, None, None
+        configuration = {}
         can_use_arrow = False
 
     ray_dataset = read_datasource(
@@ -116,9 +151,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
         version_ids=version_id_dict,
         s3_additional_kwargs=s3_additional_kwargs,
         pandas_kwargs=pandas_kwargs,
-        read_options=read_options,
-        parse_options=parse_options,
-        convert_options=convert_options,
         meta_provider=FastFileMetadataProvider(),
+        **configuration,
     )
     return _to_modin(dataset=ray_dataset, ignore_index=ignore_index)
