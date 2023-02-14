@@ -33,7 +33,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "concurrent_partitioning": _ConfigArg(dtype=bool, nullable=False),
     "ctas_approach": _ConfigArg(dtype=bool, nullable=False),
     "database": _ConfigArg(dtype=str, nullable=True),
-    "athena_cache_settings": _ConfigArg(dtype=dict, nullable=False, is_parent=True, default={}, loaded=True),
+    "athena_cache_settings": _ConfigArg(dtype=dict, nullable=False, is_parent=True, loaded=True),
     "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
@@ -211,7 +211,9 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     def _reset_item(self, item: str) -> None:
         if item in self._loaded_values:
-            if _CONFIG_ARGS[item].loaded:
+            if _CONFIG_ARGS[item].is_parent:
+                self._loaded_values[item] = {}
+            elif _CONFIG_ARGS[item].loaded:
                 self._loaded_values[item] = _CONFIG_ARGS[item].default
             else:
                 del self._loaded_values[item]
