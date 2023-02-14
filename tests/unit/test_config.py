@@ -1,5 +1,6 @@
 import logging
 import os
+from types import ModuleType
 from unittest.mock import create_autospec, patch
 
 import boto3
@@ -8,14 +9,13 @@ import botocore.client
 import botocore.config
 import pytest
 
-import awswrangler as wr
 from awswrangler._config import apply_configs
 from awswrangler.s3._fs import open_s3_object
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-def _urls_test(glue_database):
+def _urls_test(wr: ModuleType, glue_database: str) -> None:
     original = botocore.client.ClientCreator.create_client
 
     def wrapper(self, **kwarg):
@@ -41,7 +41,9 @@ def _urls_test(glue_database):
         wr.athena.read_sql_query(sql="SELECT 1 as col0", database=glue_database)
 
 
-def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
+def test_basics(
+    wr: ModuleType, path: str, glue_database: str, glue_table: str, workgroup0: str, workgroup1: str
+) -> None:
     args = {"table": glue_table, "path": "", "columns_types": {"col0": "bigint"}}
 
     # Missing database argument
@@ -129,7 +131,7 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     _urls_test(glue_database)
 
 
-def test_athena_cache_configuration():
+def test_athena_cache_configuration(wr: ModuleType) -> None:
     wr.config.max_remote_cache_entries = 50
     wr.config.max_cache_seconds = 20
 
@@ -140,7 +142,7 @@ def test_athena_cache_configuration():
     assert wr.config.athena_cache_settings["max_cache_seconds"] == 20
 
 
-def test_athena_cache_configuration_dict():
+def test_athena_cache_configuration_dict(wr: ModuleType) -> None:
     wr.config.athena_cache_settings["max_remote_cache_entries"] = 50
     wr.config.athena_cache_settings["max_cache_seconds"] = 20
 
@@ -151,7 +153,7 @@ def test_athena_cache_configuration_dict():
     assert wr.config.athena_cache_settings["max_cache_seconds"] == 20
 
 
-def test_botocore_config(path):
+def test_botocore_config(wr: ModuleType, path: str) -> None:
     original = botocore.client.ClientCreator.create_client
 
     # Default values for botocore.config.Config
@@ -208,7 +210,7 @@ def test_botocore_config(path):
     wr.config.reset()
 
 
-def test_chunk_size():
+def test_chunk_size(wr: ModuleType) -> None:
     expected_chunksize = 123
 
     wr.config.chunksize = expected_chunksize
