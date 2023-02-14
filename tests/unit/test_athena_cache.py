@@ -246,7 +246,9 @@ def test_cache_start_query(wr, path, glue_database, glue_table, data_source):
         "awswrangler.athena._utils._check_for_cached_results",
         return_value=wr.athena._read._CacheInfo(has_valid_cache=False),
     ) as mocked_cache_attempt:
-        query_id = wr.athena.start_query_execution(sql=f"SELECT * FROM {glue_table}", database=glue_database)
+        query_id = wr.athena.start_query_execution(
+            sql=f"SELECT * FROM {glue_table}", database=glue_database, data_source=data_source
+        )
         mocked_cache_attempt.assert_called()
 
     # Wait for query to finish in order to successfully check cache
@@ -254,7 +256,10 @@ def test_cache_start_query(wr, path, glue_database, glue_table, data_source):
 
     with patch("awswrangler.athena._utils._start_query_execution") as internal_start_query:
         query_id_2 = wr.athena.start_query_execution(
-            sql=f"SELECT * FROM {glue_table}", database=glue_database, athena_cache_settings={"max_cache_seconds": 900}
+            sql=f"SELECT * FROM {glue_table}",
+            database=glue_database,
+            data_source=data_source,
+            athena_cache_settings={"max_cache_seconds": 900},
         )
         internal_start_query.assert_not_called()
         assert query_id == query_id_2
