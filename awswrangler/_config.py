@@ -614,6 +614,9 @@ def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -
 
 def _assign_args_value(args: Dict[str, Any], name: str, value: Any) -> None:
     if _CONFIG_ARGS[name].is_parent:
+        if name not in args:
+            args[name] = {}
+
         nested_args = cast(Dict[str, Any], value)
         for nested_arg_name, nested_arg_value in nested_args.items():
             _assign_args_value(args[name], nested_arg_name, nested_arg_value)
