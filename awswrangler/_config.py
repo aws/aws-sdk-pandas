@@ -210,13 +210,22 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return loaded_values[item]
 
     def _reset_item(self, item: str) -> None:
-        if item in self._loaded_values:
-            if _CONFIG_ARGS[item].is_parent:
-                self._loaded_values[item] = {}
-            elif _CONFIG_ARGS[item].loaded:
-                self._loaded_values[item] = _CONFIG_ARGS[item].default
+        config_arg = _CONFIG_ARGS[item]
+        loaded_values: Dict[str, Optional[_ConfigValueType]]
+
+        if config_arg.parent_parameter_key:
+            loaded_values = self[config_arg.parent_parameter_key]  # type: ignore[assignment]
+        else:
+            loaded_values = self._loaded_values
+
+        if item in loaded_values:
+            if config_arg.is_parent:
+                loaded_values[item] = {}
+            elif config_arg.loaded:
+                loaded_values[item] = config_arg.default
             else:
-                del self._loaded_values[item]
+                del loaded_values[item]
+
         self._load_config(name=item)
 
     def _repr_html_(self) -> Any:

@@ -131,6 +131,18 @@ def test_basics(
     _urls_test(wr, glue_database)
 
 
+def test_config_reset_nested_value(wr: ModuleType) -> None:
+    wr.config.max_remote_cache_entries = 50
+    wr.config.max_cache_seconds = 20
+
+    wr.config.reset("max_remote_cache_entries")
+
+    assert wr.config.max_cache_seconds == 20
+
+    with pytest.raises(AttributeError):
+        wr.config.max_remote_cache_entries
+
+
 def test_athena_cache_configuration(wr: ModuleType) -> None:
     wr.config.max_remote_cache_entries = 50
     wr.config.max_cache_seconds = 20
