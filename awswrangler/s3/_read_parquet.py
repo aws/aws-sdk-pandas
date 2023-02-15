@@ -852,7 +852,7 @@ def read_parquet_table(
         If integer is provided, specified number is used.
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
-        Parallelism may be limited by the number of files of the dataset. 200 by default.
+        Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
     s3_additional_kwargs : Optional[Dict[str, Any]]

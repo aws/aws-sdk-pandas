@@ -295,7 +295,7 @@ def read_csv(
         https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
-        Parallelism may be limited by the number of files of the dataset. 200 by default.
+        Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
     pandas_kwargs :
         KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicitly, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -514,7 +514,7 @@ def read_fwf(
         https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
-        Parallelism may be limited by the number of files of the dataset. 200 by default.
+        Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_fwf(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -672,7 +672,7 @@ def read_json(
         https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
-        Parallelism may be limited by the number of files of the dataset. 200 by default.
+        Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_json(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
