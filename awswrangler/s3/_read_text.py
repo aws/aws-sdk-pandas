@@ -227,7 +227,7 @@ def read_csv(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    parallelism: int = 200,
+    parallelism: int = -1,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
@@ -446,7 +446,7 @@ def read_fwf(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    parallelism: int = 200,
+    parallelism: int = -1,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
@@ -601,7 +601,7 @@ def read_json(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    parallelism: int = 200,
+    parallelism: int = -1,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from a received S3 prefix or list of S3 objects paths.

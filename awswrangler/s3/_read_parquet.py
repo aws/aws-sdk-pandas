@@ -785,7 +785,7 @@ def read_parquet_table(
     coerce_int96_timestamp_unit: Optional[str] = None,
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
-    parallelism: int = 200,
+    parallelism: int = -1,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
