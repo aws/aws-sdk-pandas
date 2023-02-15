@@ -9,9 +9,6 @@ import botocore.client
 import botocore.config
 import pytest
 
-from awswrangler._config import apply_configs
-from awswrangler.s3._fs import open_s3_object
-
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
@@ -67,9 +64,9 @@ def test_basics(
     # Testing configured s3 block size
     size = 1 * 2**20  # 1 MB
     wr.config.s3_block_size = size
-    with open_s3_object(path, mode="wb") as s3obj:
+    with wr.s3._fs.open_s3_object(path, mode="wb") as s3obj:
         s3obj.write(b"foo")
-    with open_s3_object(path, mode="rb") as s3obj:
+    with wr.s3._fs.open_s3_object(path, mode="rb") as s3obj:
         assert s3obj._s3_block_size == size
 
     # Resetting all configs
@@ -183,7 +180,7 @@ def test_botocore_config(wr: ModuleType, path: str) -> None:
 
     # Check for default values
     with patch("botocore.client.ClientCreator.create_client", new=wrapper):
-        with open_s3_object(path, mode="wb") as s3obj:
+        with wr.s3._fs.open_s3_object(path, mode="wb") as s3obj:
             s3obj.write(b"foo")
 
     # Update default config with environment variables
@@ -196,7 +193,7 @@ def test_botocore_config(wr: ModuleType, path: str) -> None:
     os.environ["AWS_RETRY_MODE"] = expected_retry_mode
 
     with patch("botocore.client.ClientCreator.create_client", new=wrapper):
-        with open_s3_object(path, mode="wb") as s3obj:
+        with wr.s3._fs.open_s3_object(path, mode="wb") as s3obj:
             s3obj.write(b"foo")
 
     del os.environ["AWS_MAX_ATTEMPTS"]
@@ -216,7 +213,7 @@ def test_botocore_config(wr: ModuleType, path: str) -> None:
     wr.config.botocore_config = botocore_config
 
     with patch("botocore.client.ClientCreator.create_client", new=wrapper):
-        with open_s3_object(path, mode="wb") as s3obj:
+        with wr.s3._fs.open_s3_object(path, mode="wb") as s3obj:
             s3obj.write(b"foo")
 
     wr.config.reset()
@@ -229,7 +226,7 @@ def test_chunk_size(wr: ModuleType) -> None:
 
     for function_to_mock in [wr.postgresql.to_sql, wr.mysql.to_sql, wr.sqlserver.to_sql, wr.redshift.to_sql]:
         mock = create_autospec(function_to_mock)
-        apply_configs(mock)(df=None, con=None, table=None, schema=None)
+        wr._config.apply_configs(mock)(df=None, con=None, table=None, schema=None)
         mock.assert_called_with(df=None, con=None, table=None, schema=None, chunksize=expected_chunksize)
 
     expected_chunksize = 456
@@ -238,5 +235,5 @@ def test_chunk_size(wr: ModuleType) -> None:
 
     for function_to_mock in [wr.postgresql.to_sql, wr.mysql.to_sql, wr.sqlserver.to_sql, wr.redshift.to_sql]:
         mock = create_autospec(function_to_mock)
-        apply_configs(mock)(df=None, con=None, table=None, schema=None)
+        wr._config.apply_configs(mock)(df=None, con=None, table=None, schema=None)
         mock.assert_called_with(df=None, con=None, table=None, schema=None, chunksize=expected_chunksize)
