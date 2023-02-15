@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource
+from ray.data.datasource import FastFileMetadataProvider
 
 from awswrangler.distributed.ray.datasources import ArrowParquetDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 def _read_parquet_distributed(  # pylint: disable=unused-argument
     paths: List[str],
     path_root: Optional[str],
-    schema: "pa.schema",
+    schema: Optional[pa.schema],
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
     use_threads: Union[bool, int],
@@ -25,17 +26,18 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    dataset_kwargs = {}
-    if coerce_int96_timestamp_unit:
-        dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
+    # dataset_kwargs = {}
+    # if coerce_int96_timestamp_unit:
+    #     dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
     dataset = read_datasource(
         datasource=ArrowParquetDatasource(),
         parallelism=parallelism,
-        use_threads=use_threads,
+        meta_provider=FastFileMetadataProvider(),
         paths=paths,
-        schema=schema,
-        columns=columns,
-        dataset_kwargs=dataset_kwargs,
         path_root=path_root,
+        use_threads=use_threads,
+        table_schema=schema,
+        columns=columns,
+        # dataset_kwargs=dataset_kwargs,
     )
     return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs, ignore_index=bool(path_root))
