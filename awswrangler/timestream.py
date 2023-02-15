@@ -192,6 +192,10 @@ def write(
 ) -> List[Dict[str, str]]:
     """Store a Pandas DataFrame into a Amazon Timestream table.
 
+    If the Timestream service rejects a record(s),
+    this function will not throw a Python exception.
+    Instead it will return the rejection information.
+
     Parameters
     ----------
     df: pandas.DataFrame
@@ -221,6 +225,8 @@ def write(
     -------
     List[Dict[str, str]]
         Rejected records.
+        Possible reasons for rejection are described here:
+        https://docs.aws.amazon.com/timestream/latest/developerguide/API_RejectedRecord.html
 
     Examples
     --------
@@ -245,6 +251,17 @@ def write(
     >>>     dimensions_cols=["dim0", "dim1"],
     >>> )
     >>> assert len(rejected_records) == 0
+
+    Return value if some records are rejected.
+
+    >>> [
+    >>>     {
+    >>>         'ExistingVersion': 2,
+    >>>         'Reason': 'The record version 1 is lower than the existing version 2. A '
+    >>>                   'higher version is required to update the measure value.',
+    >>>         'RecordIndex': 0
+    >>>     }
+    >>> ]
 
     """
     timestream_client: boto3.client = _utils.client(
