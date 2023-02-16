@@ -111,7 +111,7 @@ def _check_version_id(
         raise exceptions.InvalidArgumentCombination(
             "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
         )
-    if not all(version_id.values()):  # type: ignore[union-attr]
+    if isinstance(version_id, dict) and not all(version_id.values()):
         raise exceptions.InvalidArgumentValue("Values in version ID dict cannot be None.")
     return (
         version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
