@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 
-def _resolve_datasource_parameters(schema: "pa.schema") -> Any:
+def _resolve_datasource_parameters(schema: Optional[pa.schema]) -> Dict[str, Any]:
     if not schema:
         return {
             "datasource": ArrowParquetBaseDatasource(),
@@ -27,7 +27,7 @@ def _resolve_datasource_parameters(schema: "pa.schema") -> Any:
 def _read_parquet_distributed(  # pylint: disable=unused-argument
     paths: List[str],
     path_root: Optional[str],
-    schema: "pa.schema",
+    schema: Optional[pa.schema],
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
     use_threads: Union[bool, int],

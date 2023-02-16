@@ -322,7 +322,7 @@ def _read_parquet_chunked(
 def _read_parquet(  # pylint: disable=W0613
     paths: List[str],
     path_root: Optional[str],
-    schema: pa.schema,
+    schema: Optional[pa.schema],
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
     use_threads: Union[bool, int],
@@ -365,6 +365,7 @@ def read_parquet(
     chunked: Literal[False] = ...,
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
+    bulk_read_parquet: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -391,6 +392,7 @@ def read_parquet(
     chunked: Literal[True],
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
+    bulk_read_parquet: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -417,6 +419,7 @@ def read_parquet(
     chunked: bool,
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
+    bulk_read_parquet: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -467,6 +470,7 @@ def read_parquet(
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     parallelism: int = -1,
+    bulk_read_parquet: bool = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -608,6 +612,9 @@ def read_parquet(
     >>> df = wr.s3.read_parquet(path, dataset=True, partition_filter=my_filter)
 
     """
+    if bulk_read_parquet and validate_schema:
+        exceptions.InvalidArgumentCombination("Cannot validate schema when bulk reading data files.")
+
     s3_client = _utils.client(service_name="s3", session=boto3_session)
     paths: List[str] = _path2list(
         path=path,
@@ -632,26 +639,28 @@ def read_parquet(
     )
 
     # Create PyArrow schema based on file metadata, columns filter, and partitions
-    schema = _validate_schemas_from_files(
-        validate_schema=validate_schema,
-        paths=paths,
-        sampling=1.0,
-        use_threads=use_threads,
-        s3_client=s3_client,
-        s3_additional_kwargs=s3_additional_kwargs,
-        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-        version_ids=version_ids,
-    )
-    if path_root:
-        partition_types, _ = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
-        if partition_types:
-            partition_schema = pa.schema(
-                fields={k: _data_types.athena2pyarrow(dtype=v) for k, v in partition_types.items()}
-            )
-            schema = pa.unify_schemas([schema, partition_schema])
-    if columns:
-        schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
-    _logger.debug("schema:\n%s", schema)
+    schema: Optional[pa.schema] = None
+    if not bulk_read_parquet:
+        schema = _validate_schemas_from_files(
+            validate_schema=validate_schema,
+            paths=paths,
+            sampling=1.0,
+            use_threads=use_threads,
+            s3_client=s3_client,
+            s3_additional_kwargs=s3_additional_kwargs,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            version_ids=version_ids,
+        )
+        if path_root:
+            partition_types, _ = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
+            if partition_types:
+                partition_schema = pa.schema(
+                    fields={k: _data_types.athena2pyarrow(dtype=v) for k, v in partition_types.items()}
+                )
+                schema = pa.unify_schemas([schema, partition_schema])
+        if columns:
+            schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
+        _logger.debug("schema:\n%s", schema)
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
 
