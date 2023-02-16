@@ -431,7 +431,7 @@ def path_generator(bucket: str) -> Iterator[str]:
     wr.s3.delete_objects(path=objs)
     yield s3_path
     objs = wr.s3.list_objects(s3_path)
-    wr.s3.delete_objects(path=objs)
+    # wr.s3.delete_objects(path=objs)
 
 
 def extract_cloudformation_outputs():
