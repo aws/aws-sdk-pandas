@@ -12,6 +12,7 @@ import time
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 
 import numpy as np
+
 # fs required to implicitly trigger S3 subsystem initialization
 import pyarrow.fs  # noqa: F401 pylint: disable=unused-import
 import ray
@@ -22,16 +23,16 @@ from ray.data.block import Block, BlockAccessor
 from ray.data.context import DatasetContext
 from ray.data.dataset import BlockOutputBuffer  # type: ignore[attr-defined]
 from ray.data.datasource import Reader, ReadTask
-from ray.data.datasource.file_based_datasource import \
-    _resolve_paths_and_filesystem
+from ray.data.datasource.file_based_datasource import _resolve_paths_and_filesystem
 from ray.data.datasource.file_meta_provider import (
-    DefaultParquetMetadataProvider, ParquetMetadataProvider,
-    _handle_read_os_error)
+    DefaultParquetMetadataProvider,
+    ParquetMetadataProvider,
+    _handle_read_os_error,
+)
 
 from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray import ray_remote
-from awswrangler.distributed.ray.datasources.arrow_parquet_base_datasource import \
-    ArrowParquetBaseDatasource
+from awswrangler.distributed.ray.datasources.arrow_parquet_base_datasource import ArrowParquetBaseDatasource
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -347,8 +348,9 @@ def _read_pieces(
     serialized_pieces: List[_SerializedPiece],
 ) -> Iterator["pyarrow.Table"]:
     # This import is necessary to load the tensor extension type.
-    from ray.data.extensions.tensor_extension import \
-        ArrowTensorType  # type: ignore[attr-defined]  # noqa: F401, E501 # pylint: disable=import-outside-toplevel, unused-import
+    from ray.data.extensions.tensor_extension import (
+        ArrowTensorType,
+    )
 
     # Deserialize after loading the filesystem class.
     pieces: List[ParquetFileFragment] = _deserialize_pieces_with_retry(serialized_pieces)

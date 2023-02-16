@@ -6,8 +6,7 @@ import pyarrow as pa
 from ray.data import read_datasource
 from ray.data.datasource import FastFileMetadataProvider
 
-from awswrangler.distributed.ray.datasources import (
-    ArrowParquetBaseDatasource, ArrowParquetDatasource)
+from awswrangler.distributed.ray.datasources import ArrowParquetBaseDatasource, ArrowParquetDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
 
 if TYPE_CHECKING:

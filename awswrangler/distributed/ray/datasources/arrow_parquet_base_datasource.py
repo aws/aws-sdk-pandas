@@ -15,8 +15,7 @@ import pyarrow.parquet as pq
 from ray.data.block import BlockAccessor
 
 from awswrangler._arrow import _add_table_partitions, _df_to_table
-from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import \
-    PandasFileBasedDatasource
+from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 
 
 class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
