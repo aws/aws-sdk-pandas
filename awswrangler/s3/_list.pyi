@@ -17,6 +17,21 @@ def _path2list(
     ignore_empty: bool = ...,
 ) -> List[str]: ...
 def _prefix_cleanup(prefix: str) -> str: ...
+def _validate_datetimes(
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+) -> None: ...
+def _list_objects(
+    path: str,
+    s3_client: "S3Client",
+    s3_additional_kwargs: Optional[Dict[str, Any]],
+    delimiter: Optional[str] = ...,
+    suffix: Union[str, List[str], None] = ...,
+    ignore_suffix: Union[str, List[str], None] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    ignore_empty: bool = ...,
+) -> Iterator[List[str]]: ...
 def does_object_exist(
     path: str,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,

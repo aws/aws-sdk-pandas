@@ -102,3 +102,17 @@ def _union(dfs: List[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
         for df in dfs:
             df[col] = pd.Categorical(df[col].values, categories=cat.categories)
     return pd.concat(objs=dfs, sort=False, copy=False, ignore_index=ignore_index)
+
+
+def _check_version_id(
+    paths: List[str], version_id: Optional[Union[str, Dict[str, str]]] = None
+) -> Optional[Dict[str, str]]:
+    if len(paths) > 1 and version_id is not None and not isinstance(version_id, dict):
+        raise exceptions.InvalidArgumentCombination(
+            "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
+        )
+    if not all(version_id.values()):  # type: ignore[union-attr]
+        raise exceptions.InvalidArgumentValue("Values in version ID dict cannot be None.")
+    return (
+        version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
+    )

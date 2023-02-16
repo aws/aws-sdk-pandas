@@ -12,7 +12,13 @@ from awswrangler import _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
 from awswrangler.s3._list import _path2list
-from awswrangler.s3._read import _apply_partition_filter, _get_path_ignore_suffix, _get_path_root, _union
+from awswrangler.s3._read import (
+    _apply_partition_filter,
+    _check_version_id,
+    _get_path_ignore_suffix,
+    _get_path_root,
+    _union,
+)
 from awswrangler.s3._read_text_core import _read_text_file, _read_text_files_chunked
 
 if TYPE_CHECKING:
@@ -31,13 +37,6 @@ def _resolve_format(read_format: str) -> Any:
     raise exceptions.UnsupportedType("Unsupported read format")
 
 
-def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: str) -> Optional[str]:
-    if isinstance(version_id, dict):
-        return version_id.get(path, None)
-
-    return version_id
-
-
 @engine.dispatch_on_engine
 def _read_text(  # pylint: disable=W0613
     read_format: str,
@@ -49,7 +48,7 @@ def _read_text(  # pylint: disable=W0613
     dataset: bool,
     ignore_index: bool,
     parallelism: int,
-    version_id_dict: Dict[str, Optional[str]],
+    version_ids: Optional[Dict[str, str]],
     pandas_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     parser_func = _resolve_format(read_format)
@@ -58,7 +57,7 @@ def _read_text(  # pylint: disable=W0613
         _read_text_file,
         s3_client,
         paths,
-        [version_id_dict[path] for path in paths],
+        [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths],
         itertools.repeat(parser_func),
         itertools.repeat(path_root),
         itertools.repeat(pandas_kwargs),
@@ -107,11 +106,7 @@ def _read_text_format(
         raise exceptions.NoFilesFound(f"No files Found on: {path}.")
     _logger.debug("paths:\n%s", paths)
 
-    if len(paths) > 1 and version_id is not None and not isinstance(version_id, dict):
-        raise exceptions.InvalidArgumentCombination(
-            "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
-        )
-    version_id_dict = {path: _get_version_id_for(version_id, path) for path in paths}
+    version_ids = _check_version_id(paths=paths, version_id=version_id)
 
     args: Dict[str, Any] = {
         "parser_func": _resolve_format(read_format),
@@ -127,7 +122,7 @@ def _read_text_format(
     if chunksize is not None:
         return _read_text_files_chunked(
             paths=paths,
-            version_ids=version_id_dict,
+            version_ids=version_ids,
             chunksize=chunksize,
             **args,
         )
@@ -142,7 +137,7 @@ def _read_text_format(
         dataset=dataset,
         ignore_index=ignore_index,
         parallelism=parallelism,
-        version_id_dict=version_id_dict,
+        version_ids=version_ids,
         pandas_kwargs=pandas_kwargs,
     )
 

@@ -37,6 +37,7 @@ from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
+    _check_version_id,
     _extract_partitions_dtypes_from_table_details,
     _extract_partitions_metadata_from_paths,
     _get_path_ignore_suffix,
@@ -190,9 +191,7 @@ def _read_parquet_metadata(
         ignore_empty=ignore_empty,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    version_ids = (
-        version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
-    )
+    version_ids = _check_version_id(paths=paths, version_id=version_id)
 
     # Files
     schemas: List[pa.schema] = _read_schemas_from_files(
@@ -627,9 +626,7 @@ def read_parquet(
         raise exceptions.NoFilesFound(f"No files Found on: {path}.")
     _logger.debug("paths:\n%s", paths)
 
-    version_ids: Optional[Dict[str, str]] = (
-        version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
-    )
+    version_ids = _check_version_id(paths=paths, version_id=version_id)
 
     # Create PyArrow schema based on file metadata, columns filter, and partitions
     schema = _validate_schemas_from_files(

@@ -9,6 +9,7 @@ import boto3
 import botocore.exceptions
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import engine
 from awswrangler.s3 import _fs
 
 if TYPE_CHECKING:
@@ -76,6 +77,7 @@ def _prefix_cleanup(prefix: str) -> str:
     return prefix
 
 
+@engine.dispatch_on_engine
 def _list_objects(  # pylint: disable=too-many-branches
     path: str,
     s3_client: "S3Client",
