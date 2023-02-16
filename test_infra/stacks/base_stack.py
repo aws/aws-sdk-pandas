@@ -1,4 +1,5 @@
 from aws_cdk import CfnOutput, Duration, Stack, Tags
+from aws_cdk import aws_cloudtrail as cloudtrail
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
@@ -125,48 +126,58 @@ class BaseStack(Stack):  # type: ignore
             id="aws_sdk_pandas_log_stream",
             log_group=log_group,
         )
+
+        self.trail = cloudtrail.Trail(
+            self,
+            id="Bucket Trail",
+        )
+        self.trail.add_s3_event_selector(
+            [
+                cloudtrail.S3EventSelector(bucket=self.bucket),
+            ]
+        )
+
         CfnOutput(self, "Region", value=self.region)
         CfnOutput(
             self,
             "VPC",
             value=self.vpc.vpc_id,
-            export_name="aws-sdk-pandas-base-VPC",
         )
         CfnOutput(
             self,
             "PublicSubnet1",
             value=self.vpc.public_subnets[0].subnet_id,
-            export_name="aws-sdk-pandas-base-PublicSubnet1",
         )
         CfnOutput(
             self,
             "PublicSubnet2",
             value=self.vpc.public_subnets[1].subnet_id,
-            export_name="aws-sdk-pandas-base-PublicSubnet2",
         )
         CfnOutput(
             self,
             "PublicSubnet3",
             value=self.vpc.public_subnets[2].subnet_id,
-            export_name="aws-sdk-pandas-base-PublicSubnet3",
         )
         CfnOutput(
             self,
             "PrivateSubnet",
             value=self.vpc.private_subnets[0].subnet_id,
-            export_name="aws-sdk-pandas-base-PrivateSubnet",
         )
         CfnOutput(
             self,
             "KmsKeyArn",
             value=self.key.key_arn,
-            export_name="aws-sdk-pandas-base-KmsKeyArn",
         )
         CfnOutput(
             self,
             "BucketName",
             value=self.bucket.bucket_name,
-            export_name="aws-sdk-pandas-base-BucketName",
+        )
+        ssm.StringParameter(
+            self,
+            "SSM BucketName",
+            parameter_name="/sdk-pandas/base/BucketName",
+            string_value=self.bucket.bucket_name,
         )
         CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
         CfnOutput(self, "GlueDataQualityRole", value=glue_data_quality_role.role_arn)
