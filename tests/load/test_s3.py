@@ -38,10 +38,11 @@ def test_s3_select(benchmark_time: float, request: pytest.FixtureRequest) -> Non
 
 
 @pytest.mark.parametrize("benchmark_time", [40])
-def test_s3_read_parquet_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
+@pytest.mark.parametrize("bulk_read_parquet", [False, True])
+def test_s3_read_parquet_simple(benchmark_time: float, bulk_read_parquet: bool, request: pytest.FixtureRequest) -> None:
     path = "s3://ursa-labs-taxi-data/2018/"
     with ExecutionTimer(request, data_paths=path) as timer:
-        wr.s3.read_parquet(path=path)
+        wr.s3.read_parquet(path=path, bulk_read_parquet=bulk_read_parquet)
 
     assert timer.elapsed_time < benchmark_time
 
