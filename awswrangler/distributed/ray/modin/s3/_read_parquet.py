@@ -4,12 +4,25 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource
+from ray.data.datasource import FastFileMetadataProvider
 
-from awswrangler.distributed.ray.datasources import ArrowParquetDatasource
+from awswrangler.distributed.ray.datasources import (
+    ArrowParquetBaseDatasource, ArrowParquetDatasource)
 from awswrangler.distributed.ray.modin._utils import _to_modin
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
+
+
+def _resolve_datasource_parameters(schema: "pa.schema") -> Any:
+    if not schema:
+        return {
+            "datasource": ArrowParquetBaseDatasource(),
+            "meta_provider": FastFileMetadataProvider(),
+        }
+    return {
+        "datasource": ArrowParquetDatasource(),
+    }
 
 
 def _read_parquet_distributed(  # pylint: disable=unused-argument
@@ -29,7 +42,7 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     if coerce_int96_timestamp_unit:
         dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
     dataset = read_datasource(
-        datasource=ArrowParquetDatasource(),
+        **_resolve_datasource_parameters(schema),
         parallelism=parallelism,
         use_threads=use_threads,
         paths=paths,
