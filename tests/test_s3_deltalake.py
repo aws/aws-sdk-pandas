@@ -7,12 +7,15 @@ import awswrangler as wr
 
 
 def _get_storage_options():
-    credentials = boto3.Session().get_credentials().get_frozen_credentials()
+    session = boto3.Session()
+    credentials = session.get_credentials().get_frozen_credentials()
+
     return {
         "AWS_S3_ALLOW_UNSAFE_RENAME": "TRUE",
         "AWS_ACCESS_KEY_ID": credentials.access_key,
         "AWS_SECRET_ACCESS_KEY": credentials.secret_key,
         "AWS_SESSION_TOKEN": credentials.token,
+        "AWS_REGION": session.region_name,
     }
 
 
