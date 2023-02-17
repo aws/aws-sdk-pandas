@@ -84,7 +84,9 @@ def test_read_partitioned_json_paths(path, use_threads, chunksize):
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("chunksize", [None, 1])
-def test_read_partitioned_csv_paths(path, use_threads, chunksize):
+@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
+def test_read_partitioned_csv_paths(wr, path, use_threads, chunksize, s3_list_strategy):
+    wr.config.s3_list_strategy = s3_list_strategy
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
     paths = [f"{path}year={y}/month={m}/0.csv" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
     for p in paths:
@@ -191,7 +193,9 @@ def test_csv_dataset_header_modes(path, mode, glue_database, glue_table):
         assert df_res.equals(dfs[-1])
 
 
-def test_json(path):
+@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
+def test_json(wr, path, s3_list_strategy):
+    wr.config.s3_list_strategy = s3_list_strategy
     df0 = pd.DataFrame({"id": [1, 2, 3]})
     path0 = f"{path}test_json0.json"
     path1 = f"{path}test_json1.json"

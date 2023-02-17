@@ -27,7 +27,9 @@ pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("partition_cols", [None, ["c2"], ["c1", "c2"]])
-def test_parquet_metadata_partitions_dataset(path, partition_cols):
+@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
+def test_parquet_metadata_partitions_dataset(wr, path, partition_cols, s3_list_strategy):
+    wr.config.s3_list_strategy = s3_list_strategy
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
     wr.s3.to_parquet(df=df, path=path, dataset=True, partition_cols=partition_cols)
     columns_types, partitions_types = wr.s3.read_parquet_metadata(path=path, dataset=True)
@@ -65,7 +67,9 @@ def test_parquet_cast_string_dataset(path, partition_cols):
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_read_parquet_filter_partitions(path, use_threads):
+@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
+def test_read_parquet_filter_partitions(wr, path, use_threads, s3_list_strategy):
+    wr.config.s3_list_strategy = s3_list_strategy
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     wr.s3.to_parquet(df, path, dataset=True, partition_cols=["c1", "c2"], use_threads=use_threads)
     df2 = wr.s3.read_parquet(
@@ -94,7 +98,9 @@ def test_read_parquet_filter_partitions(path, use_threads):
     assert df2.c2.astype(int).sum() == 0
 
 
-def test_read_parquet_table(path, glue_database, glue_table):
+@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
+def test_read_parquet_table(wr, path, glue_database, glue_table, s3_list_strategy):
+    wr.config.s3_list_strategy = s3_list_strategy
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     wr.s3.to_parquet(
         df,

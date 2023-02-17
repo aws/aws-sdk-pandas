@@ -176,7 +176,10 @@ def test_merge(path, use_threads):
     "s3_additional_kwargs",
     [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
 )
-def test_merge_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
+@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
+def test_merge_additional_kwargs(wr, path, kms_key_id, s3_additional_kwargs, use_threads, s3_list_strategy):
+    wr.config.s3_list_strategy = s3_list_strategy
+
     if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
         s3_additional_kwargs["SSEKMSKeyId"] = kms_key_id
 
@@ -290,7 +293,9 @@ def test_copy_replacing_filename(path, path2, use_threads):
     assert objs[0] == expected_file
 
 
-def test_list_wrong_path(path):
+@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
+def test_list_wrong_path(wr, path, s3_list_strategy):
+    wr.config.s3_list_strategy = s3_list_strategy
     wrong_path = path.replace("s3://", "")
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.list_objects(wrong_path)
@@ -367,23 +372,22 @@ def test_delete_with_invalid_list(path: str) -> None:
         wr.s3.delete_objects(path=[path], last_modified_begin=datetime.datetime.utcnow())
 
 
-def test_list_objects_invalid_start_time(path: str) -> None:
+@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
+def test_list_objects_invalid_time(wr, path, s3_list_strategy) -> None:
+    wr.config.s3_list_strategy = s3_list_strategy
+
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.list_objects(
             path=path,
             last_modified_begin=datetime.datetime.now(),
         )
 
-
-def test_list_objects_invalid_end_time(path: str) -> None:
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.list_objects(
             path=path,
             last_modified_end=datetime.datetime.now(),
         )
 
-
-def test_list_objects_end_time_after_start_time(path: str) -> None:
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.list_objects(
             path=path,

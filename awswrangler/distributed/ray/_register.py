@@ -7,7 +7,6 @@ from awswrangler.distributed.ray import ray_remote
 from awswrangler.dynamodb._read import _read_scan
 from awswrangler.lakeformation._read import _get_work_unit_results
 from awswrangler.s3._delete import _delete_objects
-from awswrangler.s3._list import _list_objects
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
 from awswrangler.s3._read_text import _read_text
 from awswrangler.s3._select import _select_object_content, _select_query
@@ -46,7 +45,6 @@ def register_ray() -> None:
             _is_pandas_or_modin_frame,
             _split_modin_frame,
         )
-        from awswrangler.distributed.ray.modin.s3._list import _list_objects_filesystem
         from awswrangler.distributed.ray.modin.s3._read_parquet import _read_parquet_distributed
         from awswrangler.distributed.ray.modin.s3._read_text import _read_text_distributed
         from awswrangler.distributed.ray.modin.s3._write_dataset import (
@@ -58,7 +56,6 @@ def register_ray() -> None:
 
         for o_f, d_f in {
             pyarrow_types_from_pandas: pyarrow_types_from_pandas_distributed,
-            _list_objects: _list_objects_filesystem,
             _read_parquet: _read_parquet_distributed,
             _read_text: _read_text_distributed,
             _to_buckets: _to_buckets_distributed,

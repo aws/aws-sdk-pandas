@@ -35,6 +35,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False),
     "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
+    "s3_list_strategy": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
     # Endpoints URLs
@@ -302,6 +303,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @s3_block_size.setter
     def s3_block_size(self, value: int) -> None:
         self._set_config_value(key="s3_block_size", value=value)
+
+    @property
+    def s3_list_strategy(self) -> Optional[str]:
+        """Property s3_list_strategy."""
+        return cast(Optional[str], self["s3_list_strategy"])
+
+    @s3_list_strategy.setter
+    def s3_list_strategy(self, value: Optional[str]) -> None:
+        self._set_config_value(key="s3_list_strategy", value=value)
 
     @property
     def workgroup(self) -> Optional[str]:

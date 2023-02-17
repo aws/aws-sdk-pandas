@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Sequence,
 
 import boto3
 import botocore.exceptions
+from pyarrow.fs import FileSelector, FileType, _resolve_filesystem_and_path
 
 from awswrangler import _utils, exceptions
-from awswrangler._distributed import engine
+from awswrangler._config import apply_configs
 from awswrangler.s3 import _fs
 
 if TYPE_CHECKING:
@@ -77,8 +78,8 @@ def _prefix_cleanup(prefix: str) -> str:
     return prefix
 
 
-@engine.dispatch_on_engine
-def _list_objects(  # pylint: disable=too-many-branches
+@apply_configs
+def _list_objects(
     path: str,
     s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, Any]],
@@ -88,13 +89,45 @@ def _list_objects(  # pylint: disable=too-many-branches
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     ignore_empty: bool = False,
+    s3_list_strategy: Optional[str] = None,
+) -> Iterator[List[str]]:
+    suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
+    ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
+    _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
+
+    kwargs = {
+        "path": path,
+        "s3_additional_kwargs": s3_additional_kwargs,
+        "suffix": suffix,
+        "ignore_suffix": ignore_suffix,
+        "last_modified_begin": last_modified_begin,
+        "last_modified_end": last_modified_end,
+        "ignore_empty": ignore_empty,
+    }
+
+    if s3_list_strategy == "s3fs":
+        return _list_objects_s3fs(**kwargs)
+    else:
+        kwargs.update({"s3_client": s3_client, "delimiter": delimiter})
+        return _list_objects_paginate(**kwargs)
+
+
+def _list_objects_paginate(  # pylint: disable=too-many-branches
+    path: str,
+    s3_client: "S3Client",
+    s3_additional_kwargs: Optional[Dict[str, Any]],
+    delimiter: Optional[str],
+    suffix: Union[List[str], None],
+    ignore_suffix: Union[List[str], None],
+    last_modified_begin: Optional[datetime.datetime],
+    last_modified_end: Optional[datetime.datetime],
+    ignore_empty: bool,
 ) -> Iterator[List[str]]:
     bucket: str
     prefix_original: str
     bucket, prefix_original = _utils.parse_path(path=path)
     prefix: str = _prefix_cleanup(prefix=prefix_original)
-    _suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
-    _ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
+
     default_pagination: Dict[str, int] = {"PageSize": 1000}
     extra_kwargs: Dict[str, Any] = {"PaginationConfig": default_pagination}
     if s3_additional_kwargs:
@@ -113,7 +146,6 @@ def _list_objects(  # pylint: disable=too-many-branches
     _logger.debug("args: %s", args)
     response_iterator = paginator.paginate(**args)
     paths: List[str] = []
-    _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
 
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
@@ -124,7 +156,7 @@ def _list_objects(  # pylint: disable=too-many-branches
                     if ignore_empty and content.get("Size", 0) == 0:
                         _logger.debug("Skipping empty file: %s", f"s3://{bucket}/{key}")
                     elif (content is not None) and ("Key" in content):
-                        if (_suffix is None) or key.endswith(tuple(_suffix)):
+                        if (suffix is None) or key.endswith(tuple(suffix)):
                             if last_modified_begin is not None:
                                 if content["LastModified"] < last_modified_begin:
                                     continue
@@ -143,12 +175,68 @@ def _list_objects(  # pylint: disable=too-many-branches
         if prefix != prefix_original:
             paths = fnmatch.filter(paths, path)
 
-        if _ignore_suffix is not None:
-            paths = [p for p in paths if p.endswith(tuple(_ignore_suffix)) is False]
+        if ignore_suffix is not None:
+            paths = [p for p in paths if p.endswith(tuple(ignore_suffix)) is False]
 
         if paths:
             yield paths
         paths = []
+
+
+def _list_objects_s3fs(
+    path: str,
+    s3_additional_kwargs: Optional[Dict[str, Any]],
+    suffix: Union[List[str], None],
+    ignore_suffix: Union[List[str], None],
+    last_modified_begin: Optional[datetime.datetime],
+    last_modified_end: Optional[datetime.datetime],
+    ignore_empty: bool,
+) -> Iterator[List[str]]:
+    """Expand the provided S3 directory path to a list of object paths."""
+    if s3_additional_kwargs:
+        raise exceptions.InvalidArgument("Argument `s3_additional_kwargs` is not supported with PyArrow S3FileSystem.")
+
+    original_path: str = "s3://" + "/".join(_utils.parse_path(path))
+    clean_path: str = _prefix_cleanup(prefix=original_path)
+    resolved_filesystem, resolved_path = _resolve_filesystem_and_path(clean_path, None)
+    paths: List[str] = []
+
+    path_info = resolved_filesystem.get_file_info(resolved_path)
+
+    if path_info.type in (FileType.File, FileType.Directory):
+        if path_info.type == FileType.File:
+            files = [path_info]
+            base_path = resolved_path
+        else:
+            selector = FileSelector(resolved_path, recursive=True)
+            files = resolved_filesystem.get_file_info(selector)
+            base_path = selector.base_dir
+
+        for file_ in files:
+            if not file_.is_file:
+                continue
+            if ignore_empty and file_.size == 0:
+                continue
+            file_path = file_.path
+            if not file_path.startswith(base_path):
+                continue
+            if (ignore_suffix is not None) and file_path.endswith(tuple(ignore_suffix)):
+                continue
+            if (suffix is None) or file_path.endswith(tuple(suffix)):
+                if last_modified_begin is not None:
+                    if file_.mtime < last_modified_begin:
+                        continue
+                if last_modified_end is not None:
+                    if file_.mtime > last_modified_end:
+                        continue
+                paths.append(f"s3://{file_path}")
+
+            if clean_path != original_path:
+                paths = fnmatch.filter(paths, original_path)
+
+            if paths:
+                yield paths
+            paths = []
 
 
 def does_object_exist(

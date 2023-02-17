@@ -933,6 +933,7 @@ def read_parquet_table(
         use_threads=use_threads,
         parallelism=parallelism,
         boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
 
