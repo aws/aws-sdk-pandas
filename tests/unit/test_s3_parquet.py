@@ -167,6 +167,18 @@ def test_parquet(path):
     )
 
 
+def test_parquet_bulk_read(path):
+    df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
+    num_files = 10
+
+    for i in range(num_files):
+        wr.s3.to_parquet(df=df, path=f"{path}{i}.parquet")
+
+    df2 = wr.s3.read_parquet(path=path, bulk_read_parquet=True)
+    assert len(df2) == num_files * len(df)
+    assert len(df2.columns) == 2
+
+
 def test_parquet_validate_schema(path):
     df = pd.DataFrame({"id": [1, 2, 3]})
     path_file = f"{path}0.parquet"

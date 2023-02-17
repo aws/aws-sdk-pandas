@@ -37,16 +37,12 @@ class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=
         path_root: str,
         **reader_args: Any,
     ) -> pa.Table:
-        schema: Optional[pa.schema] = reader_args.get("table_schema", None)
-        columns: Optional[List[str]] = reader_args.get("columns", None)
         use_threads: bool = reader_args.get("use_threads", False)
         pyarrow_additional_kwargs: Dict[str, Any] = reader_args.get("pyarrow_additional_kwargs", {})
 
         table = pq.read_table(
             f,
             use_threads=use_threads,
-            schema=schema,
-            columns=columns,
             **pyarrow_additional_kwargs,
         )
 
