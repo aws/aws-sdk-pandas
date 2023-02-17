@@ -53,7 +53,7 @@ def test_s3_read_parquet_simple(benchmark_time: float, bulk_read_parquet: bool, 
 def test_s3_read_parquet_large(benchmark_time: float, bulk_read_parquet: bool, request: pytest.FixtureRequest) -> None:
     path = "s3://amazon-reviews-pds/parquet/"
     with ExecutionTimer(request, data_paths=path) as timer:
-        wr.s3.read_parquet(path=path, bulk_read_parquet=bulk_read_parquet)
+        wr.s3.read_parquet(path=path, dataset=True, bulk_read_parquet=bulk_read_parquet)
 
     assert timer.elapsed_time < benchmark_time
 
