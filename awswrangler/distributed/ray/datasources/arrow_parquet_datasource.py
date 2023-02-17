@@ -38,6 +38,7 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
         **reader_args: Any,
     ) -> pa.Table:
         schema: Optional[pa.schema] = reader_args.get("table_schema", None)
+        validate_schema: Optional[bool] = reader_args.get("validate_schema", False)
         columns: Optional[List[str]] = reader_args.get("columns", None)
         use_threads: bool = reader_args.get("use_threads", False)
         pyarrow_additional_kwargs: Dict[str, Any] = reader_args.get("pyarrow_additional_kwargs", {})
@@ -55,7 +56,7 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
             path_root=path_root,
         )
 
-        if schema:
+        if schema and validate_schema:
             table = table.cast(schema)
 
         return table
