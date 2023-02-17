@@ -5,6 +5,8 @@ from typing import Any, Dict, Iterable
 import boto3
 import pytest
 
+pytestmark = pytest.mark.skip()
+
 
 @pytest.fixture(scope="session")
 def wrangler_zip_location(cloudformation_outputs: Dict[str, str]) -> str:

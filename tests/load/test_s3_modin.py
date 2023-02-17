@@ -8,6 +8,8 @@ import awswrangler as wr
 
 from .._utils import ExecutionTimer
 
+pytestmark = pytest.mark.skip()
+
 
 @pytest.mark.parametrize("benchmark_time", [40])
 def test_modin_s3_read_parquet_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:

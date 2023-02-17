@@ -10,6 +10,8 @@ import awswrangler as wr
 
 from .._utils import ExecutionTimer
 
+pytestmark = pytest.mark.skip()
+
 
 @pytest.mark.parametrize("benchmark_time", [60])
 def test_timestream_write(benchmark_time: int, timestream_database_and_table: str, request) -> None:

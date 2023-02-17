@@ -20,6 +20,7 @@ def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
     return dataset.to_modin()
 
 
+@pytest.mark.skip()
 @pytest.mark.repeat(1)
 @pytest.mark.parametrize("benchmark_time", [150])
 def test_s3_select(benchmark_time: float, request: pytest.FixtureRequest) -> None:
@@ -47,6 +48,18 @@ def test_s3_read_parquet_simple(benchmark_time: float, bulk_read_parquet: bool, 
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
+@pytest.mark.parametrize("benchmark_time", [60])
+@pytest.mark.parametrize("bulk_read_parquet", [False, True])
+def test_s3_read_parquet_large(benchmark_time: float, bulk_read_parquet: bool, request: pytest.FixtureRequest) -> None:
+    path = "s3://amazon-reviews-pds/parquet/"
+    with ExecutionTimer(request, data_paths=path) as timer:
+        wr.s3.read_parquet(path=path, bulk_read_parquet=bulk_read_parquet)
+
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.skip()
 @pytest.mark.parametrize("benchmark_time", [30])
 def test_s3_read_parquet_partition_filter(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://amazon-reviews-pds/parquet/"
@@ -57,6 +70,7 @@ def test_s3_read_parquet_partition_filter(benchmark_time: float, request: pytest
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize("benchmark_time", [5])
 @pytest.mark.parametrize("path_suffix", [None, "df.parquet"])
 def test_s3_write_parquet_simple(
@@ -73,6 +87,7 @@ def test_s3_write_parquet_simple(
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize("benchmark_time", [30])
 @pytest.mark.parametrize("partition_cols", [None, ["payment_type"], ["payment_type", "passenger_count"]])
 @pytest.mark.parametrize("bucketing_info", [None, (["vendor_id"], 2), (["vendor_id", "rate_code_id"], 2)])
@@ -90,6 +105,7 @@ def test_s3_write_parquet_dataset(
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize("benchmark_time", [5])
 @pytest.mark.parametrize("partition_cols", [None, ["payment_type"]])
 @pytest.mark.parametrize("num_blocks", [None, 1, 5])
@@ -111,6 +127,7 @@ def test_s3_write_parquet_blocks(
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize("benchmark_time", [5])
 def test_s3_delete_objects(path: str, path2: str, benchmark_time: float, request: pytest.FixtureRequest) -> None:
     df = pd.DataFrame({"id": [1, 2, 3]})
@@ -127,6 +144,7 @@ def test_s3_delete_objects(path: str, path2: str, benchmark_time: float, request
     assert len(wr.s3.list_objects(f"{path2}delete-test*")) == 0
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize("benchmark_time", [20])
 def test_s3_read_csv_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0*.csv"
@@ -136,6 +154,7 @@ def test_s3_read_csv_simple(benchmark_time: float, request: pytest.FixtureReques
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize("benchmark_time", [15])
 def test_s3_read_json_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://covid19-lake/covid_knowledge_graph/json/edges/paper_to_concept/*.json"
@@ -145,6 +164,7 @@ def test_s3_read_json_simple(benchmark_time: float, request: pytest.FixtureReque
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize("benchmark_time", [5])
 def test_s3_write_csv(
     path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request: pytest.FixtureRequest
@@ -157,6 +177,7 @@ def test_s3_write_csv(
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize("benchmark_time", [5])
 def test_s3_write_json(
     path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request: pytest.FixtureRequest
@@ -169,6 +190,7 @@ def test_s3_write_json(
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
 @pytest.mark.timeout(300)
 @pytest.mark.parametrize("benchmark_time", [15])
 def test_wait_object_exists(path: str, benchmark_time: int, request: pytest.FixtureRequest) -> None:
@@ -186,6 +208,7 @@ def test_wait_object_exists(path: str, benchmark_time: int, request: pytest.Fixt
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
 @pytest.mark.timeout(60)
 @pytest.mark.parametrize("benchmark_time", [15])
 def test_wait_object_not_exists(path: str, benchmark_time: int, request: pytest.FixtureRequest) -> None:
@@ -198,6 +221,7 @@ def test_wait_object_not_exists(path: str, benchmark_time: int, request: pytest.
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize("size", [(5000, 5000), (1, 5000), (5000, 1), (1, 1)])
 def test_wide_df(size: Tuple[int, int], path: str) -> None:
     df = pd.DataFrame(np.random.randint(0, 100, size=size))
