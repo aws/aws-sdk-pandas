@@ -142,14 +142,16 @@ def _validate_schemas(schemas: List[pa.schema], validate_schema: bool) -> pa.sch
     return pa.unify_schemas(schemas)
 
 
-def _validate_schemas_from_files(
+def _read_and_validate_schemas_from_files(
     validate_schema: bool,
+    path_root: Optional[str],
     paths: List[str],
     sampling: float,
     use_threads: Union[bool, int],
     s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]] = None,
+    columns: Optional[List[str]] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> pa.schema:
     schemas: List[pa.schema] = _read_schemas_from_files(
@@ -161,7 +163,20 @@ def _validate_schemas_from_files(
         version_ids=version_ids,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
     )
-    return _validate_schemas(schemas, validate_schema)
+    # Validate and unify the schemas
+    schema = _validate_schemas(schemas, validate_schema)
+    # Add partition columns
+    if path_root:
+        partition_types, _ = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
+        if partition_types:
+            partition_schema = pa.schema(
+                fields={k: _data_types.athena2pyarrow(dtype=v) for k, v in partition_types.items()}
+            )
+            schema = pa.unify_schemas([schema, partition_schema])
+    # Keep selected columns
+    if columns:
+        schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
+    return schema
 
 
 def _read_parquet_metadata(
@@ -631,26 +646,19 @@ def read_parquet(
         version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
     )
 
-    # Create PyArrow schema based on file metadata, columns filter, and partitions
-    schema = _validate_schemas_from_files(
+    # Read and validate PyArrow schema based on file metadata, columns filter, and partitions
+    schema = _read_and_validate_schemas_from_files(
         validate_schema=validate_schema,
+        path_root=path_root,
         paths=paths,
         sampling=1.0,
         use_threads=use_threads,
         s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
-        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         version_ids=version_ids,
+        columns=columns,
+        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
     )
-    if path_root:
-        partition_types, _ = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
-        if partition_types:
-            partition_schema = pa.schema(
-                fields={k: _data_types.athena2pyarrow(dtype=v) for k, v in partition_types.items()}
-            )
-            schema = pa.unify_schemas([schema, partition_schema])
-    if columns:
-        schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
     _logger.debug("schema:\n%s", schema)
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)

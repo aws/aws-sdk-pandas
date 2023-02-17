@@ -45,7 +45,6 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
         table = pq.read_table(
             f,
             use_threads=use_threads,
-            schema=schema,
             columns=columns,
             **pyarrow_additional_kwargs,
         )
@@ -55,6 +54,9 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
             path=f"s3://{path}",
             path_root=path_root,
         )
+
+        if schema:
+            table = table.cast(schema)
 
         return table
 
