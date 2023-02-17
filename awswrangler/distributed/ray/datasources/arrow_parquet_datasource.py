@@ -347,11 +347,6 @@ def _read_pieces(
     schema: Optional[Union[type, "pyarrow.lib.Schema"]],
     serialized_pieces: List[_SerializedPiece],
 ) -> Iterator["pyarrow.Table"]:
-    # This import is necessary to load the tensor extension type.
-    from ray.data.extensions.tensor_extension import (
-        ArrowTensorType,
-    )
-
     # Deserialize after loading the filesystem class.
     pieces: List[ParquetFileFragment] = _deserialize_pieces_with_retry(serialized_pieces)
 

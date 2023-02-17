@@ -6,7 +6,7 @@ and customized to ensure compatibility with AWS SDK for pandas behavior. Changes
 are documented in the comments and marked with (AWS SDK for pandas) prefix.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 # fs required to implicitly trigger S3 subsystem initialization
 import pyarrow as pa
