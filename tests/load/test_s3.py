@@ -48,7 +48,6 @@ def test_s3_read_parquet_simple(benchmark_time: float, bulk_read_parquet: bool, 
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.skip()
 @pytest.mark.parametrize("benchmark_time", [60])
 @pytest.mark.parametrize("bulk_read_parquet", [False, True])
 def test_s3_read_parquet_large(benchmark_time: float, bulk_read_parquet: bool, request: pytest.FixtureRequest) -> None:
