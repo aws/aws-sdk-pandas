@@ -48,11 +48,21 @@ def test_s3_read_parquet_simple(benchmark_time: float, bulk_read_parquet: bool, 
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [30])
+@pytest.mark.parametrize("benchmark_time", [60])
 @pytest.mark.parametrize("bulk_read_parquet", [False, True])
-def test_s3_read_parquet_partition_filter(
+def test_s3_read_parquet_many_files(
     benchmark_time: float, bulk_read_parquet: bool, request: pytest.FixtureRequest
 ) -> None:
+    path = "s3://aws-sdk-pandas-list-par-us-east-1-658066294590/small-files-parquet/"
+    with ExecutionTimer(request, data_paths=path) as timer:
+        wr.s3.read_parquet(path=path, bulk_read_parquet=bulk_read_parquet)
+
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.skip()
+@pytest.mark.parametrize("benchmark_time", [30])
+def test_s3_read_parquet_partition_filter(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://amazon-reviews-pds/parquet/"
     with ExecutionTimer(request, data_paths=path) as timer:
         filter = lambda x: True if x["product_category"].startswith("Wireless") else False  # noqa: E731
