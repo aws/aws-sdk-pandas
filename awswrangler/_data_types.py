@@ -88,6 +88,8 @@ def pyarrow2redshift(  # pylint: disable=too-many-branches,too-many-return-state
         return "TIMESTAMP"
     if pa.types.is_date(dtype):
         return "DATE"
+    if pa.types.is_time(dtype):
+        return "TIME"
     if pa.types.is_decimal(dtype):
         return f"DECIMAL({dtype.precision},{dtype.scale})"
     if pa.types.is_dictionary(dtype):
