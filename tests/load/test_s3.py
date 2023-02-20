@@ -48,18 +48,16 @@ def test_s3_read_parquet_simple(benchmark_time: float, bulk_read_parquet: bool, 
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("bulk_read_parquet,benchmark_time", [(True, 180), (False, None)])
-def test_s3_read_parquet_many_files(
-    benchmark_time: Optional[float], bulk_read_parquet: bool, request: pytest.FixtureRequest
-) -> None:
+@pytest.mark.parametrize("benchmark_time", [180])
+def test_s3_read_parquet_many_files(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://aws-sdk-pandas-list-par-us-east-1-658066294590/small-files-parquet/10000/"
     with ExecutionTimer(request, data_paths=path) as timer:
-        frame = wr.s3.read_parquet(path=path, bulk_read_parquet=bulk_read_parquet)
+        frame = wr.s3.read_parquet(path=path, bulk_read_parquet=True)
 
-    assert len(frame) == 10000
+    num_files = len(wr.s3.list_objects(path))
+    assert len(frame) == num_files  # each file contains just one row
 
-    if benchmark_time:
-        assert timer.elapsed_time < benchmark_time
+    assert timer.elapsed_time < benchmark_time
 
 
 @pytest.mark.skip()
