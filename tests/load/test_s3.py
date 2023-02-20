@@ -53,7 +53,7 @@ def test_s3_read_parquet_simple(benchmark_time: float, bulk_read_parquet: bool, 
 def test_s3_read_parquet_many_files(
     benchmark_time: float, bulk_read_parquet: bool, request: pytest.FixtureRequest
 ) -> None:
-    path = "s3://aws-sdk-pandas-list-par-us-east-1-658066294590/small-files-parquet/"
+    path = "s3://aws-sdk-pandas-list-par-us-east-1-658066294590/small-files-parquet/10000/"
     with ExecutionTimer(request, data_paths=path) as timer:
         wr.s3.read_parquet(path=path, bulk_read_parquet=bulk_read_parquet)
 
