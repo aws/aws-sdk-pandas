@@ -66,7 +66,7 @@ def test_s3_read_parquet_partition_filter(benchmark_time: float, request: pytest
     path = "s3://amazon-reviews-pds/parquet/"
     with ExecutionTimer(request, data_paths=path) as timer:
         filter = lambda x: True if x["product_category"].startswith("Wireless") else False  # noqa: E731
-        wr.s3.read_parquet(path=path, dataset=True, partition_filter=filter, bulk_read_parquet=bulk_read_parquet)
+        wr.s3.read_parquet(path=path, dataset=True, partition_filter=filter)
 
     assert timer.elapsed_time < benchmark_time
 
