@@ -72,7 +72,9 @@ def _get_s3_output(
         return s3_output
     if wg_config.s3_output is not None:
         return wg_config.s3_output
-    return create_athena_bucket(boto3_session=boto3_session)
+    raise exceptions.InvalidArgumentValue(
+        "Please provide a S3 bucket for storing query results either by specifying s3_output or as part of the workgroup configuration"
+    )
 
 
 def _start_query_execution(
@@ -452,11 +454,6 @@ def start_query_execution(
 ) -> Union[str, Dict[str, Any]]:
     """Start a SQL Query against AWS Athena.
 
-    Note
-    ----
-    Create the default Athena bucket if it doesn't exist and s3_output is None.
-    (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
-
     Parameters
     ----------
     sql : str
@@ -570,11 +567,6 @@ def repair_table(
     If this operation times out, it will be in an incomplete state
     where only a few partitions are added to the catalog.
 
-    Note
-    ----
-    Create the default Athena bucket if it doesn't exist and s3_output is None.
-    (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
-
     Parameters
     ----------
     table : str
@@ -637,11 +629,6 @@ def describe_table(
 
     Shows the list of columns, including partition columns, for the named column.
     The result of this function will be equal to `wr.catalog.table`.
-
-    Note
-    ----
-    Create the default Athena bucket if it doesn't exist and s3_output is None.
-    (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
 
     Parameters
     ----------
@@ -923,11 +910,6 @@ def show_create_table(
     """Generate the query that created it: 'SHOW CREATE TABLE table;'.
 
     Analyzes an existing table named table_name to generate the query that created it.
-
-    Note
-    ----
-    Create the default Athena bucket if it doesn't exist and s3_output is None.
-    (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
 
     Parameters
     ----------

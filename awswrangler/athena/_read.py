@@ -956,12 +956,6 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
 
     Note
     ----
-    Create the default Athena bucket if it doesn't exist and s3_output is None.
-
-    (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
-
-    Note
-    ----
     `chunksize` argument (Memory Friendly) (i.e batching):
 
     Return an Iterable of DataFrames instead of a regular DataFrame.
@@ -1369,12 +1363,6 @@ def read_sql_table(
     Valid encryption modes: [None, 'SSE_S3', 'SSE_KMS'].
 
     `P.S. 'CSE_KMS' is not supported.`
-
-    Note
-    ----
-    Create the default Athena bucket if it doesn't exist and s3_output is None.
-
-    (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
 
     Note
     ----
