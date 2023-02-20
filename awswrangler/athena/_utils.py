@@ -480,6 +480,8 @@ def start_query_execution(
     athena_cache_settings: typing.AthenaCacheSettings, optional
         Params of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
         max_remote_cache_entries, and max_local_cache_entries.
+        AthenaCacheSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaCacheSettings or as a regular Python dict.
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
