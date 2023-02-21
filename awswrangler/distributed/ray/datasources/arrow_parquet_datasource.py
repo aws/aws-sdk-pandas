@@ -14,7 +14,7 @@ import pyarrow.fs
 import pyarrow.parquet as pq
 from ray.data.block import BlockAccessor
 
-from awswrangler._arrow import _add_table_partitions, _df_to_table
+from awswrangler._arrow import _add_table_partitions, _cast_table_schema, _df_to_table
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 
 
@@ -38,7 +38,6 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
         **reader_args: Any,
     ) -> pa.Table:
         schema: Optional[pa.schema] = reader_args.get("table_schema", None)
-        validate_schema: Optional[bool] = reader_args.get("validate_schema", False)
         columns: Optional[List[str]] = reader_args.get("columns", None)
         use_threads: bool = reader_args.get("use_threads", False)
         pyarrow_additional_kwargs: Dict[str, Any] = reader_args.get("pyarrow_additional_kwargs", {})
@@ -56,8 +55,8 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
             path_root=path_root,
         )
 
-        if schema and validate_schema:
-            table = table.cast(schema)
+        if schema:
+            table = _cast_table_schema(table, schema)
 
         return table
 

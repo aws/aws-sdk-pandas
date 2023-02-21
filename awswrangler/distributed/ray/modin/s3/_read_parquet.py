@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 
 import modin.pandas as pd
 import pyarrow as pa
-import ray.exceptions
 from ray.data import read_datasource
 from ray.data.datasource import FastFileMetadataProvider
 
@@ -43,4 +42,5 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
         columns=columns,
         # dataset_kwargs=dataset_kwargs,
     )
+    dataset.fully_executed()
     return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs, ignore_index=bool(path_root))

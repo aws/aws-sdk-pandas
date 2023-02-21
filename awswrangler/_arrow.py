@@ -101,3 +101,11 @@ def _df_to_table(
                 table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
                 _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
     return table
+
+
+def _cast_table_schema(table: pa.Table, schema: pa.Schema):
+    for col_name in schema.names:
+        if col_name not in table.column_names:
+            field = schema.field(col_name)
+            table = table.append_column(field, pa.nulls(len(table), field.type))
+    return table
