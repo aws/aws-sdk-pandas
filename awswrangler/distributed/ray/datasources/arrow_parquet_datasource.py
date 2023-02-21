@@ -16,6 +16,7 @@ from ray.data.block import BlockAccessor
 
 from awswrangler._arrow import _add_table_partitions, _cast_table_schema, _df_to_table
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
+from awswrangler.s3._read_parquet import _pyarrow_parquet_file_wrapper
 
 
 class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
@@ -41,13 +42,16 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
         columns: Optional[List[str]] = reader_args.get("columns", None)
         use_threads: bool = reader_args.get("use_threads", False)
         pyarrow_additional_kwargs: Dict[str, Any] = reader_args.get("pyarrow_additional_kwargs", {})
+        coerce_int96_timestamp_unit: Optional[str] = reader_args.get("coerce_int96_timestamp_unit", None)
 
-        table = pq.read_table(
-            f,
-            use_threads=use_threads,
-            columns=columns,
-            **pyarrow_additional_kwargs,
+        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+            source=f,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         )
+        if pq_file is None:
+            raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
+
+        table = pq_file.read(columns=columns, use_threads=use_threads, use_pandas_metadata=False)
 
         table = _add_table_partitions(
             table=table,

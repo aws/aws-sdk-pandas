@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 
 import modin.pandas as pd
 import pyarrow as pa
+from ray import exceptions
 from ray.data import read_datasource
 from ray.data.datasource import FastFileMetadataProvider
 
@@ -27,20 +28,20 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    # dataset_kwargs = {}
-    # if coerce_int96_timestamp_unit:
-    #     dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
-    dataset = read_datasource(
-        datasource=ArrowParquetDatasource(),
-        parallelism=parallelism,
-        meta_provider=FastFileMetadataProvider(),
-        paths=paths,
-        path_root=path_root,
-        use_threads=use_threads,
-        table_schema=schema,
-        validate_schema=validate_schema,
-        columns=columns,
-        # dataset_kwargs=dataset_kwargs,
-    )
-    dataset.fully_executed()
+    try:
+        dataset = read_datasource(
+            datasource=ArrowParquetDatasource(),
+            parallelism=parallelism,
+            meta_provider=FastFileMetadataProvider(),
+            paths=paths,
+            path_root=path_root,
+            use_threads=use_threads,
+            table_schema=schema,
+            validate_schema=validate_schema,
+            columns=columns,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+        )
+        dataset.fully_executed()
+    except exceptions.RayTaskError as e:
+        raise e.cause
     return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs, ignore_index=bool(path_root))
