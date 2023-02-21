@@ -9,7 +9,7 @@ import boto3
 import pandas as pd
 from pandas.io.common import infer_compression
 
-from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
+from awswrangler import _config, _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
@@ -39,7 +39,8 @@ def _to_text(
     filename_prefix: Optional[str] = uuid.uuid4().hex,
     **pandas_kwargs: Any,
 ) -> List[str]:
-
+    if df.empty is True and _config.config.allow_empty_dataframe != "True":
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     if path is None and path_root is not None:
         file_path: str = (
             f"{path_root}{filename_prefix}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"

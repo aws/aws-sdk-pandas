@@ -381,6 +381,7 @@ def test_to_csv_schema_evolution(path, glue_database, glue_table) -> None:
 
 
 def test_empty_dataframe(path):
+    wr.config.allow_empty_dataframe = True
     file_path = f"{path}empty"
     df = pd.DataFrame({"A": []})
     assert df.empty
@@ -393,6 +394,13 @@ def test_empty_dataframe(path):
 
     df_read_json = wr.s3.read_json(f"{file_path}.json")
     assert df_read_json.empty
+
+    wr.config.allow_empty_dataframe = False
+    with pytest.raises(wr.exceptions.EmptyDataFrame):
+        wr.s3.to_csv(df, f"{file_path}.csv")
+    wr.config.allow_empty_dataframe = None
+    with pytest.raises(wr.exceptions.EmptyDataFrame):
+        wr.s3.to_csv(df, f"{file_path}.csv")
 
 
 def test_exceptions(path):
