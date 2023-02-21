@@ -60,7 +60,7 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
         )
 
         if schema:
-            table = _cast_table_schema(table, schema)
+            table = _add_columns(table, schema)
 
         return table
 

@@ -18,7 +18,6 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     paths: List[str],
     path_root: Optional[str],
     schema: Optional[pa.schema],
-    validate_schema: Optional[bool],
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
     use_threads: Union[bool, int],
@@ -37,7 +36,6 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
             path_root=path_root,
             use_threads=use_threads,
             table_schema=schema,
-            validate_schema=validate_schema,
             columns=columns,
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         )

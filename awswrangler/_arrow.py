@@ -103,8 +103,7 @@ def _df_to_table(
     return table
 
 
-def _cast_table_schema(table: pa.Table, schema: pa.Schema) -> pa.Table:
-    # Add missing columns
+def _add_columns(table: pa.Table, schema: pa.Schema) -> pa.Table:
     for col_name in schema.names:
         if col_name not in table.column_names:
             field = schema.field(col_name)
