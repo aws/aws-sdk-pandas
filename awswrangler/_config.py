@@ -156,24 +156,18 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             args.append(arg)
         return pd.DataFrame(args)
 
-    def _load_config(self, name: str) -> bool:
+    def _load_config(self, name: str) -> None:
         if _CONFIG_ARGS[name].is_parent:
             if self._loaded_values.get(name) is None:
                 self._set_config_value(key=name, value={})
-                return True
-            return False
+            return
 
-        loaded_config: bool = False
         if _CONFIG_ARGS[name].loaded:
             self._set_config_value(key=name, value=_CONFIG_ARGS[name].default)
-            loaded_config = True
 
         env_var: Optional[str] = os.getenv(f"WR_{name.upper()}")
         if env_var is not None:
             self._set_config_value(key=name, value=env_var)
-            loaded_config = True
-
-        return loaded_config
 
     def _set_config_value(self, key: str, value: Any) -> None:
         if key not in _CONFIG_ARGS:
