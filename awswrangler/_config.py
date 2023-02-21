@@ -24,7 +24,7 @@ class _ConfigArg(NamedTuple):
 
 # Please, also add any new argument as a property in the _Config class
 _CONFIG_ARGS: Dict[str, _ConfigArg] = {
-    "allow_empty_dataframe": _ConfigArg(dtype=str, nullable=True),
+    "allow_empty_dataframe": _ConfigArg(dtype=bool, nullable=True),
     "catalog_id": _ConfigArg(dtype=str, nullable=True),
     "concurrent_partitioning": _ConfigArg(dtype=bool, nullable=False),
     "ctas_approach": _ConfigArg(dtype=bool, nullable=False),
@@ -73,6 +73,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self.secretsmanager_endpoint_url = None
         self.timestream_write_endpoint_url = None
         self.timestream_query_endpoint_url = None
+        self.allow_empty_dataframe = None
         self.botocore_config = None
         self.verify = None
         for name in _CONFIG_ARGS:

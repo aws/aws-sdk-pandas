@@ -56,7 +56,7 @@ def _validate_args(
     parameters: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
 ) -> None:
-    if df.empty is True and _config.config.allow_empty_dataframe != "True":
+    if df.empty is True and not _config.config.allow_empty_dataframe:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     if dataset is False:
         if path is None:

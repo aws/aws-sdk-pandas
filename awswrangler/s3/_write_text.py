@@ -39,7 +39,7 @@ def _to_text(
     filename_prefix: Optional[str] = uuid.uuid4().hex,
     **pandas_kwargs: Any,
 ) -> List[str]:
-    if df.empty is True and _config.config.allow_empty_dataframe != "True":
+    if df.empty is True and not _config.config.allow_empty_dataframe:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     if path is None and path_root is not None:
         file_path: str = (
