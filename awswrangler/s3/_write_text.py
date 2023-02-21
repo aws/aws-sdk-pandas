@@ -39,8 +39,8 @@ def _to_text(
     filename_prefix: Optional[str] = uuid.uuid4().hex,
     **pandas_kwargs: Any,
 ) -> List[str]:
-    if df.empty is True and not _config.config.allow_empty_dataframe:
-        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+    if df.empty is True:
+        _logger.warning("Empty DataFrame will be written.")
     if path is None and path_root is not None:
         file_path: str = (
             f"{path_root}{filename_prefix}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"

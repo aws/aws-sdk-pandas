@@ -395,13 +395,6 @@ def test_empty_dataframe(path):
     df_read_json = wr.s3.read_json(f"{file_path}.json")
     assert df_read_json.empty
 
-    wr.config.allow_empty_dataframe = False
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_csv(df, f"{file_path}.csv")
-    wr.config.allow_empty_dataframe = None
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_csv(df, f"{file_path}.csv")
-
 
 def test_exceptions(path):
     with pytest.raises(wr.exceptions.EmptyDataFrame):
