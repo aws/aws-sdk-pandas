@@ -117,6 +117,10 @@ class AlreadyExists(Exception):
     """AlreadyExists."""
 
 
+class S3SelectRequestIncomplete(Exception):
+    """S3SelectRequestIncomplete."""
+
+
 class ResourceDoesNotExist(Exception):
     """ResourceDoesNotExist."""
 

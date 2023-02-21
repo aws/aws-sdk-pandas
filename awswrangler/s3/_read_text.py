@@ -1,106 +1,75 @@
 """Amazon S3 Read Module (PRIVATE)."""
 import datetime
+import itertools
 import logging
 import pprint
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Union, overload
 
 import boto3
-import botocore.exceptions
 import pandas as pd
-import pandas.io.parsers
-from pandas.io.common import infer_compression
 
 from awswrangler import _utils, exceptions
-from awswrangler.s3._fs import open_s3_object
+from awswrangler._distributed import engine
+from awswrangler._threading import _get_executor
 from awswrangler.s3._list import _path2list
-from awswrangler.s3._read import (
-    _apply_partition_filter,
-    _apply_partitions,
-    _get_path_ignore_suffix,
-    _get_path_root,
-    _read_dfs_from_multiple_paths,
-    _union,
-)
+from awswrangler.s3._read import _apply_partition_filter, _get_path_ignore_suffix, _get_path_root, _union
+from awswrangler.s3._read_text_core import _read_text_file, _read_text_files_chunked
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
-    if pandas_kwargs.get("compression", "infer") == "infer":
-        pandas_kwargs["compression"] = infer_compression(path, compression="infer")
-    mode: str = (
-        "r" if pandas_kwargs.get("compression") is None and pandas_kwargs.get("encoding_errors") != "ignore" else "rb"
-    )
-    encoding: Optional[str] = pandas_kwargs.get("encoding", "utf-8")
-    newline: Optional[str] = pandas_kwargs.get("lineterminator", None)
-    return mode, encoding, newline
+def _resolve_format(read_format: str) -> Any:
+    if read_format == "csv":
+        return pd.read_csv
+    if read_format == "fwf":
+        return pd.read_fwf
+    if read_format == "json":
+        return pd.read_json
+    raise exceptions.UnsupportedType("Unsupported read format")
 
 
-def _read_text_chunked(
+def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: str) -> Optional[str]:
+    if isinstance(version_id, dict):
+        return version_id.get(path, None)
+
+    return version_id
+
+
+@engine.dispatch_on_engine
+def _read_text(  # pylint: disable=W0613
+    read_format: str,
     paths: List[str],
-    chunksize: int,
-    parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
-    s3_client: boto3.client,
-    pandas_kwargs: Dict[str, Any],
+    use_threads: Union[bool, int],
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
-    use_threads: Union[bool, int],
-    version_ids: Optional[Dict[str, str]] = None,
-) -> Iterator[pd.DataFrame]:
-    for path in paths:
-        _logger.debug("path: %s", path)
-        mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-        with open_s3_object(
-            path=path,
-            version_id=version_ids.get(path) if version_ids else None,
-            mode=mode,
-            s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
-            encoding=encoding,
-            use_threads=use_threads,
-            s3_client=s3_client,
-            s3_additional_kwargs=s3_additional_kwargs,
-            newline=newline,
-        ) as f:
-            reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_kwargs)
-            for df in reader:
-                yield _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
-
-
-def _read_text_file(
-    path: str,
-    version_id: Optional[str],
-    parser_func: Callable[..., pd.DataFrame],
-    path_root: Optional[str],
-    s3_client: boto3.client,
+    ignore_index: bool,
+    parallelism: int,
+    version_id_dict: Dict[str, Optional[str]],
     pandas_kwargs: Dict[str, Any],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    dataset: bool,
-    use_threads: Union[bool, int],
-) -> pd.DataFrame:
-    mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-    try:
-        with open_s3_object(
-            path=path,
-            version_id=version_id,
-            mode=mode,
-            use_threads=use_threads,
-            s3_block_size=-1,  # One shot download
-            encoding=encoding,
-            s3_client=s3_client,
-            s3_additional_kwargs=s3_additional_kwargs,
-            newline=newline,
-        ) as f:
-            df: pd.DataFrame = parser_func(f, **pandas_kwargs)
-    except botocore.exceptions.ClientError as e:
-        if e.response["Error"]["Code"] == "404":
-            raise exceptions.NoFilesFound(f"No files Found on: {path}.")
-        raise e
-    return _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    parser_func = _resolve_format(read_format)
+    executor = _get_executor(use_threads=use_threads)
+    tables = executor.map(
+        _read_text_file,
+        s3_client,
+        paths,
+        [version_id_dict[path] for path in paths],
+        itertools.repeat(parser_func),
+        itertools.repeat(path_root),
+        itertools.repeat(pandas_kwargs),
+        itertools.repeat(s3_additional_kwargs),
+        itertools.repeat(dataset),
+    )
+    return _union(dfs=tables, ignore_index=ignore_index)
 
 
-def _read_text(
-    parser_func: Callable[..., pd.DataFrame],
+def _read_text_format(
+    read_format: str,
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None],
     path_ignore_suffix: Union[str, List[str], None],
@@ -108,12 +77,13 @@ def _read_text(
     use_threads: Union[bool, int],
     last_modified_begin: Optional[datetime.datetime],
     last_modified_end: Optional[datetime.datetime],
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     chunksize: Optional[int],
     dataset: bool,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]],
     ignore_index: bool,
+    parallelism: int,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -129,6 +99,7 @@ def _read_text(
         last_modified_end=last_modified_end,
         s3_additional_kwargs=s3_additional_kwargs,
     )
+
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
     if path_root is not None:
         paths = _apply_partition_filter(path_root=path_root, paths=paths, filter_func=partition_filter)
@@ -136,8 +107,14 @@ def _read_text(
         raise exceptions.NoFilesFound(f"No files Found on: {path}.")
     _logger.debug("paths:\n%s", paths)
 
+    if len(paths) > 1 and version_id is not None and not isinstance(version_id, dict):
+        raise exceptions.InvalidArgumentCombination(
+            "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
+        )
+    version_id_dict = {path: _get_version_id_for(version_id, path) for path in paths}
+
     args: Dict[str, Any] = {
-        "parser_func": parser_func,
+        "parser_func": _resolve_format(read_format),
         "s3_client": s3_client,
         "dataset": dataset,
         "path_root": path_root,
@@ -146,27 +123,94 @@ def _read_text(
         "use_threads": use_threads,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
-    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
+
     if chunksize is not None:
-        ret = _read_text_chunked(
-            paths=paths, version_ids=version_id if isinstance(version_id, dict) else None, chunksize=chunksize, **args
+        return _read_text_files_chunked(
+            paths=paths,
+            version_ids=version_id_dict,
+            chunksize=chunksize,
+            **args,
         )
-    elif len(paths) == 1:
-        ret = _read_text_file(
-            path=paths[0], version_id=version_id[paths[0]] if isinstance(version_id, dict) else version_id, **args
-        )
-    else:
-        ret = _union(
-            dfs=_read_dfs_from_multiple_paths(
-                read_func=_read_text_file,
-                paths=paths,
-                version_ids=version_id if isinstance(version_id, dict) else None,
-                use_threads=use_threads,
-                kwargs=args,
-            ),
-            ignore_index=ignore_index,
-        )
-    return ret
+
+    return _read_text(
+        read_format,
+        paths=paths,
+        path_root=path_root,
+        use_threads=use_threads,
+        s3_client=s3_client,
+        s3_additional_kwargs=s3_additional_kwargs,
+        dataset=dataset,
+        ignore_index=ignore_index,
+        parallelism=parallelism,
+        version_id_dict=version_id_dict,
+        pandas_kwargs=pandas_kwargs,
+    )
+
+
+@overload
+def read_csv(
+    path: Union[str, List[str]],
+    *,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    ignore_empty: bool = ...,
+    use_threads: Union[bool, int] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: None = ...,
+    dataset: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    parallelism: int = ...,
+    **pandas_kwargs: Any,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_csv(
+    path: Union[str, List[str]],
+    *,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    ignore_empty: bool = ...,
+    use_threads: Union[bool, int] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: int,
+    dataset: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    parallelism: int = ...,
+    **pandas_kwargs: Any,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_csv(
+    path: Union[str, List[str]],
+    *,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    ignore_empty: bool = ...,
+    use_threads: Union[bool, int] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: Optional[int],
+    dataset: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    parallelism: int = ...,
+    **pandas_kwargs: Any,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
 
 
 def read_csv(
@@ -183,6 +227,7 @@ def read_csv(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    parallelism: int = -1,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
@@ -247,7 +292,10 @@ def read_csv(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/2.19.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    parallelism : int, optional
+        The requested parallelism of the read. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
     pandas_kwargs :
         KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicitly, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -296,10 +344,10 @@ def read_csv(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', skip_blank_lines=True)"
         )
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     ignore_index: bool = "index_col" not in pandas_kwargs
-    return _read_text(
-        parser_func=pd.read_csv,
+    return _read_text_format(
+        read_format="csv",
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -314,8 +362,74 @@ def read_csv(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
+        parallelism=parallelism,
         **pandas_kwargs,
     )
+
+
+@overload
+def read_fwf(
+    path: Union[str, List[str]],
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    ignore_empty: bool = ...,
+    use_threads: Union[bool, int] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: None = ...,
+    dataset: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    parallelism: int = ...,
+    **pandas_kwargs: Any,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_fwf(
+    path: Union[str, List[str]],
+    *,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    ignore_empty: bool = ...,
+    use_threads: Union[bool, int] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: int,
+    dataset: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    parallelism: int = ...,
+    **pandas_kwargs: Any,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_fwf(
+    path: Union[str, List[str]],
+    *,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    ignore_empty: bool = ...,
+    use_threads: Union[bool, int] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: Optional[int],
+    dataset: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    parallelism: int = ...,
+    **pandas_kwargs: Any,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
 
 
 def read_fwf(
@@ -332,6 +446,7 @@ def read_fwf(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    parallelism: int = -1,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
@@ -396,7 +511,10 @@ def read_fwf(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/2.19.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    parallelism : int, optional
+        The requested parallelism of the read. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_fwf(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -445,9 +563,9 @@ def read_fwf(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_fwf(path, widths=[1, 3], names=['c0', 'c1'])"
         )
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    return _read_text(
-        parser_func=pd.read_fwf,
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
+    return _read_text_format(
+        read_format="fwf",
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -463,6 +581,7 @@ def read_fwf(
         last_modified_end=last_modified_end,
         ignore_index=True,
         sort_index=False,
+        parallelism=parallelism,
         **pandas_kwargs,
     )
 
@@ -482,6 +601,7 @@ def read_json(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    parallelism: int = -1,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from a received S3 prefix or list of S3 objects paths.
@@ -549,7 +669,10 @@ def read_json(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/2.19.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    parallelism : int, optional
+        The requested parallelism of the read. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_json(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -598,13 +721,13 @@ def read_json(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_json(path, lines=True, keep_default_dates=True)"
         )
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     if (dataset is True) and ("lines" not in pandas_kwargs):
         pandas_kwargs["lines"] = True
     pandas_kwargs["orient"] = orient
     ignore_index: bool = orient not in ("split", "index", "columns")
-    return _read_text(
-        parser_func=pd.read_json,
+    return _read_text_format(
+        read_format="json",
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -619,5 +742,6 @@ def read_json(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
+        parallelism=parallelism,
         **pandas_kwargs,
     )

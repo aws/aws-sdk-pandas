@@ -1,75 +1,72 @@
 """Amazon S3 Wait Module (PRIVATE)."""
 
-import concurrent.futures
 import itertools
 import logging
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import boto3
 
 from awswrangler import _utils
+from awswrangler._distributed import engine
+from awswrangler._threading import _get_executor
+from awswrangler.distributed.ray import ray_get
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _wait_object(
-    path: Tuple[str, str], waiter_name: str, delay: int, max_attempts: int, s3_client: boto3.client
-) -> None:
-    waiter = s3_client.get_waiter(waiter_name)
-    bucket, key = path
+def _wait_object(s3_client: "S3Client", path: str, waiter_name: str, delay: int, max_attempts: int) -> None:
+    waiter = s3_client.get_waiter(waiter_name)  # type: ignore[call-overload]
+
+    bucket, key = _utils.parse_path(path=path)
     waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
 
 
-def _wait_object_concurrent(
-    path: Tuple[str, str],
-    waiter_name: str,
-    delay: int,
-    max_attempts: int,
-    s3_client: boto3.client,
+@engine.dispatch_on_engine
+def _wait_object_batch(
+    s3_client: Optional["S3Client"], paths: List[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
-    _wait_object(path=path, waiter_name=waiter_name, delay=delay, max_attempts=max_attempts, s3_client=s3_client)
+    s3_client = s3_client if s3_client else _utils.client(service_name="s3")
+    for path in paths:
+        _wait_object(s3_client, path, waiter_name, delay, max_attempts)
 
 
 def _wait_objects(
     waiter_name: str,
     paths: List[str],
-    s3_client: boto3.client,
-    delay: Optional[float] = None,
-    max_attempts: Optional[int] = None,
-    use_threads: Union[bool, int] = True,
+    delay: Optional[float],
+    max_attempts: Optional[int],
+    use_threads: Union[bool, int],
+    parallelism: Optional[int],
+    s3_client: "S3Client",
 ) -> None:
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
-    _delay: int = int(delay) if isinstance(delay, float) else delay
+    parallelism = 100 if parallelism is None else parallelism
+
     if len(paths) < 1:
         return None
-    _paths: List[Tuple[str, str]] = [_utils.parse_path(path=p) for p in paths]
-    if len(_paths) == 1:
-        _wait_object(
-            path=_paths[0],
-            waiter_name=waiter_name,
-            delay=_delay,
-            max_attempts=max_attempts,
-            s3_client=s3_client,
+
+    path_batches = (
+        _utils.chunkify(paths, num_chunks=parallelism)
+        if len(paths) > parallelism
+        else _utils.chunkify(paths, max_length=1)
+    )
+
+    executor = _get_executor(use_threads=use_threads)
+    ray_get(
+        executor.map(
+            _wait_object_batch,
+            s3_client,
+            path_batches,
+            itertools.repeat(waiter_name),
+            itertools.repeat(int(delay)),
+            itertools.repeat(max_attempts),
         )
-    elif use_threads is False:
-        for path in _paths:
-            _wait_object(
-                path=path, waiter_name=waiter_name, delay=_delay, max_attempts=max_attempts, s3_client=s3_client
-            )
-    else:
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            list(
-                executor.map(
-                    _wait_object_concurrent,
-                    _paths,
-                    itertools.repeat(waiter_name),
-                    itertools.repeat(_delay),
-                    itertools.repeat(max_attempts),
-                    itertools.repeat(s3_client),
-                )
-            )
+    )
+
     return None
 
 
@@ -79,6 +76,7 @@ def wait_objects_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
+    parallelism: Optional[int] = None,
 ) -> None:
     """Wait Amazon S3 objects exist.
 
@@ -103,6 +101,9 @@ def wait_objects_exist(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
+    parallelism: int, optional
+        The requested parallelism of the wait. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. 100 by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -117,13 +118,14 @@ def wait_objects_exist(
     >>> wr.s3.wait_objects_exist(['s3://bucket/key0', 's3://bucket/key1'])  # wait both objects
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     return _wait_objects(
         waiter_name="object_exists",
         paths=paths,
         delay=delay,
         max_attempts=max_attempts,
         use_threads=use_threads,
+        parallelism=parallelism,
         s3_client=s3_client,
     )
 
@@ -134,6 +136,7 @@ def wait_objects_not_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
+    parallelism: Optional[int] = None,
 ) -> None:
     """Wait Amazon S3 objects not exist.
 
@@ -158,6 +161,9 @@ def wait_objects_not_exist(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
+    parallelism: int, optional
+        The requested parallelism of the wait. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. 100 by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -172,12 +178,13 @@ def wait_objects_not_exist(
     >>> wr.s3.wait_objects_not_exist(['s3://bucket/key0', 's3://bucket/key1'])  # wait both objects not exist
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     return _wait_objects(
         waiter_name="object_not_exists",
         paths=paths,
         delay=delay,
         max_attempts=max_attempts,
         use_threads=use_threads,
+        parallelism=parallelism,
         s3_client=s3_client,
     )

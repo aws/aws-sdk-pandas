@@ -1,11 +1,13 @@
 """Amazon CSV S3 Write Module (PRIVATE)."""
 
 import logging
+from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from awswrangler import _config, _data_types, _utils, catalog, exceptions
+from awswrangler import _data_types, _utils, catalog, exceptions, typing
+from awswrangler._distributed import EngineEnum
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -50,18 +52,19 @@ def _validate_args(
     dataset: bool,
     path: Optional[str],
     partition_cols: Optional[List[str]],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     mode: Optional[str],
     description: Optional[str],
     parameters: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
+    execution_engine: Enum,
 ) -> None:
     if df.empty is True:
         _logger.warning("Empty DataFrame will be written.")
     if dataset is False:
         if path is None:
             raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
-        if path.endswith("/"):
+        if execution_engine == EngineEnum.PYTHON and path.endswith("/"):
             raise exceptions.InvalidArgumentValue(
                 "If <dataset=False>, the argument <path> should be a key, not a prefix."
             )

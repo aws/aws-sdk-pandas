@@ -403,6 +403,13 @@ def random_glue_database():
 
 
 @pytest.fixture(scope="function")
+def redshift_con():
+    con = wr.redshift.connect("aws-sdk-pandas-redshift")
+    yield con
+    con.close()
+
+
+@pytest.fixture(scope="function")
 def glue_ruleset() -> str:
     name = f"ruleset_{get_time_str_with_random_suffix()}"
     print(f"Ruleset name: {name}")

@@ -189,4 +189,4 @@ def put_items(
     _validate_items(items=items, dynamodb_table=dynamodb_table)
     with dynamodb_table.batch_writer() as writer:
         for item in items:
-            writer.put_item(Item=item)
+            writer.put_item(Item=item)  # type: ignore[arg-type]

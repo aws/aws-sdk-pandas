@@ -1,23 +1,106 @@
+import os
 import random
+import re
 import time
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Dict, Iterator
+from timeit import default_timer as timer
+from types import TracebackType
+from typing import Any, Dict, Iterator, List, Optional, Type, Union
 
 import boto3
 import botocore.exceptions
-import pandas as pd
+from pandas import DataFrame as PandasDataFrame
+from pandas import Series as PandasSeries
+from pytest import FixtureRequest
 
 import awswrangler as wr
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 from awswrangler._utils import try_it
 
-ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
-dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
+is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
+
+if is_ray_modin:
+    import modin.pandas as pd
+    from modin.pandas import DataFrame as ModinDataFrame
+    from modin.pandas import Series as ModinSeries
+else:
+    import pandas as pd
+
 
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
 
 
-def get_df(governed=False):
+class ExecutionTimer:
+    def __init__(
+        self,
+        request: FixtureRequest,
+        name_override: Optional[str] = None,
+        data_paths: Optional[Union[str, List[str]]] = None,
+    ):
+        self.test = name_override or request.node.originalname
+
+        self.scenario: Optional[str] = None
+        match = re.search(r"\[(.+?)\]", request.node.name)
+        if match:
+            self.scenario = match.group(1)
+
+        self.data_paths = data_paths
+
+    def _stringify_paths(self, data_paths: Optional[Union[str, List[str]]]) -> Optional[str]:
+        if data_paths is None:
+            return None
+
+        if isinstance(data_paths, list):
+            return ", ".join(data_paths)
+
+        return data_paths
+
+    def _calculate_data_size(self, data_paths: Optional[Union[str, List[str]]]) -> Optional[int]:
+        if data_paths is None:
+            return None
+
+        sizes = [size for size in wr.s3.size_objects(data_paths).values() if size]
+        return sum(sizes)
+
+    def __enter__(self) -> "ExecutionTimer":
+        self.before = timer()
+        return self
+
+    def __exit__(
+        self,
+        exception_type: Optional[Type[BaseException]],
+        exception_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
+        self.elapsed_time = round((timer() - self.before), 3)
+        print(f"Elapsed time ({self.test}[{self.scenario}]): {self.elapsed_time:.3f} sec")
+        output_path = "load.csv"
+        is_success = exception_value is None
+
+        pd.DataFrame(
+            {
+                "datetime": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+                "test": [self.test],
+                "scenario": [self.scenario],
+                "elapsed_time": [self.elapsed_time],
+                "is_success": [is_success],
+                "data_path": [self._stringify_paths(self.data_paths)],
+                "data_size": [self._calculate_data_size(self.data_paths)],
+            }
+        ).to_csv(output_path, mode="a", index=False, header=not os.path.exists(output_path))
+        return None
+
+
+def ts(x: str) -> datetime:
+    return datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")
+
+
+def dt(x: str) -> date:
+    return datetime.strptime(x, "%Y-%m-%d").date()
+
+
+def get_df(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -51,7 +134,7 @@ def get_df(governed=False):
     return df
 
 
-def get_df_list(governed=False):
+def get_df_list(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -84,11 +167,11 @@ def get_df_list(governed=False):
     df["category"] = df["category"].astype("category")
 
     if governed:
-        df = (df.drop(["iint8", "binary"], axis=1),)  # tinyint & binary currently not supported
+        df = df.drop(["iint8", "binary"], axis=1)  # tinyint & binary currently not supported
     return df
 
 
-def get_df_cast(governed=False):
+def get_df_cast(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [None, None, None],
@@ -114,7 +197,7 @@ def get_df_cast(governed=False):
     return df
 
 
-def get_df_csv():
+def get_df_csv() -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "id": [1, 2, 3],
@@ -135,7 +218,7 @@ def get_df_csv():
     return df
 
 
-def get_df_txt():
+def get_df_txt() -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "col_name": [
@@ -201,7 +284,7 @@ def get_df_category():
     return df
 
 
-def get_df_quicksight():
+def get_df_quicksight() -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -231,7 +314,7 @@ def get_df_quicksight():
     return df
 
 
-def ensure_data_types(df, has_list=False):
+def ensure_data_types(df: pd.DataFrame, has_list: bool = False) -> None:
     if "iint8" in df.columns:
         assert str(df["iint8"].dtype).startswith("Int")
     assert str(df["iint16"].dtype).startswith("Int")
@@ -244,7 +327,7 @@ def ensure_data_types(df, has_list=False):
         assert str(df["string_object"].dtype) == "string"
     assert str(df["string"].dtype) == "string"
     assert str(df["date"].dtype) in ("object", "O", "datetime64[ns]")
-    assert str(df["timestamp"].dtype) == "datetime64[ns]"
+    assert str(df["timestamp"].dtype) in ("object", "O", "datetime64[ns]")
     assert str(df["bool"].dtype) in ("boolean", "Int64", "object")
     if "binary" in df.columns:
         assert str(df["binary"].dtype) == "object"
@@ -256,7 +339,7 @@ def ensure_data_types(df, has_list=False):
         assert str(df["__index_level_0__"].dtype) == "Int64"
     assert str(df["par0"].dtype) in ("Int64", "category")
     assert str(df["par1"].dtype) in ("string", "category")
-    row = df[df["iint16"] == 1]
+    row = df.query("iint16 == 1")
     if not row.empty:
         row = row.iloc[0]
         assert str(type(row["decimal"]).__name__) == "Decimal"
@@ -268,7 +351,7 @@ def ensure_data_types(df, has_list=False):
             assert str(type(row["list_list"][0][0]).__name__) == "int64"
 
 
-def ensure_data_types_category(df):
+def ensure_data_types_category(df: pd.DataFrame) -> None:
     assert len(df.columns) in (7, 8)
     assert str(df["id"].dtype) in ("category", "Int64")
     assert str(df["string_object"].dtype) == "category"
@@ -281,7 +364,7 @@ def ensure_data_types_category(df):
     assert str(df["par1"].dtype) == "category"
 
 
-def ensure_data_types_csv(df, governed=False):
+def ensure_data_types_csv(df: pd.DataFrame, governed: bool = False) -> None:
     if "__index_level_0__" in df:
         assert str(df["__index_level_0__"].dtype).startswith("Int")
     assert str(df["id"].dtype).startswith("Int")
@@ -354,11 +437,10 @@ def path_generator(bucket: str) -> Iterator[str]:
 def extract_cloudformation_outputs():
     outputs = {}
     client = boto3.client("cloudformation")
+    stacks = ["aws-sdk-pandas-base", "aws-sdk-pandas-databases", "aws-sdk-pandas-opensearch", "aws-sdk-pandas-glueray"]
     response = try_it(client.describe_stacks, botocore.exceptions.ClientError, max_num_tries=5)
     for stack in response.get("Stacks"):
-        if (
-            stack["StackName"] in ["aws-sdk-pandas-base", "aws-sdk-pandas-databases", "aws-sdk-pandas-opensearch"]
-        ) and (stack["StackStatus"] in CFN_VALID_STATUS):
+        if (stack["StackName"] in stacks) and (stack["StackStatus"] in CFN_VALID_STATUS):
             for output in stack.get("Outputs"):
                 outputs[output.get("OutputKey")] = output.get("OutputValue")
     return outputs
@@ -412,3 +494,22 @@ def create_workgroup(wkg_name, config):
             Description=f"AWS SDK for pandas Test - {wkg_name}",
         )
     return wkg_name
+
+
+def to_pandas(df: Union[pd.DataFrame, pd.Series]) -> Union[PandasDataFrame, PandasSeries]:
+    """
+    Convert Modin data frames to pandas for comparison
+    """
+    if isinstance(df, (PandasDataFrame, PandasSeries)):
+        return df
+    elif wr.memory_format.get() == MemoryFormatEnum.MODIN and isinstance(df, (ModinDataFrame, ModinSeries)):
+        return df._to_pandas()
+    raise ValueError("Unknown data frame type %s", type(df))
+
+
+def pandas_equals(df1: pd.DataFrame, df2: pd.DataFrame) -> bool:
+    """
+    Check data frames for equality converting them to pandas first
+    """
+    df1, df2 = to_pandas(df1), to_pandas(df2)
+    return df1.equals(df2)

@@ -20,6 +20,8 @@ class _ConfigArg(NamedTuple):
     dtype: Type[Union[str, bool, int, botocore.config.Config]]
     nullable: bool
     enforced: bool = False
+    loaded: bool = False
+    default: Optional[_ConfigValueType] = None
 
 
 # Please, also add any new argument as a property in the _Config class
@@ -36,21 +38,32 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
     # Endpoints URLs
-    "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "sts_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "glue_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "redshift_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "timestream_query_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "timestream_write_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "sts_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "glue_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "redshift_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "timestream_query_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "timestream_write_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     # Botocore config
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
-    "verify": _ConfigArg(dtype=str, nullable=True),
+    "verify": _ConfigArg(dtype=str, nullable=True, loaded=True),
+    # Distributed
+    "address": _ConfigArg(dtype=str, nullable=True),
+    "redis_password": _ConfigArg(dtype=str, nullable=True),
+    "ignore_reinit_error": _ConfigArg(dtype=bool, nullable=True),
+    "include_dashboard": _ConfigArg(dtype=bool, nullable=True),
+    "configure_logging": _ConfigArg(dtype=bool, nullable=True),
+    "log_to_driver": _ConfigArg(dtype=bool, nullable=True),
+    "logging_level": _ConfigArg(dtype=int, nullable=True),
+    "object_store_memory": _ConfigArg(dtype=int, nullable=True),
+    "cpu_count": _ConfigArg(dtype=int, nullable=True),
+    "gpu_count": _ConfigArg(dtype=int, nullable=True),
 }
 
 
@@ -136,11 +149,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return pd.DataFrame(args)
 
     def _load_config(self, name: str) -> bool:
+        loaded_config: bool = False
+        if _CONFIG_ARGS[name].loaded:
+            self._set_config_value(key=name, value=_CONFIG_ARGS[name].default)
+            loaded_config = True
         env_var: Optional[str] = os.getenv(f"WR_{name.upper()}")
         if env_var is not None:
             self._set_config_value(key=name, value=env_var)
-            return True
-        return False
+            loaded_config = True
+        return loaded_config
 
     def _set_config_value(self, key: str, value: Any) -> None:
         if key not in _CONFIG_ARGS:
@@ -148,7 +165,10 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                 f"{key} is not a valid configuration. Please use: {list(_CONFIG_ARGS.keys())}"
             )
         value_casted: _ConfigValueType = self._apply_type(
-            name=key, value=value, dtype=_CONFIG_ARGS[key].dtype, nullable=_CONFIG_ARGS[key].nullable
+            name=key,
+            value=value,
+            dtype=_CONFIG_ARGS[key].dtype,  # type: ignore[arg-type]
+            nullable=_CONFIG_ARGS[key].nullable,
         )
         self._loaded_values[key] = value_casted
 
@@ -159,8 +179,8 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     def _reset_item(self, item: str) -> None:
         if item in self._loaded_values:
-            if item.endswith("_endpoint_url") or item == "verify":
-                self._loaded_values[item] = None
+            if _CONFIG_ARGS[item].loaded:
+                self._loaded_values[item] = _CONFIG_ARGS[item].default
             else:
                 del self._loaded_values[item]
         self._load_config(name=item)
@@ -420,7 +440,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="timestream_write_endpoint_url", value=value)
 
     @property
-    def botocore_config(self) -> botocore.config.Config:
+    def botocore_config(self) -> Optional[botocore.config.Config]:
         """Property botocore_config."""
         return cast(Optional[botocore.config.Config], self["botocore_config"])
 
@@ -436,6 +456,96 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @verify.setter
     def verify(self, value: Optional[str]) -> None:
         self._set_config_value(key="verify", value=value)
+
+    @property
+    def address(self) -> Optional[str]:
+        """Property address."""
+        return cast(Optional[str], self["address"])
+
+    @address.setter
+    def address(self, value: Optional[str]) -> None:
+        self._set_config_value(key="address", value=value)
+
+    @property
+    def ignore_reinit_error(self) -> Optional[bool]:
+        """Property ignore_reinit_error."""
+        return cast(Optional[bool], self["ignore_reinit_error"])
+
+    @ignore_reinit_error.setter
+    def ignore_reinit_error(self, value: Optional[bool]) -> None:
+        self._set_config_value(key="ignore_reinit_error", value=value)
+
+    @property
+    def include_dashboard(self) -> Optional[bool]:
+        """Property include_dashboard."""
+        return cast(Optional[bool], self["include_dashboard"])
+
+    @include_dashboard.setter
+    def include_dashboard(self, value: Optional[bool]) -> None:
+        self._set_config_value(key="include_dashboard", value=value)
+
+    @property
+    def redis_password(self) -> Optional[str]:
+        """Property redis_password."""
+        return cast(Optional[str], self["redis_password"])
+
+    @redis_password.setter
+    def redis_password(self, value: Optional[str]) -> None:
+        self._set_config_value(key="redis_password", value=value)
+
+    @property
+    def configure_logging(self) -> Optional[bool]:
+        """Property configure_logging."""
+        return cast(Optional[bool], self["configure_logging"])
+
+    @configure_logging.setter
+    def configure_logging(self, value: Optional[bool]) -> None:
+        self._set_config_value(key="configure_logging", value=value)
+
+    @property
+    def log_to_driver(self) -> Optional[bool]:
+        """Property log_to_driver."""
+        return cast(Optional[bool], self["log_to_driver"])
+
+    @log_to_driver.setter
+    def log_to_driver(self, value: Optional[bool]) -> None:
+        self._set_config_value(key="log_to_driver", value=value)
+
+    @property
+    def logging_level(self) -> int:
+        """Property logging_level."""
+        return cast(int, self["logging_level"])
+
+    @logging_level.setter
+    def logging_level(self, value: int) -> None:
+        self._set_config_value(key="logging_level", value=value)
+
+    @property
+    def object_store_memory(self) -> int:
+        """Property object_store_memory."""
+        return cast(int, self["object_store_memory"])
+
+    @object_store_memory.setter
+    def object_store_memory(self, value: int) -> None:
+        self._set_config_value(key="object_store_memory", value=value)
+
+    @property
+    def cpu_count(self) -> int:
+        """Property cpu_count."""
+        return cast(int, self["cpu_count"])
+
+    @cpu_count.setter
+    def cpu_count(self, value: int) -> None:
+        self._set_config_value(key="cpu_count", value=value)
+
+    @property
+    def gpu_count(self) -> int:
+        """Property gpu_count."""
+        return cast(int, self["gpu_count"])
+
+    @gpu_count.setter
+    def gpu_count(self, value: int) -> None:
+        self._set_config_value(key="gpu_count", value=value)
 
 
 def _insert_str(text: str, token: str, insert: str) -> str:
@@ -498,7 +608,7 @@ def apply_configs(function: FunctionType) -> FunctionType:
     wrapper.__doc__ = _inject_config_doc(doc=function.__doc__, available_configs=available_configs)
     wrapper.__name__ = function.__name__
     wrapper.__setattr__("__signature__", signature)  # pylint: disable=no-member
-    return wrapper  # type: ignore
+    return wrapper  # type: ignore[return-value]
 
 
 config: _Config = _Config()

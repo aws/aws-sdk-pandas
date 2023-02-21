@@ -26,7 +26,7 @@ def _delete(
 ) -> None:
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=boto3_session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=boto3_session)
+    client = _utils.client(service_name="quicksight", session=boto3_session)
     func: Callable[..., None] = getattr(client, func_name)
     func(AwsAccountId=account_id, **kwargs)
 

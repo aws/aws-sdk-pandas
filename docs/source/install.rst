@@ -10,17 +10,51 @@ Some good practices to follow for options below are:
 - Use new and isolated Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
 - On Notebooks, always restart your kernel after installations.
 
-.. note:: If you want to use ``awswrangler`` to connect to Microsoft SQL Server or Oracle, some additional configuration is needed. Please have a look at the corresponding section below.
-
 PyPI (pip)
 ----------
 
     >>> pip install awswrangler
 
+    >>> # Optional modules are installed with:
+    >>> pip install 'awswrangler[redshift]'
+
 Conda
 -----
 
     >>> conda install -c conda-forge awswrangler
+
+At scale
+---------
+
+AWS SDK for pandas can also run your workflows at scale by leveraging `modin <https://modin.readthedocs.io/en/stable/>`_ and `ray <https://www.ray.io/>`_.
+
+    >>> pip install "awswrangler[modin,ray]==3.0.0rc2"
+
+As a result existing scripts can run on significantly larger datasets with no code rewrite.
+
+.. note:: AWS SDK for pandas at scale is still in pre-release, meaning frequent breaking changes are possible.
+
+Optional dependencies
+---------------------
+
+Starting version 3.0, some ``awswrangler`` modules are optional and must be installed explicitly using:
+
+    >>> pip install 'awswrangler[optional-module1, optional-module2]'
+
+The optional modules are:
+- redshift
+- mysql
+- postgres
+- sqlserver
+- oracle
+- gremlin
+- sparql
+- opencypher
+- openpyxl
+- opensearch
+- deltalake
+
+Calling these modules without the required dependencies raises an error prompting you to install the missing package. 
 
 AWS Lambda Layer
 ----------------
@@ -144,7 +178,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for the above Job parameter as follows:
 
-* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.19.0``
+* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==3.0.0rc2``
 
 .. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why an installation of pyarrow 2 is required.
 
@@ -163,7 +197,7 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.19.0/awswrangler-layer-2.19.0-py3.8.zip``
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/3.0.0rc2/awswrangler-layer-3.0.0rc2-py3.8.zip``
 
 Amazon SageMaker Notebook
 -------------------------
@@ -253,7 +287,7 @@ Despite not being a distributed library, AWS SDK for pandas could be used to com
         sudo pip install pyarrow==2 awswrangler
 
 .. note:: Make sure to freeze the library version in the bootstrap for production
-          environments (e.g. awswrangler==2.19.0)
+          environments (e.g. awswrangler==3.0.0rc2)
 
 .. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why an installation of pyarrow 2 is required.
 
@@ -279,7 +313,7 @@ After installing these header files you can either just install ``pyodbc`` or
 ``awswrangler`` with the ``sqlserver`` extra, which will also install ``pyodbc``:
 
     >>> pip install pyodbc
-    >>> pip install awswrangler[sqlserver]
+    >>> pip install 'awswrangler[sqlserver]'
 
 Finally you also need the correct ODBC Driver for SQL Server. You can have a look at the
 `documentation from Microsoft <https://docs.microsoft.com/sql/connect/odbc/
@@ -309,19 +343,9 @@ After installing these client libraries you can either just install ``oracledb``
 ``awswrangler`` with the ``oracle`` extra, which will also install ``oracledb``:
 
     >>> pip install oracledb
-    >>> pip install awswrangler[oracle]
+    >>> pip install 'awswrangler[oracle]'
 
 If you maintain your own environment, you need to take care of the above steps.
 Because of this limitation usage in combination with Glue jobs is limited and you need to rely on the
 provided `functionality inside Glue itself <https://docs.aws.amazon.com/glue/latest/dg/
 aws-glue-programming-etl-connect.html#aws-glue-programming-etl-connect-jdbc>`_.
-
-
-Notes for SPARQL support
-------------------------------
-
-To be able to use SPARQL either just install ``SPARQLWrapper`` or
-``awswrangler`` with the ``sparql`` extra, which will also install ``SPARQLWrapper``:
-
-    >>> pip install SPARQLWrapper
-    >>> pip install awswrangler[sparql]

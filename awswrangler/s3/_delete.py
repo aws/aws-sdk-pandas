@@ -1,18 +1,21 @@
-"""Amazon S3 CopDeletey Module (PRIVATE)."""
+"""Amazon S3 Delete Module (PRIVATE)."""
 
-import concurrent.futures
 import datetime
 import itertools
 import logging
-import time
-from typing import Any, Dict, List, Optional, Union
-from urllib.parse import unquote_plus as _unquote_plus
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import boto3
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import engine
+from awswrangler._threading import _get_executor
+from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import _path2list
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -20,61 +23,43 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
     buckets: Dict[str, List[str]] = {}
     bucket: str
-    key: str
     for path in paths:
-        bucket, key = _utils.parse_path(path=path)
+        bucket = _utils.parse_path(path=path)[0]
         if bucket not in buckets:
             buckets[bucket] = []
-        buckets[bucket].append(key)
+        buckets[bucket].append(path)
     return buckets
 
 
+@engine.dispatch_on_engine
 def _delete_objects(
-    bucket: str,
-    keys: List[str],
-    s3_client: boto3.client,
+    s3_client: Optional["S3Client"],
+    paths: List[str],
     s3_additional_kwargs: Optional[Dict[str, Any]],
-    attempt: int = 1,
 ) -> None:
-    _logger.debug("len(keys): %s", len(keys))
-    batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
+    s3_client = s3_client if s3_client else _utils.client(service_name="s3")
+    _logger.debug("len(paths): %s", len(paths))
     if s3_additional_kwargs:
         extra_kwargs: Dict[str, Any] = get_botocore_valid_kwargs(
             function_name="list_objects_v2", s3_additional_kwargs=s3_additional_kwargs
         )
     else:
         extra_kwargs = {}
-    res = s3_client.delete_objects(Bucket=bucket, Delete={"Objects": batch}, **extra_kwargs)
-    deleted: List[Dict[str, Any]] = res.get("Deleted", [])
+    bucket = _utils.parse_path(path=paths[0])[0]
+    batch: List[Dict[str, str]] = [{"Key": _utils.parse_path(path)[1]} for path in paths]
+    res = s3_client.delete_objects(
+        Bucket=bucket,
+        Delete={"Objects": batch},  # type: ignore[typeddict-item]
+        **extra_kwargs,
+    )
+    deleted = res.get("Deleted", [])
     for obj in deleted:
         _logger.debug("s3://%s/%s has been deleted.", bucket, obj.get("Key"))
-    errors: List[Dict[str, Any]] = res.get("Errors", [])
-    internal_errors: List[str] = []
+    errors = res.get("Errors", [])
     for error in errors:
         _logger.debug("error: %s", error)
         if "Code" not in error or error["Code"] != "InternalError":
             raise exceptions.ServiceApiError(errors)
-        internal_errors.append(_unquote_plus(error["Key"]))
-    if len(internal_errors) > 0:
-        if attempt > 5:  # Maximum of 5 attempts (Total of 15 seconds)
-            raise exceptions.ServiceApiError(errors)
-        time.sleep(attempt)  # Incremental delay (linear)
-        _delete_objects(
-            bucket=bucket,
-            keys=internal_errors,
-            s3_client=s3_client,
-            s3_additional_kwargs=s3_additional_kwargs,
-            attempt=(attempt + 1),
-        )
-
-
-def _delete_objects_concurrent(
-    bucket: str,
-    keys: List[str],
-    s3_client: boto3.client,
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-) -> None:
-    return _delete_objects(bucket=bucket, keys=keys, s3_client=s3_client, s3_additional_kwargs=s3_additional_kwargs)
 
 
 def delete_objects(
@@ -135,7 +120,7 @@ def delete_objects(
     >>> wr.s3.delete_objects('s3://bucket/prefix')  # Delete all objects under the received prefix
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     paths: List[str] = _path2list(
         path=path,
         last_modified_begin=last_modified_begin,
@@ -143,29 +128,18 @@ def delete_objects(
         s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    if len(paths) < 1:
-        return
-    buckets: Dict[str, List[str]] = _split_paths_by_bucket(paths=paths)
-    for bucket, keys in buckets.items():
-        chunks: List[List[str]] = _utils.chunkify(lst=keys, max_length=1_000)
-        if len(chunks) == 1:
-            _delete_objects(
-                bucket=bucket, keys=chunks[0], s3_client=s3_client, s3_additional_kwargs=s3_additional_kwargs
-            )
-        elif use_threads is False:
-            for chunk in chunks:
-                _delete_objects(
-                    bucket=bucket, keys=chunk, s3_client=s3_client, s3_additional_kwargs=s3_additional_kwargs
-                )
-        else:
-            cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-                list(
-                    executor.map(
-                        _delete_objects_concurrent,
-                        itertools.repeat(bucket),
-                        chunks,
-                        itertools.repeat(s3_client),
-                        itertools.repeat(s3_additional_kwargs),
-                    )
-                )
+    paths_by_bucket: Dict[str, List[str]] = _split_paths_by_bucket(paths)
+
+    chunks = []
+    for _, paths in paths_by_bucket.items():
+        chunks += _utils.chunkify(lst=paths, max_length=1_000)
+
+    executor = _get_executor(use_threads=use_threads)
+    ray_get(
+        executor.map(
+            _delete_objects,
+            s3_client,
+            chunks,
+            itertools.repeat(s3_additional_kwargs),
+        )
+    )

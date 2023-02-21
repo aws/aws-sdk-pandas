@@ -122,7 +122,6 @@ def merge_upsert_table(
     """
     # Check if table exists first
     if wr.catalog.does_table_exist(database=database, table=table, boto3_session=boto3_session):
-
         try:
             # Read the existing table into a pandas dataframe
             existing_df = wr.s3.read_parquet_table(database=database, table=table, boto3_session=boto3_session)
@@ -133,7 +132,6 @@ def merge_upsert_table(
 
         # Check if data quality inside dataframes to be merged are sufficient
         if _is_data_quality_sufficient(existing_df=existing_df, delta_df=delta_df, primary_key=primary_key):
-
             # If data quality is sufficient then merge upsert the table
             _update_existing_table(
                 existing_df=existing_df,

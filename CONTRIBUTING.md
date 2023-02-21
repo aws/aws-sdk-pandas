@@ -94,17 +94,10 @@ You can choose from three different environments to test your fixes/changes, bas
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python3 -m venv .venv && source .venv/bin/activate`
-
-or
-
-`python -m venv .venv && source .venv/bin/activate`
 
 * Install dependencies:
 
-``poetry install --extras "sqlserver oracle sparql deltalake"``
+``poetry install --all-extras``
 
 * Run the validation script:
 
@@ -112,11 +105,11 @@ or
 
 * To run a specific test function:
 
-``pytest tests/test_moto.py::test_get_bucket_region_succeed``
+``pytest tests/unit/test_moto.py::test_get_bucket_region_succeed``
 
 * To run all mocked test functions (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_moto.py``
+``pytest -n 8 tests/unit/test_moto.py``
 
 ### Data Lake test environment
 
@@ -125,17 +118,10 @@ or
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python3 -m venv .venv && source .venv/bin/activate`
-
-or
-
-`python -m venv .venv && source .venv/bin/activate`
 
 * Install dependencies:
 
-``poetry install --extras "sqlserver oracle sparql deltalake"``
+``poetry install --all-extras``
 
 * Go to the ``test_infra`` directory
 
@@ -167,11 +153,11 @@ or
 
 * To run a specific test function:
 
-``pytest tests/test_athena_parquet.py::test_parquet_catalog``
+``pytest tests/unit/test_athena_parquet.py::test_parquet_catalog``
 
 * To run all data lake test functions (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_athena*``
+``pytest -n 8 tests/unit/test_athena*``
 
 * [OPTIONAL] To remove the base test environment cloud formation stack post testing:
 
@@ -186,13 +172,10 @@ or
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python -m venv .venv && source .venv/bin/activate`
 
 * Then run the command bellow to install all dependencies:
 
-``poetry install --extras "sqlserver oracle sparql deltalake"``
+``poetry install --all-extras``
 
 * Go to the ``test_infra`` directory
 
@@ -246,11 +229,11 @@ or
 
 * To run a specific test function:
 
-``pytest tests/test_mysql.py::test_read_sql_query_simple``
+``pytest tests/unit/test_mysql.py::test_read_sql_query_simple``
 
 * To run all database test functions for MySQL (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_mysql.py``
+``pytest -n 8 tests/unit/test_mysql.py``
 
 * To run all data lake test functions for all python versions (Only if Amazon QuickSight is activated and Amazon OpenSearch template is deployed):
 

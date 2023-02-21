@@ -7,6 +7,9 @@ Quick Start
 
     >>> pip install awswrangler
 
+    >>> # Optional modules are installed with:
+    >>> pip install 'awswrangler[redshift]'
+
 .. code-block:: py3
 
     import awswrangler as wr

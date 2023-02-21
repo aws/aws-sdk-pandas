@@ -1,13 +1,14 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 import numpy as np
 import pandas as pd
 
-from awswrangler import exceptions, lakeformation
+from awswrangler import exceptions, lakeformation, typing
+from awswrangler._distributed import engine
 from awswrangler._utils import client
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
@@ -15,7 +16,7 @@ from awswrangler.s3._write_concurrent import _WriteProxy
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_bucketing_series(df: pd.DataFrame, bucketing_info: Tuple[List[str], int]) -> pd.Series:
+def _get_bucketing_series(df: pd.DataFrame, bucketing_info: typing.BucketingInfoTuple) -> pd.Series:
     bucket_number_series = (
         df[bucketing_info[0]]
         # Prevent "upcasting" mixed types by casting to object
@@ -68,10 +69,13 @@ def _get_value_hash(value: Union[str, int, bool]) -> int:
     )
 
 
-def _to_partitions(
-    func: Callable[..., List[str]],
-    concurrent_partitioning: bool,
-    df: pd.DataFrame,
+def _get_subgroup_prefix(keys: Tuple[str, None], partition_cols: List[str], path_root: str) -> str:
+    subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
+    return f"{path_root}{subdir}/"
+
+
+def _delete_objects(
+    keys: Tuple[str, None],
     path_root: str,
     use_threads: Union[bool, int],
     mode: str,
@@ -82,53 +86,90 @@ def _to_partitions(
     table: Optional[str],
     table_type: Optional[str],
     transaction_id: Optional[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    boto3_session: Optional[boto3.Session] = None,
+    **func_kwargs: Any,
+) -> str:
+    # Keys are either a primitive type or a tuple if partitioning by multiple cols
+    keys = (keys,) if not isinstance(keys, tuple) else keys
+    prefix = _get_subgroup_prefix(keys, partition_cols, path_root)
+    if mode == "overwrite_partitions":
+        if (table_type == "GOVERNED") and (table is not None) and (database is not None):
+            transaction_id = cast(str, transaction_id)
+            del_objects: List[Dict[str, Any]] = lakeformation._get_table_objects(  # pylint: disable=protected-access
+                catalog_id=catalog_id,
+                database=database,
+                table=table,
+                transaction_id=transaction_id,
+                partition_cols=partition_cols,
+                partitions_values=keys,  # type: ignore[arg-type]
+                partitions_types=partitions_types,
+                boto3_session=boto3_session,
+            )
+            if del_objects:
+                lakeformation._update_table_objects(  # pylint: disable=protected-access
+                    catalog_id=catalog_id,
+                    database=database,
+                    table=table,
+                    transaction_id=transaction_id,
+                    del_objects=del_objects,
+                    boto3_session=boto3_session,
+                )
+        else:
+            delete_objects(
+                path=prefix,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=func_kwargs.get("s3_additional_kwargs"),
+            )
+    return prefix
+
+
+@engine.dispatch_on_engine
+def _to_partitions(
+    df: pd.DataFrame,
+    func: Callable[..., List[str]],
+    concurrent_partitioning: bool,
+    path_root: str,
+    use_threads: Union[bool, int],
+    mode: str,
+    partition_cols: List[str],
+    partitions_types: Optional[Dict[str, str]],
+    catalog_id: Optional[str],
+    database: Optional[str],
+    table: Optional[str],
+    table_type: Optional[str],
+    transaction_id: Optional[str],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     filename_prefix: str,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     partitions_values: Dict[str, List[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
-    s3_client: boto3.client = client(service_name="s3", session=boto3_session)
+    s3_client = client(service_name="s3", session=boto3_session)
     for keys, subgroup in df.groupby(by=partition_cols, observed=True):
-        subgroup = subgroup.drop(partition_cols, axis="columns")
+        # Keys are either a primitive type or a tuple if partitioning by multiple cols
         keys = (keys,) if not isinstance(keys, tuple) else keys
-        subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
-        prefix: str = f"{path_root}{subdir}/"
-        if mode == "overwrite_partitions":
-            if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-                del_objects: List[
-                    Dict[str, Any]
-                ] = lakeformation._get_table_objects(  # pylint: disable=protected-access
-                    catalog_id=catalog_id,
-                    database=database,
-                    table=table,
-                    transaction_id=transaction_id,  # type: ignore
-                    partition_cols=partition_cols,
-                    partitions_values=keys,
-                    partitions_types=partitions_types,
-                    boto3_session=boto3_session,
-                )
-                if del_objects:
-                    lakeformation._update_table_objects(  # pylint: disable=protected-access
-                        catalog_id=catalog_id,
-                        database=database,
-                        table=table,
-                        transaction_id=transaction_id,  # type: ignore
-                        del_objects=del_objects,
-                        boto3_session=boto3_session,
-                    )
-            else:
-                delete_objects(
-                    path=prefix,
-                    use_threads=use_threads,
-                    boto3_session=boto3_session,
-                    s3_additional_kwargs=func_kwargs.get("s3_additional_kwargs"),
-                )
+        subgroup = subgroup.drop(partition_cols, axis="columns")
+        prefix = _delete_objects(
+            keys=keys,
+            path_root=path_root,
+            use_threads=use_threads,
+            mode=mode,
+            partition_cols=partition_cols,
+            partitions_types=partitions_types,
+            catalog_id=catalog_id,
+            database=database,
+            table=table,
+            table_type=table_type,
+            transaction_id=transaction_id,
+            boto3_session=boto3_session,
+            **func_kwargs,
+        )
         if bucketing_info:
             _to_buckets(
+                subgroup,
                 func=func,
-                df=subgroup,
                 path_root=prefix,
                 bucketing_info=bucketing_info,
                 boto3_session=boto3_session,
@@ -139,8 +180,8 @@ def _to_partitions(
             )
         else:
             proxy.write(
-                func=func,
-                df=subgroup,
+                func,
+                subgroup,
                 path_root=prefix,
                 filename_prefix=filename_prefix,
                 s3_client=s3_client,
@@ -152,32 +193,32 @@ def _to_partitions(
     return paths, partitions_values
 
 
+@engine.dispatch_on_engine
 def _to_buckets(
-    func: Callable[..., List[str]],
     df: pd.DataFrame,
+    func: Callable[..., List[str]],
     path_root: str,
-    bucketing_info: Tuple[List[str], int],
+    bucketing_info: typing.BucketingInfoTuple,
     filename_prefix: str,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     use_threads: Union[bool, int],
     proxy: Optional[_WriteProxy] = None,
     **func_kwargs: Any,
 ) -> List[str]:
     _proxy: _WriteProxy = proxy if proxy else _WriteProxy(use_threads=False)
-    s3_client: boto3.client = client(service_name="s3", session=boto3_session)
+    s3_client = client(service_name="s3", session=boto3_session)
     for bucket_number, subgroup in df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info)):
         _proxy.write(
-            func=func,
-            df=subgroup,
+            func,
+            subgroup,
             path_root=path_root,
             filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
-            s3_client=s3_client,
             use_threads=use_threads,
+            s3_client=s3_client,
             **func_kwargs,
         )
     if proxy:
         return []
-
     paths: List[str] = _proxy.close()  # blocking
     return paths
 
@@ -198,8 +239,8 @@ def _to_dataset(
     table: Optional[str],
     table_type: Optional[str],
     transaction_id: Optional[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
-    boto3_session: boto3.Session,
+    bucketing_info: Optional[typing.BucketingInfoTuple],
+    boto3_session: Optional[boto3.Session],
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     path_root = path_root if path_root.endswith("/") else f"{path_root}/"
@@ -210,11 +251,12 @@ def _to_dataset(
         )
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
         if (table_type == "GOVERNED") and (table is not None) and (database is not None):
+            transaction_id = cast(str, transaction_id)
             del_objects: List[Dict[str, Any]] = lakeformation._get_table_objects(  # pylint: disable=protected-access
                 catalog_id=catalog_id,
                 database=database,
                 table=table,
-                transaction_id=transaction_id,  # type: ignore
+                transaction_id=transaction_id,
                 boto3_session=boto3_session,
             )
             if del_objects:
@@ -222,7 +264,7 @@ def _to_dataset(
                     catalog_id=catalog_id,
                     database=database,
                     table=table,
-                    transaction_id=transaction_id,  # type: ignore
+                    transaction_id=transaction_id,
                     del_objects=del_objects,
                     boto3_session=boto3_session,
                 )
@@ -234,9 +276,9 @@ def _to_dataset(
     paths: List[str]
     if partition_cols:
         paths, partitions_values = _to_partitions(
+            df,
             func=func,
             concurrent_partitioning=concurrent_partitioning,
-            df=df,
             path_root=path_root,
             use_threads=use_threads,
             mode=mode,
@@ -255,8 +297,8 @@ def _to_dataset(
         )
     elif bucketing_info:
         paths = _to_buckets(
+            df,
             func=func,
-            df=df,
             path_root=path_root,
             use_threads=use_threads,
             bucketing_info=bucketing_info,
@@ -266,9 +308,9 @@ def _to_dataset(
             **func_kwargs,
         )
     else:
-        s3_client: boto3.client = client(service_name="s3", session=boto3_session)
+        s3_client = client(service_name="s3", session=boto3_session)
         paths = func(
-            df=df,
+            df,
             path_root=path_root,
             filename_prefix=filename_prefix,
             use_threads=use_threads,
@@ -279,19 +321,22 @@ def _to_dataset(
     _logger.debug("paths: %s", paths)
     _logger.debug("partitions_values: %s", partitions_values)
     if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-        add_objects: List[Dict[str, Any]] = lakeformation._build_table_objects(  # pylint: disable=protected-access
+        list_add_objects: List[
+            List[Dict[str, Any]]
+        ] = lakeformation._build_table_objects(  # pylint: disable=protected-access
             paths, partitions_values, use_threads=use_threads, boto3_session=boto3_session
         )
         try:
-            if add_objects:
-                lakeformation._update_table_objects(  # pylint: disable=protected-access
-                    catalog_id=catalog_id,
-                    database=database,
-                    table=table,
-                    transaction_id=transaction_id,  # type: ignore
-                    add_objects=add_objects,
-                    boto3_session=boto3_session,
-                )
+            if list_add_objects:
+                for add_objects in list_add_objects:
+                    lakeformation._update_table_objects(  # pylint: disable=protected-access
+                        catalog_id=catalog_id,
+                        database=database,
+                        table=table,
+                        transaction_id=transaction_id,  # type: ignore[arg-type]
+                        add_objects=add_objects,
+                        boto3_session=boto3_session,
+                    )
         except Exception as ex:
             _logger.error(ex)
             raise

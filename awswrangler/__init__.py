@@ -30,9 +30,13 @@ from awswrangler import (  # noqa
     sqlserver,
     sts,
     timestream,
+    typing,
 )
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
 from awswrangler._config import config  # noqa
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum, engine, memory_format  # noqa
+
+engine.initialize()
 
 __all__ = [
     "athena",
@@ -57,11 +61,16 @@ __all__ = [
     "secretsmanager",
     "sqlserver",
     "config",
+    "engine",
+    "memory_format",
     "timestream",
+    "typing",
     "__description__",
     "__license__",
     "__title__",
     "__version__",
+    "EngineEnum",
+    "MemoryFormatEnum",
 ]
 
 

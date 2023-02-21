@@ -1,16 +1,23 @@
 """Amazon Timestream Module."""
 
-import concurrent.futures
 import itertools
 import logging
 from datetime import datetime
-from typing import Any, Dict, Iterator, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Union, cast, overload
 
 import boto3
 import pandas as pd
 from botocore.config import Config
 
 from awswrangler import _data_types, _utils
+from awswrangler._distributed import engine
+from awswrangler._threading import _get_executor, _ThreadPoolExecutor
+from awswrangler.distributed.ray import ray_get
+
+if TYPE_CHECKING:
+    from mypy_boto3_timestream_query.type_defs import PaginatorConfigTypeDef, QueryResponseTypeDef, RowTypeDef
+    from mypy_boto3_timestream_write.client import TimestreamWriteClient
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -35,7 +42,9 @@ def _format_measure(measure_name: str, measure_value: Any, measure_type: str) ->
     }
 
 
+@engine.dispatch_on_engine
 def _write_batch(
+    timestream_client: Optional["TimestreamWriteClient"],
     database: str,
     table: str,
     cols_names: List[str],
@@ -43,9 +52,9 @@ def _write_batch(
     measure_types: List[str],
     version: int,
     batch: List[Any],
-    timestream_client: boto3.client,
     measure_name: Optional[str] = None,
 ) -> List[Dict[str, str]]:
+    timestream_client = timestream_client if timestream_client else _utils.client(service_name="timestream-write")
     try:
         time_loc = 0
         measure_cols_loc = 1
@@ -88,6 +97,40 @@ def _write_batch(
     return []
 
 
+@engine.dispatch_on_engine
+def _write_df(
+    df: pd.DataFrame,
+    executor: _ThreadPoolExecutor,
+    database: str,
+    table: str,
+    cols_names: List[str],
+    measure_cols_names: List[str],
+    measure_types: List[str],
+    version: int,
+    boto3_session: Optional[boto3.Session],
+    measure_name: Optional[str] = None,
+) -> List[Dict[str, str]]:
+    timestream_client = _utils.client(
+        service_name="timestream-write",
+        session=boto3_session,
+        botocore_config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
+    )
+    batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df), max_length=100)
+    _logger.debug("len(batches): %s", len(batches))
+    return executor.map(
+        _write_batch,  # type: ignore[arg-type]
+        timestream_client,
+        itertools.repeat(database),
+        itertools.repeat(table),
+        itertools.repeat(cols_names),
+        itertools.repeat(measure_cols_names),
+        itertools.repeat(measure_types),
+        itertools.repeat(version),
+        batches,
+        itertools.repeat(measure_name),
+    )
+
+
 def _cast_value(value: str, dtype: str) -> Any:  # pylint: disable=too-many-branches,too-many-return-statements
     if dtype == "VARCHAR":
         return value
@@ -108,7 +151,7 @@ def _cast_value(value: str, dtype: str) -> Any:  # pylint: disable=too-many-bran
     raise ValueError(f"Not supported Amazon Timestream type: {dtype}")
 
 
-def _process_row(schema: List[Dict[str, str]], row: Dict[str, Any]) -> List[Any]:
+def _process_row(schema: List[Dict[str, str]], row: "RowTypeDef") -> List[Any]:
     row_processed: List[Any] = []
     for col_schema, col in zip(schema, row["Data"]):
         if col.get("NullValue", False):
@@ -116,7 +159,7 @@ def _process_row(schema: List[Dict[str, str]], row: Dict[str, Any]) -> List[Any]
         elif "ScalarValue" in col:
             row_processed.append(_cast_value(value=col["ScalarValue"], dtype=col_schema["type"]))
         elif "ArrayValue" in col:
-            row_processed.append(_cast_value(value=col["ArrayValue"], dtype="ARRAY"))
+            row_processed.append(_cast_value(value=col["ArrayValue"], dtype="ARRAY"))  # type: ignore[arg-type]
         else:
             raise ValueError(
                 f"Query with non ScalarType/ArrayColumnInfo/NullValue for column {col_schema['name']}. "
@@ -137,7 +180,7 @@ def _rows_to_df(
     return df
 
 
-def _process_schema(page: Dict[str, Any]) -> List[Dict[str, str]]:
+def _process_schema(page: "QueryResponseTypeDef") -> List[Dict[str, str]]:
     schema: List[Dict[str, str]] = []
     for col in page["ColumnInfo"]:
         if "ScalarType" in col["Type"]:
@@ -150,9 +193,12 @@ def _process_schema(page: Dict[str, Any]) -> List[Dict[str, str]]:
 
 
 def _paginate_query(
-    sql: str, chunked: bool, pagination_config: Optional[Dict[str, Any]], boto3_session: Optional[boto3.Session] = None
+    sql: str,
+    chunked: bool,
+    pagination_config: Optional["PaginatorConfigTypeDef"],
+    boto3_session: Optional[boto3.Session] = None,
 ) -> Iterator[pd.DataFrame]:
-    client: boto3.client = _utils.client(
+    client = _utils.client(
         service_name="timestream-query",
         session=boto3_session,
         botocore_config=Config(read_timeout=60, retries={"max_attempts": 10}),
@@ -186,11 +232,15 @@ def write(
     measure_col: Union[str, List[str]],
     dimensions_cols: List[str],
     version: int = 1,
-    num_threads: int = 32,
+    use_threads: Union[bool, int] = True,
     measure_name: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[Dict[str, str]]:
     """Store a Pandas DataFrame into a Amazon Timestream table.
+
+    Note
+    ----
+    In case `use_threads=True`, the number of threads from os.cpu_count() is used.
 
     If the Timestream service rejects a record(s),
     this function will not throw a Python exception.
@@ -198,7 +248,7 @@ def write(
 
     Parameters
     ----------
-    df: pandas.DataFrame
+    df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     database : str
         Amazon Timestream database name.
@@ -213,11 +263,13 @@ def write(
     version : int
         Version number used for upserts.
         Documentation https://docs.aws.amazon.com/timestream/latest/developerguide/API_WriteRecords.html.
+    use_threads : bool, int
+        True to enable concurrent writing, False to disable multiple threads.
+        If enabled, os.cpu_count() is used as the number of threads.
+        If integer is provided, specified number is used.
     measure_name : Optional[str]
         Name that represents the data attribute of the time series.
         Overrides ``measure_col`` if specified.
-    num_threads : str
-        Number of thread to be used for concurrent writing.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
@@ -264,38 +316,68 @@ def write(
     >>> ]
 
     """
-    timestream_client: boto3.client = _utils.client(
-        service_name="timestream-write",
-        session=boto3_session,
-        botocore_config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
-    )
     measure_cols_names = measure_col if isinstance(measure_col, list) else [measure_col]
     _logger.debug("measure_cols_names: %s", measure_cols_names)
-
-    measure_types: List[str] = [
-        _data_types.timestream_type_from_pandas(df[[measure_col_name]]) for measure_col_name in measure_cols_names
-    ]
+    measure_types: List[str] = _data_types.timestream_type_from_pandas(df.loc[:, measure_cols_names])
     _logger.debug("measure_types: %s", measure_types)
     cols_names: List[str] = [time_col] + measure_cols_names + dimensions_cols
     _logger.debug("cols_names: %s", cols_names)
-    batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df[cols_names]), max_length=100)
-    _logger.debug("len(batches): %s", len(batches))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-        res: List[List[Any]] = list(
-            executor.map(
-                _write_batch,
-                itertools.repeat(database),
-                itertools.repeat(table),
-                itertools.repeat(cols_names),
-                itertools.repeat(measure_cols_names),
-                itertools.repeat(measure_types),
-                itertools.repeat(version),
-                batches,
-                itertools.repeat(timestream_client),
-                itertools.repeat(measure_name),
+    dfs = _utils.split_pandas_frame(df.loc[:, cols_names], _utils.ensure_cpu_count(use_threads=use_threads))
+    _logger.debug("len(dfs): %s", len(dfs))
+
+    executor = _get_executor(use_threads=use_threads)
+    errors = list(
+        itertools.chain(
+            *ray_get(
+                [
+                    _write_df(
+                        df=df,
+                        executor=executor,
+                        database=database,
+                        table=table,
+                        cols_names=cols_names,
+                        measure_cols_names=measure_cols_names,
+                        measure_types=measure_types,
+                        version=version,
+                        boto3_session=boto3_session,
+                        measure_name=measure_name,
+                    )
+                    for df in dfs
+                ]
             )
         )
-        return [item for sublist in res for item in sublist]
+    )
+    return list(itertools.chain(*ray_get(errors)))
+
+
+@overload
+def query(
+    sql: str,
+    chunked: Literal[False] = ...,
+    pagination_config: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def query(
+    sql: str,
+    chunked: Literal[True],
+    pagination_config: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def query(
+    sql: str,
+    chunked: bool,
+    pagination_config: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
 
 
 def query(
@@ -330,7 +412,7 @@ def query(
     >>> df = wr.timestream.query('SELECT * FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 10')
 
     """
-    result_iterator = _paginate_query(sql, chunked, pagination_config, boto3_session)
+    result_iterator = _paginate_query(sql, chunked, cast("PaginatorConfigTypeDef", pagination_config), boto3_session)
     if chunked:
         return result_iterator
 
@@ -379,14 +461,14 @@ def create_database(
     >>> arn = wr.timestream.create_database("MyDatabase")
 
     """
-    client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
+    client = _utils.client(service_name="timestream-write", session=boto3_session)
     args: Dict[str, Any] = {"DatabaseName": database}
     if kms_key_id is not None:
         args["KmsKeyId"] = kms_key_id
     if tags is not None:
         args["Tags"] = [{"Key": k, "Value": v} for k, v in tags.items()]
-    response: Dict[str, Dict[str, Any]] = client.create_database(**args)
-    return cast(str, response["Database"]["Arn"])
+    response = client.create_database(**args)
+    return response["Database"]["Arn"]
 
 
 def delete_database(
@@ -423,7 +505,7 @@ def delete_database(
     >>> arn = wr.timestream.delete_database("MyDatabase")
 
     """
-    client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
+    client = _utils.client(service_name="timestream-write", session=boto3_session)
     client.delete_database(DatabaseName=database)
 
 
@@ -482,7 +564,7 @@ def create_table(
     ... )
 
     """
-    client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
+    client = _utils.client(service_name="timestream-write", session=boto3_session)
     timestream_additional_kwargs = {} if timestream_additional_kwargs is None else timestream_additional_kwargs
     args: Dict[str, Any] = {
         "DatabaseName": database,
@@ -495,8 +577,8 @@ def create_table(
     }
     if tags is not None:
         args["Tags"] = [{"Key": k, "Value": v} for k, v in tags.items()]
-    response: Dict[str, Dict[str, Any]] = client.create_table(**args)
-    return cast(str, response["Table"]["Arn"])
+    response = client.create_table(**args)
+    return response["Table"]["Arn"]
 
 
 def delete_table(
@@ -536,7 +618,7 @@ def delete_table(
     >>> arn = wr.timestream.delete_table("MyDatabase", "MyTable")
 
     """
-    client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
+    client = _utils.client(service_name="timestream-write", session=boto3_session)
     client.delete_table(DatabaseName=database, TableName=table)
 
 
@@ -566,12 +648,12 @@ def list_databases(
 
 
     """
-    client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
+    client = _utils.client(service_name="timestream-write", session=boto3_session)
 
-    response: Dict[str, Any] = client.list_databases()
+    response = client.list_databases()
     dbs: List[str] = [db["DatabaseName"] for db in response["Databases"]]
-    while "nextToken" in response:
-        response = client.list_databases(nextToken=response["nextToken"])
+    while "NextToken" in response:
+        response = client.list_databases(NextToken=response["NextToken"])
         dbs += [db["DatabaseName"] for db in response["Databases"]]
 
     return dbs
@@ -609,12 +691,12 @@ def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Se
     ... ["table1"]
 
     """
-    client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
+    client = _utils.client(service_name="timestream-write", session=boto3_session)
     args = {} if database is None else {"DatabaseName": database}
-    response: Dict[str, Any] = client.list_tables(**args)
+    response = client.list_tables(**args)  # type: ignore[arg-type]
     tables: List[str] = [tbl["TableName"] for tbl in response["Tables"]]
     while "nextToken" in response:
-        response = client.list_tables(**args, nextToken=response["nextToken"])
+        response = client.list_tables(**args, NextToken=response["NextToken"])  # type: ignore[arg-type]
         tables += [tbl["TableName"] for tbl in response["Tables"]]
 
     return tables

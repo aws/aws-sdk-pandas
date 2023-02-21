@@ -23,23 +23,24 @@ class _WriteProxy:
             self._exec = None
 
     @staticmethod
-    def _caller(func: Callable[..., pd.DataFrame], func_kwargs: Dict[str, Any]) -> pd.DataFrame:
+    def _caller(func: Callable[..., pd.DataFrame], *args: Any, func_kwargs: Dict[str, Any]) -> pd.DataFrame:
         _logger.debug("Calling: %s", func)
-        return func(**func_kwargs)
+        return func(*args, **func_kwargs)
 
-    def write(self, func: Callable[..., List[str]], **func_kwargs: Any) -> None:
+    def write(self, func: Callable[..., List[str]], *args: Any, **func_kwargs: Any) -> None:
         """Write File."""
         if self._exec is not None:
             _utils.block_waiting_available_thread(seq=self._futures, max_workers=self._cpus)
             _logger.debug("Submitting: %s", func)
             future = self._exec.submit(
                 _WriteProxy._caller,
-                func=func,
+                func,
+                *args,
                 func_kwargs=func_kwargs,
             )
             self._futures.append(future)
         else:
-            self._results += func(**func_kwargs)
+            self._results += func(*args, **func_kwargs)
 
     def close(self) -> List[str]:
         """Close the proxy."""

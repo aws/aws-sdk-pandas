@@ -1,6 +1,6 @@
 """Utilities Module for Amazon Neptune."""
-from awswrangler.neptune.gremlin_parser import GremlinParser
-from awswrangler.neptune.neptune import (
+from awswrangler.neptune._gremlin_parser import GremlinParser
+from awswrangler.neptune._neptune import (
     connect,
     execute_gremlin,
     execute_opencypher,
