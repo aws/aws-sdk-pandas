@@ -22,7 +22,6 @@ def register_ray() -> None:
     for func in [
         _get_work_unit_results,
         _delete_objects,
-        _read_parquet_metadata_file,
         _read_scan,
         _select_query,
         _select_object_content,
@@ -45,7 +44,10 @@ def register_ray() -> None:
             _is_pandas_or_modin_frame,
             _split_modin_frame,
         )
-        from awswrangler.distributed.ray.modin.s3._read_parquet import _read_parquet_distributed
+        from awswrangler.distributed.ray.modin.s3._read_parquet import (
+            _read_parquet_distributed,
+            _read_parquet_metadata_file_distributed,
+        )
         from awswrangler.distributed.ray.modin.s3._read_text import _read_text_distributed
         from awswrangler.distributed.ray.modin.s3._write_dataset import (
             _to_buckets_distributed,
@@ -59,6 +61,7 @@ def register_ray() -> None:
             _read_parquet: _read_parquet_distributed,
             _read_text: _read_text_distributed,
             _to_buckets: _to_buckets_distributed,
+            _read_parquet_metadata_file: _read_parquet_metadata_file_distributed,
             _to_parquet: _to_parquet_distributed,
             _to_partitions: _to_partitions_distributed,
             _to_text: _to_text_distributed,

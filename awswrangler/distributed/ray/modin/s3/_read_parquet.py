@@ -1,8 +1,10 @@
 """Modin on Ray S3 read parquet module (PRIVATE)."""
+import logging
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 
 import modin.pandas as pd
 import pyarrow as pa
+import pyarrow.parquet
 from ray.data import read_datasource
 
 from awswrangler.distributed.ray.datasources import ArrowParquetDatasource
@@ -10,6 +12,34 @@ from awswrangler.distributed.ray.modin._utils import _to_modin
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
+
+
+_logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _read_parquet_metadata_file_distributed(
+    s3_client: Optional["S3Client"],
+    path: str,
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: Union[bool, int],
+    version_id: Optional[str] = None,
+    coerce_int96_timestamp_unit: Optional[str] = None,
+) -> Optional[pa.schema]:
+    fs = pyarrow.fs.S3FileSystem()
+    schema: pa.schema
+
+    try:
+        with fs.open_input_file(path[len("s3://") :]) as f:
+            pq_file = pyarrow.parquet.read_metadata(f)
+            schema = pq_file.schema.to_arrow_schema()
+
+    except pyarrow.ArrowInvalid as ex:
+        if str(ex) == "Parquet file size is 0 bytes":
+            _logger.warning("Ignoring empty file...")
+            return None
+        raise ex
+
+    return schema
 
 
 def _read_parquet_distributed(  # pylint: disable=unused-argument
