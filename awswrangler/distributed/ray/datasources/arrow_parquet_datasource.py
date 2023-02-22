@@ -18,6 +18,7 @@ from awswrangler import exceptions
 from awswrangler._arrow import _add_columns, _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 from awswrangler.s3._read_parquet import _pyarrow_parquet_file_wrapper
+from awswrangler.s3._write import _COMPRESSION_2_EXT
 
 
 class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
@@ -91,3 +92,6 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
             compression=compression,
             **pyarrow_additional_kwargs,
         )
+
+    def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
+        return f"{_COMPRESSION_2_EXT.get(compression)}.{file_format}"
