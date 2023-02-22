@@ -216,7 +216,8 @@ def test_merge_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_thr
     descs = wr.s3.describe_objects(paths, use_threads=use_threads)
     for desc in descs.values():
         if s3_additional_kwargs is None:
-            assert desc.get("ServerSideEncryption") is None
+            # SSE enabled by default
+            assert desc.get("ServerSideEncryption") == "AES256"
         elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
             assert desc.get("ServerSideEncryption") == "aws:kms"
         elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
