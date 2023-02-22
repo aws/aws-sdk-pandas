@@ -10,11 +10,7 @@ from .._utils import ExecutionTimer
 
 
 @pytest.mark.parametrize("benchmark_time", [40])
-@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
-def test_modin_s3_read_parquet_simple(
-    wr, s3_list_strategy: Optional[str], benchmark_time: float, request: pytest.FixtureRequest
-) -> None:
-    wr.config.s3_list_strategy = s3_list_strategy
+def test_modin_s3_read_parquet_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://ursa-labs-taxi-data/2018/"
     with ExecutionTimer(request, data_paths=path) as timer:
         ray_ds = ray.data.read_parquet(path)
@@ -60,11 +56,7 @@ def test_modin_s3_read_csv_simple(benchmark_time: float, request: pytest.Fixture
 
 
 @pytest.mark.parametrize("benchmark_time", [15])
-@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
-def test_modin_s3_read_json_simple(
-    wr, s3_list_strategy: Optional[str], benchmark_time: float, request: pytest.FixtureRequest
-) -> None:
-    wr.config.s3_list_strategy = s3_list_strategy
+def test_modin_s3_read_json_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://covid19-lake/covid_knowledge_graph/json/edges/paper_to_concept/*.json"
     with ExecutionTimer(request, data_paths=path) as timer:
         file_paths = wr.s3.list_objects(path)

@@ -17,6 +17,19 @@ def _path2list(
     ignore_empty: bool = ...,
 ) -> List[str]: ...
 def _prefix_cleanup(prefix: str) -> str: ...
+def _list_objects_paginate(  # pylint: disable=too-many-branches
+    bucket: str,
+    pattern: str,
+    prefix: str,
+    s3_client: "S3Client",
+    delimiter: Optional[str],
+    s3_additional_kwargs: Optional[Dict[str, Any]],
+    suffix: Union[List[str], None],
+    ignore_suffix: Union[List[str], None],
+    last_modified_begin: Optional[datetime.datetime],
+    last_modified_end: Optional[datetime.datetime],
+    ignore_empty: bool,
+) -> Iterator[List[str]]: ...
 def does_object_exist(
     path: str,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,

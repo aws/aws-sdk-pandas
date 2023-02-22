@@ -71,9 +71,7 @@ def test_full_table(path, use_threads):
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
-@pytest.mark.parametrize("s3_list_strategy", [None, "s3fs"])
-def test_push_down(wr, path, use_threads, s3_list_strategy):
-    wr.config.s3_list_strategy = s3_list_strategy
+def test_push_down(path, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"], "c2": [4.0, 5.0, 6.0]})
 
     file_path = f"{path}test_parquet_file.snappy.parquet"
