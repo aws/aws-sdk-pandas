@@ -7,6 +7,7 @@ import pyarrow as pa
 import pyarrow.parquet
 from ray.data import read_datasource
 
+from awswrangler.distributed.ray import ray_remote
 from awswrangler.distributed.ray.datasources import ArrowParquetDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
 
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+@ray_remote()
 def _read_parquet_metadata_file_distributed(
     s3_client: Optional["S3Client"],
     path: str,
