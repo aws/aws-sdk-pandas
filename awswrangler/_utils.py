@@ -37,7 +37,7 @@ from botocore.config import Config
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
-from awswrangler._config import apply_configs
+from awswrangler._config import _insert_str, apply_configs
 from awswrangler._distributed import EngineEnum, engine
 
 if TYPE_CHECKING:
@@ -120,9 +120,28 @@ def validate_kwargs(
 
             return func(*args, **kwargs)
 
+        inner.__doc__ = _inject_kwargs_validation_doc(
+            doc=func.__doc__,
+            unsupported_kwargs=unsupported_kwargs,
+            message=message,
+        )
+
         return cast(FunctionType, inner)
 
     return decorator
+
+
+def _inject_kwargs_validation_doc(
+    doc: Optional[str],
+    unsupported_kwargs: Optional[List[str]],
+    message: str,
+) -> Optional[str]:
+    if not doc or "\n    Parameters" not in doc or not unsupported_kwargs:
+        return doc
+    header: str = f"\n\n    Note\n    ----\n    {message}\n\n"
+    kwargs_block: str = "\n".join(tuple(f"    - {x}\n" for x in unsupported_kwargs))
+    insertion: str = header + kwargs_block + "\n\n"
+    return _insert_str(text=doc, token="\n    Parameters", insert=insertion)
 
 
 validate_distributed_kwargs = partial(
