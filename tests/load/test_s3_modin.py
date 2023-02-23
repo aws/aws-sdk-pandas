@@ -46,10 +46,9 @@ def test_modin_s3_write_parquet_dataset(
 
 @pytest.mark.parametrize("benchmark_time", [20])
 def test_modin_s3_read_csv_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
-    path = "s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0*.csv"
-    with ExecutionTimer(request, data_paths=path) as timer:
-        file_paths = wr.s3.list_objects(path)
-        ray_ds = ray.data.read_csv(file_paths)
+    paths = [f"s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0{i}.csv" for i in range(1, 10)]
+    with ExecutionTimer(request, data_paths=paths) as timer:
+        ray_ds = ray.data.read_csv(paths)
         ray_ds.to_modin()
 
     assert timer.elapsed_time < benchmark_time

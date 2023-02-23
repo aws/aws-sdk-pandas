@@ -872,7 +872,7 @@ def test_unload(path, glue_table, glue_database, file_format, partitioned_by):
     )
     query_metadata = wr.athena.unload(
         sql=f"SELECT * FROM {glue_database}.{glue_table}",
-        path=f"{path}/test_{file_format}/",
+        path=f"{path}test_{file_format}/",
         database=glue_database,
         file_format=file_format,
         partitioned_by=partitioned_by,
