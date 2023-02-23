@@ -46,7 +46,6 @@ def register_ray() -> None:
         )
         from awswrangler.distributed.ray.modin.s3._read_parquet import (
             _read_parquet_distributed,
-            _read_parquet_metadata_file_distributed,
         )
         from awswrangler.distributed.ray.modin.s3._read_text import _read_text_distributed
         from awswrangler.distributed.ray.modin.s3._write_dataset import (
@@ -55,13 +54,15 @@ def register_ray() -> None:
         )
         from awswrangler.distributed.ray.modin.s3._write_parquet import _to_parquet_distributed
         from awswrangler.distributed.ray.modin.s3._write_text import _to_text_distributed
+        from awswrangler.distributed.ray.s3._read_parquet import (
+            _read_parquet_metadata_file_distributed,
+        )
 
         for o_f, d_f in {
             pyarrow_types_from_pandas: pyarrow_types_from_pandas_distributed,
             _read_parquet: _read_parquet_distributed,
             _read_text: _read_text_distributed,
             _to_buckets: _to_buckets_distributed,
-            _read_parquet_metadata_file: _read_parquet_metadata_file_distributed,
             _to_parquet: _to_parquet_distributed,
             _to_partitions: _to_partitions_distributed,
             _to_text: _to_text_distributed,
@@ -71,3 +72,8 @@ def register_ray() -> None:
             table_refs_to_df: _arrow_refs_to_df,
         }.items():
             engine.register_func(o_f, d_f)  # type: ignore[arg-type]
+
+        for o_f, d_f in {
+            _read_parquet_metadata_file: _read_parquet_metadata_file_distributed,
+        }.items():
+            engine.register_func(o_f, ray_remote()(d_f))
