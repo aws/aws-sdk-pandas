@@ -13,8 +13,8 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 
-def _resolve_datasource_parameters(schema: Optional[pa.schema]) -> Dict[str, Any]:
-    if not schema:
+def _resolve_datasource_parameters(bulk_read_parquet: bool) -> Dict[str, Any]:
+    if bulk_read_parquet:
         return {
             "datasource": ArrowParquetBaseDatasource(),
             "meta_provider": FastFileMetadataProvider(),
@@ -36,12 +36,13 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
+    bulk_read_parquet: bool,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     dataset_kwargs = {}
     if coerce_int96_timestamp_unit:
         dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
     dataset = read_datasource(
-        **_resolve_datasource_parameters(schema),
+        **_resolve_datasource_parameters(bulk_read_parquet),
         parallelism=parallelism,
         use_threads=use_threads,
         paths=paths,

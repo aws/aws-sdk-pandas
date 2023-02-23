@@ -331,6 +331,7 @@ def _read_parquet(  # pylint: disable=W0613
     s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
+    bulk_read_parquet: bool,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
@@ -640,7 +641,7 @@ def read_parquet(
 
     # Create PyArrow schema based on file metadata, columns filter, and partitions
     schema: Optional[pa.schema] = None
-    if not bulk_read_parquet:
+    if validate_schema and not bulk_read_parquet:
         schema = _validate_schemas_from_files(
             validate_schema=validate_schema,
             paths=paths,
@@ -690,6 +691,7 @@ def read_parquet(
         s3_additional_kwargs=s3_additional_kwargs,
         arrow_kwargs=arrow_kwargs,
         version_ids=version_ids,
+        bulk_read_parquet=bulk_read_parquet,
     )
 
 
