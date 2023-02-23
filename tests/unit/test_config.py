@@ -1,5 +1,6 @@
 import logging
 import os
+from types import ModuleType
 from unittest.mock import create_autospec, patch
 
 import boto3
@@ -8,14 +9,10 @@ import botocore.client
 import botocore.config
 import pytest
 
-import awswrangler as wr
-from awswrangler._config import apply_configs
-from awswrangler.s3._fs import open_s3_object
-
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-def _urls_test(glue_database):
+def _urls_test(wr: ModuleType, glue_database: str) -> None:
     original = botocore.client.ClientCreator.create_client
 
     def wrapper(self, **kwarg):
@@ -41,7 +38,9 @@ def _urls_test(glue_database):
         wr.athena.read_sql_query(sql="SELECT 1 as col0", database=glue_database)
 
 
-def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
+def test_basics(
+    wr: ModuleType, path: str, glue_database: str, glue_table: str, workgroup0: str, workgroup1: str
+) -> None:
     args = {"table": glue_table, "path": "", "columns_types": {"col0": "bigint"}}
 
     # Missing database argument
@@ -65,9 +64,9 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     # Testing configured s3 block size
     size = 1 * 2**20  # 1 MB
     wr.config.s3_block_size = size
-    with open_s3_object(path, mode="wb") as s3obj:
+    with wr.s3._fs.open_s3_object(path, mode="wb") as s3obj:
         s3obj.write(b"foo")
-    with open_s3_object(path, mode="rb") as s3obj:
+    with wr.s3._fs.open_s3_object(path, mode="rb") as s3obj:
         assert s3obj._s3_block_size == size
 
     # Resetting all configs
@@ -101,7 +100,7 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     with pytest.raises(TypeError):
         wr.catalog.does_table_exist(table=glue_table)
 
-    assert wr.config.to_pandas().shape == (len(wr._config._CONFIG_ARGS), 7)
+    assert wr.config.to_pandas().shape == (len(wr._config._CONFIG_ARGS) - 1, 8)
 
     # Workgroup
     wr.config.workgroup = workgroup0
@@ -119,23 +118,51 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     wr.config.athena_endpoint_url = f"https://athena.{region}.amazonaws.com"
     wr.config.glue_endpoint_url = f"https://glue.{region}.amazonaws.com"
     wr.config.secretsmanager_endpoint_url = f"https://secretsmanager.{region}.amazonaws.com"
-    _urls_test(glue_database)
+    _urls_test(wr, glue_database)
     os.environ["WR_STS_ENDPOINT_URL"] = f"https://sts.{region}.amazonaws.com"
     os.environ["WR_S3_ENDPOINT_URL"] = f"https://s3.{region}.amazonaws.com"
     os.environ["WR_ATHENA_ENDPOINT_URL"] = f"https://athena.{region}.amazonaws.com"
     os.environ["WR_GLUE_ENDPOINT_URL"] = f"https://glue.{region}.amazonaws.com"
     os.environ["WR_SECRETSMANAGER_ENDPOINT_URL"] = f"https://secretsmanager.{region}.amazonaws.com"
     wr.config.reset()
-    _urls_test(glue_database)
+    _urls_test(wr, glue_database)
 
 
-def test_athena_cache_configuration():
+def test_config_reset_nested_value(wr: ModuleType) -> None:
     wr.config.max_remote_cache_entries = 50
-    wr.config.max_local_cache_entries = 20
-    assert wr.config.max_remote_cache_entries == 20
+    wr.config.max_cache_seconds = 20
+
+    wr.config.reset("max_remote_cache_entries")
+
+    assert wr.config.max_cache_seconds == 20
+
+    with pytest.raises(AttributeError):
+        wr.config.max_remote_cache_entries
 
 
-def test_botocore_config(path):
+def test_athena_cache_configuration(wr: ModuleType) -> None:
+    wr.config.max_remote_cache_entries = 50
+    wr.config.max_cache_seconds = 20
+
+    assert wr.config.max_remote_cache_entries == 50
+    assert wr.config.athena_cache_settings["max_remote_cache_entries"] == 50
+
+    assert wr.config.max_cache_seconds == 20
+    assert wr.config.athena_cache_settings["max_cache_seconds"] == 20
+
+
+def test_athena_cache_configuration_dict(wr: ModuleType) -> None:
+    wr.config.athena_cache_settings["max_remote_cache_entries"] = 50
+    wr.config.athena_cache_settings["max_cache_seconds"] = 20
+
+    assert wr.config.max_remote_cache_entries == 50
+    assert wr.config.athena_cache_settings["max_remote_cache_entries"] == 50
+
+    assert wr.config.max_cache_seconds == 20
+    assert wr.config.athena_cache_settings["max_cache_seconds"] == 20
+
+
+def test_botocore_config(wr: ModuleType, path: str) -> None:
     original = botocore.client.ClientCreator.create_client
 
     # Default values for botocore.config.Config
@@ -153,7 +180,7 @@ def test_botocore_config(path):
 
     # Check for default values
     with patch("botocore.client.ClientCreator.create_client", new=wrapper):
-        with open_s3_object(path, mode="wb") as s3obj:
+        with wr.s3._fs.open_s3_object(path, mode="wb") as s3obj:
             s3obj.write(b"foo")
 
     # Update default config with environment variables
@@ -166,7 +193,7 @@ def test_botocore_config(path):
     os.environ["AWS_RETRY_MODE"] = expected_retry_mode
 
     with patch("botocore.client.ClientCreator.create_client", new=wrapper):
-        with open_s3_object(path, mode="wb") as s3obj:
+        with wr.s3._fs.open_s3_object(path, mode="wb") as s3obj:
             s3obj.write(b"foo")
 
     del os.environ["AWS_MAX_ATTEMPTS"]
@@ -186,20 +213,20 @@ def test_botocore_config(path):
     wr.config.botocore_config = botocore_config
 
     with patch("botocore.client.ClientCreator.create_client", new=wrapper):
-        with open_s3_object(path, mode="wb") as s3obj:
+        with wr.s3._fs.open_s3_object(path, mode="wb") as s3obj:
             s3obj.write(b"foo")
 
     wr.config.reset()
 
 
-def test_chunk_size():
+def test_chunk_size(wr: ModuleType) -> None:
     expected_chunksize = 123
 
     wr.config.chunksize = expected_chunksize
 
     for function_to_mock in [wr.postgresql.to_sql, wr.mysql.to_sql, wr.sqlserver.to_sql, wr.redshift.to_sql]:
         mock = create_autospec(function_to_mock)
-        apply_configs(mock)(df=None, con=None, table=None, schema=None)
+        wr._config.apply_configs(mock)(df=None, con=None, table=None, schema=None)
         mock.assert_called_with(df=None, con=None, table=None, schema=None, chunksize=expected_chunksize)
 
     expected_chunksize = 456
@@ -208,5 +235,5 @@ def test_chunk_size():
 
     for function_to_mock in [wr.postgresql.to_sql, wr.mysql.to_sql, wr.sqlserver.to_sql, wr.redshift.to_sql]:
         mock = create_autospec(function_to_mock)
-        apply_configs(mock)(df=None, con=None, table=None, schema=None)
+        wr._config.apply_configs(mock)(df=None, con=None, table=None, schema=None)
         mock.assert_called_with(df=None, con=None, table=None, schema=None, chunksize=expected_chunksize)
