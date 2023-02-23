@@ -39,7 +39,14 @@ def test_s3_select(benchmark_time: float, request: pytest.FixtureRequest) -> Non
 
 
 @pytest.mark.parametrize("benchmark_time", [40])
-@pytest.mark.parametrize("bulk_read_parquet,validate_schema", [(False, False), (True, False), (False, True)])
+@pytest.mark.parametrize(
+    "bulk_read_parquet,validate_schema",
+    [
+        pytest.param(False, False, id="bulk_read"),
+        pytest.param(True, False, id="regular"),
+        pytest.param(False, True, id="validate_schema"),
+    ],
+)
 def test_s3_read_parquet_simple(
     benchmark_time: float,
     bulk_read_parquet: bool,
@@ -54,7 +61,14 @@ def test_s3_read_parquet_simple(
 
 
 @pytest.mark.parametrize("benchmark_time", [180])
-@pytest.mark.parametrize("bulk_read_parquet,validate_schema", [(False, False), (True, False), (False, True)])
+@pytest.mark.parametrize(
+    "bulk_read_parquet,validate_schema",
+    [
+        pytest.param(False, False, id="bulk_read"),
+        pytest.param(True, False, id="regular"),
+        pytest.param(False, True, id="validate_schema"),
+    ],
+)
 def test_s3_read_parquet_many_files(
     benchmark_time: float,
     bulk_read_parquet: bool,
