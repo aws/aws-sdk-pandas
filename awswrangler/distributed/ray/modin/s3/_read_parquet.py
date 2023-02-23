@@ -39,6 +39,10 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     arrow_kwargs: Dict[str, Any],
     bulk_read_parquet: bool,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    dataset_kwargs = {}
+    if coerce_int96_timestamp_unit:
+        dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
+
     try:
         dataset = read_datasource(
             **_resolve_datasource_parameters(bulk_read_parquet),
@@ -48,7 +52,7 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
             schema=schema,
             columns=columns,
             path_root=path_root,
-            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            dataset_kwargs=dataset_kwargs,
         )
         return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs, ignore_index=bool(path_root))
     except RayTaskError as e:

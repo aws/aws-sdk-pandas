@@ -41,7 +41,9 @@ class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=
     ) -> pa.Table:
         use_threads: bool = reader_args.get("use_threads", False)
         columns: Optional[List[str]] = reader_args.get("columns", None)
-        coerce_int96_timestamp_unit: Optional[str] = reader_args.get("coerce_int96_timestamp_unit", None)
+
+        dataset_kwargs = reader_args.get("dataset_kwargs", {})
+        coerce_int96_timestamp_unit: Optional[str] = dataset_kwargs.get("coerce_int96_timestamp_unit", None)
 
         pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
             source=f,
