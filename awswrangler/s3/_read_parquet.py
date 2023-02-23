@@ -451,7 +451,7 @@ def read_parquet(
 
 
 @_utils.validate_distributed_kwargs(
-    unsupported_kwargs=["boto3_session"],
+    unsupported_kwargs=["chunked", "boto3_session", "version_id", "s3_additional_kwargs"],
 )
 def read_parquet(
     path: Union[str, List[str]],
