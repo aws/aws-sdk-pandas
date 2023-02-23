@@ -80,7 +80,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
     **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
-        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+        _logger.warning("Empty DataFrame will be written.")
 
     if bucketing:
         # Add bucket id to the prefix
