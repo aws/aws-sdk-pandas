@@ -38,7 +38,7 @@ from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
 from awswrangler._config import apply_configs
-from awswrangler._distributed import engine
+from awswrangler._distributed import EngineEnum, engine
 
 if TYPE_CHECKING:
     from boto3.resources.base import ServiceResource
@@ -99,6 +99,35 @@ def check_optional_dependency(
         return cast(FunctionType, inner)
 
     return decorator
+
+
+def validate_kwargs(
+    condition_fn: FunctionType = lambda: True,
+    unsupported_kwargs: List[str] = lambda: [],
+    message: str = "not supported",
+) -> FunctionType:
+    def decorator(function: FunctionType) -> FunctionType:
+        @wraps(function)
+        def inner(*args: Any, **kwargs: Any) -> Any:
+            passed_unsupported_kwargs = set(unsupported_kwargs).intersection(
+                set([key for key, value in kwargs.items() if value is not None])
+            )
+
+            if condition_fn() and len(passed_unsupported_kwargs) > 0:
+                raise exceptions.InvalidArgument(f"`{', '.join(passed_unsupported_kwargs)}` {message}.")
+
+            return function(*args, **kwargs)
+
+        return cast(FunctionType, inner)
+
+    return decorator
+
+
+validate_distributed_kwargs = partial(
+    validate_kwargs,
+    condition_fn=lambda: engine.get() == EngineEnum.RAY,
+    message="not supported in distributed mode",
+)
 
 
 def import_optional_dependency(name: str) -> ModuleType:

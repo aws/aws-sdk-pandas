@@ -450,6 +450,9 @@ def read_parquet(
     ...
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def read_parquet(
     path: Union[str, List[str]],
     path_root: Optional[str] = None,
