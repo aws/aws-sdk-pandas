@@ -50,8 +50,6 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
             path_root=path_root,
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         )
-        dataset.fully_executed()
+        return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs, ignore_index=bool(path_root))
     except RayTaskError as e:
         raise e.cause
-
-    return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs, ignore_index=bool(path_root))
