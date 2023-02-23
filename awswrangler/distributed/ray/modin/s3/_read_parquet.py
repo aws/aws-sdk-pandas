@@ -5,6 +5,7 @@ import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource
 from ray.data.datasource import FastFileMetadataProvider
+from ray.exceptions import RayTaskError
 
 from awswrangler.distributed.ray.datasources import ArrowParquetBaseDatasource, ArrowParquetDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
@@ -38,17 +39,19 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     arrow_kwargs: Dict[str, Any],
     bulk_read_parquet: bool,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    dataset_kwargs = {}
-    if coerce_int96_timestamp_unit:
-        dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
-    dataset = read_datasource(
-        **_resolve_datasource_parameters(bulk_read_parquet),
-        parallelism=parallelism,
-        use_threads=use_threads,
-        paths=paths,
-        schema=schema,
-        columns=columns,
-        dataset_kwargs=dataset_kwargs,
-        path_root=path_root,
-    )
+    try:
+        dataset = read_datasource(
+            **_resolve_datasource_parameters(bulk_read_parquet),
+            parallelism=parallelism,
+            use_threads=use_threads,
+            paths=paths,
+            schema=schema,
+            columns=columns,
+            path_root=path_root,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+        )
+        dataset.fully_executed()
+    except RayTaskError as e:
+        raise e.cause
+
     return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs, ignore_index=bool(path_root))

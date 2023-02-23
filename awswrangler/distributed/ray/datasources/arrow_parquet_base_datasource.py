@@ -6,7 +6,7 @@ and customized to ensure compatibility with AWS SDK for pandas behavior. Changes
 are documented in the comments and marked with (AWS SDK for pandas) prefix.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 # fs required to implicitly trigger S3 subsystem initialization
 import pyarrow as pa
@@ -14,8 +14,10 @@ import pyarrow.fs
 import pyarrow.parquet as pq
 from ray.data.block import BlockAccessor
 
+from awswrangler import exceptions
 from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
+from awswrangler.s3._read_parquet import _pyarrow_parquet_file_wrapper
 
 
 class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
@@ -38,13 +40,18 @@ class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=
         **reader_args: Any,
     ) -> pa.Table:
         use_threads: bool = reader_args.get("use_threads", False)
-        pyarrow_additional_kwargs: Dict[str, Any] = reader_args.get("pyarrow_additional_kwargs", {})
+        columns: Optional[List[str]] = reader_args.get("columns", None)
+        coerce_int96_timestamp_unit: Optional[str] = reader_args.get("coerce_int96_timestamp_unit", None)
 
-        table = pq.read_table(
-            f,
-            use_threads=use_threads,
-            **pyarrow_additional_kwargs,
+        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+            source=f,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         )
+
+        if pq_file is None:
+            raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
+
+        table = pq_file.read(columns=columns, use_threads=use_threads, use_pandas_metadata=False)
 
         table = _add_table_partitions(
             table=table,
