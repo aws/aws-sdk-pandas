@@ -315,7 +315,7 @@ def test_csv_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threa
     assert df.equals(wr.s3.read_csv([path]))
     desc = wr.s3.describe_objects([path])[path]
     if s3_additional_kwargs is None:
-        assert desc.get("ServerSideEncryption") is None
+        assert desc.get("ServerSideEncryption") == "AES256"
     elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
         assert desc.get("ServerSideEncryption") == "aws:kms"
     elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
