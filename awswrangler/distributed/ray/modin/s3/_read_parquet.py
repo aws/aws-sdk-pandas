@@ -10,6 +10,7 @@ from ray.data import read_datasource
 from awswrangler.distributed.ray import ray_remote
 from awswrangler.distributed.ray.datasources import ArrowParquetDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
+from awswrangler.s3._read_parquet import _pyarrow_parquet_file_wrapper
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -28,20 +29,18 @@ def _read_parquet_metadata_file_distributed(
     coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> Optional[pa.schema]:
     fs = pyarrow.fs.S3FileSystem()
-    schema: pa.schema
+    path_without_s3_prefix = path[len("s3://") :]
 
-    try:
-        with fs.open_input_file(path[len("s3://") :]) as f:
-            pq_file = pyarrow.parquet.read_metadata(f)
-            schema = pq_file.schema.to_arrow_schema()
+    with fs.open_input_file(path_without_s3_prefix) as f:
+        pq_file = _pyarrow_parquet_file_wrapper(
+            source=f,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+        )
 
-    except pyarrow.ArrowInvalid as ex:
-        if str(ex) == "Parquet file size is 0 bytes":
-            _logger.warning("Ignoring empty file...")
-            return None
-        raise ex
+        if pq_file:
+            return pq_file.schema.to_arrow_schema()
 
-    return schema
+    return None
 
 
 def _read_parquet_distributed(  # pylint: disable=unused-argument
