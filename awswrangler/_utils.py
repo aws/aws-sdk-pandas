@@ -102,21 +102,23 @@ def check_optional_dependency(
 
 
 def validate_kwargs(
-    condition_fn: FunctionType = lambda: True,
-    unsupported_kwargs: List[str] = lambda: [],
-    message: str = "not supported",
-) -> FunctionType:
-    def decorator(function: FunctionType) -> FunctionType:
-        @wraps(function)
+    condition_fn: Callable[..., bool] = lambda _: True,
+    unsupported_kwargs: Optional[List[str]] = None,
+    message: str = "Arguments not supported:",
+) -> Callable[[FunctionType], FunctionType]:
+    unsupported_kwargs = unsupported_kwargs if unsupported_kwargs else []
+
+    def decorator(func: FunctionType) -> FunctionType:
+        @wraps(func)
         def inner(*args: Any, **kwargs: Any) -> Any:
-            passed_unsupported_kwargs = set(unsupported_kwargs).intersection(
+            passed_unsupported_kwargs = set(unsupported_kwargs).intersection(  # type: ignore
                 set([key for key, value in kwargs.items() if value is not None])
             )
 
             if condition_fn() and len(passed_unsupported_kwargs) > 0:
-                raise exceptions.InvalidArgument(f"`{', '.join(passed_unsupported_kwargs)}` {message}.")
+                raise exceptions.InvalidArgument(f"{message} `{', '.join(passed_unsupported_kwargs)}`.")
 
-            return function(*args, **kwargs)
+            return func(*args, **kwargs)
 
         return cast(FunctionType, inner)
 
@@ -126,7 +128,7 @@ def validate_kwargs(
 validate_distributed_kwargs = partial(
     validate_kwargs,
     condition_fn=lambda: engine.get() == EngineEnum.RAY,
-    message="not supported in distributed mode",
+    message="Following arguments not supported in distributed mode:",
 )
 
 
