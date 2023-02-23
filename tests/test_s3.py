@@ -231,7 +231,7 @@ def test_merge_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_thr
     descs = wr.s3.describe_objects(paths, use_threads=use_threads)
     for desc in descs.values():
         if s3_additional_kwargs is None:
-            assert desc.get("ServerSideEncryption") is None
+            assert desc.get("ServerSideEncryption") == "AES256"
         elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
             assert desc.get("ServerSideEncryption") == "aws:kms"
         elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
@@ -281,7 +281,7 @@ def test_copy_additional_kwargs(path, path2, kms_key_id, s3_additional_kwargs, u
     assert df.equals(wr.s3.read_csv(file_path2))
     desc = wr.s3.describe_objects([file_path2])[file_path2]
     if s3_additional_kwargs is None:
-        assert desc.get("ServerSideEncryption") is None
+        assert desc.get("ServerSideEncryption") == "AES256"
     elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
         assert desc.get("ServerSideEncryption") == "aws:kms"
     elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
