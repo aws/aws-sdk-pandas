@@ -54,7 +54,7 @@ def test_s3_read_parquet_simple(
 
 
 @pytest.mark.parametrize("benchmark_time", [180])
-@pytest.mark.parametrize("bulk_read_parquet,validate_schema", [(True, False), (False, True)])
+@pytest.mark.parametrize("bulk_read_parquet,validate_schema", [(False, False), (True, False), (False, True)])
 def test_s3_read_parquet_many_files(
     benchmark_time: float,
     bulk_read_parquet: bool,
