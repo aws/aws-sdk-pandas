@@ -393,10 +393,7 @@ def start_query_execution(
     kms_key: Optional[str] = ...,
     params: Optional[Dict[str, Any]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    max_cache_seconds: int = ...,
-    max_cache_query_inspections: int = ...,
-    max_remote_cache_entries: int = ...,
-    max_local_cache_entries: int = ...,
+    athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     wait: Literal[False] = ...,
 ) -> str:
@@ -414,10 +411,7 @@ def start_query_execution(
     kms_key: Optional[str] = ...,
     params: Optional[Dict[str, Any]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    max_cache_seconds: int = ...,
-    max_cache_query_inspections: int = ...,
-    max_remote_cache_entries: int = ...,
-    max_local_cache_entries: int = ...,
+    athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     wait: Literal[True],
 ) -> Dict[str, Any]:
@@ -435,10 +429,7 @@ def start_query_execution(
     kms_key: Optional[str] = ...,
     params: Optional[Dict[str, Any]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    max_cache_seconds: int = ...,
-    max_cache_query_inspections: int = ...,
-    max_remote_cache_entries: int = ...,
-    max_local_cache_entries: int = ...,
+    athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     wait: bool,
 ) -> Union[str, Dict[str, Any]]:
@@ -455,10 +446,7 @@ def start_query_execution(
     kms_key: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
-    max_cache_seconds: int = 0,
-    max_cache_query_inspections: int = 50,
-    max_remote_cache_entries: int = 50,
-    max_local_cache_entries: int = 100,
+    athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
     data_source: Optional[str] = None,
     wait: bool = False,
 ) -> Union[str, Dict[str, Any]]:
@@ -489,25 +477,14 @@ def start_query_execution(
         `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    max_cache_seconds: int
-        awswrangler can look up in Athena's history if this query has been run before.
-        If so, and its completion time is less than `max_cache_seconds` before now, awswrangler
-        skips query execution and just returns the same results as last time.
-        If cached results are valid, awswrangler ignores the `s3_output`, `encryption` and `kms_key` params.
+    athena_cache_settings: typing.AthenaCacheSettings, optional
+        Params of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
+        max_remote_cache_entries, and max_local_cache_entries.
+        AthenaCacheSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaCacheSettings or as a regular Python dict.
+        If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
+        `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
-    max_cache_query_inspections : int
-        Max number of queries that will be inspected from the history to try to find some result to reuse.
-        The bigger the number of inspection, the bigger will be the latency for not cached queries.
-        Only takes effect if max_cache_seconds > 0.
-    max_remote_cache_entries : int
-        Max number of queries that will be retrieved from AWS for cache inspection.
-        The bigger the number of inspection, the bigger will be the latency for not cached queries.
-        Only takes effect if max_cache_seconds > 0 and default value is 50.
-    max_local_cache_entries : int
-        Max number of queries for which metadata will be cached locally. This will reduce the latency and also
-        enables keeping more than `max_remote_cache_entries` available for the cache. This value should not be
-        smaller than max_remote_cache_entries.
-        Only takes effect if max_cache_seconds > 0 and default value is 100.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     wait : bool, default False
@@ -532,6 +509,12 @@ def start_query_execution(
 
     """
     sql = _process_sql_params(sql, params)
+
+    athena_cache_settings = athena_cache_settings if athena_cache_settings else {}
+    max_cache_seconds = athena_cache_settings.get("max_cache_seconds", 0)
+    max_cache_query_inspections = athena_cache_settings.get("max_cache_query_inspections", 50)
+    max_remote_cache_entries = athena_cache_settings.get("max_remote_cache_entries", 50)
+    max_local_cache_entries = athena_cache_settings.get("max_local_cache_entries", 100)
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
