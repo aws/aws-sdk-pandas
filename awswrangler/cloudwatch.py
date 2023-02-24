@@ -9,6 +9,7 @@ import boto3
 import pandas as pd
 
 from awswrangler import _utils, exceptions
+from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -85,7 +86,12 @@ def start_query(
     return cast(str, response["queryId"])
 
 
-def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
+@apply_configs
+def wait_query(
+    query_id: str,
+    boto3_session: Optional[boto3.Session] = None,
+    cloudwatch_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+) -> Dict[str, Any]:
     """Wait query ends.
 
     https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
@@ -117,7 +123,7 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
     response: Dict[str, Any] = client_logs.get_query_results(queryId=query_id)
     status: str = response["status"]
     while status not in final_states:
-        time.sleep(_QUERY_WAIT_POLLING_DELAY)
+        time.sleep(cloudwatch_query_wait_polling_delay)
         response = client_logs.get_query_results(queryId=query_id)
         status = response["status"]
     _logger.debug("status: %s", status)
