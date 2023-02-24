@@ -224,6 +224,9 @@ def _paginate_query(
         rows = []
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def write(
     df: pd.DataFrame,
     database: str,
