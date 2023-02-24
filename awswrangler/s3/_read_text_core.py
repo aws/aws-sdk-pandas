@@ -67,7 +67,7 @@ def _read_text_files_chunked(
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
     use_threads: Union[bool, int],
-    version_ids: Optional[Dict[str, Optional[str]]] = None,
+    version_ids: Optional[Dict[str, str]],
 ) -> Iterator[pd.DataFrame]:
     for path in paths:
         _logger.debug("path: %s", path)

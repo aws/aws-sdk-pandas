@@ -80,7 +80,7 @@ def test_redshift_copy_unload(
     databases_parameters: Dict[str, str],
     request,
 ) -> None:
-    df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/1*")
+    df = wr.s3.read_parquet(path=[f"s3://ursa-labs-taxi-data/2018/{i}/data.parquet" for i in range(10, 13)])
 
     with ExecutionTimer(request, "redshift_copy") as timer:
         wr.redshift.copy(
