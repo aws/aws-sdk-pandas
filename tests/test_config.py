@@ -210,3 +210,15 @@ def test_chunk_size():
         mock = create_autospec(function_to_mock)
         apply_configs(mock)(df=None, con=None, table=None, schema=None)
         mock.assert_called_with(df=None, con=None, table=None, schema=None, chunksize=expected_chunksize)
+
+
+def test_athena_wait_delay_config(glue_database):
+    polling_delay = 0.1
+    wr.config.athena_query_wait_polling_delay = polling_delay
+
+    with patch("awswrangler.athena._utils.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
+        wr.athena.read_sql_query("SELECT 1 as col0", database=glue_database)
+
+        mock_wait_query.assert_called_once()
+
+        assert mock_wait_query.call_args.kwargs["athena_query_wait_polling_delay"] == polling_delay
