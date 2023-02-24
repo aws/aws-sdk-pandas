@@ -170,7 +170,9 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return self.to_pandas().to_html()
 
     @staticmethod
-    def _apply_type(name: str, value: Any, dtype: Type[Union[str, bool, int]], nullable: bool) -> _ConfigValueType:
+    def _apply_type(
+        name: str, value: Any, dtype: Type[Union[str, bool, int, float]], nullable: bool
+    ) -> _ConfigValueType:
         if _Config._is_null(value=value):
             if nullable is True:
                 return None
@@ -277,8 +279,9 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @property
     def query_wait_polling_delay(self) -> float:
+        """Property query_wait_polling_delay."""
         return cast(float, self["query_wait_polling_delay"])
-    
+
     @query_wait_polling_delay.setter
     def query_wait_polling_delay(self, value: float) -> None:
         self._set_config_value(key="query_wait_polling_delay", value=value)

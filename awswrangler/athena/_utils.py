@@ -1115,10 +1115,10 @@ def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.
 
 @apply_configs
 def wait_query(
-        query_execution_id: str,
-        boto3_session: Optional[boto3.Session] = None,
-        query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-    ) -> Dict[str, Any]:
+    query_execution_id: str,
+    boto3_session: Optional[boto3.Session] = None,
+    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+) -> Dict[str, Any]:
     """Wait for the query end.
 
     Parameters

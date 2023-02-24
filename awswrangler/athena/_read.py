@@ -14,12 +14,12 @@ from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
 from awswrangler.athena._utils import (
+    _QUERY_WAIT_POLLING_DELAY,
     _apply_query_metadata,
     _empty_dataframe_response,
     _get_query_metadata,
     _get_s3_output,
     _get_workgroup_config,
-    _QUERY_WAIT_POLLING_DELAY,
     _QueryMetadata,
     _start_query_execution,
     _WorkGroupConfig,
@@ -320,6 +320,7 @@ def _resolve_query_without_cache_unload(
     kms_key: Optional[str],
     workgroup: Optional[str],
     use_threads: Union[bool, int],
+    query_wait_polling_delay: float,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -337,6 +338,7 @@ def _resolve_query_without_cache_unload(
         kms_key=kms_key,
         boto3_session=boto3_session,
         data_source=data_source,
+        query_wait_polling_delay=query_wait_polling_delay,
     )
     if file_format == "PARQUET":
         return _fetch_parquet_result(
@@ -420,6 +422,7 @@ def _resolve_query_without_cache(
     ctas_temp_table_name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
     ctas_write_compression: Optional[str],
+    query_wait_polling_delay: float,
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
@@ -479,6 +482,7 @@ def _resolve_query_without_cache(
             kms_key=kms_key,
             workgroup=workgroup,
             use_threads=use_threads,
+            query_wait_polling_delay=query_wait_polling_delay,
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
@@ -495,6 +499,7 @@ def _resolve_query_without_cache(
         workgroup=workgroup,
         kms_key=kms_key,
         use_threads=use_threads,
+        query_wait_polling_delay=query_wait_polling_delay,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     )
@@ -696,6 +701,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     max_remote_cache_entries: int = 50,
     max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
+    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     params: Optional[Dict[str, Any]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -959,6 +965,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
                 chunksize=chunksize,
                 use_threads=use_threads,
                 session=boto3_session,
+                query_wait_polling_delay=query_wait_polling_delay,
                 s3_additional_kwargs=s3_additional_kwargs,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
@@ -983,6 +990,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         ctas_temp_table_name=ctas_temp_table_name,
         ctas_bucketing_info=ctas_bucketing_info,
         ctas_write_compression=ctas_write_compression,
+        query_wait_polling_delay=query_wait_polling_delay,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
@@ -1253,6 +1261,7 @@ def unload(
     boto3_session: Optional[boto3.Session] = None,
     data_source: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
+    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> _QueryMetadata:
     """Write query results from a SELECT statement to the specified data format using UNLOAD.
 
@@ -1323,6 +1332,7 @@ def unload(
         database=database,
         encryption=encryption,
         kms_key=kms_key,
+        query_wait_polling_delay=query_wait_polling_delay,
         boto3_session=boto3_session,
         data_source=data_source,
     )
