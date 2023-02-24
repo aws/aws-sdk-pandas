@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 from unittest.mock import create_autospec, patch
 
 import boto3
@@ -212,9 +213,14 @@ def test_chunk_size():
         mock.assert_called_with(df=None, con=None, table=None, schema=None, chunksize=expected_chunksize)
 
 
-def test_athena_wait_delay_config(glue_database):
-    polling_delay = 0.1
-    wr.config.athena_query_wait_polling_delay = polling_delay
+@pytest.mark.parametrize("polling_delay", [None, 0.05, 0.1])
+def test_athena_wait_delay_config(glue_database: str, polling_delay: Optional[float]) -> None:
+    if polling_delay:
+        wr.config.athena_query_wait_polling_delay = polling_delay
+    else:
+        from awswrangler.athena._utils import _QUERY_WAIT_POLLING_DELAY
+
+        polling_delay = _QUERY_WAIT_POLLING_DELAY
 
     with patch("awswrangler.athena._utils.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
         wr.athena.read_sql_query("SELECT 1 as col0", database=glue_database)
