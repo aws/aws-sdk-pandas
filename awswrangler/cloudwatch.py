@@ -102,6 +102,8 @@ def wait_query(
         Query ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    cloudwatch_query_wait_polling_delay: float, default: 0.2 seconds
+        Interval in seconds for how often the function will check if the CloudWatch query has completed.
 
     Returns
     -------

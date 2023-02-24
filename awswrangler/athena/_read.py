@@ -625,6 +625,8 @@ def get_query_results(
         outputs) you can use coerce_int96_timestamp_unit to specify what timestamp unit to encode INT96 to (by default
         this is "ns", if you know the output parquet came from a system that encodes timestamp to a particular unit
         then set this to that same unit e.g. coerce_int96_timestamp_unit="ms").
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns
     -------
@@ -892,6 +894,8 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         Only takes effect if max_cache_seconds > 0 and default value is 100.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     params: Dict[str, any], optional
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
@@ -1301,6 +1305,8 @@ def unload(
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
         `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns
     -------

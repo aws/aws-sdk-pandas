@@ -318,6 +318,9 @@ def wait_query(
         Lake Formation query execution ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session received None.
+    lakeformation_query_wait_polling_delay: float, default: 2 seconds
+        Interval in seconds for how often the function will check if the LakeFormation query has completed.
+
 
     Returns
     -------

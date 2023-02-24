@@ -432,6 +432,8 @@ def start_query_execution(
         enables keeping more than `max_remote_cache_entries` available for the cache. This value should not be
         smaller than max_remote_cache_entries.
         Only takes effect if max_cache_seconds > 0 and default value is 100.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     wait : bool, default False
@@ -540,6 +542,8 @@ def repair_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -614,6 +618,8 @@ def describe_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -730,6 +736,8 @@ def create_ctas_table(  # pylint: disable=too-many-locals
         Recommended for memory restricted environments.
     wait : bool, default False
         Whether to wait for the query to finish and return a dictionary with the Query metadata.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     boto3_session : Optional[boto3.Session], optional
         Boto3 Session. The default boto3 session is used if boto3_session is None.
 
@@ -910,6 +918,8 @@ def show_create_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -1127,6 +1137,8 @@ def wait_query(
         Athena query execution ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns
     -------
