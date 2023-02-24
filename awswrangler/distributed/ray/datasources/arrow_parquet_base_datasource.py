@@ -14,10 +14,8 @@ import pyarrow.fs
 import pyarrow.parquet as pq
 from ray.data.block import BlockAccessor
 
-from awswrangler import exceptions
 from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
-from awswrangler.s3._read_parquet import _pyarrow_parquet_file_wrapper
 
 
 class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
@@ -45,15 +43,12 @@ class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=
         dataset_kwargs = reader_args.get("dataset_kwargs", {})
         coerce_int96_timestamp_unit: Optional[str] = dataset_kwargs.get("coerce_int96_timestamp_unit", None)
 
-        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
-            source=f,
+        table = pq.read_table(
+            f,
+            use_threads=use_threads,
+            columns=columns,
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         )
-
-        if pq_file is None:
-            raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
-
-        table = pq_file.read(columns=columns, use_threads=use_threads, use_pandas_metadata=False)
 
         table = _add_table_partitions(
             table=table,
