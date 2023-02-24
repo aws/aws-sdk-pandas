@@ -188,7 +188,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     categories: Optional[List[str]] = None,
     query_execution_payload: Optional[Dict[str, Any]] = None,
     metadata_cache_manager: Optional[_LocalMetadataCacheManager] = None,
-    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> _QueryMetadata:
     """Get query metadata."""
     if (query_execution_payload is not None) and (query_execution_payload["Status"]["State"] in _QUERY_FINAL_STATES):
@@ -200,7 +200,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
         _query_execution_payload = wait_query(
             query_execution_id=query_execution_id,
             boto3_session=boto3_session,
-            query_wait_polling_delay=query_wait_polling_delay,
+            athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         )
     cols_types: Dict[str, str] = get_query_columns_types(
         query_execution_id=query_execution_id, boto3_session=boto3_session
@@ -382,7 +382,7 @@ def start_query_execution(
     max_cache_query_inspections: int = 50,
     max_remote_cache_entries: int = 50,
     max_local_cache_entries: int = 100,
-    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     data_source: Optional[str] = None,
     wait: bool = False,
 ) -> Union[str, Dict[str, Any]]:
@@ -493,7 +493,7 @@ def start_query_execution(
         return wait_query(
             query_execution_id=query_execution_id,
             boto3_session=boto3_session,
-            query_wait_polling_delay=query_wait_polling_delay,
+            athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         )
 
     return query_execution_id
@@ -508,7 +508,7 @@ def repair_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
-    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     """Run the Hive's metastore consistency check: 'MSCK REPAIR TABLE table;'.
@@ -573,7 +573,7 @@ def repair_table(
     response: Dict[str, Any] = wait_query(
         query_execution_id=query_id,
         boto3_session=boto3_session,
-        query_wait_polling_delay=query_wait_polling_delay,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
     )
     return cast(str, response["Status"]["State"])
 
@@ -586,7 +586,7 @@ def describe_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
-    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
@@ -648,7 +648,7 @@ def describe_table(
     )
     query_metadata: _QueryMetadata = _get_query_metadata(
         query_execution_id=query_id,
-        query_wait_polling_delay=query_wait_polling_delay,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         boto3_session=boto3_session,
     )
     raw_result = _fetch_txt_result(
@@ -679,7 +679,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     kms_key: Optional[str] = None,
     categories: Optional[List[str]] = None,
     wait: bool = False,
-    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Union[str, _QueryMetadata]]:
     """Create a new table populated with the results of a SELECT query.
@@ -852,7 +852,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
                 boto3_session=boto3_session,
                 categories=categories,
                 metadata_cache_manager=_cache_manager,
-                query_wait_polling_delay=query_wait_polling_delay,
+                athena_query_wait_polling_delay=athena_query_wait_polling_delay,
             )
         except exceptions.QueryFailed as ex:
             msg: str = str(ex)
@@ -883,7 +883,7 @@ def show_create_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
-    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -944,7 +944,7 @@ def show_create_table(
     )
     query_metadata: _QueryMetadata = _get_query_metadata(
         query_execution_id=query_id,
-        query_wait_polling_delay=query_wait_polling_delay,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         boto3_session=boto3_session,
     )
     raw_result = _fetch_txt_result(
@@ -1117,7 +1117,7 @@ def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.
 def wait_query(
     query_execution_id: str,
     boto3_session: Optional[boto3.Session] = None,
-    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> Dict[str, Any]:
     """Wait for the query end.
 
@@ -1142,7 +1142,7 @@ def wait_query(
     response: Dict[str, Any] = get_query_execution(query_execution_id=query_execution_id, boto3_session=boto3_session)
     state: str = response["Status"]["State"]
     while state not in _QUERY_FINAL_STATES:
-        time.sleep(query_wait_polling_delay)
+        time.sleep(athena_query_wait_polling_delay)
         response = get_query_execution(query_execution_id=query_execution_id, boto3_session=boto3_session)
         state = response["Status"]["State"]
     _logger.debug("state: %s", state)

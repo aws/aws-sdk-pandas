@@ -32,7 +32,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
     "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False),
     "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False),
-    "query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "athena_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
@@ -278,13 +278,13 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="max_remote_cache_entries", value=value)
 
     @property
-    def query_wait_polling_delay(self) -> float:
-        """Property query_wait_polling_delay."""
-        return cast(float, self["query_wait_polling_delay"])
+    def athena_query_wait_polling_delay(self) -> float:
+        """Property athena_query_wait_polling_delay."""
+        return cast(float, self["athena_query_wait_polling_delay"])
 
-    @query_wait_polling_delay.setter
-    def query_wait_polling_delay(self, value: float) -> None:
-        self._set_config_value(key="query_wait_polling_delay", value=value)
+    @athena_query_wait_polling_delay.setter
+    def athena_query_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="athena_query_wait_polling_delay", value=value)
 
     @property
     def s3_block_size(self) -> int:

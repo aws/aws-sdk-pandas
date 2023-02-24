@@ -213,7 +213,7 @@ def _resolve_query_with_cache(
     categories: Optional[List[str]],
     chunksize: Optional[Union[int, bool]],
     use_threads: Union[bool, int],
-    query_wait_polling_delay: float,
+    athena_query_wait_polling_delay: float,
     session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -228,7 +228,7 @@ def _resolve_query_with_cache(
         categories=categories,
         query_execution_payload=cache_info.query_execution_payload,
         metadata_cache_manager=_cache_manager,
-        query_wait_polling_delay=query_wait_polling_delay,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
     )
     if cache_info.file_format == "parquet":
         return _fetch_parquet_result(
@@ -320,7 +320,7 @@ def _resolve_query_without_cache_unload(
     kms_key: Optional[str],
     workgroup: Optional[str],
     use_threads: Union[bool, int],
-    query_wait_polling_delay: float,
+    athena_query_wait_polling_delay: float,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -338,7 +338,7 @@ def _resolve_query_without_cache_unload(
         kms_key=kms_key,
         boto3_session=boto3_session,
         data_source=data_source,
-        query_wait_polling_delay=query_wait_polling_delay,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
     )
     if file_format == "PARQUET":
         return _fetch_parquet_result(
@@ -366,7 +366,7 @@ def _resolve_query_without_cache_regular(
     workgroup: Optional[str],
     kms_key: Optional[str],
     use_threads: Union[bool, int],
-    query_wait_polling_delay: float,
+    athena_query_wait_polling_delay: float,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -391,7 +391,7 @@ def _resolve_query_without_cache_regular(
         boto3_session=boto3_session,
         categories=categories,
         metadata_cache_manager=_cache_manager,
-        query_wait_polling_delay=query_wait_polling_delay,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
     )
     return _fetch_csv_result(
         query_metadata=query_metadata,
@@ -422,7 +422,7 @@ def _resolve_query_without_cache(
     ctas_temp_table_name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
     ctas_write_compression: Optional[str],
-    query_wait_polling_delay: float,
+    athena_query_wait_polling_delay: float,
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
@@ -482,7 +482,7 @@ def _resolve_query_without_cache(
             kms_key=kms_key,
             workgroup=workgroup,
             use_threads=use_threads,
-            query_wait_polling_delay=query_wait_polling_delay,
+            athena_query_wait_polling_delay=athena_query_wait_polling_delay,
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
@@ -499,7 +499,7 @@ def _resolve_query_without_cache(
         workgroup=workgroup,
         kms_key=kms_key,
         use_threads=use_threads,
-        query_wait_polling_delay=query_wait_polling_delay,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     )
@@ -518,7 +518,7 @@ def _unload(
     kms_key: Optional[str],
     boto3_session: boto3.Session,
     data_source: Optional[str],
-    query_wait_polling_delay: float,
+    athena_query_wait_polling_delay: float,
 ) -> _QueryMetadata:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output: str = _get_s3_output(s3_output=path, wg_config=wg_config, boto3_session=boto3_session)
@@ -563,7 +563,7 @@ def _unload(
             query_execution_id=query_id,
             boto3_session=boto3_session,
             metadata_cache_manager=_cache_manager,
-            query_wait_polling_delay=query_wait_polling_delay,
+            athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         )
     except exceptions.QueryFailed as ex:
         msg = str(ex)
@@ -593,7 +593,7 @@ def get_query_results(
     chunksize: Optional[Union[int, bool]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Get AWS Athena SQL query results as a Pandas DataFrame.
 
@@ -644,7 +644,7 @@ def get_query_results(
         boto3_session=boto3_session,
         categories=categories,
         metadata_cache_manager=_cache_manager,
-        query_wait_polling_delay=query_wait_polling_delay,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
     )
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
     query_info: Dict[str, Any] = client_athena.get_query_execution(QueryExecutionId=query_execution_id)[
@@ -701,7 +701,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     max_remote_cache_entries: int = 50,
     max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
-    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     params: Optional[Dict[str, Any]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -965,7 +965,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
                 chunksize=chunksize,
                 use_threads=use_threads,
                 session=boto3_session,
-                query_wait_polling_delay=query_wait_polling_delay,
+                athena_query_wait_polling_delay=athena_query_wait_polling_delay,
                 s3_additional_kwargs=s3_additional_kwargs,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
@@ -990,7 +990,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         ctas_temp_table_name=ctas_temp_table_name,
         ctas_bucketing_info=ctas_bucketing_info,
         ctas_write_compression=ctas_write_compression,
-        query_wait_polling_delay=query_wait_polling_delay,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
@@ -1261,7 +1261,7 @@ def unload(
     boto3_session: Optional[boto3.Session] = None,
     data_source: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
-    query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> _QueryMetadata:
     """Write query results from a SELECT statement to the specified data format using UNLOAD.
 
@@ -1332,7 +1332,7 @@ def unload(
         database=database,
         encryption=encryption,
         kms_key=kms_key,
-        query_wait_polling_delay=query_wait_polling_delay,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         boto3_session=boto3_session,
         data_source=data_source,
     )
