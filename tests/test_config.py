@@ -136,6 +136,18 @@ def test_athena_cache_configuration():
     assert wr.config.max_remote_cache_entries == 20
 
 
+def test_wait_time_configuration() -> None:
+    os.environ["WR_ATHENA_QUERY_WAIT_POLLING_DELAY"] = "0.1"
+    os.environ["WR_LAKEFORMATION_QUERY_WAIT_POLLING_DELAY"] = "0.15"
+    os.environ["WR_CLOUDWATCH_QUERY_WAIT_POLLING_DELAY"] = "0.05"
+
+    wr.config.reset()
+
+    assert wr.config.athena_query_wait_polling_delay == 0.1
+    assert wr.config.lakeformation_query_wait_polling_delay == 0.15
+    assert wr.config.cloudwatch_query_wait_polling_delay == 0.05
+
+
 def test_botocore_config(path):
     original = botocore.client.ClientCreator.create_client
 
