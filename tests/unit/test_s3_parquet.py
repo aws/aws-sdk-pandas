@@ -179,6 +179,7 @@ def test_parquet_bulk_read(path):
     assert len(df2.columns) == 2
 
 
+@pytest.mark.xfail(raises=AssertionError, reason="Validate schema is neccessary to merge schemas in distributed mode")
 def test_parquet_validate_schema(path):
     df = pd.DataFrame({"id": [1, 2, 3]})
     path_file = f"{path}0.parquet"
