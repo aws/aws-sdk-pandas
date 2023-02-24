@@ -564,6 +564,11 @@ def read_parquet(
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
         Parallelism may be limited by the number of files of the dataset. -1 (autodetect) by default.
+    bulk_read_parquet: bool, default False
+        True to enable a faster reading of a large number of Parquet files.
+        Offers improved performance due to not gathering the file metadata in a single node.
+        The drawback is that it does not offer schema resolution, so it should only be used when the
+        Parquet files are all uniform.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
     s3_additional_kwargs : Optional[Dict[str, Any]]
@@ -870,6 +875,12 @@ def read_parquet_table(
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
         Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
+    bulk_read_parquet: bool, default False
+        True to enable a faster reading of a large number of Parquet files.
+        Offers improved performance due to not gathering the file metadata in a single node.
+        The drawback is that it does not offer schema resolution, so it should only be used when the
+        Parquet files are all uniform.
+        Only used when `distributed` add-on is installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
     s3_additional_kwargs : Optional[Dict[str, Any]]
