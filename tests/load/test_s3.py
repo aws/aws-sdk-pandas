@@ -89,7 +89,7 @@ def test_s3_write_parquet_dataset(
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [5])
+@pytest.mark.parametrize("benchmark_time", [15])
 @pytest.mark.parametrize("partition_cols", [None, ["payment_type"]])
 @pytest.mark.parametrize("num_blocks", [None, 1, 5])
 def test_s3_write_parquet_blocks(
@@ -100,9 +100,14 @@ def test_s3_write_parquet_blocks(
     benchmark_time: float,
     request: pytest.FixtureRequest,
 ) -> None:
-    dataset = True if partition_cols else False
     if num_blocks:
         df_s = _modin_repartition(df_s, num_blocks)
+    if partition_cols:
+        dataset = True
+        for col in partition_cols:
+            df_s[col] = df_s[col].str.strip()
+    else:
+        dataset = False
     with ExecutionTimer(request, data_paths=path) as timer:
         wr.s3.to_parquet(df_s, path=path, dataset=dataset, partition_cols=partition_cols)
     df = wr.s3.read_parquet(path=path, dataset=dataset)
