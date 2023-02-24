@@ -13,11 +13,11 @@ from awswrangler import exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_ConfigValueType = Union[str, bool, int, botocore.config.Config, None]
+_ConfigValueType = Union[str, bool, int, float, botocore.config.Config, None]
 
 
 class _ConfigArg(NamedTuple):
-    dtype: Type[Union[str, bool, int, botocore.config.Config]]
+    dtype: Type[Union[str, bool, int, float, botocore.config.Config]]
     nullable: bool
     enforced: bool = False
 
@@ -32,6 +32,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
     "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False),
     "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False),
+    "query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
@@ -273,6 +274,14 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @max_remote_cache_entries.setter
     def max_remote_cache_entries(self, value: int) -> None:
         self._set_config_value(key="max_remote_cache_entries", value=value)
+
+    @property
+    def query_wait_polling_delay(self) -> float:
+        return cast(float, self["query_wait_polling_delay"])
+    
+    @query_wait_polling_delay.setter
+    def query_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="query_wait_polling_delay", value=value)
 
     @property
     def s3_block_size(self) -> int:
