@@ -68,199 +68,173 @@ We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikiped
 
 ## Environments
 
-We have hundreds of test functions that runs against several AWS Services. You don't need to test everything to open a Pull Request.
-You can choose from three different environments to test your fixes/changes, based on what makes sense for your case.
+There are hundreds of tests that run against several AWS Services. You don't need to test everything to open a Pull Request.
+You can choose from three environments to test your fixes/changes, based on what makes sense for your use case.
+
+Start at [Step by step](#step-by-step), and then choose from one of these environments:
 
 * [Mocked test environment](#mocked-test-environment)
   * Based on [moto](https://github.com/spulec/moto).
   * Does not require real AWS resources
   * Fastest approach
-  * Basically Limited only for Amazon S3 tests
+  * Limited to a few services (S3 tests)
 
-* [Data Lake test environment](#data-lake-test-environment)
-  * Requires some AWS services.
+* [Basic test environment](#basic-test-environment)
+  * Requires some AWS services
   * Amazon S3, Amazon Athena, AWS Glue Catalog, AWS KMS
-  * Enable real tests on typical Data Lake cases
+  * A cost is incurred
 
 * [Full test environment](#full-test-environment)
-  * Requires a bunch of real AWS services.
+  * Requires access to numerous AWS services
   * Amazon S3, Amazon Athena, AWS Glue Catalog, AWS KMS, Amazon Redshift, Aurora PostgreSQL, Aurora MySQL, Amazon Quicksight, etc
-  * Enable real tests on all use cases.
+  * Full test coverage
+  * A cost is incurred
 
-## Step-by-step
+## Step by step
 
-### Mocked test environment
+These instructions are for Linux and Mac machines, some steps might not work for Windows.
 
-* Pick up a Linux or MacOS.
-* Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
-* Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
+Fork the AWS SDK for pandas repository and clone it into your development environment.
 
-`python3 -m venv .venv && source .venv/bin/activate`
+[poetry](https://python-poetry.org/) is the Python dependency management system used for development. To install it use:
 
-or
+``curl -sSL https://install.python-poetry.org | python3 -``
 
-`python -m venv .venv && source .venv/bin/activate`
-
-* Install dependencies:
-
-``poetry install --extras "sqlserver oracle sparql deltalake"``
-
-* Run the validation script:
-
-``./validate.sh``
-
-* To run a specific test function:
-
-``pytest tests/test_moto.py::test_get_bucket_region_succeed``
-
-* To run all mocked test functions (Using 8 parallel processes):
-
-``pytest -n 8 tests/test_moto.py``
-
-### Data Lake test environment
-
-**DISCLAIMER**: Make sure you know what you are doing. These steps will charge some services on your AWS account and require a minimum security skill to keep your environment safe.
-
-* Pick up a Linux or MacOS.
-* Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
-* Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python3 -m venv .venv && source .venv/bin/activate`
-
-or
-
-`python -m venv .venv && source .venv/bin/activate`
-
-* Install dependencies:
-
-``poetry install --extras "sqlserver oracle sparql deltalake"``
-
-* Go to the ``test_infra`` directory
-
-``cd test_infra``
-
-* Install CDK dependencies:
+You can then install required and dev dependencies with:
 
 ``poetry install``
 
-* [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Data Lake Test environment will deploy into. You may want to choose a region which you don't currently use:
+If you are testing an optional dependency (e.g. `sparql`), you can add it with:
 
-``export AWS_DEFAULT_REGION=ap-northeast-1``
+``poetry install --extras "sparql" -vvv``
 
-* Go to the ``scripts`` directory
+To install all extra dependencies (only recommended for advanced usage):
 
-``cd scripts``
+``poetry install --all-extras``
 
-* Deploy the `base` CDK stack
+Poetry creates a virtual environment for you. To activate it, use:
 
-``./deploy-stack.sh base``
+``source "$(poetry env info --path )/bin/activate"`` 
 
-* Return to the project root directory
-
-``cd ../../``
-
-* Run the validation script:
+A `validate.sh` script is used for linting and typing (black, mypy...):
 
 ``./validate.sh``
 
-* To run a specific test function:
+### Mocked test environment
+
+Some unit tests can be mocked locally, i.e. no AWS account is required:
+
+To run a specific test:
+
+``pytest tests/test_moto.py::test_get_bucket_region_succeed``
+
+To run all mocked tests (Using 8 parallel processes):
+
+``pytest -n 8 tests/test_moto.py``
+
+### Basic test environment
+
+**DISCLAIMER**: You will incur a cost for some of the services used in your AWS account. A basic understanding of AWS security principles is highly recommended.
+
+*OPTIONAL*: Set the `AWS_DEFAULT_REGION` environment variable to define the AWS region where the infrastructure is deployed:
+
+``export AWS_DEFAULT_REGION=ap-northeast-1``
+
+Infrastructure is deployed with the AWS CDK. Follow this [guide](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html) to install it if it's missing.
+
+Navigate to the ``test_infra`` directory and install CDK dependencies
+
+```
+cd test_infra
+poetry install
+```
+
+Then deploy the `base` CDK stack (i.e. minimum required infrastructure)
+
+``./scripts/deploy-stack.sh base``
+
+Return to the project root directory
+
+``cd ../``
+
+To run a specific test:
 
 ``pytest tests/test_athena_parquet.py::test_parquet_catalog``
 
-* To run all data lake test functions (Using 8 parallel processes):
+To run all athena tests (Using 8 parallel processes):
 
 ``pytest -n 8 tests/test_athena*``
 
-* [OPTIONAL] To remove the base test environment cloud formation stack post testing:
+*OPTIONAL*: To remove the base test environment CloudFormation stack, use:
 
 ``./test_infra/scripts/delete-stack.sh base``
 
 ### Full test environment
 
-**DISCLAIMER**: Make sure you know what you are doing. These steps will charge some services on your AWS account and require a minimum security skill to keep your environment safe.
+**DISCLAIMER**: You will incur a cost for some of the services used in your AWS account. A basic understanding of AWS security principles is highly recommended.
 
-**DISCLAIMER**: This environment contains Aurora MySQL, Aurora PostgreSQL and Redshift (single-node) clusters which will incur cost while running.
+**DISCLAIMER**: This environment provisions Aurora MySQL, Aurora PostgreSQL, Redshift (single-node) clusters which may incur a significant cost while running.
 
-* Pick up a Linux or MacOS.
-* Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
-* Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python -m venv .venv && source .venv/bin/activate`
-
-* Then run the command bellow to install all dependencies:
-
-``poetry install --extras "sqlserver oracle sparql deltalake"``
-
-* Go to the ``test_infra`` directory
-
-``cd test_infra``
-
-* Install CDK dependencies:
-
-``poetry install``
-
-* [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Full Test environment will deploy into. You may want to choose a region which you don't currently use:
+*OPTIONAL*: Set the `AWS_DEFAULT_REGION` environment variable to define the AWS region where the infrastructure is deployed:
 
 ``export AWS_DEFAULT_REGION=ap-northeast-1``
 
-* Go to the ``scripts`` directory
+Infrastructure is deployed with the AWS CDK. Follow this [guide](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html) to install it if it's missing.
 
-``cd scripts``
+Navigate to the ``test_infra`` directory and install CDK dependencies
 
-* Deploy the `base` and `databases` CDK stacks. This step could take about 15 minutes to deploy.
+```
+cd test_infra
+poetry install
+```
 
-``./deploy-stack.sh base``
-``./deploy-stack.sh databases``
+Deploy the `base` and `databases` CDK stacks. This step could take 15 minutes to complete.
 
-* [OPTIONAL] Deploy the `lakeformation` CDK stack (if you need to test against the AWS Lake Formation Service). You must ensure Lake Formation is enabled in the account.
+```
+./scripts/deploy-stack.sh base
+./scripts/deploy-stack.sh databases
+```
 
-``./deploy-stack.sh lakeformation``
+*OPTIONAL*: Deploy the `lakeformation` CDK stack (if you need to test against the AWS Lake Formation Service). You must ensure Lake Formation is enabled in the account.
 
-* [OPTIONAL] Deploy the `opensearch` CDK stack (if you need to test against the Amazon OpenSearch Service). This step could take about 15 minutes to deploy.
+``./scripts/deploy-stack.sh lakeformation``
 
-``./deploy-stack.sh opensearch``
+*OPTIONAL*: Deploy the `opensearch` CDK stack (if you need to test against the Amazon OpenSearch Service). This step could take 15 minutes to complete.
 
-* Go to the `EC2 -> SecurityGroups` console, open the `aws-sdk-pandas-*` security group and configure to accept your IP from any TCP port.
+``./scripts/deploy-stack.sh opensearch``
+
+Go to the `EC2 -> SecurityGroups` console, open the `aws-sdk-pandas-*` security group and configure it to accept your IP from any TCP port.
   - Alternatively run:
   
-  ``./security-group-databases-add-local-ip.sh``
+  ``./scripts/security-group-databases-add-local-ip.sh``
   
   - Check local IP was applied:
   
-  ``./security-group-databases-check.sh``
+  ``./scripts/security-group-databases-check.sh``
 
-``P.S Make sure that your security group will not be open to the World! Configure your security group to only give access for your IP.``
+**P.S Make sure that your security group will not be open to the World! Configure your security group to only give access to your IP.**
 
-* Return to the project root directory
+Return to the project root directory
 
-``cd ../../``
+``cd ../``
 
-* [OPTIONAL] If you intend to run all test, you also need to make sure that you have Amazon QuickSight activated and your AWS user must be register on that.
+*OPTIONAL*: If you intend to run all tests, you must also ensure that Amazon QuickSight is activated and your AWS user/role is registered.
 
-* Run the validation script:
-
-``./validate.sh``
-
-* To run a specific test function:
+To run a specific test:
 
 ``pytest tests/test_mysql.py::test_read_sql_query_simple``
 
-* To run all database test functions for MySQL (Using 8 parallel processes):
+To run all database MySQL tests (Using 8 parallel processes):
 
 ``pytest -n 8 tests/test_mysql.py``
 
-* To run all data lake test functions for all python versions (Only if Amazon QuickSight is activated and Amazon OpenSearch template is deployed):
+To run all tests for all python versions (assuming Amazon QuickSight/Lake Formation are activated and the optional stacks deployed):
 
 ``./test.sh``
 
-* [OPTIONAL] To remove the base test environment cloud formation stack post testing:
+*OPTIONAL*: To destroy stacks use:
 
-``./test_infra/scripts/delete-stack.sh base``
-
-``./test_infra/scripts/delete-stack.sh databases``
+``./test_infra/scripts/delete-stack.sh <name>``
 
 ## Recommended Visual Studio Code Recommended setting
 
@@ -279,7 +253,7 @@ or
 Check the file below to check the common errors and solutions
 [ERRORS](https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING_COMMON_ERRORS.md)
 
-## Bumping version
+## Bumping the version
 When there is a new release you can use `bump2version` for updating the version number in relevant files.
 You can run `bump2version major|minor|patch` in the top directory and the following steps will be executed:
 - The version number in all files which are listed in `.bumpversion.cfg` is updated
