@@ -632,6 +632,9 @@ def get_query_results(
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def get_query_results(
     query_execution_id: str,
     use_threads: Union[bool, int] = True,
@@ -850,6 +853,9 @@ def read_sql_query(
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
 def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     sql: str,
     database: str,
@@ -1286,6 +1292,9 @@ def read_sql_table(
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
 def read_sql_table(
     table: str,
     database: str,

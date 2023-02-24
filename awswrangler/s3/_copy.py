@@ -44,6 +44,9 @@ def _copy_objects(
         )
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def merge_datasets(
     source_path: str,
     target_path: str,

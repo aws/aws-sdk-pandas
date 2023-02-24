@@ -1190,6 +1190,9 @@ def unload_to_files(
         cursor.execute(sql)
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def unload(
     sql: str,
@@ -1575,6 +1578,9 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         con.autocommit = autocommit_temp
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def copy(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,

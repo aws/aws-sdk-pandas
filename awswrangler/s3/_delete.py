@@ -62,6 +62,9 @@ def _delete_objects(
             raise exceptions.ServiceApiError(errors)
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def delete_objects(
     path: Union[str, List[str]],
     use_threads: Union[bool, int] = True,

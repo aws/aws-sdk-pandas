@@ -402,6 +402,9 @@ def read_items(
     ...
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def read_items(  # pylint: disable=too-many-branches
     table_name: str,
     index_name: Optional[str] = None,
