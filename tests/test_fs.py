@@ -218,7 +218,8 @@ def test_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
         assert s3obj.read() == "foo"
     desc = wr.s3.describe_objects([path])[path]
     if s3_additional_kwargs is None:
-        assert desc.get("ServerSideEncryption") is None
+        # S3 default encryption
+        assert desc.get("ServerSideEncryption") == "AES256"
     elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
         assert desc.get("ServerSideEncryption") == "aws:kms"
     elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
