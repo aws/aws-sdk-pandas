@@ -12,7 +12,7 @@ import pyarrow as pa
 import pyarrow.lib
 import pyarrow.parquet
 
-from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
+from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation, typing
 from awswrangler._arrow import _df_to_table
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
@@ -249,7 +249,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     table: Optional[str] = None,
     glue_table_settings: Optional[GlueTableSettings] = None,
     dtype: Optional[Dict[str, str]] = None,
-    projection_params: Optional[Dict[str, Any]] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     catalog_id: Optional[str] = None,
 ) -> _S3WriteDataReturnValue:
     """Write Parquet file or dataset on Amazon S3.
@@ -345,8 +345,11 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
         Following projection parameters are supported:
 
         .. list-table:: Projection Parameters
@@ -454,6 +457,44 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         'partitions_values: {
             's3://.../col2=A/': ['A'],
             's3://.../col2=B/': ['B']
+        }
+    }
+
+    Writing partitioned dataset with partition projection
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> from datetime import datetime
+    >>> dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()
+    >>> wr.s3.to_parquet(
+    ...     df=pd.DataFrame({
+    ...         "id": [1, 2, 3],
+    ...         "value": [1000, 1001, 1002],
+    ...         "category": ['A', 'B', 'C'],
+    ...     }),
+    ...     path='s3://bucket/prefix',
+    ...     dataset=True,
+    ...     partition_cols=['value', 'category'],
+    ...     athena_partition_projection_settings={
+    ...        "projection_types": {
+    ...             "value": "integer",
+    ...             "category": "enum",
+    ...         },
+    ...         "projection_ranges": {
+    ...             "value": "1000,2000",
+    ...             "category": "A,B,C",
+    ...         },
+    ...     },
+    ... )
+    {
+        'paths': [
+            's3://.../value=1000/category=A/x.snappy.parquet', ...
+        ],
+        'partitions_values': {
+            's3://.../value=1000/category=A/': [
+                '1000',
+                'A',
+            ], ...
         }
     }
 
@@ -687,7 +728,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 "mode": mode,
                 "transaction_id": transaction_id,
                 "catalog_versioning": catalog_versioning,
-                "projection_params": projection_params,
+                "athena_partition_projection_settings": athena_partition_projection_settings,
                 "catalog_id": catalog_id,
                 "catalog_table_input": catalog_table_input,
             }
@@ -784,7 +825,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
     mode: str = "overwrite",
     catalog_versioning: bool = False,
     regular_partitions: bool = True,
-    projection_params: Optional[Dict[str, Any]] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
@@ -858,8 +899,11 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
         Disable when you will work only with Partition Projection.
         Keep enabled even when working with projections is useful to keep
         Redshift Spectrum working with the regular partitions.
-    projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
         Following projection parameters are supported:
 
         .. list-table:: Projection Parameters
@@ -966,7 +1010,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
         mode=mode,
         compression=compression,
         catalog_versioning=catalog_versioning,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         boto3_session=boto3_session,
         catalog_id=catalog_id,
     )

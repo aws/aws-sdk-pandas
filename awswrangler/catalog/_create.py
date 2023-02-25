@@ -41,7 +41,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
     partitions_types: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
     transaction_id: Optional[str],
-    projection_params: Optional[Dict[str, Any]],
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
     catalog_id: Optional[str],
 ) -> None:
     # Description
@@ -56,8 +56,8 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         mode = _update_if_necessary(dic=table_input["Parameters"], key=k, value=v, mode=mode)
 
     # Projection
-    projection_params = projection_params if projection_params else {}
-    if projection_params:
+    projection_params = athena_partition_projection_settings if athena_partition_projection_settings else {}
+    if athena_partition_projection_settings:
         table_input["Parameters"]["projection.enabled"] = "true"
         partitions_types = partitions_types if partitions_types else {}
         projection_types = projection_params.get("projection_types", {})
@@ -266,7 +266,7 @@ def _create_parquet_table(
     mode: str,
     catalog_versioning: bool,
     transaction_id: Optional[str],
-    projection_params: Optional[Dict[str, Any]],
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
     boto3_session: Optional[boto3.Session],
     catalog_table_input: Optional[Dict[str, Any]],
 ) -> None:
@@ -312,7 +312,7 @@ def _create_parquet_table(
         table_exist=table_exist,
         partitions_types=partitions_types,
         transaction_id=transaction_id,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
     )
 
@@ -338,7 +338,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
     boto3_session: Optional[boto3.Session],
-    projection_params: Optional[Dict[str, Any]],
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
     catalog_table_input: Optional[Dict[str, Any]],
     catalog_id: Optional[str],
 ) -> None:
@@ -380,7 +380,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         table_exist=table_exist,
         partitions_types=partitions_types,
         transaction_id=transaction_id,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
     )
 
@@ -404,7 +404,7 @@ def _create_json_table(  # pylint: disable=too-many-arguments
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
     boto3_session: Optional[boto3.Session],
-    projection_params: Optional[Dict[str, Any]],
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
     catalog_table_input: Optional[Dict[str, Any]],
     catalog_id: Optional[str],
 ) -> None:
@@ -444,7 +444,7 @@ def _create_json_table(  # pylint: disable=too-many-arguments
         table_type=table_type,
         table_exist=table_exist,
         partitions_types=partitions_types,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
     )
 
@@ -646,7 +646,7 @@ def create_parquet_table(
     mode: str = "overwrite",
     catalog_versioning: bool = False,
     transaction_id: Optional[str] = None,
-    projection_params: Optional[Dict[str, Any]] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Create a Parquet Table (Metadata Only) in the AWS Glue Catalog.
@@ -688,8 +688,11 @@ def create_parquet_table(
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
-    projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
         Following projection parameters are supported:
 
         .. list-table:: Projection Parameters
@@ -782,7 +785,7 @@ def create_parquet_table(
         mode=mode,
         catalog_versioning=catalog_versioning,
         transaction_id=transaction_id,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
     )
@@ -810,7 +813,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     serde_parameters: Optional[Dict[str, str]] = None,
     transaction_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-    projection_params: Optional[Dict[str, Any]] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
     r"""Create a CSV Table (Metadata Only) in the AWS Glue Catalog.
@@ -870,8 +873,11 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
-    projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
         Following projection parameters are supported:
 
         .. list-table:: Projection Parameters
@@ -968,7 +974,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         catalog_versioning=catalog_versioning,
         transaction_id=transaction_id,
         schema_evolution=schema_evolution,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
         sep=sep,
@@ -998,7 +1004,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
     serde_parameters: Optional[Dict[str, str]] = None,
     transaction_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-    projection_params: Optional[Dict[str, Any]] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
     r"""Create a JSON Table (Metadata Only) in the AWS Glue Catalog.
@@ -1049,8 +1055,11 @@ def create_json_table(  # pylint: disable=too-many-arguments
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
-    projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
         Following projection parameters are supported:
 
         .. list-table:: Projection Parameters
@@ -1142,7 +1151,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
         catalog_versioning=catalog_versioning,
         transaction_id=transaction_id,
         schema_evolution=schema_evolution,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
         serde_library=serde_library,

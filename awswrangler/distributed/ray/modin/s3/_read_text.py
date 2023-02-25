@@ -84,11 +84,11 @@ def _parse_json_configuration(
 
 def _parse_configuration(
     file_format: str,
-    version_ids: Dict[str, Optional[str]],
+    version_ids: Optional[Dict[str, str]],
     s3_additional_kwargs: Optional[Dict[str, str]],
     pandas_kwargs: Dict[str, Any],
 ) -> Union[CSVReadConfiguration, JSONReadConfiguration]:
-    if {key: value for key, value in version_ids.items() if value is not None}:
+    if version_ids:
         raise exceptions.InvalidArgument("Specific version ID found for object")
 
     if s3_additional_kwargs:
@@ -121,7 +121,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
     dataset: bool,
     ignore_index: bool,
     parallelism: int,
-    version_id_dict: Dict[str, Optional[str]],
+    version_ids: Optional[Dict[str, str]],
     pandas_kwargs: Dict[str, Any],
     use_threads: Union[bool, int],
     s3_client: Optional["S3Client"],
@@ -129,7 +129,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
     try:
         configuration: Dict[str, Any] = _parse_configuration(  # type: ignore[assignment]
             read_format,
-            version_id_dict,
+            version_ids,
             s3_additional_kwargs,
             pandas_kwargs,
         )
@@ -149,7 +149,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
         paths=paths,
         path_root=path_root,
         dataset=dataset,
-        version_ids=version_id_dict,
+        version_ids=version_ids,
         s3_additional_kwargs=s3_additional_kwargs,
         pandas_kwargs=pandas_kwargs,
         meta_provider=FastFileMetadataProvider(),

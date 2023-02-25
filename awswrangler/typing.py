@@ -112,6 +112,59 @@ class AthenaCacheSettings(TypedDict):
     """
 
 
+class AthenaPartitionProjectionSettings(TypedDict):
+    """
+    Typed dictionary defining the settings for Athena Partition Projection.
+
+    https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html
+    """
+
+    projection_types: NotRequired[Dict[str, str]]
+    """
+    Dictionary of partitions names and Athena projections types.
+    Valid types: "enum", "integer", "date", "injected"
+    https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+    (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+    """
+    projection_ranges: NotRequired[Dict[str, str]]
+    """
+    Dictionary of partitions names and Athena projections ranges.
+    https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+    (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+    """
+    projection_values: NotRequired[Dict[str, str]]
+    """
+    Dictionary of partitions names and Athena projections values.
+    https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+    (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+    """
+    projection_intervals: NotRequired[Dict[str, str]]
+    """
+    Dictionary of partitions names and Athena projections intervals.
+    https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+    (e.g. {'col_name': '1', 'col2_name': '5'})
+    """
+    projection_digits: NotRequired[Dict[str, str]]
+    """
+    Dictionary of partitions names and Athena projections digits.
+    https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+    (e.g. {'col_name': '1', 'col2_name': '2'})
+    """
+    projection_formats: NotRequired[Dict[str, str]]
+    """
+    Dictionary of partitions names and Athena projections formats.
+    https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+    (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
+    """
+    projection_storage_location_template: NotRequired[str]
+    """
+    Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+    a typical `.../column=value/...` pattern.
+    https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+    (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
+    """
+
+
 class _S3WriteDataReturnValue(TypedDict):
     """Typed dictionary defining the dictionary returned by S3 write functions."""
 
