@@ -330,7 +330,7 @@ def _read_parquet(  # pylint: disable=W0613
     s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
-    bulk_read_parquet: bool,
+    bulk_read: bool,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
@@ -365,7 +365,7 @@ def read_parquet(
     chunked: Literal[False] = ...,
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
-    bulk_read_parquet: bool = ...,
+    bulk_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -392,7 +392,7 @@ def read_parquet(
     chunked: Literal[True],
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
-    bulk_read_parquet: bool = ...,
+    bulk_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -419,7 +419,7 @@ def read_parquet(
     chunked: bool,
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
-    bulk_read_parquet: bool = ...,
+    bulk_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -446,7 +446,7 @@ def read_parquet(
     chunked: int,
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
-    bulk_read_parquet: bool = ...,
+    bulk_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -471,7 +471,7 @@ def read_parquet(
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     parallelism: int = -1,
-    bulk_read_parquet: bool = False,
+    bulk_read: bool = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -563,7 +563,7 @@ def read_parquet(
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
         Parallelism may be limited by the number of files of the dataset. -1 (autodetect) by default.
-    bulk_read_parquet: bool, default False
+    bulk_read: bool, default False
         True to enable a faster reading of a large number of Parquet files.
         Offers improved performance due to not gathering the file metadata in a single node.
         The drawback is that it does not offer schema resolution, so it should only be used when the
@@ -618,7 +618,7 @@ def read_parquet(
     >>> df = wr.s3.read_parquet(path, dataset=True, partition_filter=my_filter)
 
     """
-    if bulk_read_parquet and validate_schema:
+    if bulk_read and validate_schema:
         exceptions.InvalidArgumentCombination("Cannot validate schema when bulk reading data files.")
 
     s3_client = _utils.client(service_name="s3", session=boto3_session)
@@ -644,7 +644,7 @@ def read_parquet(
 
     # Create PyArrow schema based on file metadata, columns filter, and partitions
     schema: Optional[pa.schema] = None
-    if validate_schema and not bulk_read_parquet:
+    if validate_schema and not bulk_read:
         schema = _validate_schemas_from_files(
             validate_schema=validate_schema,
             paths=paths,
@@ -694,7 +694,7 @@ def read_parquet(
         s3_additional_kwargs=s3_additional_kwargs,
         arrow_kwargs=arrow_kwargs,
         version_ids=version_ids,
-        bulk_read_parquet=bulk_read_parquet,
+        bulk_read=bulk_read,
     )
 
 
@@ -713,7 +713,7 @@ def read_parquet_table(
     chunked: Literal[False] = ...,
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
-    bulk_read_parquet: bool = ...,
+    bulk_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -736,7 +736,7 @@ def read_parquet_table(
     chunked: Literal[True],
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
-    bulk_read_parquet: bool = ...,
+    bulk_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -759,7 +759,7 @@ def read_parquet_table(
     chunked: bool,
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
-    bulk_read_parquet: bool = ...,
+    bulk_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -782,7 +782,7 @@ def read_parquet_table(
     chunked: int,
     use_threads: Union[bool, int] = ...,
     parallelism: int = ...,
-    bulk_read_parquet: bool = ...,
+    bulk_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -804,7 +804,7 @@ def read_parquet_table(
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     parallelism: int = -1,
-    bulk_read_parquet: bool = False,
+    bulk_read: bool = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -872,7 +872,7 @@ def read_parquet_table(
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
         Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
-    bulk_read_parquet: bool, default False
+    bulk_read: bool, default False
         True to enable a faster reading of a large number of Parquet files.
         Offers improved performance due to not gathering the file metadata in a single node.
         The drawback is that it does not offer schema resolution, so it should only be used when the
@@ -957,7 +957,7 @@ def read_parquet_table(
         columns=columns,
         validate_schema=validate_schema,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-        bulk_read_parquet=bulk_read_parquet,
+        bulk_read=bulk_read,
         chunked=chunked,
         use_threads=use_threads,
         parallelism=parallelism,

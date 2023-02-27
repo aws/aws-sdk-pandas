@@ -39,7 +39,7 @@ def test_s3_select(benchmark_time: float, request: pytest.FixtureRequest) -> Non
 
 @pytest.mark.parametrize("benchmark_time", [40])
 @pytest.mark.parametrize(
-    "bulk_read_parquet,validate_schema",
+    "bulk_read,validate_schema",
     [
         pytest.param(False, False, id="regular"),
         pytest.param(True, False, id="bulk_read"),
@@ -48,20 +48,20 @@ def test_s3_select(benchmark_time: float, request: pytest.FixtureRequest) -> Non
 )
 def test_s3_read_parquet_simple(
     benchmark_time: float,
-    bulk_read_parquet: bool,
+    bulk_read: bool,
     validate_schema: bool,
     request: pytest.FixtureRequest,
 ) -> None:
     path = "s3://ursa-labs-taxi-data/2018/"
     with ExecutionTimer(request, data_paths=path) as timer:
-        wr.s3.read_parquet(path=path, bulk_read_parquet=bulk_read_parquet, validate_schema=validate_schema)
+        wr.s3.read_parquet(path=path, bulk_read=bulk_read, validate_schema=validate_schema)
 
     assert timer.elapsed_time < benchmark_time
 
 
 @pytest.mark.parametrize("benchmark_time", [180])
 @pytest.mark.parametrize(
-    "bulk_read_parquet,validate_schema",
+    "bulk_read,validate_schema",
     [
         pytest.param(False, False, id="regular"),
         pytest.param(True, False, id="bulk_read"),
@@ -70,7 +70,7 @@ def test_s3_read_parquet_simple(
 )
 def test_s3_read_parquet_many_files(
     benchmark_time: float,
-    bulk_read_parquet: bool,
+    bulk_read: bool,
     validate_schema: bool,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -78,7 +78,7 @@ def test_s3_read_parquet_many_files(
     with ExecutionTimer(request, data_paths=path) as timer:
         frame = wr.s3.read_parquet(
             path=path,
-            bulk_read_parquet=bulk_read_parquet,
+            bulk_read=bulk_read,
             validate_schema=validate_schema,
         )
 
