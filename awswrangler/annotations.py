@@ -4,7 +4,7 @@ import warnings
 from functools import wraps
 from typing import Any, Callable, Optional, Type, TypeVar, cast
 
-from awswrangler._config import _insert_str
+from awswrangler._config import _insert_str, config
 
 FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
@@ -37,7 +37,8 @@ def warn_message(
     def decorator(func: FunctionType) -> FunctionType:
         @wraps(func)
         def inner(*args: Any, **kwargs: Any) -> Any:
-            warnings.warn(f"`{func.__name__}`: {message}", warning_class, stacklevel=stacklevel)
+            if not config.suppress_warnings:
+                warnings.warn(f"`{func.__name__}`: {message}", warning_class, stacklevel=stacklevel)
 
             return func(*args, **kwargs)
 
