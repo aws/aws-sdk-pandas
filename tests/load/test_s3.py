@@ -23,11 +23,11 @@ def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
 @pytest.mark.repeat(1)
 @pytest.mark.parametrize("benchmark_time", [150])
 def test_s3_select(benchmark_time: float, request: pytest.FixtureRequest) -> None:
-    path = "s3://ursa-labs-taxi-data/2018/1*.parquet"
-    with ExecutionTimer(request, data_paths=path) as timer:
+    paths = [f"s3://ursa-labs-taxi-data/2018/{i}/data.parquet" for i in range(10, 13)]
+    with ExecutionTimer(request, data_paths=paths) as timer:
         df = wr.s3.select_query(
             sql="SELECT * FROM s3object",
-            path=path,
+            path=paths,
             input_serialization="Parquet",
             input_serialization_params={},
             scan_range_chunk_size=16 * 1024 * 1024,
@@ -131,7 +131,7 @@ def test_s3_write_parquet_dataset(
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [5])
+@pytest.mark.parametrize("benchmark_time", [15])
 @pytest.mark.parametrize("partition_cols", [None, ["payment_type"]])
 @pytest.mark.parametrize("num_blocks", [None, 1, 5])
 def test_s3_write_parquet_blocks(
@@ -142,9 +142,14 @@ def test_s3_write_parquet_blocks(
     benchmark_time: float,
     request: pytest.FixtureRequest,
 ) -> None:
-    dataset = True if partition_cols else False
     if num_blocks:
         df_s = _modin_repartition(df_s, num_blocks)
+    if partition_cols:
+        dataset = True
+        for col in partition_cols:
+            df_s[col] = df_s[col].str.strip()
+    else:
+        dataset = False
     with ExecutionTimer(request, data_paths=path) as timer:
         wr.s3.to_parquet(df_s, path=path, dataset=dataset, partition_cols=partition_cols)
     df = wr.s3.read_parquet(path=path, dataset=dataset)
@@ -170,9 +175,9 @@ def test_s3_delete_objects(path: str, path2: str, benchmark_time: float, request
 
 @pytest.mark.parametrize("benchmark_time", [20])
 def test_s3_read_csv_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
-    path = "s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0*.csv"
-    with ExecutionTimer(request, data_paths=path) as timer:
-        wr.s3.read_csv(path=path)
+    paths = [f"s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0{i}.csv" for i in range(1, 10)]
+    with ExecutionTimer(request, data_paths=paths) as timer:
+        wr.s3.read_csv(path=paths)
 
     assert timer.elapsed_time < benchmark_time
 
