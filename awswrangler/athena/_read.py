@@ -268,6 +268,7 @@ def _resolve_query_without_cache_ctas(
     name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
     ctas_write_compression: Optional[str],
+    athena_query_wait_polling_delay: float,
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
@@ -286,6 +287,7 @@ def _resolve_query_without_cache_ctas(
         write_compression=ctas_write_compression,
         kms_key=kms_key,
         wait=True,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         boto3_session=boto3_session,
     )
     fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
@@ -454,6 +456,7 @@ def _resolve_query_without_cache(
                 name=name,
                 ctas_bucketing_info=ctas_bucketing_info,
                 ctas_write_compression=ctas_write_compression,
+                athena_query_wait_polling_delay=athena_query_wait_polling_delay,
                 use_threads=use_threads,
                 s3_additional_kwargs=s3_additional_kwargs,
                 boto3_session=boto3_session,
