@@ -34,7 +34,7 @@ numpy = [
     { version = ">=1.21.0 <=1.23.4", markers = "python_full_version >= '3.7.1' and python_full_version < '3.11.0'" },
     { version = "^1.23.5", markers = "python_full_version >= '3.11.0'" },
 ]
-pyarrow = ">=2.0.0,<10.1.0"
+pyarrow = ">=2.0.0,<11.1.0"
 redshift-connector = "~2.0.889"
 pymysql = "^1.0.0"
 pg8000 = "^1.20.0"
