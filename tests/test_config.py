@@ -229,10 +229,7 @@ def test_athena_wait_delay_config(wr: ModuleType, glue_database: str, polling_de
     if polling_delay:
         wr.config.athena_query_wait_polling_delay = polling_delay
     else:
-        from awswrangler.athena._utils import _QUERY_WAIT_POLLING_DELAY
-
-        polling_delay = _QUERY_WAIT_POLLING_DELAY
-
+        polling_delay = wr.athena._utils._QUERY_WAIT_POLLING_DELAY
         wr.config.reset("athena_query_wait_polling_delay")
 
     with patch("awswrangler.athena._utils.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
