@@ -244,6 +244,9 @@ def does_object_exist(
         raise ex
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
 def list_directories(
     path: str,
     chunked: bool = False,
@@ -303,6 +306,9 @@ def list_directories(
     return [path for paths in result_iterator for path in paths]
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
 def list_objects(
     path: str,
     suffix: Union[str, List[str], None] = None,
