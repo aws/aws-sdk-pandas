@@ -1,9 +1,8 @@
 """Annotations Module."""
 
-import logging
 import warnings
 from functools import wraps
-from typing import Any, Callable, Optional, TypeVar, cast
+from typing import Any, Callable, Optional, Type, TypeVar, cast
 
 from awswrangler._config import _insert_str
 
@@ -11,15 +10,11 @@ FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
 
 class SDKPandasDeprecatedWarning(Warning):
-    """Deprecated Warning"""
-
-    pass
+    """Deprecated Warning."""
 
 
 class SDKPandasExperimentalWarning(Warning):
-    """Experiental Warning"""
-
-    pass
+    """Experiental Warning."""
 
 
 def _inject_note(
@@ -34,9 +29,11 @@ def _inject_note(
 
 def warn_message(
     message: str,
-    warning_class: Warning,
+    warning_class: Type[Warning],
     stacklevel: int = 2,
 ) -> Callable[[FunctionType], FunctionType]:
+    """Decorate functions with this to print warnings."""
+
     def decorator(func: FunctionType) -> FunctionType:
         @wraps(func)
         def inner(*args: Any, **kwargs: Any) -> Any:
