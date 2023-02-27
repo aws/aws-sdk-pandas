@@ -74,15 +74,19 @@ def test_s3_read_parquet_many_files(
     validate_schema: bool,
     request: pytest.FixtureRequest,
 ) -> None:
-    path = "s3://aws-sdk-pandas-list-par-us-east-1-658066294590/small-files-parquet/10000/input_1*"
-    with ExecutionTimer(request, data_paths=path) as timer:
+    path_prefix = "s3://aws-sdk-pandas-list-par-us-east-1-658066294590/small-files-parquet/10000/"
+    file_prefix = "input_1"
+
+    paths = [path for path in wr.s3.list_objects(path_prefix) if path[len(path_prefix) :].startswith(file_prefix)]
+
+    with ExecutionTimer(request, data_paths=paths) as timer:
         frame = wr.s3.read_parquet(
-            path=path,
+            path=paths,
             bulk_read=bulk_read,
             validate_schema=validate_schema,
         )
 
-    num_files = len(wr.s3.list_objects(path))
+    num_files = len(paths)
     assert len(frame) == num_files  # each file contains just one row
 
     assert timer.elapsed_time < benchmark_time
