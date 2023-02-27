@@ -2946,14 +2946,14 @@ testing = ["fields", "hunter", "process-tests", "pytest-xdist", "six", "virtuale
 
 [[package]]
 name = "pytest-rerunfailures"
-version = "10.3"
+version = "11.1.1"
 description = "pytest plugin to re-run tests to eliminate flaky failures"
 category = "dev"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 files = [
-    {file = "pytest-rerunfailures-10.3.tar.gz", hash = "sha256:d8244d799f89a6edb5e57301ddaeb3b6f10d6691638d51e80b371311592e28c6"},
-    {file = "pytest_rerunfailures-10.3-py3-none-any.whl", hash = "sha256:6be6f96510bf94b54198bf15bc5568fe2cdff88e83875912e22d29810acf65ff"},
+    {file = "pytest-rerunfailures-11.1.1.tar.gz", hash = "sha256:acab447edff7c29a76b8410207c48da01406a161653c99a325cf5703d44eb162"},
+    {file = "pytest_rerunfailures-11.1.1-py3-none-any.whl", hash = "sha256:4333983de0914f79d942a6ec29332f2c9cfe2d2d47ba2b634f3617b7f9d94f86"},
 ]
 
 [package.dependencies]
@@ -4141,4 +4141,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7.1, <4.0"
-content-hash = "a4d08b8709a6fea7f71d2dab7c254c0ede9ad206c12b3cb77358a26ffb45b69a"
+content-hash = "1ef2dd46d8c6eab79bb35da779c3653e2cf5037f72b85d1d34ec269ea72dbc0d"
