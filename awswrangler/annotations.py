@@ -2,7 +2,7 @@
 
 import logging
 import warnings
-from functools import partial, wraps
+from functools import wraps
 from typing import Any, Callable, Optional, TypeVar, cast
 
 from awswrangler._config import _insert_str
@@ -54,15 +54,13 @@ def warn_message(
     return decorator
 
 
-Deprecated = partial(
-    warn_message,
+Deprecated = warn_message(
     "This API is deprecated and will be removed in future AWS SDK for Pandas releases. ",
     SDKPandasDeprecatedWarning,
 )
 
 
-Experimental = partial(
-    warn_message,
+Experimental = warn_message(
     "This API is experimental and may change in future AWS SDK for Pandas releases. ",
     SDKPandasExperimentalWarning,
 )

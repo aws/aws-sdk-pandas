@@ -243,7 +243,7 @@ def connect(
     return es
 
 
-@Experimental()
+@Experimental
 def create_collection(
     name: str,
     collection_type: str = "SEARCH",
