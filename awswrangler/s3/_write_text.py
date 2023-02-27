@@ -9,7 +9,7 @@ import boto3
 import pandas as pd
 from pandas.io.common import infer_compression
 
-from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
+from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation, typing
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._utils import copy_df_shallow
@@ -100,7 +100,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     database: Optional[str] = None,
     table: Optional[str] = None,
     glue_table_settings: Optional[GlueTableSettings] = None,
-    projection_params: Optional[Dict[str, Any]] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
 ) -> _S3WriteDataReturnValue:
@@ -192,8 +192,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
         Following projection parameters are supported:
 
         .. list-table:: Projection Parameters
@@ -322,6 +325,44 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         'partitions_values: {
             's3://.../col2=A/': ['A'],
             's3://.../col2=B/': ['B']
+        }
+    }
+
+    Writing partitioned dataset with partition projection
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> from datetime import datetime
+    >>> dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({
+    ...         "id": [1, 2, 3],
+    ...         "value": [1000, 1001, 1002],
+    ...         "category": ['A', 'B', 'C'],
+    ...     }),
+    ...     path='s3://bucket/prefix',
+    ...     dataset=True,
+    ...     partition_cols=['value', 'category'],
+    ...     athena_partition_projection_settings={
+    ...        "projection_types": {
+    ...             "value": "integer",
+    ...             "category": "enum",
+    ...         },
+    ...         "projection_ranges": {
+    ...             "value": "1000,2000",
+    ...             "category": "A,B,C",
+    ...         },
+    ...     },
+    ... )
+    {
+        'paths': [
+            's3://.../value=1000/category=A/x.json', ...
+        ],
+        'partitions_values': {
+            's3://.../value=1000/category=A/': [
+                '1000',
+                'A',
+            ], ...
         }
     }
 
@@ -571,7 +612,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 "schema_evolution": schema_evolution,
                 "catalog_versioning": catalog_versioning,
                 "sep": sep,
-                "projection_params": projection_params,
+                "athena_partition_projection_settings": athena_partition_projection_settings,
                 "catalog_table_input": catalog_table_input,
                 "catalog_id": catalog_id,
                 "compression": pandas_kwargs.get("compression"),
@@ -681,7 +722,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     database: Optional[str] = None,
     table: Optional[str] = None,
     glue_table_settings: Optional[GlueTableSettings] = None,
-    projection_params: Optional[Dict[str, Any]] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
 ) -> _S3WriteDataReturnValue:
@@ -756,8 +797,11 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
         Following projection parameters are supported:
 
         .. list-table:: Projection Parameters
@@ -854,6 +898,44 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     ...         'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'
     ...     }
     ... )
+
+    Writing partitioned dataset with partition projection
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> from datetime import datetime
+    >>> dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()
+    >>> wr.s3.to_json(
+    ...     df=pd.DataFrame({
+    ...         "id": [1, 2, 3],
+    ...         "value": [1000, 1001, 1002],
+    ...         "category": ['A', 'B', 'C'],
+    ...     }),
+    ...     path='s3://bucket/prefix',
+    ...     dataset=True,
+    ...     partition_cols=['value', 'category'],
+    ...     athena_partition_projection_settings={
+    ...        "projection_types": {
+    ...             "value": "integer",
+    ...             "category": "enum",
+    ...         },
+    ...         "projection_ranges": {
+    ...             "value": "1000,2000",
+    ...             "category": "A,B,C",
+    ...         },
+    ...     },
+    ... )
+    {
+        'paths': [
+            's3://.../value=1000/category=A/x.json', ...
+        ],
+        'partitions_values': {
+            's3://.../value=1000/category=A/': [
+                '1000',
+                'A',
+            ], ...
+        }
+    }
 
     """
     if "pandas_kwargs" in pandas_kwargs:
@@ -992,7 +1074,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             "transaction_id": transaction_id,
             "catalog_versioning": catalog_versioning,
             "schema_evolution": schema_evolution,
-            "projection_params": projection_params,
+            "athena_partition_projection_settings": athena_partition_projection_settings,
             "catalog_table_input": catalog_table_input,
             "catalog_id": catalog_id,
             "compression": compression,

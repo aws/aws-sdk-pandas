@@ -20,6 +20,7 @@ from awswrangler.s3._write_text import to_csv, to_json  # noqa
 __all__ = [
     "copy_objects",
     "merge_datasets",
+    "merge_upsert_table",
     "delete_objects",
     "describe_objects",
     "get_bucket_region",

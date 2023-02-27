@@ -332,6 +332,11 @@ def test_prefix_cleanup():
     assert wr.s3._list._prefix_cleanup(glob.escape("foo[]boo")) == glob.escape("foo")
 
 
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=AssertionError,
+    reason=("PyArrow s3fs does not support Unix wildcards or s3_additional_kwargs"),
+)
 @pytest.mark.parametrize(
     "s3_additional_kwargs",
     [None, {"FetchOwner": True}, {"PaginationConfig": {"PageSize": 100}}],

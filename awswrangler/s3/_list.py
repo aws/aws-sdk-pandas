@@ -9,6 +9,7 @@ import boto3
 import botocore.exceptions
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import engine
 from awswrangler.s3 import _fs
 
 if TYPE_CHECKING:
@@ -76,23 +77,52 @@ def _prefix_cleanup(prefix: str) -> str:
     return prefix
 
 
-def _list_objects(  # pylint: disable=too-many-branches
+def _list_objects(
     path: str,
     s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, Any]],
     delimiter: Optional[str] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     suffix: Union[str, List[str], None] = None,
     ignore_suffix: Union[str, List[str], None] = None,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     ignore_empty: bool = False,
 ) -> Iterator[List[str]]:
-    bucket: str
-    prefix_original: str
-    bucket, prefix_original = _utils.parse_path(path=path)
-    prefix: str = _prefix_cleanup(prefix=prefix_original)
-    _suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
-    _ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
+    suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
+    ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
+    _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
+    bucket, pattern = _utils.parse_path(path=path)
+    prefix: str = _prefix_cleanup(prefix=pattern)
+
+    return _list_objects_paginate(
+        bucket=bucket,
+        pattern=pattern,
+        prefix=prefix,
+        s3_client=s3_client,
+        delimiter=delimiter,
+        suffix=suffix,
+        ignore_suffix=ignore_suffix,
+        last_modified_begin=last_modified_begin,
+        last_modified_end=last_modified_end,
+        ignore_empty=ignore_empty,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+
+
+@engine.dispatch_on_engine
+def _list_objects_paginate(  # pylint: disable=too-many-branches
+    bucket: str,
+    pattern: str,
+    prefix: str,
+    s3_client: "S3Client",
+    delimiter: Optional[str],
+    s3_additional_kwargs: Optional[Dict[str, Any]],
+    suffix: Union[List[str], None],
+    ignore_suffix: Union[List[str], None],
+    last_modified_begin: Optional[datetime.datetime],
+    last_modified_end: Optional[datetime.datetime],
+    ignore_empty: bool,
+) -> Iterator[List[str]]:
     default_pagination: Dict[str, int] = {"PageSize": 1000}
     extra_kwargs: Dict[str, Any] = {"PaginationConfig": default_pagination}
     if s3_additional_kwargs:
@@ -111,7 +141,6 @@ def _list_objects(  # pylint: disable=too-many-branches
     _logger.debug("args: %s", args)
     response_iterator = paginator.paginate(**args)
     paths: List[str] = []
-    _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
 
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
@@ -122,7 +151,7 @@ def _list_objects(  # pylint: disable=too-many-branches
                     if ignore_empty and content.get("Size", 0) == 0:
                         _logger.debug("Skipping empty file: %s", f"s3://{bucket}/{key}")
                     elif (content is not None) and ("Key" in content):
-                        if (_suffix is None) or key.endswith(tuple(_suffix)):
+                        if (suffix is None) or key.endswith(tuple(suffix)):
                             if last_modified_begin is not None:
                                 if content["LastModified"] < last_modified_begin:
                                     continue
@@ -138,11 +167,11 @@ def _list_objects(  # pylint: disable=too-many-branches
                         key = pfx["Prefix"]
                         paths.append(f"s3://{bucket}/{key}")
 
-        if prefix != prefix_original:
-            paths = fnmatch.filter(paths, path)
+        if prefix != pattern:
+            paths = fnmatch.filter(paths, f"s3://{bucket}/{pattern}")
 
-        if _ignore_suffix is not None:
-            paths = [p for p in paths if p.endswith(tuple(_ignore_suffix)) is False]
+        if ignore_suffix is not None:
+            paths = [p for p in paths if p.endswith(tuple(ignore_suffix)) is False]
 
         if paths:
             yield paths
