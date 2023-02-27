@@ -407,7 +407,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     subnet_id: str,
     cluster_name: str = "my-emr-cluster",
     logging_s3_path: Optional[str] = None,
-    emr_release: str = "emr-5.36.0",
+    emr_release: str = "emr-6.7.0",
     emr_ec2_role: str = "EMR_EC2_DefaultRole",
     emr_role: str = "EMR_DefaultRole",
     instance_type_master: str = "r5.xlarge",

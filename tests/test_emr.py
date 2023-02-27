@@ -15,7 +15,7 @@ def test_cluster(bucket, cloudformation_outputs, emr_security_configuration):
     cluster_id = wr.emr.create_cluster(
         cluster_name="wrangler_cluster",
         logging_s3_path=f"s3://{bucket}/emr-logs/",
-        emr_release="emr-5.36.0",
+        emr_release="emr-6.7.0",
         subnet_id=cloudformation_outputs["PublicSubnet1"],
         emr_ec2_role="EMR_EC2_DefaultRole",
         emr_role="EMR_DefaultRole",
@@ -71,7 +71,7 @@ def test_cluster_single_node(bucket, cloudformation_outputs, emr_security_config
     cluster_id = wr.emr.create_cluster(
         cluster_name="wrangler_cluster",
         logging_s3_path=f"s3://{bucket}/emr-logs/",
-        emr_release="emr-5.36.0",
+        emr_release="emr-6.7.0",
         subnet_id=cloudformation_outputs["PublicSubnet1"],
         emr_ec2_role="EMR_EC2_DefaultRole",
         emr_role="EMR_DefaultRole",
