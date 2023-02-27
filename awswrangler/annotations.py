@@ -56,7 +56,7 @@ def warn_message(
 
 Deprecated = partial(
     warn_message,
-    "This API is deprecated and will be removed e in future AWS SDK for Pandas releases. ",
+    "This API is deprecated and will be removed in future AWS SDK for Pandas releases. ",
     SDKPandasDeprecatedWarning,
 )
 
