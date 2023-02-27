@@ -135,7 +135,14 @@ def test_athena_cache_configuration(wr: ModuleType) -> None:
     assert wr.config.max_remote_cache_entries == 20
 
 
-def test_wait_time_configuration(wr: ModuleType) -> None:
+def test_wait_time_configuration(wr: ModuleType, request: pytest.FixtureRequest) -> None:
+    def teardown() -> None:
+        del os.environ["WR_ATHENA_QUERY_WAIT_POLLING_DELAY"]
+        del os.environ["WR_LAKEFORMATION_QUERY_WAIT_POLLING_DELAY"]
+        del os.environ["WR_CLOUDWATCH_QUERY_WAIT_POLLING_DELAY"]
+
+    request.addfinalizer(teardown)
+
     os.environ["WR_ATHENA_QUERY_WAIT_POLLING_DELAY"] = "0.1"
     os.environ["WR_LAKEFORMATION_QUERY_WAIT_POLLING_DELAY"] = "0.15"
     os.environ["WR_CLOUDWATCH_QUERY_WAIT_POLLING_DELAY"] = "0.05"
@@ -233,8 +240,6 @@ def test_athena_wait_delay_config(wr: ModuleType, glue_database: str, polling_de
         wr.config.reset("athena_query_wait_polling_delay")
 
     with patch("awswrangler.athena._utils.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
-        config_frame = wr.config.to_pandas()
-        print(config_frame[config_frame.name == "athena_query_wait_polling_delay"])
         wr.athena.read_sql_query("SELECT 1 as col0", database=glue_database)
 
         mock_wait_query.assert_called_once()
