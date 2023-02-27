@@ -147,7 +147,7 @@ def _inject_kwargs_validation_doc(
 validate_distributed_kwargs = partial(
     validate_kwargs,
     condition_fn=lambda: engine.get() == EngineEnum.RAY,
-    message="Following arguments not supported in distributed mode:",
+    message="Following arguments not supported in distributed mode with engine `ray`:",
 )
 
 
