@@ -233,6 +233,8 @@ def test_athena_wait_delay_config(wr: ModuleType, glue_database: str, polling_de
         wr.config.reset("athena_query_wait_polling_delay")
 
     with patch("awswrangler.athena._utils.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
+        config_frame = wr.config.to_pandas()
+        print(config_frame[config_frame.name == "athena_query_wait_polling_delay"])
         wr.athena.read_sql_query("SELECT 1 as col0", database=glue_database)
 
         mock_wait_query.assert_called_once()
