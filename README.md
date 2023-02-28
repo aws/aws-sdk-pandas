@@ -129,7 +129,6 @@ As a result existing scripts can run on significantly larger datasets with no co
 |                 | `delete_objects`         |       ✅        |
 |                 | `wait_objects_exist`     |       ✅        |
 |                 | `wait_objects_not_exist` |       ✅        |
-|                 | `merge_datasets`         |       ✅        |
 | `Redshift`      | `copy`                   |       ✅        |
 |                 | `unload`                 |       ✅        |
 | `Athena`        | `read_sql_query`         |       ✅        |
