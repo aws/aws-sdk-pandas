@@ -17,7 +17,8 @@ from botocore.model import ServiceModel
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
-from awswrangler.s3._describe import _size_objects
+from awswrangler._distributed import engine
+from awswrangler.s3._describe import _describe_object
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -207,13 +208,14 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
             self._cache: bytes = b""
             self._start: int = 0
             self._end: int = 0
-            size: Optional[int] = _size_objects(
-                path=[path],
+            func = engine.dispatch_func(_describe_object, "python")
+            _, desc = func(
                 s3_client=self._client,
-                version_id=version_id,
-                use_threads=False,
+                path=path,
                 s3_additional_kwargs=self._s3_additional_kwargs,
-            )[path]
+                version_id=version_id,
+            )
+            size: Optional[int] = desc.get("ContentLength", None)
             if size is None:
                 raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
             self._size: int = size

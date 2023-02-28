@@ -127,6 +127,8 @@ As a result existing scripts can run on significantly larger datasets with no co
 |                 | `select_query`           |       ✅        |
 |                 | `store_parquet_metadata` |       ✅        |
 |                 | `delete_objects`         |       ✅        |
+|                 | `describe_objects`       |       ✅        |
+|                 | `size_objects`           |       ✅        |
 |                 | `wait_objects_exist`     |       ✅        |
 |                 | `wait_objects_not_exist` |       ✅        |
 | `Redshift`      | `copy`                   |       ✅        |
