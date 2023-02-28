@@ -1,6 +1,7 @@
 import logging
 import os
 from types import ModuleType
+from typing import Optional
 from unittest.mock import create_autospec, patch
 
 import boto3
@@ -162,6 +163,25 @@ def test_athena_cache_configuration_dict(wr: ModuleType) -> None:
     assert wr.config.athena_cache_settings["max_cache_seconds"] == 20
 
 
+def test_wait_time_configuration(wr: ModuleType, request: pytest.FixtureRequest) -> None:
+    def teardown() -> None:
+        del os.environ["WR_ATHENA_QUERY_WAIT_POLLING_DELAY"]
+        del os.environ["WR_LAKEFORMATION_QUERY_WAIT_POLLING_DELAY"]
+        del os.environ["WR_CLOUDWATCH_QUERY_WAIT_POLLING_DELAY"]
+
+    request.addfinalizer(teardown)
+
+    os.environ["WR_ATHENA_QUERY_WAIT_POLLING_DELAY"] = "0.1"
+    os.environ["WR_LAKEFORMATION_QUERY_WAIT_POLLING_DELAY"] = "0.15"
+    os.environ["WR_CLOUDWATCH_QUERY_WAIT_POLLING_DELAY"] = "0.05"
+
+    wr.config.reset()
+
+    assert wr.config.athena_query_wait_polling_delay == 0.1
+    assert wr.config.lakeformation_query_wait_polling_delay == 0.15
+    assert wr.config.cloudwatch_query_wait_polling_delay == 0.05
+
+
 def test_botocore_config(wr: ModuleType, path: str) -> None:
     original = botocore.client.ClientCreator.create_client
 
@@ -237,3 +257,33 @@ def test_chunk_size(wr: ModuleType) -> None:
         mock = create_autospec(function_to_mock)
         wr._config.apply_configs(mock)(df=None, con=None, table=None, schema=None)
         mock.assert_called_with(df=None, con=None, table=None, schema=None, chunksize=expected_chunksize)
+
+
+@pytest.mark.parametrize("polling_delay", [None, 0.05, 0.1])
+def test_athena_wait_delay_config(wr: ModuleType, glue_database: str, polling_delay: Optional[float]) -> None:
+    if polling_delay:
+        wr.config.athena_query_wait_polling_delay = polling_delay
+    else:
+        polling_delay = wr.athena._utils._QUERY_WAIT_POLLING_DELAY
+        wr.config.reset("athena_query_wait_polling_delay")
+
+    with patch("awswrangler.athena._utils.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
+        wr.athena.read_sql_query("SELECT 1 as col0", database=glue_database)
+
+        mock_wait_query.assert_called_once()
+
+        assert mock_wait_query.call_args.kwargs["athena_query_wait_polling_delay"] == polling_delay
+
+
+def test_athena_wait_delay_config_override(wr: ModuleType, glue_database: str) -> None:
+    wr.config.athena_query_wait_polling_delay = 0.1
+    polling_delay_argument = 0.15
+
+    with patch("awswrangler.athena._utils.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
+        wr.athena.read_sql_query(
+            "SELECT 1 as col0", database=glue_database, athena_query_wait_polling_delay=polling_delay_argument
+        )
+
+        mock_wait_query.assert_called_once()
+
+        assert mock_wait_query.call_args.kwargs["athena_query_wait_polling_delay"] == polling_delay_argument

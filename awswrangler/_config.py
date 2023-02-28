@@ -14,7 +14,7 @@ from awswrangler.typing import AthenaCacheSettings
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_ConfigValueType = Union[str, bool, int, botocore.config.Config, dict]
+_ConfigValueType = Union[str, bool, int, float, botocore.config.Config, dict]
 
 
 class _ConfigArg(NamedTuple):
@@ -38,6 +38,9 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
+    "athena_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "cloudwatch_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "lakeformation_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
@@ -335,6 +338,33 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @max_remote_cache_entries.setter
     def max_remote_cache_entries(self, value: int) -> None:
         self._set_config_value(key="max_remote_cache_entries", value=value)
+
+    @property
+    def athena_query_wait_polling_delay(self) -> float:
+        """Property athena_query_wait_polling_delay."""
+        return cast(float, self["athena_query_wait_polling_delay"])
+
+    @athena_query_wait_polling_delay.setter
+    def athena_query_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="athena_query_wait_polling_delay", value=value)
+
+    @property
+    def cloudwatch_query_wait_polling_delay(self) -> float:
+        """Property cloudwatch_query_wait_polling_delay."""
+        return cast(float, self["cloudwatch_query_wait_polling_delay"])
+
+    @cloudwatch_query_wait_polling_delay.setter
+    def cloudwatch_query_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="cloudwatch_query_wait_polling_delay", value=value)
+
+    @property
+    def lakeformation_query_wait_polling_delay(self) -> float:
+        """Property lakeformation_query_wait_polling_delay."""
+        return cast(float, self["lakeformation_query_wait_polling_delay"])
+
+    @lakeformation_query_wait_polling_delay.setter
+    def lakeformation_query_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="lakeformation_query_wait_polling_delay", value=value)
 
     @property
     def s3_block_size(self) -> int:
