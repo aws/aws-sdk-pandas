@@ -101,6 +101,27 @@ def check_optional_dependency(
     return decorator
 
 
+def import_optional_dependency(name: str) -> ModuleType:
+    """Import an optional dependency.
+
+    Parameters
+    ----------
+    name : str
+        The module name.
+
+    Returns
+    -------
+    maybe_module : Optional[ModuleType]
+        The imported module, when found.
+    """
+    try:
+        module = importlib.import_module(name)
+    except ImportError:
+        return None  # type: ignore[return-value]
+
+    return module
+
+
 def validate_kwargs(
     condition_fn: Callable[..., bool] = lambda _: True,
     unsupported_kwargs: Optional[List[str]] = None,
@@ -149,27 +170,6 @@ validate_distributed_kwargs = partial(
     condition_fn=lambda: engine.get() == EngineEnum.RAY,
     message=f"Following arguments not supported in distributed mode with engine `{EngineEnum.RAY}`:",
 )
-
-
-def import_optional_dependency(name: str) -> ModuleType:
-    """Import an optional dependency.
-
-    Parameters
-    ----------
-    name : str
-        The module name.
-
-    Returns
-    -------
-    maybe_module : Optional[ModuleType]
-        The imported module, when found.
-    """
-    try:
-        module = importlib.import_module(name)
-    except ImportError:
-        return None  # type: ignore[return-value]
-
-    return module
 
 
 def ensure_session(session: Union[None, boto3.Session] = None) -> boto3.Session:
