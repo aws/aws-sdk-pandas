@@ -8,6 +8,7 @@ from awswrangler.distributed.ray.s3._list import _list_objects_s3fs
 from awswrangler.distributed.ray.s3._read_parquet import _read_parquet_metadata_file_distributed
 from awswrangler.dynamodb._read import _read_scan
 from awswrangler.lakeformation._read import _get_work_unit_results
+from awswrangler.s3._copy import _copy_objects
 from awswrangler.s3._delete import _delete_objects
 from awswrangler.s3._describe import _describe_object
 from awswrangler.s3._list import _list_objects_paginate
@@ -25,6 +26,7 @@ def register_ray() -> None:
     """Register dispatched Ray and Modin (on Ray) methods."""
     for func in [
         _get_work_unit_results,
+        _copy_objects,
         _describe_object,
         _delete_objects,
         _read_scan,
