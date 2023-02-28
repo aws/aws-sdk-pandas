@@ -80,21 +80,8 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     def __init__(self) -> None:
         self._loaded_values: Dict[str, Optional[_ConfigValueType]] = {}
-        name: str
-        self.s3_endpoint_url = None
-        self.athena_endpoint_url = None
-        self.sts_endpoint_url = None
-        self.glue_endpoint_url = None
-        self.redshift_endpoint_url = None
-        self.kms_endpoint_url = None
-        self.emr_endpoint_url = None
-        self.lakeformation_endpoint_url = None
-        self.dynamodb_endpoint_url = None
-        self.secretsmanager_endpoint_url = None
-        self.timestream_write_endpoint_url = None
-        self.timestream_query_endpoint_url = None
         self.botocore_config = None
-        self.verify = None
+
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
 
@@ -178,7 +165,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             raise exceptions.InvalidArgumentValue(
                 f"{key} is not a valid configuration. Please use: {list(_CONFIG_ARGS.keys())}"
             )
-        value_casted = self._apply_type(
+        value_casted: Optional[_ConfigValueType] = self._apply_type(
             name=key,
             value=value,
             dtype=_CONFIG_ARGS[key].dtype,
