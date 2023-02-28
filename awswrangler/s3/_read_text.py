@@ -208,6 +208,9 @@ def read_csv(
     ...
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def read_csv(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,
@@ -427,6 +430,9 @@ def read_fwf(
     ...
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def read_fwf(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,
@@ -649,6 +655,9 @@ def read_json(
     ...
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def read_json(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,

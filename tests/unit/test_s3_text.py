@@ -118,6 +118,9 @@ def test_read_partitioned_fwf(path, use_threads, chunksize):
             assert d.shape == (1, 4)
 
 
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+)
 def test_csv(path):
     session = boto3.Session()
     df = pd.DataFrame({"id": [1, 2, 3]})

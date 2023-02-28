@@ -171,6 +171,9 @@ def test_merge(path, use_threads):
     assert len(wr.s3.merge_datasets(source_path=f"{path}empty/", target_path="bar")) == 0
 
 
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+)
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize(
     "s3_additional_kwargs",
@@ -328,7 +331,7 @@ def test_prefix_cleanup():
 
 @pytest.mark.xfail(
     is_ray_modin,
-    raises=AssertionError,
+    raises=(AssertionError, wr.exceptions.InvalidArgument),
     reason=("PyArrow s3fs does not support Unix wildcards or s3_additional_kwargs"),
 )
 @pytest.mark.parametrize(

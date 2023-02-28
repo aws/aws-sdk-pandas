@@ -134,6 +134,9 @@ def _select_query(
     return executor.map(_select_object_content, s3_client, itertools.repeat(args), scan_ranges)
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def select_query(
     sql: str,
     path: Union[str, List[str]],
