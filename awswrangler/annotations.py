@@ -21,10 +21,11 @@ def _inject_note(
     doc: Optional[str],
     message: str,
 ) -> Optional[str]:
-    if not doc or "\n    Parameters" not in doc:
+    token: str = "\n    Parameters"
+    if not doc or token not in doc:
         return doc
     note: str = f"\n\n    Note\n    ----\n    {message}\n\n"
-    return _insert_str(text=doc, token="", insert=note)
+    return _insert_str(text=doc, token=token, insert=note)
 
 
 def warn_message(
