@@ -577,6 +577,9 @@ def test_spectrum_decimal_cast(path, path2, glue_table, glue_database, redshift_
     con.close()
 
 
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+)
 @pytest.mark.parametrize(
     "s3_additional_kwargs",
     [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],

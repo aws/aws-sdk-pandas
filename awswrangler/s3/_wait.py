@@ -70,6 +70,9 @@ def _wait_objects(
     return None
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def wait_objects_exist(
     paths: List[str],
     delay: Optional[float] = None,
@@ -130,6 +133,9 @@ def wait_objects_exist(
     )
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def wait_objects_not_exist(
     paths: List[str],
     delay: Optional[float] = None,

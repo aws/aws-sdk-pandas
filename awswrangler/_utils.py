@@ -37,8 +37,8 @@ from botocore.config import Config
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
-from awswrangler._config import apply_configs
-from awswrangler._distributed import engine
+from awswrangler._config import _insert_str, apply_configs
+from awswrangler._distributed import EngineEnum, engine
 
 if TYPE_CHECKING:
     from boto3.resources.base import ServiceResource
@@ -99,6 +99,56 @@ def check_optional_dependency(
         return cast(FunctionType, inner)
 
     return decorator
+
+
+def validate_kwargs(
+    condition_fn: Callable[..., bool] = lambda _: True,
+    unsupported_kwargs: Optional[List[str]] = None,
+    message: str = "Arguments not supported:",
+) -> Callable[[FunctionType], FunctionType]:
+    unsupported_kwargs = unsupported_kwargs if unsupported_kwargs else []
+
+    def decorator(func: FunctionType) -> FunctionType:
+        @wraps(func)
+        def inner(*args: Any, **kwargs: Any) -> Any:
+            passed_unsupported_kwargs = set(unsupported_kwargs).intersection(  # type: ignore
+                set([key for key, value in kwargs.items() if value is not None])
+            )
+
+            if condition_fn() and len(passed_unsupported_kwargs) > 0:
+                raise exceptions.InvalidArgument(f"{message} `{', '.join(passed_unsupported_kwargs)}`.")
+
+            return func(*args, **kwargs)
+
+        inner.__doc__ = _inject_kwargs_validation_doc(
+            doc=func.__doc__,
+            unsupported_kwargs=unsupported_kwargs,
+            message=message,
+        )
+
+        return cast(FunctionType, inner)
+
+    return decorator
+
+
+def _inject_kwargs_validation_doc(
+    doc: Optional[str],
+    unsupported_kwargs: Optional[List[str]],
+    message: str,
+) -> Optional[str]:
+    if not doc or "\n    Parameters" not in doc or not unsupported_kwargs:
+        return doc
+    header: str = f"\n\n    Note\n    ----\n    {message}\n\n"
+    kwargs_block: str = "\n".join(tuple(f"    - {x}\n" for x in unsupported_kwargs))
+    insertion: str = header + kwargs_block + "\n\n"
+    return _insert_str(text=doc, token="\n    Parameters", insert=insertion)
+
+
+validate_distributed_kwargs = partial(
+    validate_kwargs,
+    condition_fn=lambda: engine.get() == EngineEnum.RAY,
+    message=f"Following arguments not supported in distributed mode with engine `{EngineEnum.RAY}`:",
+)
 
 
 def import_optional_dependency(name: str) -> ModuleType:

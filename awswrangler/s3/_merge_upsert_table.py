@@ -7,7 +7,7 @@ import boto3
 import pandas
 
 import awswrangler as wr
-from awswrangler import _data_types
+from awswrangler import _data_types, _utils
 from awswrangler.exceptions import FailedQualityCheck, NoFilesFound
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -84,6 +84,9 @@ def _generate_empty_frame_for_table(
     return _data_types.cast_pandas_with_athena_types(empty_frame, type_dict)
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def merge_upsert_table(
     delta_df: pandas.DataFrame,
     database: str,

@@ -132,6 +132,9 @@ def test_read_parquet_table_filter_partitions(path, glue_database, glue_table):
         )
 
 
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+)
 def test_parquet(path):
     df_file = pd.DataFrame({"id": [1, 2, 3]})
     path_file = f"{path}test_parquet_file.parquet"
@@ -625,6 +628,9 @@ def test_read_chunked_validation_exception2(path):
             pass
 
 
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+)
 def test_read_parquet_versioned(path) -> None:
     path_file = f"{path}0.parquet"
     dfs = [pd.DataFrame({"id": [1, 2, 3]}, dtype="Int64"), pd.DataFrame({"id": [4, 5, 6]}, dtype="Int64")]

@@ -223,6 +223,9 @@ def _to_parquet(
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
 def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
     path: Optional[str] = None,
@@ -800,6 +803,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-locals
     path: str,
     database: str,

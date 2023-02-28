@@ -77,6 +77,9 @@ def _resolve_sql_query(
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def read_sql_query(
     sql: str,
     database: str,
@@ -195,6 +198,9 @@ def read_sql_query(
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def read_sql_table(
     table: str,
     database: str,

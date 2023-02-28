@@ -623,6 +623,9 @@ def repair_table(
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def describe_table(
     table: str,
     database: Optional[str] = None,
@@ -910,6 +913,9 @@ def create_ctas_table(  # pylint: disable=too-many-locals
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def show_create_table(
     table: str,
     database: Optional[str] = None,

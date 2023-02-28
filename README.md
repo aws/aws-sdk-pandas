@@ -113,24 +113,34 @@ As a result existing scripts can run on significantly larger datasets with no co
 
 <p align="center">
 
-| Service     | API                                                           | Implementation |
-|-------------------|:------------------------------------------------------------------------------------:|:---------------:|
-|  `S3`    | `read_parquet`                                               | ✅ |
-|    | `read_csv`                                               | ✅ |
-|    | `read_json`                                               | ✅ |
-|    | `read_fwf`                                               | ✅ |
-|    | `to_parquet`                                               | ✅ |
-|    | `to_csv`                                               | ✅ |
-|    | `to_json`                                               | ✅ |
-|    | `select_query`                                               | ✅ |
-|    | `delete`                                               | ✅ |
-|    | `wait`                                               | ✅ |
-|  `Redshift`    | `copy`                                               | ✅ |
-|    | `unload`                                               | ✅ |
-|  `Athena`    | `read_sql_query`                                               | ✅ |
-|  `DynamoDB`    | `scan`                                               | ✅ |
-|  `LakeFormation`    | `read_sql_query`                                               | ✅ |
-|  `Timestream`    | `write`                                               | ✅ |
+| Service         | API                      | Implementation |
+|-----------------|--------------------------|:--------------:|
+| `S3`            | `read_parquet`           |       ✅        |
+|                 | `read_parquet_metadata`  |       ✅        |
+|                 | `read_parquet_table`     |       ✅        |
+|                 | `read_csv`               |       ✅        |
+|                 | `read_json`              |       ✅        |
+|                 | `read_fwf`               |       ✅        |
+|                 | `to_parquet`             |       ✅        |
+|                 | `to_csv`                 |       ✅        |
+|                 | `to_json`                |       ✅        |
+|                 | `select_query`           |       ✅        |
+|                 | `store_parquet_metadata` |       ✅        |
+|                 | `delete_objects`         |       ✅        |
+|                 | `wait_objects_exist`     |       ✅        |
+|                 | `wait_objects_not_exist` |       ✅        |
+|                 | `merge_datasets`         |       ✅        |
+| `Redshift`      | `copy`                   |       ✅        |
+|                 | `unload`                 |       ✅        |
+| `Athena`        | `read_sql_query`         |       ✅        |
+|                 | `read_sql_table`         |       ✅        |
+|                 | `describe_table`         |       ✅        |
+|                 | `get_query_results`      |       ✅        |
+|                 | `show_create_table`      |       ✅        |
+| `DynamoDB`      | `read_items`             |       ✅        |
+| `LakeFormation` | `read_sql_query`         |       ✅        |
+|                 | `read_sql_table`         |       ✅        |
+| `Timestream`    | `write`                  |       ✅        |
 </p>
 
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
