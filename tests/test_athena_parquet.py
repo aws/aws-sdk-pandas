@@ -498,6 +498,7 @@ def test_sanitize_index(path, glue_table, glue_database):
 def test_to_parquet_sanitize(path, glue_database):
     df = pd.DataFrame({"C0": [0, 1], "camelCase": [2, 3], "c**--2": [4, 5]})
     table_name = "TableName*!"
+    wr.catalog.delete_table_if_exists(database=glue_database, table="tablename_")
     wr.s3.to_parquet(
         df, path, dataset=True, database=glue_database, table=table_name, mode="overwrite", partition_cols=["c**--2"]
     )
