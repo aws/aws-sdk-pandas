@@ -11,6 +11,7 @@ import boto3
 import botocore
 
 from awswrangler import _utils, exceptions
+from awswrangler.annotations import Experimental
 
 opensearchpy = _utils.import_optional_dependency("opensearchpy")
 if opensearchpy:
@@ -254,6 +255,7 @@ def connect(
 
 
 @_utils.check_optional_dependency(opensearchpy, "opensearchpy")
+@Experimental
 def create_collection(
     name: str,
     collection_type: str = "SEARCH",

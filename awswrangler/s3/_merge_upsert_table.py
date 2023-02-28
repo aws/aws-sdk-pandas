@@ -8,6 +8,7 @@ import pandas
 
 import awswrangler as wr
 from awswrangler import _data_types, _utils
+from awswrangler.annotations import Deprecated
 from awswrangler.exceptions import FailedQualityCheck, NoFilesFound
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -87,6 +88,7 @@ def _generate_empty_frame_for_table(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
+@Deprecated
 def merge_upsert_table(
     delta_df: pandas.DataFrame,
     database: str,
