@@ -27,8 +27,8 @@ def _describe_object(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     version_id: Optional[str] = None,
 ) -> Tuple[str, Dict[str, Any]]:
-    bucket: str
-    key: str
+    s3_client = s3_client if s3_client else _utils.client(service_name="s3")
+
     bucket, key = _utils.parse_path(path=path)
     if s3_additional_kwargs:
         extra_kwargs: Dict[str, Any] = _fs.get_botocore_valid_kwargs(
