@@ -208,6 +208,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     categories: Optional[List[str]] = None,
     query_execution_payload: Optional[Dict[str, Any]] = None,
     metadata_cache_manager: Optional[_LocalMetadataCacheManager] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> _QueryMetadata:
     """Get query metadata."""
     if (query_execution_payload is not None) and (query_execution_payload["Status"]["State"] in _QUERY_FINAL_STATES):
@@ -216,7 +217,11 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
             raise exceptions.QueryFailed(f"Query error: {reason}")
         _query_execution_payload: Dict[str, Any] = query_execution_payload
     else:
-        _query_execution_payload = wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
+        _query_execution_payload = wait_query(
+            query_execution_id=query_execution_id,
+            boto3_session=boto3_session,
+            athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        )
     cols_types: Dict[str, str] = get_query_columns_types(
         query_execution_id=query_execution_id, boto3_session=boto3_session
     )
@@ -394,6 +399,7 @@ def start_query_execution(
     params: Optional[Dict[str, Any]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
+    athena_query_wait_polling_delay: float = ...,
     data_source: Optional[str] = ...,
     wait: Literal[False] = ...,
 ) -> str:
@@ -412,6 +418,7 @@ def start_query_execution(
     params: Optional[Dict[str, Any]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
+    athena_query_wait_polling_delay: float = ...,
     data_source: Optional[str] = ...,
     wait: Literal[True],
 ) -> Dict[str, Any]:
@@ -430,6 +437,7 @@ def start_query_execution(
     params: Optional[Dict[str, Any]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
+    athena_query_wait_polling_delay: float = ...,
     data_source: Optional[str] = ...,
     wait: bool,
 ) -> Union[str, Dict[str, Any]]:
@@ -447,6 +455,7 @@ def start_query_execution(
     params: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     data_source: Optional[str] = None,
     wait: bool = False,
 ) -> Union[str, Dict[str, Any]]:
@@ -485,6 +494,8 @@ def start_query_execution(
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     wait : bool, default False
@@ -546,7 +557,11 @@ def start_query_execution(
             boto3_session=boto3_session,
         )
     if wait:
-        return wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
+        return wait_query(
+            query_execution_id=query_execution_id,
+            boto3_session=boto3_session,
+            athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        )
 
     return query_execution_id
 
@@ -560,6 +575,7 @@ def repair_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     """Run the Hive's metastore consistency check: 'MSCK REPAIR TABLE table;'.
@@ -591,6 +607,8 @@ def repair_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -618,7 +636,11 @@ def repair_table(
         kms_key=kms_key,
         boto3_session=boto3_session,
     )
-    response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=boto3_session)
+    response: Dict[str, Any] = wait_query(
+        query_execution_id=query_id,
+        boto3_session=boto3_session,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+    )
     return cast(str, response["Status"]["State"])
 
 
@@ -630,6 +652,7 @@ def describe_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
@@ -657,6 +680,8 @@ def describe_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -686,7 +711,11 @@ def describe_table(
         kms_key=kms_key,
         boto3_session=boto3_session,
     )
-    query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=boto3_session)
+    query_metadata: _QueryMetadata = _get_query_metadata(
+        query_execution_id=query_id,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        boto3_session=boto3_session,
+    )
     raw_result = _fetch_txt_result(
         query_metadata=query_metadata,
         keep_files=True,
@@ -715,6 +744,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     kms_key: Optional[str] = None,
     categories: Optional[List[str]] = None,
     wait: bool = False,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Union[str, _QueryMetadata]]:
     """Create a new table populated with the results of a SELECT query.
@@ -765,6 +795,8 @@ def create_ctas_table(  # pylint: disable=too-many-locals
         Recommended for memory restricted environments.
     wait : bool, default False
         Whether to wait for the query to finish and return a dictionary with the Query metadata.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     boto3_session : Optional[boto3.Session], optional
         Boto3 Session. The default boto3 session is used if boto3_session is None.
 
@@ -887,6 +919,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
                 boto3_session=boto3_session,
                 categories=categories,
                 metadata_cache_manager=_cache_manager,
+                athena_query_wait_polling_delay=athena_query_wait_polling_delay,
             )
         except exceptions.QueryFailed as ex:
             msg: str = str(ex)
@@ -917,6 +950,7 @@ def show_create_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -943,6 +977,8 @@ def show_create_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -972,7 +1008,11 @@ def show_create_table(
         kms_key=kms_key,
         boto3_session=boto3_session,
     )
-    query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=boto3_session)
+    query_metadata: _QueryMetadata = _get_query_metadata(
+        query_execution_id=query_id,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        boto3_session=boto3_session,
+    )
     raw_result = _fetch_txt_result(
         query_metadata=query_metadata,
         keep_files=True,
@@ -1139,7 +1179,12 @@ def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.
     client_athena.stop_query_execution(QueryExecutionId=query_execution_id)
 
 
-def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
+@apply_configs
+def wait_query(
+    query_execution_id: str,
+    boto3_session: Optional[boto3.Session] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+) -> Dict[str, Any]:
     """Wait for the query end.
 
     Parameters
@@ -1148,6 +1193,8 @@ def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] =
         Athena query execution ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns
     -------
@@ -1163,7 +1210,7 @@ def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] =
     response: Dict[str, Any] = get_query_execution(query_execution_id=query_execution_id, boto3_session=boto3_session)
     state: str = response["Status"]["State"]
     while state not in _QUERY_FINAL_STATES:
-        time.sleep(_QUERY_WAIT_POLLING_DELAY)
+        time.sleep(athena_query_wait_polling_delay)
         response = get_query_execution(query_execution_id=query_execution_id, boto3_session=boto3_session)
         state = response["Status"]["State"]
     _logger.debug("state: %s", state)
