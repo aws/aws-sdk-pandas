@@ -627,7 +627,7 @@ def create_database(
     description: Optional[str] = None,
     catalog_id: Optional[str] = None,
     exist_ok: bool = False,
-    database_input_args: Optional[Dict[str, Any]] = {},
+    database_input_args: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Create a database in AWS Glue Catalog.
@@ -663,7 +663,7 @@ def create_database(
     ... )
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    args: Dict[str, Any] = {"Name": name, **database_input_args}  # type: ignore
+    args: Dict[str, Any] = {"Name": name, **database_input_args} if database_input_args else {"Name": name}
     if description is not None:
         args["Description"] = description
 
