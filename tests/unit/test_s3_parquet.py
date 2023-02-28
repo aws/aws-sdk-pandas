@@ -4,6 +4,7 @@ import itertools
 import logging
 import math
 from datetime import datetime, timedelta, timezone
+from typing import List, Optional
 
 import boto3
 import numpy as np
@@ -170,6 +171,26 @@ def test_parquet(path):
     )
 
 
+@pytest.mark.parametrize("columns", [None, ["val"]])
+def test_parquet_bulk_read(path: str, columns: Optional[List[str]]) -> None:
+    df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
+    num_files = 10
+
+    for i in range(num_files):
+        wr.s3.to_parquet(df=df, path=f"{path}{i}.parquet")
+
+    df2 = wr.s3.read_parquet(path=path, bulk_read=True, columns=columns)
+    assert len(df2) == num_files * len(df)
+
+    expected_num_columns = len(df.columns) if columns is None else len(columns)
+    assert len(df2.columns) == expected_num_columns
+
+
+@pytest.mark.xfail(
+    raises=AssertionError,
+    condition=is_ray_modin,
+    reason="Validate schema is neccessary to merge schemas in distributed mode",
+)
 def test_parquet_validate_schema(path):
     df = pd.DataFrame({"id": [1, 2, 3]})
     path_file = f"{path}0.parquet"

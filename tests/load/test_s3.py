@@ -38,10 +38,56 @@ def test_s3_select(benchmark_time: float, request: pytest.FixtureRequest) -> Non
 
 
 @pytest.mark.parametrize("benchmark_time", [40])
-def test_s3_read_parquet_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
+@pytest.mark.parametrize(
+    "bulk_read,validate_schema",
+    [
+        pytest.param(False, False, id="regular"),
+        pytest.param(True, False, id="bulk_read"),
+        pytest.param(False, True, id="validate_schema"),
+    ],
+)
+def test_s3_read_parquet_simple(
+    benchmark_time: float,
+    bulk_read: bool,
+    validate_schema: bool,
+    request: pytest.FixtureRequest,
+) -> None:
     path = "s3://ursa-labs-taxi-data/2018/"
     with ExecutionTimer(request, data_paths=path) as timer:
-        wr.s3.read_parquet(path=path)
+        wr.s3.read_parquet(path=path, bulk_read=bulk_read, validate_schema=validate_schema)
+
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("benchmark_time", [180])
+@pytest.mark.parametrize(
+    "bulk_read,validate_schema",
+    [
+        pytest.param(False, False, id="regular"),
+        pytest.param(True, False, id="bulk_read"),
+        pytest.param(False, True, id="validate_schema"),
+    ],
+)
+def test_s3_read_parquet_many_files(
+    benchmark_time: float,
+    bulk_read: bool,
+    validate_schema: bool,
+    request: pytest.FixtureRequest,
+) -> None:
+    path_prefix = "s3://aws-sdk-pandas-list-par-us-east-1-658066294590/small-files-parquet/10000/"
+    file_prefix = "input_1"
+
+    paths = [path for path in wr.s3.list_objects(path_prefix) if path[len(path_prefix) :].startswith(file_prefix)]
+
+    with ExecutionTimer(request, data_paths=paths) as timer:
+        frame = wr.s3.read_parquet(
+            path=paths,
+            bulk_read=bulk_read,
+            validate_schema=validate_schema,
+        )
+
+    num_files = len(paths)
+    assert len(frame) == num_files  # each file contains just one row
 
     assert timer.elapsed_time < benchmark_time
 

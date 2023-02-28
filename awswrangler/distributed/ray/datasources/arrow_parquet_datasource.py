@@ -32,7 +32,7 @@ from ray.data.datasource.file_meta_provider import (
 
 from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray import ray_remote
-from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
+from awswrangler.distributed.ray.datasources.arrow_parquet_base_datasource import ArrowParquetBaseDatasource
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ PARQUET_ENCODING_RATIO_ESTIMATE_MAX_NUM_SAMPLES = 10
 PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS = 5
 
 
-class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
+class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abstract-method
     """(AWS SDK for pandas) Parquet datasource, for reading and writing Parquet files.
 
     The following are the changes to the original Ray implementation:
@@ -81,8 +81,6 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
     3. Added `dataset` and `path_root` parameters to allow user to control loading partitions
        relative to the root S3 prefix.
     """
-
-    _FILE_EXTENSION = "parquet"
 
     def create_reader(self, **kwargs: Dict[str, Any]) -> Reader[Any]:
         """Return a Reader for the given read arguments."""
@@ -349,11 +347,6 @@ def _read_pieces(
     schema: Optional[Union[type, "pyarrow.lib.Schema"]],
     serialized_pieces: List[_SerializedPiece],
 ) -> Iterator["pyarrow.Table"]:
-    # This import is necessary to load the tensor extension type.
-    from ray.data.extensions.tensor_extension import (  # type: ignore[attr-defined]  # noqa: F401, E501 # pylint: disable=import-outside-toplevel, unused-import
-        ArrowTensorType,
-    )
-
     # Deserialize after loading the filesystem class.
     pieces: List[ParquetFileFragment] = _deserialize_pieces_with_retry(serialized_pieces)
 
