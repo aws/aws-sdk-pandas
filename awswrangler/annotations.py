@@ -24,7 +24,7 @@ def _inject_note(
     token: str = "\n    Parameters"
     if not doc or token not in doc:
         return doc
-    note: str = f"\n\n    Note\n    ----\n    {message}\n\n"
+    note: str = f"\n\n    Warning\n    ----\n    {message}\n\n"
     return _insert_str(text=doc, token=token, insert=note)
 
 
