@@ -8,6 +8,7 @@ import pandas
 
 import awswrangler as wr
 from awswrangler import _data_types
+from awswrangler.annotations import Deprecated
 from awswrangler.exceptions import FailedQualityCheck, NoFilesFound
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -84,6 +85,7 @@ def _generate_empty_frame_for_table(
     return _data_types.cast_pandas_with_athena_types(empty_frame, type_dict)
 
 
+@Deprecated
 def merge_upsert_table(
     delta_df: pandas.DataFrame,
     database: str,

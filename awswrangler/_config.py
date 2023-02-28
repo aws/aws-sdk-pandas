@@ -38,6 +38,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
+    "suppress_warnings": _ConfigArg(dtype=str, nullable=True),
     # Endpoints URLs
     "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
@@ -63,6 +64,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     def __init__(self) -> None:
         self._loaded_values: Dict[str, _ConfigValueType] = {}
         name: str
+        self.suppress_warnings = None
         self.s3_endpoint_url = None
         self.athena_endpoint_url = None
         self.sts_endpoint_url = None
@@ -332,6 +334,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @chunksize.setter
     def chunksize(self, value: int) -> None:
         self._set_config_value(key="chunksize", value=value)
+
+    @property
+    def suppress_warnings(self) -> Optional[str]:
+        """Property suppress_warnings."""
+        return cast(Optional[str], self["suppress_warnings"])
+
+    @suppress_warnings.setter
+    def suppress_warnings(self, value: Optional[str]) -> None:
+        self._set_config_value(key="suppress_warnings", value=value)
 
     @property
     def s3_endpoint_url(self) -> Optional[str]:
