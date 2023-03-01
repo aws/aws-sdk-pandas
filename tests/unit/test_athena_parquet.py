@@ -517,7 +517,7 @@ def test_read_parquet_filter_partitions(path, glue_table, glue_database, use_thr
 
 @pytest.mark.parametrize("use_threads", [True, False])
 def test_read_parquet_mutability(path, glue_table, glue_database, use_threads):
-    sql = "SELECT timestamp '2012-08-08 01:00' AS c0"
+    sql = "SELECT timestamp '2012-08-08 01:00:00.000' AS c0"
     df = wr._utils.ensure_df_is_mutable(wr.athena.read_sql_query(sql, "default", use_threads=use_threads))
     df["c0"] = df["c0"] + pd.DateOffset(months=-2)
     assert df.c0[0].value == 1339117200000000000
@@ -848,7 +848,7 @@ def test_ignore_suffix(glue_database, glue_table, path):
 
 
 def test_athena_timestamp_overflow():
-    sql = "SELECT timestamp '2262-04-11 23:47:17' AS c0"
+    sql = "SELECT timestamp '2262-04-11 23:47:17.000' AS c0"
     df1 = wr.athena.read_sql_query(sql, "default")
 
     df_overflow = pd.DataFrame({"c0": [pd.Timestamp("1677-09-21 00:12:43.290448384")]})

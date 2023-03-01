@@ -1,7 +1,7 @@
 import logging
 import os
 from unittest import mock
-from unittest.mock import ANY
+from unittest.mock import ANY, patch
 
 import boto3
 import botocore
@@ -53,9 +53,9 @@ def moto_s3():
 def moto_glue():
     with moto.mock_glue():
         region_name = "us-east-1"
-        os.environ["AWS_DEFAULT_REGION"] = region_name
-        glue = boto3.client("glue", region_name=region_name)
-        yield glue
+        with patch.dict(os.environ, {"AWS_DEFAULT_REGION": region_name}):
+            glue = boto3.client("glue", region_name=region_name)
+            yield glue
 
 
 @pytest.fixture(scope="function")
