@@ -53,8 +53,7 @@ def _delete_objects(
         **extra_kwargs,
     )
     deleted = res.get("Deleted", [])
-    for obj in deleted:
-        _logger.debug("s3://%s/%s has been deleted.", bucket, obj.get("Key"))
+    _logger.debug("len(deleted): %s", len(deleted))
     errors = res.get("Errors", [])
     for error in errors:
         _logger.debug("error: %s", error)

@@ -692,7 +692,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                         boto3_session=boto3_session,
                     )
             except Exception:
-                _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
+                _logger.debug("Catalog write failed, cleaning up S3 objects (len(paths): %s).", len(paths))
                 delete_objects(
                     path=paths,
                     use_threads=use_threads,

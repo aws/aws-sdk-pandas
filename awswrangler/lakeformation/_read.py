@@ -27,7 +27,6 @@ def _get_work_unit_results(
     query_id: str,
     token_work_unit: Tuple[str, int],
 ) -> Table:
-    _logger.debug("Query id: %s Token work unit: %s", query_id, token_work_unit)
     client_lakeformation = client_lakeformation if client_lakeformation else _utils.client(service_name="lakeformation")
     token, work_unit = token_work_unit
     messages: NativeFile = client_lakeformation.get_work_unit_results(

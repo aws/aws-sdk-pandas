@@ -192,7 +192,6 @@ def _to_parquet(
     file_path = _get_file_path(
         path_root=path_root, path=path, filename_prefix=filename_prefix, compression_ext=compression_ext
     )
-    _logger.debug("file_path: %s", file_path)
     table: pa.Table = _df_to_table(df, schema, index, dtype)
     if max_rows_by_file is not None and max_rows_by_file > 0:
         paths: List[str] = _to_parquet_chunked(
@@ -791,7 +790,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                         boto3_session=boto3_session,
                     )
             except Exception:
-                _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
+                _logger.debug("Catalog write failed, cleaning up S3 objects (len(paths): %s).", len(paths))
                 delete_objects(
                     path=paths,
                     use_threads=use_threads,
