@@ -91,10 +91,10 @@ def test_basics(
         wr.catalog.does_table_exist(table=glue_table)
 
     # exporting environment variable
-    os.environ["WR_DATABASE"] = glue_database
-    wr.config.reset("database")
+    with patch.dict(os.environ, {"WR_DATABASE": glue_database}):
+        wr.config.reset("database")
+
     assert wr.catalog.does_table_exist(table=glue_table) is True
-    del os.environ["WR_DATABASE"]
     wr.config.reset("database")
 
     # Missing database argument
@@ -107,8 +107,9 @@ def test_basics(
     wr.config.workgroup = workgroup0
     df = wr.athena.read_sql_query(sql="SELECT 1 as col0", database=glue_database)
     assert df.query_metadata["WorkGroup"] == workgroup0
-    os.environ["WR_WORKGROUP"] = workgroup1
-    wr.config.reset()
+
+    with patch.dict(os.environ, {"WR_WORKGROUP": workgroup1}):
+        wr.config.reset()
     df = wr.athena.read_sql_query(sql="SELECT 1 as col0", database=glue_database)
     assert df.query_metadata["WorkGroup"] == workgroup1
 
@@ -120,12 +121,16 @@ def test_basics(
     wr.config.glue_endpoint_url = f"https://glue.{region}.amazonaws.com"
     wr.config.secretsmanager_endpoint_url = f"https://secretsmanager.{region}.amazonaws.com"
     _urls_test(wr, glue_database)
-    os.environ["WR_STS_ENDPOINT_URL"] = f"https://sts.{region}.amazonaws.com"
-    os.environ["WR_S3_ENDPOINT_URL"] = f"https://s3.{region}.amazonaws.com"
-    os.environ["WR_ATHENA_ENDPOINT_URL"] = f"https://athena.{region}.amazonaws.com"
-    os.environ["WR_GLUE_ENDPOINT_URL"] = f"https://glue.{region}.amazonaws.com"
-    os.environ["WR_SECRETSMANAGER_ENDPOINT_URL"] = f"https://secretsmanager.{region}.amazonaws.com"
-    wr.config.reset()
+
+    mock_environ_dict = {}
+    mock_environ_dict["WR_STS_ENDPOINT_URL"] = f"https://sts.{region}.amazonaws.com"
+    mock_environ_dict["WR_S3_ENDPOINT_URL"] = f"https://s3.{region}.amazonaws.com"
+    mock_environ_dict["WR_ATHENA_ENDPOINT_URL"] = f"https://athena.{region}.amazonaws.com"
+    mock_environ_dict["WR_GLUE_ENDPOINT_URL"] = f"https://glue.{region}.amazonaws.com"
+    mock_environ_dict["WR_SECRETSMANAGER_ENDPOINT_URL"] = f"https://secretsmanager.{region}.amazonaws.com"
+
+    with patch.dict(os.environ, mock_environ_dict):
+        wr.config.reset()
     _urls_test(wr, glue_database)
 
 
@@ -135,18 +140,15 @@ def test_athena_cache_configuration(wr: ModuleType) -> None:
     assert wr.config.max_remote_cache_entries == 20
 
 
-def test_wait_time_configuration(wr: ModuleType, request: pytest.FixtureRequest) -> None:
-    def teardown() -> None:
-        del os.environ["WR_ATHENA_QUERY_WAIT_POLLING_DELAY"]
-        del os.environ["WR_LAKEFORMATION_QUERY_WAIT_POLLING_DELAY"]
-        del os.environ["WR_CLOUDWATCH_QUERY_WAIT_POLLING_DELAY"]
-
-    request.addfinalizer(teardown)
-
-    os.environ["WR_ATHENA_QUERY_WAIT_POLLING_DELAY"] = "0.1"
-    os.environ["WR_LAKEFORMATION_QUERY_WAIT_POLLING_DELAY"] = "0.15"
-    os.environ["WR_CLOUDWATCH_QUERY_WAIT_POLLING_DELAY"] = "0.05"
-
+@patch.dict(
+    os.environ,
+    {
+        "WR_ATHENA_QUERY_WAIT_POLLING_DELAY": "0.1",
+        "WR_LAKEFORMATION_QUERY_WAIT_POLLING_DELAY": "0.15",
+        "WR_CLOUDWATCH_QUERY_WAIT_POLLING_DELAY": "0.05",
+    },
+)
+def test_wait_time_configuration(wr: ModuleType) -> None:
     wr.config.reset()
 
     assert wr.config.athena_query_wait_polling_delay == 0.1
@@ -181,15 +183,12 @@ def test_botocore_config(wr: ModuleType, path: str) -> None:
     expected_max_pool_connections = 10
     expected_retry_mode = "adaptive"
 
-    os.environ["AWS_MAX_ATTEMPTS"] = str(expected_max_retries_attempt)
-    os.environ["AWS_RETRY_MODE"] = expected_retry_mode
-
-    with patch("botocore.client.ClientCreator.create_client", new=wrapper):
-        with wr.s3._fs.open_s3_object(path, mode="wb") as s3obj:
-            s3obj.write(b"foo")
-
-    del os.environ["AWS_MAX_ATTEMPTS"]
-    del os.environ["AWS_RETRY_MODE"]
+    with patch.dict(
+        os.environ, {"AWS_MAX_ATTEMPTS": str(expected_max_retries_attempt), "AWS_RETRY_MODE": expected_retry_mode}
+    ):
+        with patch("botocore.client.ClientCreator.create_client", new=wrapper):
+            with wr.s3._fs.open_s3_object(path, mode="wb") as s3obj:
+                s3obj.write(b"foo")
 
     # Update botocore.config.Config
     expected_max_retries_attempt = 30
@@ -222,8 +221,8 @@ def test_chunk_size(wr: ModuleType) -> None:
         mock.assert_called_with(df=None, con=None, table=None, schema=None, chunksize=expected_chunksize)
 
     expected_chunksize = 456
-    os.environ["WR_CHUNKSIZE"] = str(expected_chunksize)
-    wr.config.reset()
+    with patch.dict(os.environ, {"WR_CHUNKSIZE": str(expected_chunksize)}):
+        wr.config.reset()
 
     for function_to_mock in [wr.postgresql.to_sql, wr.mysql.to_sql, wr.sqlserver.to_sql, wr.redshift.to_sql]:
         mock = create_autospec(function_to_mock)
@@ -244,7 +243,7 @@ def test_athena_wait_delay_config(wr: ModuleType, glue_database: str, polling_de
 
         mock_wait_query.assert_called_once()
 
-        assert mock_wait_query.call_args.kwargs["athena_query_wait_polling_delay"] == polling_delay
+        assert mock_wait_query.call_args[1]["athena_query_wait_polling_delay"] == polling_delay
 
 
 def test_athena_wait_delay_config_override(wr: ModuleType, glue_database: str) -> None:
@@ -258,4 +257,4 @@ def test_athena_wait_delay_config_override(wr: ModuleType, glue_database: str) -
 
         mock_wait_query.assert_called_once()
 
-        assert mock_wait_query.call_args.kwargs["athena_query_wait_polling_delay"] == polling_delay_argument
+        assert mock_wait_query.call_args[1]["athena_query_wait_polling_delay"] == polling_delay_argument
