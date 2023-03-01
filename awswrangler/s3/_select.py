@@ -44,7 +44,6 @@ def _select_object_content(
 ) -> pa.Table:
     client_s3: "S3Client" = s3_client if s3_client else _utils.client(service_name="s3")
     if scan_range:
-        _logger.debug("scan_range: %s, key: %s", scan_range, args["Key"])
         response = client_s3.select_object_content(**args, ScanRange={"Start": scan_range[0], "End": scan_range[1]})
     else:
         response = client_s3.select_object_content(**args)
@@ -269,7 +268,7 @@ def select_query(
     )
     if len(paths) < 1:
         raise exceptions.NoFilesFound(f"No files Found: {path}.")
-    _logger.debug("paths:\n%s", paths)
+    _logger.debug("len(paths): %s", len(paths))
 
     select_kwargs: Dict[str, Any] = {
         "sql": sql,

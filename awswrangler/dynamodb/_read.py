@@ -225,7 +225,6 @@ def _read_scan(
     items: List[Dict[str, Any]] = []
 
     while next_token:
-        _logger.debug("segment: %s", segment)
         response = _handle_reserved_keyword_error(client_dynamodb.scan)(**kwargs, Segment=segment)  # type: ignore[type-var]
         # Unlike a resource, the DynamoDB client returns serialized results, so they must be deserialized
         # Additionally, the DynamoDB "Binary" type is converted to a native Python data type

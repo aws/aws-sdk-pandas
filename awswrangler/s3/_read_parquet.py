@@ -641,7 +641,7 @@ def read_parquet(
         paths = _apply_partition_filter(path_root=path_root, paths=paths, filter_func=partition_filter)
     if len(paths) < 1:
         raise exceptions.NoFilesFound(f"No files Found on: {path}.")
-    _logger.debug("paths:\n%s", paths)
+    _logger.debug("len(paths): %s", len(paths))
 
     version_ids = _check_version_id(paths=paths, version_id=version_id)
 

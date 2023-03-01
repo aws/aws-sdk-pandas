@@ -84,8 +84,6 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
             compression = pandas_kwargs.get("compression")
 
         def write_block(write_path: str, block: pd.DataFrame) -> str:
-            _logger.debug("Writing %s file.", write_path)
-
             if _block_udf is not None:
                 block = _block_udf(block)
 

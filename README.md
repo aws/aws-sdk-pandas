@@ -196,6 +196,8 @@ As a result existing scripts can run on significantly larger datasets with no co
   - [034 - Distributing Calls Using Ray](https://github.com/aws/aws-sdk-pandas/blob/release-3.0.0/tutorials/034%20-%20Distributing%20Calls%20using%20Ray.ipynb)
   - [035 - Distributing Calls on Ray Remote Cluster](https://github.com/aws/aws-sdk-pandas/blob/release-3.0.0/tutorials/035%20-%20Distributing%20Calls%20on%20Ray%20Remote%20Cluster.ipynb)
   - [036 - Distributing Calls with Glue Interactive Sessions on Ray](https://github.com/aws/aws-sdk-pandas/blob/release-3.0.0/tutorials/036%20-%20Distributing%20Calls%20with%20Glue%20Interactive%20Sessions%20on%20Ray.ipynb)
+  - [037 - Glue Data Quality](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/037%20-%20Glue%20Data%20Quality.ipynb)
+  - [038 - OpenSearch Serverless](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/038%20-%20OpenSearch%20Serverless.ipynb)
 - [**API Reference**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/api.html)
   - [Amazon S3](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/api.html#aws-glue-catalog)

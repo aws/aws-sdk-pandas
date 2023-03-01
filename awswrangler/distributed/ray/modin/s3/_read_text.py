@@ -27,7 +27,10 @@ _CSV_SUPPORTED_PARAMS = {
     "delimiter": ParamConfig(default=","),
     "quotechar": ParamConfig(default='"'),
     "doublequote": ParamConfig(default=True),
+    "skip_blank_lines": ParamConfig(default=True),
+    "escapechar": ParamConfig(default=False),
     "names": ParamConfig(default=None),
+    "encoding": ParamConfig(default="utf8"),
 }
 
 _JSON_SUPPORTED_PARAMS = {
@@ -55,11 +58,14 @@ def _parse_csv_configuration(
     read_options = csv.ReadOptions(
         use_threads=False,
         column_names=pandas_kwargs.get("names", _CSV_SUPPORTED_PARAMS["names"].default),
+        encoding=pandas_kwargs.get("encoding", _CSV_SUPPORTED_PARAMS["encoding"].default),
     )
     parse_options = csv.ParseOptions(
         delimiter=pandas_kwargs.get("sep", _CSV_SUPPORTED_PARAMS["sep"].default),
         quote_char=pandas_kwargs.get("quotechar", _CSV_SUPPORTED_PARAMS["quotechar"].default),
         double_quote=pandas_kwargs.get("doublequote", _CSV_SUPPORTED_PARAMS["doublequote"].default),
+        escape_char=pandas_kwargs.get("escapechar", _CSV_SUPPORTED_PARAMS["escapechar"].default),
+        ignore_empty_lines=pandas_kwargs.get("skip_blank_lines", _CSV_SUPPORTED_PARAMS["skip_blank_lines"].default),
     )
     convert_options = csv.ConvertOptions()
 
