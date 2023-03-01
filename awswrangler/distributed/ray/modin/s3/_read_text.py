@@ -30,7 +30,6 @@ _CSV_SUPPORTED_PARAMS = {
     "skip_blank_lines": ParamConfig(default=True),
     "escapechar": ParamConfig(default=False),
     "names": ParamConfig(default=None),
-    "encoding": ParamConfig(default="utf8"),
 }
 
 _JSON_SUPPORTED_PARAMS = {
