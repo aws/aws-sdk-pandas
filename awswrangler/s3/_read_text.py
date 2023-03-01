@@ -798,6 +798,7 @@ def read_json(
         pandas_kwargs["lines"] = True
     pandas_kwargs["orient"] = orient
     ignore_index: bool = orient not in ("split", "index", "columns")
+    ray_modin_args = ray_modin_args if ray_modin_args else {}
     return _read_text_format(
         read_format="json",
         path=path,
