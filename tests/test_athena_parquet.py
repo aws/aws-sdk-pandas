@@ -756,7 +756,7 @@ def test_ignore_suffix(glue_database, glue_table, path):
 
 
 def test_athena_timestamp_overflow():
-    sql = "SELECT timestamp '2262-04-11 23:47:17' AS c0"
+    sql = "SELECT timestamp '2262-04-11 23:47:17.000' AS c0"
     df1 = wr.athena.read_sql_query(sql, "default")
 
     df_overflow = pd.DataFrame({"c0": [pd.Timestamp("1677-09-21 00:12:43.290448384")]})
