@@ -258,4 +258,4 @@ def test_athena_wait_delay_config_override(wr: ModuleType, glue_database: str) -
 
         mock_wait_query.assert_called_once()
 
-        assert mock_wait_query.call_args[1]["athena_query_wait_polling_delay"] == polling_delay
+        assert mock_wait_query.call_args[1]["athena_query_wait_polling_delay"] == polling_delay_argument
