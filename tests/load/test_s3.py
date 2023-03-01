@@ -54,7 +54,11 @@ def test_s3_read_parquet_simple(
 ) -> None:
     path = "s3://ursa-labs-taxi-data/2018/"
     with ExecutionTimer(request, data_paths=path) as timer:
-        wr.s3.read_parquet(path=path, bulk_read=bulk_read, validate_schema=validate_schema)
+        wr.s3.read_parquet(
+            path=path,
+            validate_schema=validate_schema,
+            ray_modin_args={"bulk_read": bulk_read},
+        )
 
     assert timer.elapsed_time < benchmark_time
 
@@ -82,8 +86,8 @@ def test_s3_read_parquet_many_files(
     with ExecutionTimer(request, data_paths=paths) as timer:
         frame = wr.s3.read_parquet(
             path=paths,
-            bulk_read=bulk_read,
             validate_schema=validate_schema,
+            ray_modin_args={"bulk_read": bulk_read},
         )
 
     num_files = len(paths)

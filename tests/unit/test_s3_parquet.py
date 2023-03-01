@@ -179,7 +179,7 @@ def test_parquet_bulk_read(path: str, columns: Optional[List[str]]) -> None:
     for i in range(num_files):
         wr.s3.to_parquet(df=df, path=f"{path}{i}.parquet")
 
-    df2 = wr.s3.read_parquet(path=path, bulk_read=True, columns=columns)
+    df2 = wr.s3.read_parquet(path=path, columns=columns, ray_modin_args={"bulk_read": True})
     assert len(df2) == num_files * len(df)
 
     expected_num_columns = len(df.columns) if columns is None else len(columns)
