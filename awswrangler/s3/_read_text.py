@@ -83,7 +83,7 @@ def _read_text_format(
     dataset: bool,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]],
     ignore_index: bool,
-    parallelism: int,
+    ray_modin_args: RayModinSettings,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -137,7 +137,7 @@ def _read_text_format(
         s3_additional_kwargs=s3_additional_kwargs,
         dataset=dataset,
         ignore_index=ignore_index,
-        parallelism=parallelism,
+        parallelism=ray_modin_args.get("parallelism", -1),
         version_ids=version_ids,
         pandas_kwargs=pandas_kwargs,
     )
@@ -344,7 +344,6 @@ def read_csv(
         )
     s3_client = _utils.client(service_name="s3", session=boto3_session)
     ignore_index: bool = "index_col" not in pandas_kwargs
-    ray_modin_args = ray_modin_args if ray_modin_args else {}
     return _read_text_format(
         read_format="csv",
         path=path,
@@ -361,7 +360,7 @@ def read_csv(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
-        parallelism=ray_modin_args.get("parallelism", -1),
+        ray_modin_args=ray_modin_args if ray_modin_args else {},
         **pandas_kwargs,
     )
 
@@ -564,7 +563,6 @@ def read_fwf(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_fwf(path, widths=[1, 3], names=['c0', 'c1'])"
         )
-    ray_modin_args = ray_modin_args if ray_modin_args else {}
     s3_client = _utils.client(service_name="s3", session=boto3_session)
     return _read_text_format(
         read_format="fwf",
@@ -583,7 +581,7 @@ def read_fwf(
         last_modified_end=last_modified_end,
         ignore_index=True,
         sort_index=False,
-        parallelism=ray_modin_args.get("parallelism", -1),
+        ray_modin_args=ray_modin_args if ray_modin_args else {},
         **pandas_kwargs,
     )
 
@@ -798,7 +796,6 @@ def read_json(
         pandas_kwargs["lines"] = True
     pandas_kwargs["orient"] = orient
     ignore_index: bool = orient not in ("split", "index", "columns")
-    ray_modin_args = ray_modin_args if ray_modin_args else {}
     return _read_text_format(
         read_format="json",
         path=path,
@@ -815,6 +812,6 @@ def read_json(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
-        parallelism=ray_modin_args.get("parallelism", -1),
+        ray_modin_args=ray_modin_args if ray_modin_args else {},
         **pandas_kwargs,
     )
