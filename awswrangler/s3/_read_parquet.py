@@ -600,7 +600,8 @@ def read_parquet(
 
     There are two batching strategies on awswrangler:
 
-    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset. For memory efficiency,
+    each Data Frame will represent a different file, but each file may be represented by multiple Data Frames.
 
     - If **chunked=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
 
@@ -830,7 +831,8 @@ def read_parquet_table(
 
     There are two batching strategies on awswrangler:
 
-    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset. For memory efficiency,
+    each Data Frame will represent a different file, but each file may be represented by multiple Data Frames.
 
     - If **chunked=INTEGER**, awswrangler will paginate through files slicing and concatenating
       to return DataFrames with the number of row igual the received INTEGER.

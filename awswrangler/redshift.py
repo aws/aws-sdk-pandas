@@ -1122,7 +1122,8 @@ def unload(
 
     There are two batching strategies on awswrangler:
 
-    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset. For memory efficiency,
+    each Data Frame will represent a different file, but each file may be represented by multiple Data Frames.
 
     - If **chunked=INTEGER**, awswrangler will iterate on the data by number of rows (equal to the received INTEGER).
 
