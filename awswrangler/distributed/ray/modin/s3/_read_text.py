@@ -104,7 +104,7 @@ def _parse_configuration(
     if file_format == "json":
         return _parse_json_configuration(pandas_kwargs)
 
-    raise exceptions.InvalidArgument(f"File is in the {format} format")
+    raise exceptions.InvalidArgument(f"File is in the {file_format} format")
 
 
 def _resolve_format(read_format: str, can_use_arrow: bool) -> Any:
