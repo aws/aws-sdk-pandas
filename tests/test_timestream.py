@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 
 import boto3
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -248,6 +249,59 @@ def test_multimeasure_scenario(timestream_database_and_table):
         """,
     )
     assert df.shape == (3, 6)
+
+
+@pytest.mark.parametrize(
+    "test_input,expected",
+    [
+        (
+            {
+                "df": pd.DataFrame(
+                    {
+                        "time": [datetime.now(), datetime.now(), datetime.now()],
+                        "dim0": [1, 2, 3],
+                        "measure1": [None, np.nan, 1.2],
+                        "measure2": [pd.NaT, 2.1, 2.2],
+                    }
+                ),
+                "measure_col": ["measure1", "measure2"],
+            },
+            (2, 5),
+        ),
+        (
+            {
+                "df": pd.DataFrame(
+                    {
+                        "time": [datetime.now(), datetime.now(), datetime.now()],
+                        "dim0": [1, 2, 3],
+                        "measure1": [None, 1.1, 1.2],
+                    }
+                ),
+                "measure_col": ["measure1"],
+            },
+            (2, 4),
+        ),
+    ],
+)
+def test_nans(timestream_database_and_table, test_input, expected):
+    rejected_records = wr.timestream.write(
+        **test_input,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        dimensions_cols=["dim0"],
+    )
+    assert len(rejected_records) == 0
+    df = wr.timestream.query(
+        f"""
+        SELECT
+            *
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        ORDER BY time
+        DESC LIMIT 10
+        """,
+    )
+    assert df.shape == expected
 
 
 def test_list_databases(timestream_database_and_table, timestream_database):
