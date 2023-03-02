@@ -43,7 +43,7 @@ from awswrangler.s3._read import (
     _get_path_ignore_suffix,
     _get_path_root,
 )
-from awswrangler.typing import RayModinReadSettings
+from awswrangler.typing import RayReadParquetSettings
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -365,7 +365,7 @@ def read_parquet(
     version_id: Optional[Union[str, Dict[str, str]]] = ...,
     chunked: Literal[False] = ...,
     use_threads: Union[bool, int] = ...,
-    ray_modin_args: Optional[RayModinReadSettings] = ...,
+    ray_args: Optional[RayReadParquetSettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -391,7 +391,7 @@ def read_parquet(
     version_id: Optional[Union[str, Dict[str, str]]] = ...,
     chunked: Literal[True],
     use_threads: Union[bool, int] = ...,
-    ray_modin_args: Optional[RayModinReadSettings] = ...,
+    ray_args: Optional[RayReadParquetSettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -417,7 +417,7 @@ def read_parquet(
     version_id: Optional[Union[str, Dict[str, str]]] = ...,
     chunked: bool,
     use_threads: Union[bool, int] = ...,
-    ray_modin_args: Optional[RayModinReadSettings] = ...,
+    ray_args: Optional[RayReadParquetSettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -443,7 +443,7 @@ def read_parquet(
     version_id: Optional[Union[str, Dict[str, str]]] = ...,
     chunked: int,
     use_threads: Union[bool, int] = ...,
-    ray_modin_args: Optional[RayModinReadSettings] = ...,
+    ray_args: Optional[RayReadParquetSettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -470,7 +470,7 @@ def read_parquet(
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
-    ray_modin_args: Optional[RayModinReadSettings] = None,
+    ray_args: Optional[RayReadParquetSettings] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -559,7 +559,7 @@ def read_parquet(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    ray_modin_args: typing.RayModinReadSettings, optional
+    ray_args: typing.RayReadParquetSettings, optional
         Params of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
@@ -611,8 +611,8 @@ def read_parquet(
     >>> df = wr.s3.read_parquet(path, dataset=True, partition_filter=my_filter)
 
     """
-    ray_modin_args = ray_modin_args if ray_modin_args else {}
-    bulk_read = ray_modin_args.get("bulk_read", False)
+    ray_args = ray_args if ray_args else {}
+    bulk_read = ray_args.get("bulk_read", False)
 
     if bulk_read and validate_schema:
         exceptions.InvalidArgumentCombination("Cannot validate schema when bulk reading data files.")
@@ -685,7 +685,7 @@ def read_parquet(
         columns=columns,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         use_threads=use_threads,
-        parallelism=ray_modin_args.get("parallelism", -1),
+        parallelism=ray_args.get("parallelism", -1),
         s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         arrow_kwargs=arrow_kwargs,
@@ -708,7 +708,7 @@ def read_parquet_table(
     coerce_int96_timestamp_unit: Optional[str] = ...,
     chunked: Literal[False] = ...,
     use_threads: Union[bool, int] = ...,
-    ray_modin_args: Optional[RayModinReadSettings] = ...,
+    ray_args: Optional[RayReadParquetSettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -730,7 +730,7 @@ def read_parquet_table(
     coerce_int96_timestamp_unit: Optional[str] = ...,
     chunked: Literal[True],
     use_threads: Union[bool, int] = ...,
-    ray_modin_args: Optional[RayModinReadSettings] = ...,
+    ray_args: Optional[RayReadParquetSettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -752,7 +752,7 @@ def read_parquet_table(
     coerce_int96_timestamp_unit: Optional[str] = ...,
     chunked: bool,
     use_threads: Union[bool, int] = ...,
-    ray_modin_args: Optional[RayModinReadSettings] = ...,
+    ray_args: Optional[RayReadParquetSettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -774,7 +774,7 @@ def read_parquet_table(
     coerce_int96_timestamp_unit: Optional[str] = ...,
     chunked: int,
     use_threads: Union[bool, int] = ...,
-    ray_modin_args: Optional[RayModinReadSettings] = ...,
+    ray_args: Optional[RayReadParquetSettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -798,7 +798,7 @@ def read_parquet_table(
     coerce_int96_timestamp_unit: Optional[str] = None,
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
-    ray_modin_args: Optional[RayModinReadSettings] = None,
+    ray_args: Optional[RayReadParquetSettings] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -863,7 +863,7 @@ def read_parquet_table(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    ray_modin_args: typing.RayModinReadSettings, optional
+    ray_args: typing.RayReadParquetSettings, optional
         Params of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
@@ -946,7 +946,7 @@ def read_parquet_table(
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         chunked=chunked,
         use_threads=use_threads,
-        ray_modin_args=ray_modin_args,
+        ray_args=ray_args,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,

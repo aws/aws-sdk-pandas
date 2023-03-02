@@ -57,7 +57,7 @@ def test_s3_read_parquet_simple(
         wr.s3.read_parquet(
             path=path,
             validate_schema=validate_schema,
-            ray_modin_args={"bulk_read": bulk_read},
+            ray_args={"bulk_read": bulk_read},
         )
 
     assert timer.elapsed_time < benchmark_time
@@ -87,7 +87,7 @@ def test_s3_read_parquet_many_files(
         frame = wr.s3.read_parquet(
             path=paths,
             validate_schema=validate_schema,
-            ray_modin_args={"bulk_read": bulk_read},
+            ray_args={"bulk_read": bulk_read},
         )
 
     num_files = len(paths)

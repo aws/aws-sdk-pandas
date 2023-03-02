@@ -165,7 +165,7 @@ class AthenaPartitionProjectionSettings(TypedDict):
     """
 
 
-class RayModinSettings(TypedDict):
+class RaySettings(TypedDict):
     """Typed dictionary defining the settings for distributing calls using Ray/Modin."""
 
     parallelism: NotRequired[int]
@@ -176,7 +176,7 @@ class RayModinSettings(TypedDict):
     """
 
 
-class RayModinReadSettings(RayModinSettings):
+class RayReadParquetSettings(RaySettings):
     """Typed dictionary defining the settings for distributing reading calls using Ray/Modin."""
 
     bulk_read: NotRequired[bool]
