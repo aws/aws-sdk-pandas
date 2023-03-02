@@ -57,7 +57,6 @@ def _parse_csv_configuration(
     read_options = csv.ReadOptions(
         use_threads=False,
         column_names=pandas_kwargs.get("names", _CSV_SUPPORTED_PARAMS["names"].default),
-        encoding=pandas_kwargs.get("encoding", _CSV_SUPPORTED_PARAMS["encoding"].default),
     )
     parse_options = csv.ParseOptions(
         delimiter=pandas_kwargs.get("sep", _CSV_SUPPORTED_PARAMS["sep"].default),
