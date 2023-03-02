@@ -19,9 +19,9 @@ import ray
 from pyarrow.dataset import ParquetFileFragment
 from pyarrow.lib import Schema
 from ray import cloudpickle
+from ray.data._internal.output_buffer import BlockOutputBuffer
 from ray.data.block import Block, BlockAccessor
 from ray.data.context import DatasetContext
-from ray.data.dataset import BlockOutputBuffer  # type: ignore[attr-defined]
 from ray.data.datasource import Reader, ReadTask
 from ray.data.datasource.file_based_datasource import _resolve_paths_and_filesystem
 from ray.data.datasource.file_meta_provider import (
@@ -327,7 +327,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             # Use SPREAD scheduling strategy to avoid packing many sampling tasks on
             # same machine to cause OOM issue, as sampling can be memory-intensive.
             futures.append(_sample_piece(_SerializedPiece(sample), idx))
-        sample_ratios = ray.get(futures)  # type: ignore[attr-defined]
+        sample_ratios = ray.get(futures)
         ratio = np.mean(sample_ratios)
 
         sampling_duration = time.perf_counter() - start_time
