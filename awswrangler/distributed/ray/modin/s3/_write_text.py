@@ -56,7 +56,7 @@ def _parse_configuration(
     if file_format == "csv":
         return _parse_csv_configuration(pandas_kwargs)
 
-    raise exceptions.InvalidArgument(f"File is in the {format} format")
+    raise exceptions.InvalidArgument(f"File is in the {file_format} format")
 
 
 def _datasource_for_format(write_format: str, can_use_arrow: bool) -> PandasFileBasedDatasource:
