@@ -277,6 +277,7 @@ def test_parquet_chunked(path, glue_database, glue_table, col2, chunked):
     assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Issue since upgrading to Ray 2.3")
 def test_unsigned_parquet(path, glue_database, glue_table):
     wr.s3.delete_objects(path=path)
     df = pd.DataFrame({"c0": [0, 0, (2**8) - 1], "c1": [0, 0, (2**16) - 1], "c2": [0, 0, (2**32) - 1]})
