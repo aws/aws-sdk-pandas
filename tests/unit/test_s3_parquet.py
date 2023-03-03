@@ -52,8 +52,24 @@ def test_read_parquet_metadata_nulls(path):
     assert columns_types.get("c2") == "string"
 
 
-@pytest.mark.xfail(is_ray_modin, raises=ValueError, reason="https://github.com/modin-project/modin/issues/5552")
-@pytest.mark.parametrize("partition_cols", [None, ["c2"], ["value", "c2"]])
+@pytest.mark.parametrize(
+    "partition_cols",
+    [
+        None,
+        pytest.param(
+            ["c2"],
+            marks=pytest.mark.xfail(
+                is_ray_modin, raises=ValueError, reason="https://github.com/modin-project/modin/issues/5552"
+            ),
+        ),
+        pytest.param(
+            ["value", "c2"],
+            marks=pytest.mark.xfail(
+                is_ray_modin, raises=ValueError, reason="https://github.com/modin-project/modin/issues/5552"
+            ),
+        ),
+    ],
+)
 def test_parquet_cast_string_dataset(path, partition_cols):
     df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"], "c2": [4, 5, 6], "c3": [7.0, 8.0, 9.0]})
     wr.s3.to_parquet(df, path, dataset=True, partition_cols=partition_cols, dtype={"id": "string", "c3": "string"})
@@ -563,8 +579,19 @@ def test_timezone_raw_values(path):
     assert pandas_equals(df2, df3)
 
 
-@pytest.mark.parametrize("partition_cols", [None, ["a"], ["a", "b"]])
-@pytest.mark.xfail(reason="Empty file cannot be read by Ray", raises=AssertionError, condition=is_ray_modin)
+@pytest.mark.parametrize(
+    "partition_cols",
+    [
+        None,
+        ["a"],
+        pytest.param(
+            ["a", "b"],
+            marks=pytest.mark.xfail(
+                reason="Empty file cannot be read by Ray", raises=AssertionError, condition=is_ray_modin
+            ),
+        ),
+    ],
+)
 def test_validate_columns(path, partition_cols) -> None:
     wr.s3.to_parquet(pd.DataFrame({"a": [1], "b": [2]}), path, dataset=True, partition_cols=partition_cols)
     wr.s3.read_parquet(path, columns=["a", "b"], dataset=True, validate_schema=True)
