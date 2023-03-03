@@ -807,10 +807,11 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
 
     There are two batching strategies:
 
-    - If **chunksize=True**, a new DataFrame will be returned for each file in the query result. For memory efficiency,
-    each Data Frame will represent a different file, but each file may be represented by multiple Data Frames.
+    - If **chunksize=True**, depending on the size of the data, one or more data frames will be
+      returned per each file in the query result.
+      Unlike **chunksize=INTEGER**, rows from different files will not be mixed in the resulting data frames.
 
-    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows egual the received INTEGER.
 
     `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
     in number of rows for each Dataframe.
@@ -1111,10 +1112,11 @@ def read_sql_table(
 
     There are two batching strategies:
 
-    - If **chunksize=True**, a new DataFrame will be returned for each file in the query result. For memory efficiency,
-    each Data Frame will represent a different file, but each file may be represented by multiple Data Frames.
+    - If **chunksize=True**, depending on the size of the data, one or more data frames will be
+      returned per each file in the query result.
+      Unlike **chunksize=INTEGER**, rows from different files will not be mixed in the resulting data frames.
 
-    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows egual the received INTEGER.
 
     `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
     in number of rows for each Dataframe.
