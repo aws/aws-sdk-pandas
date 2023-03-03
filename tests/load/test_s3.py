@@ -173,7 +173,7 @@ def test_s3_delete_objects(path: str, path2: str, benchmark_time: float, request
     paths2 = [f"{path2}delete-test{i}.json" for i in range(objects_per_bucket)]
     paths = paths1 + paths2
     for path in paths:
-        wr.s3.to_json(df, path)
+        wr.s3.to_csv(df, path)
     with ExecutionTimer(request) as timer:
         wr.s3.delete_objects(path=paths)
     assert timer.elapsed_time < benchmark_time
@@ -232,7 +232,7 @@ def test_wait_object_exists(path: str, benchmark_time: int, request: pytest.Fixt
     file_paths = [f"{path}{i}.txt" for i in range(num_objects)]
 
     for file_path in file_paths:
-        wr.s3.to_csv(df, file_path, index=False)
+        wr.s3.to_csv(df, file_path, index=True)
 
     with ExecutionTimer(request) as timer:
         wr.s3.wait_objects_exist(file_paths, parallelism=16)
