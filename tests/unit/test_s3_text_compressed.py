@@ -7,6 +7,7 @@ from sys import version_info
 from typing import Optional
 
 import boto3
+import pyarrow as pa
 import pytest
 
 import awswrangler as wr
@@ -32,7 +33,9 @@ pytestmark = pytest.mark.distributed
     [
         "gzip",
         "bz2",
-        pytest.param("xz", marks=pytest.mark.xfail(is_ray_modin, reason="Arrow compression errors")),
+        pytest.param(
+            "xz", marks=pytest.mark.xfail(is_ray_modin, reason="Arrow compression errors", raises=pa.lib.ArrowInvalid)
+        ),
     ],
 )
 def test_csv_read(bucket: str, path: str, compression: str) -> None:
@@ -80,8 +83,12 @@ def test_csv_read(bucket: str, path: str, compression: str) -> None:
     [
         "gzip",
         "bz2",
-        pytest.param("xz", marks=pytest.mark.xfail(is_ray_modin, reason="Arrow compression errors")),
-        pytest.param("zip", marks=pytest.mark.xfail(is_ray_modin, reason="Arrow compression errors")),
+        pytest.param(
+            "xz", marks=pytest.mark.xfail(is_ray_modin, reason="Arrow compression errors", raises=pa.lib.ArrowInvalid)
+        ),
+        pytest.param(
+            "zip", marks=pytest.mark.xfail(is_ray_modin, reason="Arrow compression errors", raises=pa.lib.ArrowInvalid)
+        ),
         None,
     ],
 )
