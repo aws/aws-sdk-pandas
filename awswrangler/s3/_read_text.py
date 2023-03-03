@@ -20,6 +20,7 @@ from awswrangler.s3._read import (
     _union,
 )
 from awswrangler.s3._read_text_core import _read_text_file, _read_text_files_chunked
+from awswrangler.typing import RaySettings
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -82,7 +83,7 @@ def _read_text_format(
     dataset: bool,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]],
     ignore_index: bool,
-    parallelism: int,
+    ray_args: Optional[RaySettings],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -127,6 +128,7 @@ def _read_text_format(
             **args,
         )
 
+    ray_args = ray_args if ray_args else {}
     return _read_text(
         read_format,
         paths=paths,
@@ -136,7 +138,7 @@ def _read_text_format(
         s3_additional_kwargs=s3_additional_kwargs,
         dataset=dataset,
         ignore_index=ignore_index,
-        parallelism=parallelism,
+        parallelism=ray_args.get("parallelism", -1),
         version_ids=version_ids,
         pandas_kwargs=pandas_kwargs,
     )
@@ -158,7 +160,7 @@ def read_csv(
     chunksize: None = ...,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    parallelism: int = ...,
+    ray_args: Optional[RaySettings] = ...,
     **pandas_kwargs: Any,
 ) -> pd.DataFrame:
     ...
@@ -180,7 +182,7 @@ def read_csv(
     chunksize: int,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    parallelism: int = ...,
+    ray_args: Optional[RaySettings] = ...,
     **pandas_kwargs: Any,
 ) -> Iterator[pd.DataFrame]:
     ...
@@ -202,7 +204,7 @@ def read_csv(
     chunksize: Optional[int],
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    parallelism: int = ...,
+    ray_args: Optional[RaySettings] = ...,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ...
@@ -225,7 +227,7 @@ def read_csv(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    parallelism: int = -1,
+    ray_args: Optional[RaySettings] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
@@ -291,9 +293,8 @@ def read_csv(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
-    parallelism : int, optional
-        The requested parallelism of the read. Only used when `distributed` add-on is installed.
-        Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
+    ray_args: typing.RaySettings, optional
+        Params of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     pandas_kwargs :
         KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicitly, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -360,7 +361,7 @@ def read_csv(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
-        parallelism=parallelism,
+        ray_args=ray_args,
         **pandas_kwargs,
     )
 
@@ -380,7 +381,7 @@ def read_fwf(
     chunksize: None = ...,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    parallelism: int = ...,
+    ray_args: Optional[RaySettings] = ...,
     **pandas_kwargs: Any,
 ) -> pd.DataFrame:
     ...
@@ -402,7 +403,7 @@ def read_fwf(
     chunksize: int,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    parallelism: int = ...,
+    ray_args: Optional[RaySettings] = ...,
     **pandas_kwargs: Any,
 ) -> Iterator[pd.DataFrame]:
     ...
@@ -424,7 +425,7 @@ def read_fwf(
     chunksize: Optional[int],
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    parallelism: int = ...,
+    ray_args: Optional[RaySettings] = ...,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ...
@@ -447,7 +448,7 @@ def read_fwf(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    parallelism: int = -1,
+    ray_args: Optional[RaySettings] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
@@ -513,9 +514,8 @@ def read_fwf(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
-    parallelism : int, optional
-        The requested parallelism of the read. Only used when `distributed` add-on is installed.
-        Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
+    ray_args: typing.RaySettings, optional
+        Params of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_fwf(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -582,7 +582,7 @@ def read_fwf(
         last_modified_end=last_modified_end,
         ignore_index=True,
         sort_index=False,
-        parallelism=parallelism,
+        ray_args=ray_args,
         **pandas_kwargs,
     )
 
@@ -603,7 +603,7 @@ def read_json(
     chunksize: None = ...,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    parallelism: int = ...,
+    ray_args: Optional[RaySettings] = ...,
     **pandas_kwargs: Any,
 ) -> pd.DataFrame:
     ...
@@ -626,7 +626,7 @@ def read_json(
     chunksize: int,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    parallelism: int = ...,
+    ray_args: Optional[RaySettings] = ...,
     **pandas_kwargs: Any,
 ) -> Iterator[pd.DataFrame]:
     ...
@@ -649,7 +649,7 @@ def read_json(
     chunksize: Optional[int],
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    parallelism: int = ...,
+    ray_args: Optional[RaySettings] = ...,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ...
@@ -673,7 +673,7 @@ def read_json(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    parallelism: int = -1,
+    ray_args: Optional[RaySettings] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from a received S3 prefix or list of S3 objects paths.
@@ -742,9 +742,8 @@ def read_json(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
-    parallelism : int, optional
-        The requested parallelism of the read. Only used when `distributed` add-on is installed.
-        Parallelism may be limited by the number of files of the dataset. Auto-detect by default.
+    ray_args: typing.RaySettings, optional
+        Params of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_json(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -814,6 +813,6 @@ def read_json(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
-        parallelism=parallelism,
+        ray_args=ray_args,
         **pandas_kwargs,
     )

@@ -165,6 +165,29 @@ class AthenaPartitionProjectionSettings(TypedDict):
     """
 
 
+class RaySettings(TypedDict):
+    """Typed dictionary defining the settings for distributing calls using Ray."""
+
+    parallelism: NotRequired[int]
+    """
+    The requested parallelism of the read.
+    Parallelism may be limited by the number of files of the dataset.
+    Auto-detect by default.
+    """
+
+
+class RayReadParquetSettings(RaySettings):
+    """Typed dictionary defining the settings for distributing reading calls using Ray."""
+
+    bulk_read: NotRequired[bool]
+    """
+    True to enable a faster reading of a large number of Parquet files.
+    Offers improved performance due to not gathering the file metadata in a single node.
+    The drawback is that it does not offer schema resolution, so it should only be used when the
+    Parquet files are all uniform.
+    """
+
+
 class _S3WriteDataReturnValue(TypedDict):
     """Typed dictionary defining the dictionary returned by S3 write functions."""
 
