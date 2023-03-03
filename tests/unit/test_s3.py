@@ -171,14 +171,25 @@ def test_merge(path, use_threads):
     assert len(wr.s3.merge_datasets(source_path=f"{path}empty/", target_path="bar")) == 0
 
 
-@pytest.mark.xfail(
-    is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
-)
-@pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize(
     "s3_additional_kwargs",
-    [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
+    [
+        None,
+        pytest.param(
+            {"ServerSideEncryption": "AES256"},
+            marks=pytest.mark.xfail(
+                is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+            ),
+        ),
+        pytest.param(
+            {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None},
+            marks=pytest.mark.xfail(
+                is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+            ),
+        ),
+    ],
 )
+@pytest.mark.parametrize("use_threads", [True, False])
 def test_merge_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
     if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
         s3_additional_kwargs["SSEKMSKeyId"] = kms_key_id

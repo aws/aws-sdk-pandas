@@ -579,8 +579,19 @@ def test_timezone_raw_values(path):
     assert pandas_equals(df2, df3)
 
 
-@pytest.mark.parametrize("partition_cols", [None, ["a"], ["a", "b"]])
-@pytest.mark.xfail(reason="Empty file cannot be read by Ray", raises=AssertionError, condition=is_ray_modin)
+@pytest.mark.parametrize(
+    "partition_cols",
+    [
+        None,
+        ["a"],
+        pytest.param(
+            ["a", "b"],
+            marks=pytest.mark.xfail(
+                reason="Empty file cannot be read by Ray", raises=AssertionError, condition=is_ray_modin
+            ),
+        ),
+    ],
+)
 def test_validate_columns(path, partition_cols) -> None:
     wr.s3.to_parquet(pd.DataFrame({"a": [1], "b": [2]}), path, dataset=True, partition_cols=partition_cols)
     wr.s3.read_parquet(path, columns=["a", "b"], dataset=True, validate_schema=True)

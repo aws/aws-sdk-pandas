@@ -155,12 +155,23 @@ def test_compression(path, compression):
     assert df.equals(df3)
 
 
-@pytest.mark.xfail(
-    is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
-)
 @pytest.mark.parametrize(
     "s3_additional_kwargs",
-    [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
+    [
+        None,
+        pytest.param(
+            {"ServerSideEncryption": "AES256"},
+            marks=pytest.mark.xfail(
+                is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+            ),
+        ),
+        pytest.param(
+            {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None},
+            marks=pytest.mark.xfail(
+                is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+            ),
+        ),
+    ],
 )
 def test_encryption(path, kms_key_id, s3_additional_kwargs):
     if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
