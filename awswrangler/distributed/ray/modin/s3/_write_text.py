@@ -31,6 +31,7 @@ _CSV_SUPPORTED_PARAMS: Dict[str, ParamConfig] = {
     "quoting": ParamConfig(default=None, supported_values={None}),
     "escapechar": ParamConfig(default=None, supported_values={None}),
     "date_format": ParamConfig(default=None, supported_values={None}),
+    "columns": ParamConfig(default=None, supported_values={None}),
 }
 
 
