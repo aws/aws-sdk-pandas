@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+import time
 from datetime import datetime
 
 import boto3
@@ -220,6 +221,107 @@ def test_real_csv_load_scenario(timestream_database_and_table):
     assert df["counter"].iloc[0] == 126_000
 
 
+@pytest.mark.parametrize(
+    "common_attributes",
+    [
+        {},
+        {"MeasureValueType": "DOUBLE", "MeasureName": "cpu_util"},
+        {"MeasureValue": "13.1", "MeasureValueType": "DOUBLE"},
+        {
+            "MeasureValues": [
+                {"Name": "cpu_util", "Value": "12.0", "Type": "DOUBLE"},
+                {"Name": "mem_util", "Value": "45.6", "Type": "DOUBLE"},
+            ],
+            "MeasureValueType": "MULTI",
+        },
+        {"Time": str(round(time.time())), "TimeUnit": "SECONDS"},
+        {"Time": str(round(time.time()) * 1_000), "MeasureValue": "13.1", "MeasureValueType": "DOUBLE"},
+        {"Dimensions": [{"Name": "region", "Value": "us-east-1"}]},
+        {"Dimensions": [{"Name": "region", "Value": "us-east-1"}, {"Name": "host", "Value": "linux"}]},
+        {
+            "Dimensions": [{"Name": "region", "Value": "us-east-1"}],
+            "MeasureValue": "13.1",
+            "MeasureValueType": "DOUBLE",
+        },
+        {
+            "Dimensions": [{"Name": "region", "Value": "us-east-1"}, {"Name": "host", "Value": "linux"}],
+            "MeasureValues": [
+                {"Name": "cpu_util", "Value": "12.0", "Type": "DOUBLE"},
+                {"Name": "mem_util", "Value": "45.6", "Type": "DOUBLE"},
+            ],
+            "MeasureValueType": "MULTI",
+        },
+    ],
+)
+def test_common_attributes(timestream_database_and_table, common_attributes):
+    df = pd.DataFrame({"dummy": ["a"] * 3})
+
+    kwargs = {
+        "df": df,
+        "database": timestream_database_and_table,
+        "table": timestream_database_and_table,
+        "common_attributes": common_attributes,
+        "measure_name": "cpu",
+    }
+    if "Time" not in common_attributes:
+        df["time"] = [datetime.now() + dt.timedelta(seconds=(60 * c)) for c in range(3)]
+        kwargs["time_col"] = "time"
+    if all(k not in common_attributes for k in ("MeasureValue", "MeasureValues")):
+        df["cpu_utilization"] = [13.1] * 3
+        kwargs["measure_col"] = ["cpu_utilization"]
+    if "Dimensions" not in common_attributes:
+        df["region"] = ["us-east-1", "us-east-2", "us-west-2"]
+        kwargs["dimensions_cols"] = ["region"]
+
+    rejected_records = wr.timestream.write(**kwargs)
+    assert len(rejected_records) == 0
+
+
+def test_exceptions():
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now(), datetime.now(), datetime.now()],
+            "measure1": [1.0, 1.1, 1.2],
+        }
+    )
+
+    # No columns supplied
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.timestream.write(
+            df=df,
+            database="test",
+            table="test",
+            common_attributes={"MeasureName": "test", "MeasureValueType": "Double"},
+        )
+
+    # Missing MeasureValueType
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.timestream.write(
+            df=df, database="test", table="test", time_col="time", common_attributes={"MeasureValue": "13.1"}
+        )
+
+    # Missing MeasureName
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.timestream.write(
+            df=df,
+            database="test",
+            table="test",
+            time_col="time",
+            common_attributes={"MeasureValue": "13.1", "MeasureValueType": "DOUBLE"},
+        )
+
+    # None timestamp time_col
+    with pytest.raises(wr.exceptions.InvalidArgumentType):
+        df["time"] = ["a"] * 3
+        wr.timestream.write(
+            df=df,
+            database="test",
+            table="test",
+            time_col="time",
+            common_attributes={"MeasureName": "test", "MeasureValue": "13.1", "MeasureValueType": "Double"},
+        )
+
+
 def test_multimeasure_scenario(timestream_database_and_table):
     df = pd.DataFrame(
         {
@@ -252,7 +354,7 @@ def test_multimeasure_scenario(timestream_database_and_table):
 
 
 @pytest.mark.parametrize(
-    "test_input,expected",
+    "test_input, expected",
     [
         (
             {
