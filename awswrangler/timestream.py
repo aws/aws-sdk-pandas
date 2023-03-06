@@ -87,7 +87,7 @@ def _write_batch(
     scalar = bool(len(measure_cols) == 1 and "MeasureValues" not in common_attributes)
     time_loc = 0
     measure_cols_loc = 1 if cols_names[0] else 0
-    dimensions_cols_loc = 1
+    dimensions_cols_loc = 1 if len(measure_cols) == 1 else 1 + len(measure_cols)
     if all(cols_names):
         # Time and Measures are supplied in the data frame
         dimensions_cols_loc = 1 + len(measure_cols)
