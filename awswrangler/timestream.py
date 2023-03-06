@@ -71,9 +71,12 @@ def _write_batch(
                 "Version": version,
             }
             if len(measure_cols_names) == 1:
+                measure_value = rec[measure_cols_loc]
+                if pd.isnull(measure_value):
+                    continue
                 record["MeasureName"] = measure_name if measure_name else measure_cols_names[0]
                 record["MeasureValueType"] = measure_types[0]
-                record["MeasureValue"] = str(rec[measure_cols_loc])
+                record["MeasureValue"] = str(measure_value)
             else:
                 record["MeasureName"] = measure_name if measure_name else measure_cols_names[0]
                 record["MeasureValueType"] = "MULTI"
@@ -82,7 +85,10 @@ def _write_batch(
                     for measure_name, measure_value, measure_value_type in zip(
                         measure_cols_names, rec[measure_cols_loc:dimensions_cols_loc], measure_types
                     )
+                    if not pd.isnull(measure_value)
                 ]
+                if len(record["MeasureValues"]) == 0:
+                    continue
             records.append(record)
         _utils.try_it(
             f=timestream_client.write_records,

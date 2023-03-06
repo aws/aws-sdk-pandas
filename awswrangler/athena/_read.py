@@ -999,12 +999,13 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
 
     There are two batching strategies:
 
-    - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
+    - If **chunksize=True**, depending on the size of the data, one or more data frames are returned per file in the query result.
+      Unlike **chunksize=INTEGER**, rows from different files are not mixed in the resulting data frames.
 
-    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunksize=INTEGER**, awswrangler iterates on the data by number of rows equal to the received INTEGER.
 
     `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
-    in number of rows for each Dataframe.
+    in number of rows for each data frame.
 
     `P.P.S.` If `ctas_approach=False` and `chunksize=True`, you will always receive an iterator with a
     single DataFrame because regular Athena queries only produces a single output file.
@@ -1422,9 +1423,11 @@ def read_sql_table(
 
     There are two batching strategies:
 
-    - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
+    - If **chunksize=True**, depending on the size of the data, one or more data frames will be
+      returned per each file in the query result.
+      Unlike **chunksize=INTEGER**, rows from different files will not be mixed in the resulting data frames.
 
-    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows egual the received INTEGER.
 
     `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
     in number of rows for each Dataframe.

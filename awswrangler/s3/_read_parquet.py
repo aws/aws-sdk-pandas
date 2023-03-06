@@ -494,11 +494,12 @@ def read_parquet(
 
     Two batching strategies are available:
 
-    - **chunked=True**, a DataFrame is returned for each file in the dataset.
+    - If **chunked=True**, depending on the size of the data, one or more data frames are returned per file in the path/dataset.
+      Unlike **chunked=INTEGER**, rows from different files are not mixed in the resulting data frames.
 
-    - **chunked=INTEGER**, a DataFrame is returned with maximum rows equal to the received INTEGER.
+    - If **chunked=INTEGER**, awswrangler iterates on the data by number of rows equal to the received INTEGER.
 
-    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
+    `P.S.` `chunked=True` is faster and uses less memory while `chunked=INTEGER` is more precise
     in the number of rows.
 
     Note
@@ -813,11 +814,12 @@ def read_parquet_table(
 
     Two batching strategies are available:
 
-    - **chunked=True**, a DataFrame is returned for each file in the dataset.
+    - If **chunked=True**, depending on the size of the data, one or more data frames are returned per file in the path/dataset.
+      Unlike **chunked=INTEGER**, rows from different files will not be mixed in the resulting data frames.
 
-    - **chunked=INTEGER**, a DataFrame is returned with maximum rows equal to the received INTEGER.
+    - If **chunked=INTEGER**, awswrangler will iterate on the data by number of rows equal the received INTEGER.
 
-    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
+    `P.S.` `chunked=True` is faster and uses less memory while `chunked=INTEGER` is more precise
     in the number of rows.
 
     Note
