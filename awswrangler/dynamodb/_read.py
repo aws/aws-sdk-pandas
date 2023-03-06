@@ -6,7 +6,8 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Type
 
 import boto3
 import pandas as pd
-from boto3.dynamodb.conditions import ConditionBase
+from boto3.dynamodb.conditions import ConditionBase, ConditionExpressionBuilder
+from boto3.dynamodb.types import Binary, TypeDeserializer, TypeSerializer
 from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
@@ -15,9 +16,21 @@ from awswrangler.dynamodb._utils import execute_statement, get_table
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _deserialize_items(items):
+    deserializer = TypeDeserializer()
+    results = []
+    for item in items:
+        result_item = {}
+        for key, value in item.items():
+            value = deserializer.deserialize(value)
+            result_item[key] = value.value if isinstance(value, Binary) else value
+        results.append(result_item)
+    return results
+
+
 def _read_chunked(iterator: Iterator[Dict[str, Any]]) -> Iterator[pd.DataFrame]:
-    for item in iterator:
-        yield pd.DataFrame(item)
+    for items in iterator:
+        yield pd.DataFrame(_deserialize_items(items))
 
 
 def read_partiql_query(
@@ -64,9 +77,10 @@ def read_partiql_query(
     iterator: Iterator[Dict[str, Any]] = execute_statement(  # type: ignore
         query, parameters=parameters, boto3_session=boto3_session
     )
+    results_iterator = _read_chunked(iterator=iterator)
     if chunked:
-        return _read_chunked(iterator=iterator)
-    return pd.DataFrame([item for sublist in iterator for item in sublist])
+        return results_iterator
+    return pd.concat(list(results_iterator))
 
 
 def _get_invalid_kwarg(msg: str) -> Optional[str]:
@@ -145,9 +159,8 @@ def _read_items(
     Sequence[Mapping[str, Any]]
         Retrieved items.
     """
-    # Get DynamoDB resource and Table instance
-    resource = _utils.resource(service_name="dynamodb", session=boto3_session)
-    table = get_table(table_name=table_name, boto3_session=boto3_session)
+    # Get DynamoDB client
+    client_dynamodb = _utils.client(service_name="dynamodb", session=boto3_session)
 
     # Extract 'Keys' and 'IndexName' from provided kwargs: if needed, will be reinserted later on
     keys = kwargs.pop("Keys", None)
@@ -161,11 +174,12 @@ def _read_items(
 
     # Read items
     if use_get_item:
+        kwargs["TableName"] = table_name
         kwargs["Key"] = keys[0]
-        items = [table.get_item(**kwargs).get("Item", {})]
+        items = [client_dynamodb.get_item(**kwargs).get("Item", {})]
     elif use_batch_get_item:
         kwargs["Keys"] = keys
-        response = resource.batch_get_item(RequestItems={table_name: kwargs})
+        response = client_dynamodb.batch_get_item(RequestItems={table_name: kwargs})
         items = response.get("Responses", {table_name: []}).get(table_name, [])
         # SEE: handle possible unprocessed keys. As suggested in Boto3 docs,
         # this approach should involve exponential backoff, but this should be
@@ -173,12 +187,13 @@ def _read_items(
         # [here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html)
         while response["UnprocessedKeys"]:
             kwargs["Keys"] = response["UnprocessedKeys"][table_name]["Keys"]
-            response = resource.batch_get_item(RequestItems={table_name: kwargs})
+            response = client_dynamodb.batch_get_item(RequestItems={table_name: kwargs})
             items.extend(response.get("Responses", {table_name: []}).get(table_name, []))
     elif use_query or use_scan:
+        kwargs["TableName"] = table_name
         if index:
             kwargs["IndexName"] = index
-        _read_method = table.query if use_query else table.scan
+        _read_method = client_dynamodb.query if use_query else client_dynamodb.scan
         response = _read_method(**kwargs)
         items = response.get("Items", [])
 
@@ -189,6 +204,16 @@ def _read_items(
             items.extend(response.get("Items", []))
 
     return items
+
+
+def _build_and_serialize_expression(expression: ConditionBase, is_key_condition: bool = False):
+    serializer = TypeSerializer()
+    exp_string, exp_names, exp_values = ConditionExpressionBuilder().build_expression(
+        expression,
+        is_key_condition=is_key_condition,
+    )
+    exp_values = {key: serializer.serialize(value) for key, value in exp_values.items()}
+    return exp_string, exp_names, exp_values
 
 
 def read_items(  # pylint: disable=too-many-branches
@@ -357,11 +382,13 @@ def read_items(  # pylint: disable=too-many-branches
             next(filter(lambda x: x["KeyType"] == "RANGE", table_key_schema))["AttributeName"],
         )
 
+    serializer = TypeSerializer()
+
     # Build kwargs shared by read methods
     kwargs: Dict[str, Any] = {"ConsistentRead": consistent}
     if partition_values:
         if sort_key is None:
-            keys = [{partition_key: pv} for pv in partition_values]
+            keys = [{partition_key: serializer.serialize(pv)} for pv in partition_values]
         else:
             if not sort_values:
                 raise exceptions.InvalidArgumentType(
@@ -369,20 +396,39 @@ def read_items(  # pylint: disable=too-many-branches
                 )
             if len(sort_values) != len(partition_values):
                 raise exceptions.InvalidArgumentCombination("Partition and sort values must have the same length.")
-            keys = [{partition_key: pv, sort_key: sv} for pv, sv in zip(partition_values, sort_values)]
+            keys = [
+                {partition_key: serializer.serialize(pv), sort_key: serializer.serialize(sv)}
+                for pv, sv in zip(partition_values, sort_values)
+            ]
         kwargs["Keys"] = keys
     if index_name:
         kwargs["IndexName"] = index_name
     if key_condition_expression:
-        kwargs["KeyConditionExpression"] = key_condition_expression
+        if isinstance(key_condition_expression, ConditionBase):
+            exp_string, exp_names, exp_values = _build_and_serialize_expression(
+                key_condition_expression, is_key_condition=True
+            )
+            kwargs["KeyConditionExpression"] = exp_string
+            kwargs["ExpressionAttributeNames"] = exp_names
+            kwargs["ExpressionAttributeValues"] = exp_values
+        else:
+            kwargs["KeyConditionExpression"] = key_condition_expression
     if filter_expression:
-        kwargs["FilterExpression"] = filter_expression
+        if isinstance(filter_expression, ConditionBase):
+            exp_string, exp_names, exp_values = _build_and_serialize_expression(filter_expression)
+            kwargs["FilterExpression"] = exp_string
+            kwargs["ExpressionAttributeNames"] = exp_names
+            kwargs["ExpressionAttributeValues"] = exp_values
+        else:
+            kwargs["FilterExpression"] = filter_expression
     if columns:
         kwargs["ProjectionExpression"] = ", ".join(columns)
     if expression_attribute_names:
         kwargs["ExpressionAttributeNames"] = expression_attribute_names
     if expression_attribute_values:
-        kwargs["ExpressionAttributeValues"] = expression_attribute_values
+        kwargs["ExpressionAttributeValues"] = {
+            key: serializer.serialize(value) for key, value in expression_attribute_values.items()
+        }
     if max_items_evaluated:
         kwargs["Limit"] = max_items_evaluated
 
@@ -390,6 +436,7 @@ def read_items(  # pylint: disable=too-many-branches
     # If kwargs are sufficiently informative, proceed with actual read op
     if any((partition_values, key_condition_expression, filter_expression, allow_full_scan, max_items_evaluated)):
         items = _read_items(table_name, boto3_session, **kwargs)
+        results = _deserialize_items(items)
     # Raise otherwise
     else:
         _args = (
@@ -402,6 +449,5 @@ def read_items(  # pylint: disable=too-many-branches
         raise exceptions.InvalidArgumentCombination(
             f"Please provide at least one of these arguments: {', '.join(_args)}."
         )
-
     # Enforce DataFrame type if requested
-    return pd.DataFrame(items) if as_dataframe else items
+    return pd.DataFrame(results) if as_dataframe else results

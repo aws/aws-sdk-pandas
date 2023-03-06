@@ -16,6 +16,7 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
 from awswrangler._config import apply_configs
+from awswrangler.annotations import Deprecated
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager
@@ -330,6 +331,7 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     )
 
 
+@Deprecated
 def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     """Create the default Athena bucket if it doesn't exist.
 
@@ -354,17 +356,16 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     region_name: str = _utils.get_region_from_session(boto3_session=boto3_session).lower()
     bucket_name = f"aws-athena-query-results-{account_id}-{region_name}"
     path = f"s3://{bucket_name}/"
-    resource = _utils.resource(service_name="s3", session=boto3_session)
-    bucket = resource.Bucket(bucket_name)
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
     args = {} if region_name == "us-east-1" else {"CreateBucketConfiguration": {"LocationConstraint": region_name}}
     try:
-        bucket.create(**args)
-    except resource.meta.client.exceptions.BucketAlreadyOwnedByYou as err:
+        client_s3.create_bucket(Bucket=bucket_name, **args)
+    except (client_s3.exceptions.BucketAlreadyExists, client_s3.exceptions.BucketAlreadyOwnedByYou) as err:
         _logger.debug("Bucket %s already exists.", err.response["Error"]["BucketName"])
     except botocore.exceptions.ClientError as err:
         if err.response["Error"]["Code"] == "OperationAborted":
             _logger.debug("A conflicting conditional operation is currently in progress against this resource.")
-    bucket.wait_until_exists()
+    client_s3.get_waiter("bucket_exists").wait(Bucket=bucket_name)
     return path
 
 

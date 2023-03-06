@@ -4,15 +4,18 @@ import logging
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Union
 
 import boto3
+from boto3.dynamodb.types import TypeSerializer
 from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.annotations import Deprecated
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 @apply_configs
+@Deprecated
 def get_table(
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
@@ -42,9 +45,9 @@ def _execute_statement(
     kwargs: Dict[str, Union[str, bool, List[Any]]],
     boto3_session: Optional[boto3.Session],
 ) -> Dict[str, Any]:
-    dynamodb_resource = _utils.resource(service_name="dynamodb", session=boto3_session)
+    client_dynamodb = _utils.client(service_name="dynamodb", session=boto3_session)
     try:
-        response: Dict[str, Any] = dynamodb_resource.meta.client.execute_statement(**kwargs)
+        response: Dict[str, Any] = client_dynamodb.execute_statement(**kwargs)
     except ClientError as err:
         if err.response["Error"]["Code"] == "ResourceNotFoundException":
             _logger.error("Couldn't execute PartiQL: '%s' because the table does not exist.", kwargs["Statement"])
@@ -127,7 +130,8 @@ def execute_statement(
     """
     kwargs: Dict[str, Union[str, bool, List[Any]]] = {"Statement": statement, "ConsistentRead": consistent_read}
     if parameters:
-        kwargs["Parameters"] = parameters
+        serializer = TypeSerializer()
+        kwargs["Parameters"] = [serializer.serialize(parameter) for parameter in parameters]
 
     if not statement.strip().upper().startswith("SELECT"):
         _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
