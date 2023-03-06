@@ -19,6 +19,38 @@ def test_modin_s3_read_parquet_simple(benchmark_time: float, request: pytest.Fix
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.parametrize("benchmark_time", [180])
+@pytest.mark.parametrize(
+    "bulk_read",
+    [
+        pytest.param(False, id="regular"),
+        pytest.param(True, id="bulk_read"),
+    ],
+)
+def test_modin_s3_read_parquet_many_files(
+    benchmark_time: float,
+    bulk_read: bool,
+    request: pytest.FixtureRequest,
+) -> None:
+    path_prefix = "s3://aws-sdk-pandas-list-par-us-east-1-658066294590/small-files-parquet/10000/"
+    file_prefix = "input_1"
+
+    paths = [path for path in wr.s3.list_objects(path_prefix) if path[len(path_prefix) :].startswith(file_prefix)]
+
+    with ExecutionTimer(request, data_paths=paths) as timer:
+        if bulk_read:
+            ray_ds = ray.data.read_parquet_bulk(paths)
+        else:
+            ray_ds = ray.data.read_parquet(paths)
+
+        frame: pd.DataFrame = ray_ds.to_modin()
+
+    num_files = len(paths)
+    assert len(frame) == num_files  # each file contains just one row
+
+    assert timer.elapsed_time < benchmark_time
+
+
 @pytest.mark.parametrize("benchmark_time", [5])
 def test_modin_s3_write_parquet_simple(
     df_s: pd.DataFrame, path: str, benchmark_time: float, request: pytest.FixtureRequest
