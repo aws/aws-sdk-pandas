@@ -1357,7 +1357,7 @@ def read_sql_table(
     - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
-    **There are two approaches to be defined through ctas_approach parameter:**
+    **There are three approaches available through ctas_approach and unload_approach parameters:**
 
     **1** - ctas_approach=True (Default):
 
@@ -1375,8 +1375,26 @@ def read_sql_table(
     - Does not support columns with repeated names.
     - Does not support columns with undefined data types.
     - A temporary table will be created and then deleted immediately.
+    - Does not support custom data_source/catalog_id.
 
-    **2** - ctas_approach=False:
+    **2** - unload_approach=True and ctas_approach=False:
+
+    Does an UNLOAD query on Athena and parse the Parquet result on s3.
+
+    PROS:
+
+    - Faster for mid and big result sizes.
+    - Can handle some level of nested types.
+    - Does not modify Glue Data Catalog
+
+    CONS:
+
+    - Output S3 path must be empty.
+    - Does not support timestamp with time zone.
+    - Does not support columns with repeated names.
+    - Does not support columns with undefined data types.
+
+    **3** - ctas_approach=False:
 
     Does a regular query on Athena and parse the regular CSV result on s3.
 
@@ -1385,6 +1403,7 @@ def read_sql_table(
     - Faster for small result sizes (less latency).
     - Does not require create/delete table permissions on Glue
     - Supports timestamp with time zone.
+    - Support custom data_source/catalog_id.
 
     CONS:
 
@@ -1423,16 +1442,15 @@ def read_sql_table(
 
     There are two batching strategies:
 
-    - If **chunksize=True**, depending on the size of the data, one or more data frames will be
-      returned per each file in the query result.
-      Unlike **chunksize=INTEGER**, rows from different files will not be mixed in the resulting data frames.
+    - If **chunksize=True**, depending on the size of the data, one or more data frames are returned per file in the query result.
+      Unlike **chunksize=INTEGER**, rows from different files are not mixed in the resulting data frames.
 
-    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows egual the received INTEGER.
+    - If **chunksize=INTEGER**, awswrangler iterates on the data by number of rows equal to the received INTEGER.
 
     `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
-    in number of rows for each Dataframe.
+    in number of rows for each data frame.
 
-    `P.P.S.` If `ctas_approach=False` and `chunksize=True`, you will always receive an interador with a
+    `P.P.S.` If `ctas_approach=False` and `chunksize=True`, you will always receive an iterator with a
     single DataFrame because regular Athena queries only produces a single output file.
 
     Note
@@ -1473,20 +1491,6 @@ def read_sql_table(
         For SSE-KMS, this is the KMS key ARN or ID.
     keep_files : bool
         Should awswrangler delete or keep the staging files produced by Athena?
-    ctas_database : str, optional
-        The name of the alternative database where the CTAS temporary table is stored.
-        If None, the default `database` is used.
-    ctas_temp_table_name : str, optional
-        The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
-        If None, it will use the follow random pattern: `f"temp_table_{uuid.uuid4().hex}"`.
-        On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
-    ctas_bucketing_info: Tuple[List[str], int], optional
-        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
-        second element.
-        Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    ctas_write_compression: str, optional
-        Write compression for the temporary table where the CTAS result is stored.
-        Corresponds to the `write_compression` parameters for CREATE TABLE AS statement in Athena.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.

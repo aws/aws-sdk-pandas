@@ -246,9 +246,6 @@ def test_catalog_get_databases(glue_database: str) -> None:
 
 
 def test_catalog_versioning(path: str, glue_database: str, glue_table: str, glue_table2: str) -> None:
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-    wr.s3.delete_objects(path=path)
-
     # Version 1 - Parquet
     df = pd.DataFrame({"c0": [1, 2]})
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite")[
@@ -428,8 +425,6 @@ def test_catalog_columns(path: str, glue_table: str, glue_database: str) -> None
     assert len(df2.columns) == 5
     assert df2["id"].sum() == 9
     ensure_data_types_csv(df2)
-
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
 @pytest.mark.parametrize("use_catalog_id", [False, True])

@@ -74,8 +74,6 @@ def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
     assert len(columns_types) == 18
     assert len(partitions_types) == 2
     assert len(partitions_values) == 2
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2) is True
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
@@ -163,8 +161,6 @@ def test_parquet_catalog_casting(path, glue_database, glue_table):
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database, ctas_approach=False)
     assert df.shape == (3, 16)
     ensure_data_types(df=df, has_list=False)
-    wr.s3.delete_objects(path=path)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
 def test_parquet_catalog_casting_to_string_with_null(path, glue_table, glue_database):
@@ -208,8 +204,6 @@ def test_parquet_compress(path, glue_table, glue_database, compression):
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     ensure_data_types(df2)
     df2 = wr.s3.read_parquet(path=path)
-    wr.s3.delete_objects(path=path)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
     ensure_data_types(df2)
 
 
@@ -242,7 +236,6 @@ def test_parquet_char_length(path, glue_database, glue_table):
 @pytest.mark.parametrize("col2", [[1, 1, 1, 1, 1], [1, 2, 3, 4, 5], [1, 1, 1, 1, 2], [1, 2, 2, 2, 2]])
 @pytest.mark.parametrize("chunked", [True, 1, 2, 100])
 def test_parquet_chunked(path, glue_database, glue_table, col2, chunked):
-    wr.s3.delete_objects(path=path)
     values = list(range(5))
     df = pd.DataFrame({"col1": values, "col2": col2})
     wr.s3.to_parquet(
@@ -274,12 +267,9 @@ def test_parquet_chunked(path, glue_database, glue_table, col2, chunked):
             assert chunked == len(df2)
         assert chunked >= len(dfs[-1])
 
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
-
-@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Issue since upgrading to Ray 2.3")
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Issue since upgrading to PyArrow 11.0")
 def test_unsigned_parquet(path, glue_database, glue_table):
-    wr.s3.delete_objects(path=path)
     df = pd.DataFrame({"c0": [0, 0, (2**8) - 1], "c1": [0, 0, (2**16) - 1], "c2": [0, 0, (2**32) - 1]})
     df["c0"] = df.c0.astype("uint8")
     df["c1"] = df.c1.astype("uint16")
@@ -316,9 +306,6 @@ def test_unsigned_parquet(path, glue_database, glue_table):
             table=glue_table,
             mode="overwrite",
         )
-
-    wr.s3.delete_objects(path=path)
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
 
 
 def test_parquet_overwrite_partition_cols(path, glue_database, glue_table):

@@ -479,5 +479,3 @@ def test_routine_2(glue_database, glue_table, path):
     assert comments["c0"] == "zero"
     assert comments["c1"] == "one"
     assert comments["c2"] == "two"
-
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
