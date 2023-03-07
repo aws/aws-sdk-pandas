@@ -16,7 +16,6 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
 from awswrangler._config import apply_configs
-from awswrangler.annotations import Deprecated
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager
@@ -331,7 +330,6 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     )
 
 
-@Deprecated
 def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     """Create the default Athena bucket if it doesn't exist.
 
