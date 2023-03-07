@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 
 [tool.poetry.dependencies]
@@ -42,7 +43,7 @@ pyodbc = { version = "^4.0.0", optional = true }
 oracledb = { version = "^1.0.0", optional = true }
 
 # Graph
-gremlinpython = { version = "^3.5.2", optional = true }
+gremlinpython = { version = "^3.6.2", optional = true }
 SPARQLWrapper = { version = "^2.0.0", optional = true }
 requests = { version = "^2.0.0", optional = true }
 
