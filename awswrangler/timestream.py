@@ -81,14 +81,18 @@ def _write_batch(
                 if len(record["MeasureValues"]) == 0:
                     continue
             records.append(record)
-        _utils.try_it(
-            f=timestream_client.write_records,
-            ex=(timestream_client.exceptions.ThrottlingException, timestream_client.exceptions.InternalServerException),
-            max_num_tries=5,
-            DatabaseName=database,
-            TableName=table,
-            Records=records,
-        )
+        if len(records) > 0:
+            _utils.try_it(
+                f=timestream_client.write_records,
+                ex=(
+                    timestream_client.exceptions.ThrottlingException,
+                    timestream_client.exceptions.InternalServerException,
+                ),
+                max_num_tries=5,
+                DatabaseName=database,
+                TableName=table,
+                Records=records,
+            )
     except timestream_client.exceptions.RejectedRecordsException as ex:
         return cast(List[Dict[str, str]], ex.response["RejectedRecords"])
     return []
