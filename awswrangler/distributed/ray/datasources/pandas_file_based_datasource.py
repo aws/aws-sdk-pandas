@@ -135,15 +135,20 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     ) -> None:
         raise NotImplementedError("Subclasses of PandasFileBasedDatasource must implement _write_block().")
 
+    # Note: this callback function is called once by the main thread after
+    # [all write tasks complete](https://github.com/ray-project/ray/blob/ray-2.3.0/python/ray/data/dataset.py#L2716)
+    # and is meant to be used for singular actions like
+    # [committing a transaction](https://docs.ray.io/en/latest/data/api/doc/ray.data.Datasource.html).
+    # As deceptive as it may look, there is no race condition here.
     def on_write_complete(self, write_results: List[Any], **_: Any) -> None:
-        """Execute callback on write complete."""
+        """Execute callback after all write tasks complete."""
         _logger.debug("Write complete %s.", write_results)
 
         # Collect and return all write task paths
         self._write_paths.extend(write_results)
 
     def on_write_failed(self, write_results: List[ObjectRef[Any]], error: Exception, **_: Any) -> None:
-        """Execute callback on write failed."""
+        """Execute callback after write tasks fail."""
         _logger.debug("Write failed %s.", write_results)
         raise error
 
