@@ -222,7 +222,7 @@ def test_s3_write_json(
 @pytest.mark.timeout(300)
 @pytest.mark.parametrize("benchmark_time", [15])
 def test_wait_object_exists(path: str, benchmark_time: int, request: pytest.FixtureRequest) -> None:
-    df = pd.DataFrame({"c0": range(0, 4)})
+    df = pd.DataFrame({"c0": range(0, 200)})
 
     paths = wr.s3.to_parquet(df=df, path=path, max_rows_by_file=1)["paths"]
 
