@@ -84,7 +84,10 @@ def _write_batch(
         if len(records) > 0:
             _utils.try_it(
                 f=timestream_client.write_records,
-                ex=(timestream_client.exceptions.ThrottlingException, timestream_client.exceptions.InternalServerException),
+                ex=(
+                    timestream_client.exceptions.ThrottlingException,
+                    timestream_client.exceptions.InternalServerException,
+                ),
                 max_num_tries=5,
                 DatabaseName=database,
                 TableName=table,
