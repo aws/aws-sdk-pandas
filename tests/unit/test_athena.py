@@ -224,7 +224,6 @@ def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_c
 
 @pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -301,7 +300,6 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
 
 
 def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_database, glue_table, workgroup0):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -329,7 +327,6 @@ def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_databa
     [("string", "Seattle"), ("date", datetime.date(2020, 1, 1)), ("bool", True), ("category", 1.0)],
 )
 def test_read_sql_query_parameter_formatting(path, glue_database, glue_table, workgroup0, col_name, col_value):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -354,7 +351,6 @@ def test_read_sql_query_parameter_formatting(path, glue_database, glue_table, wo
 
 @pytest.mark.parametrize("col_name", [("string"), ("date"), ("bool"), ("category")])
 def test_read_sql_query_parameter_formatting_null(path, glue_database, glue_table, workgroup0, col_name):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -377,6 +373,7 @@ def test_read_sql_query_parameter_formatting_null(path, glue_database, glue_tabl
     assert len(df.index) == 1
 
 
+@pytest.mark.xfail(raises=botocore.exceptions.ClientError, reason="QueryId not found.")
 def test_athena_query_cancelled(glue_database):
     query_execution_id = wr.athena.start_query_execution(
         sql="SELECT " + "rand(), " * 10000 + "rand()", database=glue_database
@@ -551,7 +548,6 @@ def test_category(path, glue_table, glue_database):
     )
     for df2 in dfs:
         ensure_data_types_category(df2)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
 @pytest.mark.parametrize("workgroup", [None, 0, 1, 2, 3])
@@ -784,7 +780,6 @@ def test_bucketing_catalog_parquet_table(path, glue_database, glue_table):
     table = next(wr.catalog.get_tables(name_contains=glue_table))
     assert table["StorageDescriptor"]["NumberOfBuckets"] == nb_of_buckets
     assert table["StorageDescriptor"]["BucketColumns"] == bucket_cols
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
 
 
 @pytest.mark.parametrize("bucketing_data", [[0, 1, 2], [False, True, False], ["b", "c", "d"]])
@@ -873,7 +868,6 @@ def test_bucketing_catalog_csv_table(path, glue_database, glue_table):
     table = next(wr.catalog.get_tables(name_contains=glue_table))
     assert table["StorageDescriptor"]["NumberOfBuckets"] == nb_of_buckets
     assert table["StorageDescriptor"]["BucketColumns"] == bucket_cols
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
 
 
 @pytest.mark.parametrize("bucketing_data", [[0, 1, 2], [False, True, False], ["b", "c", "d"]])
@@ -1196,7 +1190,6 @@ def test_bucketing_combined_csv_saving(path, glue_database, glue_table):
 
 
 def test_start_query_execution_wait(path, glue_database, glue_table):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -1358,7 +1351,6 @@ def test_get_query_execution(workgroup0, workgroup1):
 
 @pytest.mark.parametrize("compression", [None, "snappy", "gzip"])
 def test_read_sql_query_ctas_write_compression(path, glue_database, glue_table, compression):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,

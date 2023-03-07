@@ -222,7 +222,6 @@ def test_parquet_validate_schema(path):
 
 
 def test_parquet_uint64(path):
-    wr.s3.delete_objects(path=path)
     df = pd.DataFrame(
         {
             "c0": [0, 0, (2**8) - 1],
@@ -245,7 +244,6 @@ def test_parquet_uint64(path):
     assert df.c2.max() == (2**32) - 1
     assert df.c3.max() == (2**64) - 1
     assert df.c4.astype("uint8").sum() == 3
-    wr.s3.delete_objects(path=path)
 
 
 def test_parquet_metadata_partitions(path):

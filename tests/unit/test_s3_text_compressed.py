@@ -3,7 +3,6 @@ import gzip
 import logging
 import lzma
 from io import BytesIO, TextIOWrapper
-from sys import version_info
 from typing import Optional
 
 import boto3
@@ -99,40 +98,28 @@ def test_csv_write(path: str, compression: Optional[str]) -> None:
 
     path_file = f"{path}test.csv{EXT.get(compression, '')}"
     df = get_df_csv()
-    if version_info < (3, 7) and compression:
-        with pytest.raises(wr.exceptions.InvalidArgument):
-            wr.s3.to_csv(df, path_file, compression=compression, index=False, header=None)
-    else:
-        wr.s3.to_csv(df, path_file, compression=compression, index=False, header=None)
-        df2 = pd.read_csv(path_file, names=df.columns)
-        df3 = wr.s3.read_csv([path_file], names=df.columns)
-        assert df.shape == df2.shape == df3.shape
+    wr.s3.to_csv(df, path_file, compression=compression, index=False, header=None)
+    df2 = pd.read_csv(path_file, names=df.columns)
+    df3 = wr.s3.read_csv([path_file], names=df.columns)
+    assert df.shape == df2.shape == df3.shape
 
 
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
 def test_csv_write_dataset_filename_extension(path: str, compression: Optional[str]) -> None:
     df = get_df_csv()
-    if version_info < (3, 7) and compression:
-        with pytest.raises(wr.exceptions.InvalidArgument):
-            wr.s3.to_csv(df, path, compression=compression, index=False, dataset=True)
-    else:
-        result = wr.s3.to_csv(df, path, compression=compression, index=False, dataset=True)
-        for p in result["paths"]:
-            assert p.endswith(f".csv{EXT.get(compression, '')}")
+    result = wr.s3.to_csv(df, path, compression=compression, index=False, dataset=True)
+    for p in result["paths"]:
+        assert p.endswith(f".csv{EXT.get(compression, '')}")
 
 
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
 def test_json(path: str, compression: Optional[str]) -> None:
     path_file = f"{path}test.json{EXT.get(compression, '')}"
     df = pd.DataFrame({"id": [1, 2, 3]})
-    if version_info < (3, 7) and compression:
-        with pytest.raises(wr.exceptions.InvalidArgument):
-            wr.s3.to_json(df=df, path=path_file, compression=compression)
-    else:
-        wr.s3.to_json(df=df, path=path_file)
-        df2 = pd.read_json(path_file, compression=compression)
-        df3 = wr.s3.read_json(path=[path_file])
-        assert df.shape == df2.shape == df3.shape
+    wr.s3.to_json(df=df, path=path_file)
+    df2 = pd.read_json(path_file, compression=compression)
+    df3 = wr.s3.read_json(path=[path_file])
+    assert df.shape == df2.shape == df3.shape
 
 
 @pytest.mark.parametrize("chunksize", [None, 1])
@@ -146,34 +133,22 @@ def test_partitioned_json(path: str, compression: Optional[str], chunksize: Opti
             "month": [1, 2, 1, 2],
         }
     )
-    if version_info < (3, 7) and compression:
-        with pytest.raises(wr.exceptions.InvalidArgument):
-            wr.s3.to_json(
-                df,
-                path=path,
-                orient="records",
-                lines=True,
-                compression=compression,
-                dataset=True,
-                partition_cols=["year", "month"],
-            )
+    wr.s3.to_json(
+        df,
+        path=path,
+        orient="records",
+        lines=True,
+        compression=compression,
+        dataset=True,
+        partition_cols=["year", "month"],
+    )
+    df2 = wr.s3.read_json(path, dataset=True, chunksize=chunksize)
+    if chunksize is None:
+        assert df2.shape == (4, 4)
+        assert df2.c0.sum() == 6
     else:
-        wr.s3.to_json(
-            df,
-            path=path,
-            orient="records",
-            lines=True,
-            compression=compression,
-            dataset=True,
-            partition_cols=["year", "month"],
-        )
-        df2 = wr.s3.read_json(path, dataset=True, chunksize=chunksize)
-        if chunksize is None:
-            assert df2.shape == (4, 4)
-            assert df2.c0.sum() == 6
-        else:
-            for d in df2:
-                assert d.shape == (1, 4)
+        for d in df2:
+            assert d.shape == (1, 4)
 
 
 @pytest.mark.parametrize("chunksize", [None, 1])
@@ -181,17 +156,12 @@ def test_partitioned_json(path: str, compression: Optional[str], chunksize: Opti
 def test_partitioned_csv(path: str, compression: Optional[str], chunksize: Optional[int]) -> None:
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
     paths = [f"{path}year={y}/month={m}/0.csv{EXT.get(compression, '')}" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
-    if version_info < (3, 7) and compression:
-        with pytest.raises(wr.exceptions.InvalidArgument):
-            for p in paths:
-                wr.s3.to_csv(df, p, index=False, compression=compression)
+    for p in paths:
+        wr.s3.to_csv(df, p, index=False, compression=compression, header=True)
+    df2 = wr.s3.read_csv(path, dataset=True, chunksize=chunksize, header=0)
+    if chunksize is None:
+        assert df2.shape == (6, 4)
+        assert df2.c0.sum() == 3
     else:
-        for p in paths:
-            wr.s3.to_csv(df, p, index=False, compression=compression, header=True)
-        df2 = wr.s3.read_csv(path, dataset=True, chunksize=chunksize, header=0)
-        if chunksize is None:
-            assert df2.shape == (6, 4)
-            assert df2.c0.sum() == 3
-        else:
-            for d in df2:
-                assert d.shape == (1, 4)
+        for d in df2:
+            assert d.shape == (1, 4)

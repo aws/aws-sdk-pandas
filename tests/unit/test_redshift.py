@@ -322,7 +322,6 @@ def test_spectrum(path, redshift_table, redshift_con, glue_database, redshift_ex
         assert len(rows) == len(df.index)
         for row in rows:
             assert len(row) == len(df.columns)
-    wr.catalog.delete_table_if_exists(database=glue_database, table=redshift_table)
 
 
 @pytest.mark.xfail(raises=NotImplementedError, reason="Unable to create pandas categorical from pyarrow table")

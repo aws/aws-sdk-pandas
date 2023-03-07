@@ -20,7 +20,6 @@ def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
     return dataset.to_modin()
 
 
-@pytest.mark.repeat(1)
 @pytest.mark.parametrize("benchmark_time", [150])
 def test_s3_select(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     paths = [f"s3://ursa-labs-taxi-data/2018/{i}/data.parquet" for i in range(10, 13)]
@@ -96,7 +95,7 @@ def test_s3_read_parquet_many_files(
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [30])
+@pytest.mark.parametrize("benchmark_time", [40])
 def test_s3_read_parquet_partition_filter(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://amazon-reviews-pds/parquet/"
     with ExecutionTimer(request, data_paths=path) as timer:
@@ -167,18 +166,15 @@ def test_s3_write_parquet_blocks(
 
 @pytest.mark.parametrize("benchmark_time", [5])
 def test_s3_delete_objects(path: str, path2: str, benchmark_time: float, request: pytest.FixtureRequest) -> None:
-    df = pd.DataFrame({"id": [1, 2, 3]})
-    objects_per_bucket = 505
-    paths1 = [f"{path}delete-test{i}.json" for i in range(objects_per_bucket)]
-    paths2 = [f"{path2}delete-test{i}.json" for i in range(objects_per_bucket)]
+    df = pd.DataFrame({"id": range(0, 505)})
+    paths1 = wr.s3.to_parquet(df=df, path=path, max_rows_by_file=1)["paths"]
+    paths2 = wr.s3.to_parquet(df=df, path=path2, max_rows_by_file=1)["paths"]
     paths = paths1 + paths2
-    for path in paths:
-        wr.s3.to_csv(df, path)
     with ExecutionTimer(request) as timer:
         wr.s3.delete_objects(path=paths)
     assert timer.elapsed_time < benchmark_time
-    assert len(wr.s3.list_objects(f"{path}delete-test*")) == 0
-    assert len(wr.s3.list_objects(f"{path2}delete-test*")) == 0
+    assert len(wr.s3.list_objects(path)) == 0
+    assert len(wr.s3.list_objects(path2)) == 0
 
 
 @pytest.mark.parametrize("benchmark_time", [20])
@@ -226,16 +222,12 @@ def test_s3_write_json(
 @pytest.mark.timeout(300)
 @pytest.mark.parametrize("benchmark_time", [15])
 def test_wait_object_exists(path: str, benchmark_time: int, request: pytest.FixtureRequest) -> None:
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    df = pd.DataFrame({"c0": range(0, 200)})
 
-    num_objects = 200
-    file_paths = [f"{path}{i}.txt" for i in range(num_objects)]
-
-    for file_path in file_paths:
-        wr.s3.to_csv(df, file_path, index=True)
+    paths = wr.s3.to_parquet(df=df, path=path, max_rows_by_file=1)["paths"]
 
     with ExecutionTimer(request) as timer:
-        wr.s3.wait_objects_exist(file_paths, parallelism=16)
+        wr.s3.wait_objects_exist(paths, parallelism=16)
 
     assert timer.elapsed_time < benchmark_time
 

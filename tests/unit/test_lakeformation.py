@@ -22,9 +22,6 @@ pytestmark = pytest.mark.distributed
 
 
 def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_threads=False):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2)
-
     wr.s3.to_parquet(
         df=get_df(governed=True),
         path=path,
@@ -97,9 +94,6 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
 
 
 def test_lakeformation_multi_transaction(path, path2, glue_database, glue_table, glue_table2, use_threads=True):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2)
-
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     transaction_id = wr.lakeformation.start_transaction(read_only=False)
     wr.s3.to_parquet(
@@ -168,9 +162,6 @@ def test_lakeformation_multi_transaction(path, path2, glue_database, glue_table,
     ],
 )
 def test_lakeformation_partiql_formatting(path, path2, glue_database, glue_table, glue_table2, col_name, col_value):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2)
-
     wr.s3.to_parquet(
         df=get_df_list(governed=True),
         path=path,
