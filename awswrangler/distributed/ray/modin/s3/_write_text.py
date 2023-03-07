@@ -101,7 +101,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
     # Create Ray Dataset
     ds = _ray_dataset_from_df(df)
 
-    # Repartition into a single block if or writing into a single key or if bucketing is enabled
+    # Repartition into a single block if writing into a single key or if bucketing is enabled
     if ds.count() > 0 and path:
         ds = ds.repartition(1)
         _logger.warning(

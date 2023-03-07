@@ -1,7 +1,6 @@
 import datetime
 import logging
 import string
-import time
 from unittest.mock import patch
 
 import boto3
@@ -374,7 +373,7 @@ def test_read_sql_query_parameter_formatting_null(path, glue_database, glue_tabl
     assert len(df.index) == 1
 
 
-@pytest.mark.xfail(raises=botocore.exceptions.InvalidRequestException, reason="QueryId not found.")
+@pytest.mark.xfail(raises=botocore.exceptions.ClientError, reason="QueryId not found.")
 def test_athena_query_cancelled(glue_database):
     query_execution_id = wr.athena.start_query_execution(
         sql="SELECT " + "rand(), " * 10000 + "rand()", database=glue_database
