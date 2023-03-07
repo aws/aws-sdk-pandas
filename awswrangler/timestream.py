@@ -131,15 +131,16 @@ def _write_batch(
             records.append(record)
 
     try:
-        _utils.try_it(
-            f=timestream_client.write_records,
-            ex=(timestream_client.exceptions.ThrottlingException, timestream_client.exceptions.InternalServerException),
-            max_num_tries=5,
-            DatabaseName=database,
-            TableName=table,
-            CommonAttributes=common_attributes,
-            Records=records,
-        )
+        if records:
+            _utils.try_it(
+                f=timestream_client.write_records,
+                ex=(timestream_client.exceptions.ThrottlingException, timestream_client.exceptions.InternalServerException),
+                max_num_tries=5,
+                DatabaseName=database,
+                TableName=table,
+                CommonAttributes=common_attributes,
+                Records=records,
+            )
     except timestream_client.exceptions.RejectedRecordsException as ex:
         return cast(List[Dict[str, str]], ex.response["RejectedRecords"])
     return []
