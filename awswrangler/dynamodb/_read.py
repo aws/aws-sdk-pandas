@@ -2,7 +2,7 @@
 
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, TypeVar, Union, cast
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, TypeVar, Union, cast
 
 import boto3
 import pandas as pd
@@ -16,7 +16,7 @@ from awswrangler.dynamodb._utils import execute_statement, get_table
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _deserialize_items(items):
+def _deserialize_items(items: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
     deserializer = TypeDeserializer()
     results = []
     for item in items:
@@ -28,7 +28,7 @@ def _deserialize_items(items):
     return results
 
 
-def _read_chunked(iterator: Iterator[Dict[str, Any]]) -> Iterator[pd.DataFrame]:
+def _read_chunked(iterator: Iterator[List[Dict[str, Any]]]) -> Iterator[pd.DataFrame]:
     for items in iterator:
         yield pd.DataFrame(_deserialize_items(items))
 
@@ -74,7 +74,7 @@ def read_partiql_query(
     ... )
     """
     _logger.debug("Reading results for PartiQL query:  '%s'", query)
-    iterator: Iterator[Dict[str, Any]] = execute_statement(  # type: ignore
+    iterator: Iterator[List[Dict[str, Any]]] = execute_statement(  # type: ignore
         query, parameters=parameters, boto3_session=boto3_session
     )
     results_iterator = _read_chunked(iterator=iterator)
@@ -206,7 +206,9 @@ def _read_items(
     return items
 
 
-def _build_and_serialize_expression(expression: ConditionBase, is_key_condition: bool = False):
+def _build_and_serialize_expression(
+    expression: ConditionBase, is_key_condition: bool = False
+) -> Tuple[str, List[str], List[str]]:
     serializer = TypeSerializer()
     exp_string, exp_names, exp_values = ConditionExpressionBuilder().build_expression(
         expression,
@@ -216,7 +218,7 @@ def _build_and_serialize_expression(expression: ConditionBase, is_key_condition:
     return exp_string, exp_names, exp_values
 
 
-def read_items(  # pylint: disable=too-many-branches
+def read_items(  # pylint: disable=too-many-branches,too-many-statements
     table_name: str,
     index_name: Optional[str] = None,
     partition_values: Optional[Sequence[Any]] = None,
