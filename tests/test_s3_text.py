@@ -1,3 +1,4 @@
+import datetime as dt
 import logging
 
 import boto3
@@ -359,7 +360,8 @@ def test_read_csv_versioned(path) -> None:
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
 
-def test_to_csv_schema_evolution(path, glue_database, glue_table) -> None:
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_to_csv_schema_evolution(path, glue_database, glue_table, mode) -> None:
     path_file = f"{path}0.csv"
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
     wr.s3.to_csv(df=df, path=path_file, dataset=True, database=glue_database, table=glue_table)
@@ -370,12 +372,42 @@ def test_to_csv_schema_evolution(path, glue_database, glue_table) -> None:
         dataset=True,
         database=glue_database,
         table=glue_table,
-        mode="overwrite",
+        mode=mode,
         schema_evolution=True,
     )
     df["c3"] = [9, 10, 11]
+
+    column_types = wr.catalog.get_table_types(glue_database, glue_table)
+    assert len(column_types) == len(df.columns)
+
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_csv(
+            df=df, path=path_file, dataset=True, database=glue_database, table=glue_table, schema_evolution=False
+        )
+
+
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_to_json_schema_evolution(path, glue_database, glue_table, mode) -> None:
+    path_file = f"{path}0.csv"
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.s3.to_json(df=df, path=path_file, dataset=True, database=glue_database, table=glue_table)
+    df["c2"] = [6, 7, 8]
+    wr.s3.to_json(
+        df=df,
+        path=path_file,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        mode=mode,
+        schema_evolution=True,
+    )
+    df["c3"] = [9, 10, 11]
+
+    column_types = wr.catalog.get_table_types(glue_database, glue_table)
+    assert len(column_types) == len(df.columns)
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_json(
             df=df, path=path_file, dataset=True, database=glue_database, table=glue_table, schema_evolution=False
         )
 
