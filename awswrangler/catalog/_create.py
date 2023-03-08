@@ -434,7 +434,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     )
 
 
-def _create_json_table(  # pylint: disable=too-many-arguments
+def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
     database: str,
     table: str,
     path: str,
