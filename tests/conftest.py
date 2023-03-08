@@ -183,11 +183,10 @@ def redshift_external_schema(cloudformation_outputs, databases_parameters, glue_
     IAM_ROLE '{databases_parameters["redshift"]["role"]}'
     REGION '{region}';
     """
-    con = wr.redshift.connect(connection="aws-sdk-pandas-redshift")
-    with con.cursor() as cursor:
-        cursor.execute(sql)
-        con.commit()
-    con.close()
+    with wr.redshift.connect(connection="aws-sdk-pandas-redshift") as con:
+        with con.cursor() as cursor:
+            cursor.execute(sql)
+            con.commit()
     return "aws_sdk_pandas_external"
 
 
@@ -284,11 +283,10 @@ def redshift_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.redshift.connect("aws-sdk-pandas-redshift")
-    with con.cursor() as cursor:
-        cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
-    con.commit()
-    con.close()
+    with wr.redshift.connect("aws-sdk-pandas-redshift") as con:
+        with con.cursor() as cursor:
+            cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
+        con.commit()
 
 
 @pytest.fixture(scope="function")
@@ -296,11 +294,10 @@ def redshift_table_with_hyphenated_name():
     name = f"tbl-{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.redshift.connect("aws-sdk-pandas-redshift")
-    with con.cursor() as cursor:
-        cursor.execute(f'DROP TABLE IF EXISTS public."{name}"')
-    con.commit()
-    con.close()
+    with wr.redshift.connect("aws-sdk-pandas-redshift") as con:
+        with con.cursor() as cursor:
+            cursor.execute(f'DROP TABLE IF EXISTS public."{name}"')
+        con.commit()
 
 
 @pytest.fixture(scope="function")
@@ -405,9 +402,8 @@ def random_glue_database():
 
 @pytest.fixture(scope="function")
 def redshift_con():
-    con = wr.redshift.connect("aws-sdk-pandas-redshift")
-    yield con
-    con.close()
+    with wr.redshift.connect("aws-sdk-pandas-redshift") as con:
+        yield con
 
 
 @pytest.fixture(scope="function")
