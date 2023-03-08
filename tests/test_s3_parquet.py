@@ -572,10 +572,12 @@ def test_read_parquet_versioned(path) -> None:
 
 
 def test_parquet_schema_evolution(path, glue_database, glue_table):
-    df = pd.DataFrame({
-        "id": [1, 2],
-        "value": ["foo", "boo"],
-    })
+    df = pd.DataFrame(
+        {
+            "id": [1, 2],
+            "value": ["foo", "boo"],
+        }
+    )
     wr.s3.to_parquet(
         df=df,
         path=path,
@@ -585,12 +587,9 @@ def test_parquet_schema_evolution(path, glue_database, glue_table):
         table=glue_table,
     )
 
-    df2 = pd.DataFrame({
-        "id": [3, 4],
-        "value": ["bar", None],
-        "date": [date(2020, 1, 3), date(2020, 1, 4)],
-        "flag": [True, False]
-    })
+    df2 = pd.DataFrame(
+        {"id": [3, 4], "value": ["bar", None], "date": [date(2020, 1, 3), date(2020, 1, 4)], "flag": [True, False]}
+    )
     wr.s3.to_parquet(
         df=df2,
         path=path,
