@@ -3,11 +3,10 @@
 
 from typing import Any, Collection, Dict, List, Mapping, Optional, Union
 
-import pandas as pd
-
 from awswrangler import _utils, exceptions
 from awswrangler.opensearch._utils import _get_distribution, _is_serverless
 
+pd = _utils.import_pandas()
 opensearchpy = _utils.import_optional_dependency("opensearchpy")
 
 

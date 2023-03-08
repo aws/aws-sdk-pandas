@@ -3,7 +3,6 @@ from decimal import Decimal
 
 import boto3
 import oracledb
-import pandas as pd
 import pyarrow as pa
 import pytest
 
@@ -11,7 +10,11 @@ import awswrangler as wr
 
 from .._utils import ensure_data_types, get_df
 
+pd = wr._utils.import_pandas()
+
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="function")

@@ -6,7 +6,6 @@ import uuid
 from typing import Any, Dict, List, Optional, Union, cast
 
 import boto3
-import pandas as pd
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
@@ -19,6 +18,7 @@ from awswrangler.data_quality._utils import (
     _wait_ruleset_run,
 )
 
+pd = _utils.import_pandas()
 _logger: logging.Logger = logging.getLogger(__name__)
 
 

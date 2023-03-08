@@ -5,7 +5,6 @@ import logging
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union, overload
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 
 from awswrangler import _data_types, _utils, exceptions
@@ -15,6 +14,7 @@ from awswrangler._config import apply_configs
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
 pyodbc = _utils.import_optional_dependency("pyodbc")
+pd = _utils.import_pandas()
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])

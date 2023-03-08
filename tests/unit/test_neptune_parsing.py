@@ -1,13 +1,15 @@
 import logging
 
-import pandas as pd
 import pytest  # type: ignore
 from gremlin_python.process.traversal import T
 from gremlin_python.structure.graph import Edge, Path, Property, Vertex, VertexProperty
 
 import awswrangler as wr
 
+pd = wr._utils.import_pandas()
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="session")

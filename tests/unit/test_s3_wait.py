@@ -1,12 +1,14 @@
 import logging
 
 import botocore
-import pandas as pd
 import pytest
 
 import awswrangler as wr
 
+pd = wr._utils.import_pandas()
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("use_threads", [True, False])

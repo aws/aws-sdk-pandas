@@ -8,12 +8,9 @@ import pytest
 
 import awswrangler as wr
 
-from .._utils import ensure_data_types_csv, get_df_csv, is_ray_modin
+from .._utils import ensure_data_types_csv, get_df_csv
 
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+pd = wr._utils.import_pandas()
 
 logger = logging.getLogger("awswrangler")
 logger.setLevel(logging.DEBUG)

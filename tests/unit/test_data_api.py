@@ -1,10 +1,13 @@
 import boto3
-import pandas as pd
 import pytest
 
 import awswrangler as wr
 
 from .._utils import get_time_str_with_random_suffix
+
+pd = wr._utils.import_pandas()
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture

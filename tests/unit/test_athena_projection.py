@@ -4,12 +4,9 @@ import pytest
 
 import awswrangler as wr
 
-from .._utils import dt, is_ray_modin, to_pandas, ts
+from .._utils import dt, to_pandas, ts
 
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+pd = wr._utils.import_pandas()
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

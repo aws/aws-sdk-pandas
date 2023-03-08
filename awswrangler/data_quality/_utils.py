@@ -9,10 +9,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 import botocore.exceptions
-import pandas as pd
 
 from awswrangler import _utils, exceptions
 
+pd = _utils.import_pandas()
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _RULESET_EVALUATION_FINAL_STATUSES: List[str] = ["STOPPED", "SUCCEEDED", "FAILED", "TIMEOUT"]

@@ -5,7 +5,6 @@ import uuid
 from typing import Any, Dict
 
 import numpy as np
-import pandas as pd
 import pytest  # type: ignore
 from gremlin_python.process.traversal import Direction, T
 
@@ -13,7 +12,10 @@ import awswrangler as wr
 
 from .._utils import extract_cloudformation_outputs
 
+pd = wr._utils.import_pandas()
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="session")

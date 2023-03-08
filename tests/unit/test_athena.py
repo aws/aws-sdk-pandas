@@ -25,10 +25,7 @@ from .._utils import (
     pandas_equals,
 )
 
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+pd = wr._utils.import_pandas()
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

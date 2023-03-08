@@ -13,10 +13,7 @@ import awswrangler as wr
 
 from .._utils import get_df_csv, is_ray_modin
 
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+pd = wr._utils.import_pandas()
 
 
 EXT = {"gzip": ".gz", "bz2": ".bz2", "xz": ".xz", "zip": ".zip"}

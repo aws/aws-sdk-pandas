@@ -2,7 +2,6 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 
-import pandas as pd
 import pg8000
 import pyarrow as pa
 import pytest
@@ -12,7 +11,10 @@ import awswrangler as wr
 
 from .._utils import ensure_data_types, get_df
 
+pd = wr._utils.import_pandas()
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="function")

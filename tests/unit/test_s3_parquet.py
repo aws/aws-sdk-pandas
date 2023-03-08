@@ -17,10 +17,7 @@ from awswrangler._distributed import MemoryFormatEnum
 
 from .._utils import ensure_data_types, get_df_list, is_ray_modin, pandas_equals, to_pandas
 
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+pd = wr._utils.import_pandas()
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

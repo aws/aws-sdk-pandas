@@ -3,9 +3,11 @@
 from typing import List, Optional, Union, cast
 
 import boto3
-import pandas as pd
 
+from awswrangler._utils import import_pandas
 from awswrangler.data_quality._utils import _get_ruleset, _rules_to_df
+
+pd = import_pandas()
 
 
 def get_ruleset(

@@ -20,7 +20,6 @@ from typing import (
 )
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 from boto3.dynamodb.conditions import ConditionBase
 from boto3.dynamodb.types import Binary
@@ -35,6 +34,7 @@ from awswrangler.dynamodb._utils import _serialize_kwargs, execute_statement, ge
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.client import DynamoDBClient
 
+pd = _utils.import_pandas()
 _logger: logging.Logger = logging.getLogger(__name__)
 
 

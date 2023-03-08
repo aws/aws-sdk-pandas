@@ -8,7 +8,6 @@ from typing import Any, Dict, List
 import boto3
 import botocore
 import opensearchpy
-import pandas as pd
 import pytest  # type: ignore
 
 import awswrangler as wr
@@ -16,8 +15,10 @@ from awswrangler.opensearch._utils import _is_serverless
 
 from .._utils import extract_cloudformation_outputs
 
+pd = wr._utils.import_pandas()
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
+pytestmark = pytest.mark.distributed
 
 inspections_documents = [
     {

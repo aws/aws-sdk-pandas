@@ -6,7 +6,6 @@ from unittest.mock import ANY, patch
 import boto3
 import botocore
 import moto
-import pandas as pd
 import pytest
 from botocore.exceptions import ClientError
 
@@ -15,7 +14,10 @@ from awswrangler.exceptions import EmptyDataFrame, InvalidArgumentCombination, I
 
 from .._utils import ensure_data_types, get_df_csv, get_df_list
 
+pd = wr._utils.import_pandas()
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="module")

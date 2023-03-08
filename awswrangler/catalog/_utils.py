@@ -6,7 +6,6 @@ import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import boto3
-import pandas as pd
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
@@ -14,6 +13,7 @@ from awswrangler._config import apply_configs
 if TYPE_CHECKING:
     from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
 
+pd = _utils.import_pandas()
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
