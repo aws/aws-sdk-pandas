@@ -262,7 +262,7 @@ def write(
     ----
     Values in `common_attributes` take precedence over all other arguments and data frame values.
     Dimension attributes are merged with attributes in record objects.
-    Example: common_attributes = {'MeasureValueType': 'DOUBLE', 'Time': datetime.now()}
+    Example: common_attributes = {"Dimensions": {"Name": "device_id", "Value": "12345"}, "MeasureValueType": "DOUBLE"}.
 
     Note
     ----
