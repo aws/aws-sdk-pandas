@@ -8,7 +8,7 @@ import pytest
 
 import awswrangler as wr
 
-from .._utils import ensure_data_types, get_df
+from .._utils import ensure_data_types, get_df, pandas_equals
 
 pd = wr._utils.import_pandas()
 
@@ -125,7 +125,7 @@ def test_null(oracle_table, oracle_con):
 
     df2 = wr.oracle.read_sql_table(table=table, schema="TEST", con=oracle_con)
     df["id"] = df["id"].astype("Int64")
-    assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
+    assert pandas_equals(pd.concat(objs=[df, df], ignore_index=True), df2)
 
 
 def test_decimal_cast(oracle_table, oracle_con):

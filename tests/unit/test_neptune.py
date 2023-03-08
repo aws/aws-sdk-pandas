@@ -54,19 +54,15 @@ def test_opencypher_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     wr.neptune.execute_opencypher(client, "create (a:Foo { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
     df = wr.neptune.execute_opencypher(client, "MATCH (n) RETURN n LIMIT 1")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 1)
 
-    assert isinstance(df, pd.DataFrame)
     df = wr.neptune.execute_opencypher(client, "MATCH (n) RETURN n LIMIT 2")
     assert df.shape == (2, 1)
 
     df = wr.neptune.execute_opencypher(client, "MATCH p=(n)-[r]->(d) RETURN p LIMIT 1")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 1)
 
     df = wr.neptune.execute_opencypher(client, "MATCH (n) RETURN id(n), labels(n) LIMIT 1")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 2)
     row = df.iloc[0]
     assert row["id(n)"]
@@ -78,19 +74,16 @@ def test_flatten_df(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     wr.neptune.execute_opencypher(client, "create (a:Foo1 { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
     df = wr.neptune.execute_opencypher(client, "MATCH (n:Foo1) RETURN n LIMIT 1")
     df_test = wr.neptune.flatten_nested_df(df)
-    assert isinstance(df_test, pd.DataFrame)
     assert df_test.shape == (1, 6)
     row = df_test.iloc[0]
     assert row["n_~properties_name"]
 
     df_test = wr.neptune.flatten_nested_df(df, include_prefix=False)
-    assert isinstance(df_test, pd.DataFrame)
     assert df_test.shape == (1, 6)
     row = df_test.iloc[0]
     assert row["_~properties_name"]
 
     df_test = wr.neptune.flatten_nested_df(df, separator="|")
-    assert isinstance(df_test, pd.DataFrame)
     assert df_test.shape == (1, 6)
     row = df_test.iloc[0]
     assert row["n|~properties|name"]
@@ -131,11 +124,9 @@ def test_gremlin_query_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
 
     wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{uuid.uuid4()}')")
     df = wr.neptune.execute_gremlin(client, "g.V().limit(1)")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 2)
 
     df = wr.neptune.execute_gremlin(client, "g.V().limit(2)")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (2, 2)
 
 
@@ -144,11 +135,9 @@ def test_gremlin_query_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
     wr.neptune.execute_gremlin(client, "g.addE('bar').from(addV('foo')).to(addV('foo'))")
     df = wr.neptune.execute_gremlin(client, "g.E().limit(1)")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 4)
 
     df = wr.neptune.execute_gremlin(client, "g.E().limit(2)")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (2, 4)
 
 
@@ -156,7 +145,7 @@ def test_gremlin_query_no_results(neptune_endpoint, neptune_port) -> Dict[str, A
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
     df = wr.neptune.execute_gremlin(client, "g.V('foo').drop()")
-    assert isinstance(df, pd.DataFrame)
+    assert df.empty
 
 
 def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
@@ -164,11 +153,9 @@ def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     df = wr.neptune.execute_sparql(client, "INSERT DATA { <test> <test> <test>}")
     df = wr.neptune.execute_sparql(client, "INSERT DATA { <test1> <test1> <test1>}")
     df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 1")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 3)
 
     df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 2")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (2, 3)
 
 

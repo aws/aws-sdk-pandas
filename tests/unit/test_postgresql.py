@@ -9,7 +9,7 @@ from pg8000.dbapi import ProgrammingError
 
 import awswrangler as wr
 
-from .._utils import ensure_data_types, get_df
+from .._utils import ensure_data_types, get_df, pandas_equals
 
 pd = wr._utils.import_pandas()
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -132,7 +132,7 @@ def test_null(postgresql_table, postgresql_con):
     )
     df2 = wr.postgresql.read_sql_table(table=table, schema="public", con=postgresql_con)
     df["id"] = df["id"].astype("Int64")
-    assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
+    assert pandas_equals(pd.concat(objs=[df, df], ignore_index=True), df2)
 
 
 def test_decimal_cast(postgresql_table, postgresql_con):
@@ -373,7 +373,7 @@ def test_upsert_multiple_conflict_columns(postgresql_table, postgresql_con):
     df7["c0"] = df7["c0"].astype("string")
     df7["c1"] = df7["c1"].astype("Int64")
     df7["c2"] = df7["c2"].astype("Int64")
-    assert df6.equals(df7)
+    assert pandas_equals(df6, df7)
 
 
 def test_insert_ignore_duplicate_columns(postgresql_table, postgresql_con):
@@ -505,7 +505,7 @@ def test_insert_ignore_duplicate_multiple_columns(postgresql_table, postgresql_c
     df7["c0"] = df7["c0"].astype("string")
     df7["c1"] = df7["c1"].astype("Int64")
     df7["c2"] = df7["c2"].astype("Int64")
-    assert df6.equals(df7)
+    assert pandas_equals(df6, df7)
 
 
 def test_timestamp_overflow(postgresql_table, postgresql_con):

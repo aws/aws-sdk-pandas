@@ -8,7 +8,7 @@ from pymysql.cursors import SSCursor
 
 import awswrangler as wr
 
-from .._utils import ensure_data_types, get_df
+from .._utils import ensure_data_types, get_df, pandas_equals
 
 pd = wr._utils.import_pandas()
 
@@ -163,7 +163,7 @@ def test_null(mysql_table, mysql_con):
     )
     df2 = wr.mysql.read_sql_table(table=table, schema="test", con=mysql_con)
     df["id"] = df["id"].astype("Int64")
-    assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
+    assert pandas_equals(pd.concat(objs=[df, df], ignore_index=True), df2)
 
 
 def test_decimal_cast(mysql_table, mysql_con):
