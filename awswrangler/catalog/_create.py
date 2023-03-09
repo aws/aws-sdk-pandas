@@ -252,10 +252,16 @@ def _overwrite_table_parameters(
     return parameters
 
 
-def _update_table_input(table_input: Dict[str, Any], columns_types: Dict[str, str]) -> bool:
+def _update_table_input(table_input: Dict[str, Any], columns_types: Dict[str, str], allow_reorder: bool = True) -> bool:
     column_updated = False
 
     catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
+
+    if not allow_reorder:
+        for catalog_key, frame_key in zip(catalog_cols, columns_types):
+            if catalog_key != frame_key:
+                raise exceptions.InvalidArgumentValue(f"Column {frame_key} is out of order.")
+
     for c, t in columns_types.items():
         if c not in catalog_cols:
             _logger.debug("New column %s with type %s.", c, t)
@@ -388,7 +394,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = catalog_table_input
 
-        is_table_updated = _update_table_input(table_input, columns_types)
+        is_table_updated = _update_table_input(table_input, columns_types, allow_reorder=False)
         if is_table_updated:
             mode = "update"
 

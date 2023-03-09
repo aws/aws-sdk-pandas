@@ -605,6 +605,32 @@ def test_parquet_schema_evolution(path, glue_database, glue_table):
     assert len(column_types) == len(df2.columns)
 
 
+def test_to_csv_schema_evolution_out_of_order(path, glue_database, glue_table) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"]})
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
+
+    df2 = pd.DataFrame({"c0": [3, 4, 5], "c1": ["a", "b", "c"]})
+    df2["c2"] = ["x", "y", "z"]
+
+    wr.s3.to_parquet(
+        df=df2,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        mode="append",
+        schema_evolution=True,
+        catalog_versioning=True,
+    )
+
+    df_out = wr.s3.read_parquet(path=path, dataset=True)
+    df_expected = pd.concat([df, df2], ignore_index=True)
+
+    assert len(df_out) == len(df_expected)
+    assert list(df_out.columns) == list(df_expected.columns)
+
+
+
 def test_read_parquet_schema_validation_with_index_column(path) -> None:
     path_file = f"{path}file.parquet"
     df = pd.DataFrame({"idx": [1], "col": [2]})
