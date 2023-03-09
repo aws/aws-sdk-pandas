@@ -609,7 +609,7 @@ def test_to_csv_schema_evolution_out_of_order(path, glue_database, glue_table) -
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"]})
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
 
-    df2 = pd.DataFrame({"c0": [3, 4, 5], "c1": ["a", "b", "c"]})
+    df2 = df.copy()
     df2["c2"] = ["x", "y", "z"]
 
     wr.s3.to_parquet(
