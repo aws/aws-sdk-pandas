@@ -630,7 +630,6 @@ def test_to_csv_schema_evolution_out_of_order(path, glue_database, glue_table) -
     assert list(df_out.columns) == list(df_expected.columns)
 
 
-
 def test_read_parquet_schema_validation_with_index_column(path) -> None:
     path_file = f"{path}file.parquet"
     df = pd.DataFrame({"idx": [1], "col": [2]})
