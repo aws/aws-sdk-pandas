@@ -125,6 +125,8 @@ def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...],
         return args + [list(params)]
     return args
 
+def _should_handle_oracle_objects(dtype: str) -> bool:
+    return dtype == pa.string() or dtype == pa.large_string() or isinstance(dtype, pa.Decimal128Type) or dtype == pa.binary() or dtype == pa.large_binary() 
 
 def _records2df(
     records: List[Tuple[Any]],
@@ -146,7 +148,7 @@ def _records2df(
         else:
             try:
                 if _oracledb_found:
-                    if dtype[col_name] == pa.string() or isinstance(dtype[col_name], pa.Decimal128Type):
+                    if _should_handle_oracle_objects(dtype[col_name]):
                         col_values = oracle.handle_oracle_objects(col_values, col_name, dtype)
                 array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
             except pa.ArrowInvalid:

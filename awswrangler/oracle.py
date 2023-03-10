@@ -1,5 +1,6 @@
 """Amazon Oracle Database Module."""
 
+import base64
 import importlib.util
 import inspect
 import logging
@@ -444,7 +445,8 @@ def detect_oracle_decimal_datatype(cursor: Any) -> Dict[str, pa.DataType]:
 def handle_oracle_objects(
     col_values: List[Any], col_name: str, dtype: Optional[Dict[str, pa.DataType]] = None
 ) -> List[Any]:
-    """Get the string representation of an Oracle LOB value, and convert float to decimal."""
+    """Get the string representation of an Oracle LOB value when requested, otherwise return LOBs as bytes and convert float to decimal."""
+    # Note that Oracle's read() method, which should be called for LOB objects to retrieve data, will return either string or bytes. 
     if any(isinstance(col_value, oracledb.LOB) for col_value in col_values):
         col_values = [
             col_value.read() if isinstance(col_value, oracledb.LOB) else col_value for col_value in col_values
@@ -456,5 +458,12 @@ def handle_oracle_objects(
             col_values = [
                 Decimal(repr(col_value)) if isinstance(col_value, float) else col_value for col_value in col_values
             ]
+
+    # A user may wish to represent Oracle blob binary data as plain text - we can infer this intent should dtype be string and col_value binary.
+    if dtype is str:
+        if any(isinstance(col_value, bytes) for col_value in col_values):
+            col_values = [
+                base64.b64encode(col_value) if isinstance(col_value, bytes) else col_value for col_value in col_values
+            ]        
 
     return col_values
