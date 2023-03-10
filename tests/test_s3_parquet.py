@@ -605,7 +605,7 @@ def test_parquet_schema_evolution(path, glue_database, glue_table):
     assert len(column_types) == len(df2.columns)
 
 
-def test_to_csv_schema_evolution_out_of_order(path, glue_database, glue_table) -> None:
+def test_to_parquet_schema_evolution_out_of_order(path, glue_database, glue_table) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"]})
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
 
