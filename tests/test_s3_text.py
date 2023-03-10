@@ -359,25 +359,84 @@ def test_read_csv_versioned(path) -> None:
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
 
-def test_to_csv_schema_evolution(path, glue_database, glue_table) -> None:
-    path_file = f"{path}0.csv"
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_to_csv_schema_evolution(path, glue_database, glue_table, mode) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
-    wr.s3.to_csv(df=df, path=path_file, dataset=True, database=glue_database, table=glue_table)
+    wr.s3.to_csv(df=df, path=path, dataset=True, database=glue_database, table=glue_table, index=False)
+
     df["c2"] = [6, 7, 8]
     wr.s3.to_csv(
         df=df,
-        path=path_file,
+        path=path,
         dataset=True,
         database=glue_database,
         table=glue_table,
-        mode="overwrite",
+        mode=mode,
         schema_evolution=True,
+        index=False,
     )
+
+    column_types = wr.catalog.get_table_types(glue_database, glue_table)
+    assert len(column_types) == len(df.columns)
+
     df["c3"] = [9, 10, 11]
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_csv(df=df, path=path, dataset=True, database=glue_database, table=glue_table, schema_evolution=False)
+
+
+@pytest.mark.parametrize("schema_evolution", [False, True])
+def test_to_csv_schema_evolution_out_of_order(path, glue_database, glue_table, schema_evolution) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.s3.to_csv(df=df, path=path, dataset=True, database=glue_database, table=glue_table, index=False)
+
+    df["c2"] = [6, 7, 8]
+    df = df[["c0", "c2", "c1"]]
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_csv(
-            df=df, path=path_file, dataset=True, database=glue_database, table=glue_table, schema_evolution=False
+            df=df,
+            path=path,
+            dataset=True,
+            database=glue_database,
+            table=glue_table,
+            mode="append",
+            schema_evolution=schema_evolution,
+            index=False,
         )
+
+
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_to_json_schema_evolution(path, glue_database, glue_table, mode) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.s3.to_json(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        orient="split",
+        index=False,
+    )
+
+    df["c2"] = [6, 7, 8]
+    wr.s3.to_json(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        mode=mode,
+        schema_evolution=True,
+        orient="split",
+        index=False,
+    )
+
+    column_types = wr.catalog.get_table_types(glue_database, glue_table)
+    assert len(column_types) == len(df.columns)
+
+    df["c3"] = [9, 10, 11]
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_json(df=df, path=path, dataset=True, database=glue_database, table=glue_table, schema_evolution=False)
 
 
 def test_exceptions(path):

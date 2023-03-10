@@ -1,7 +1,7 @@
 import itertools
 import logging
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import boto3
 import numpy as np
@@ -569,6 +569,65 @@ def test_read_parquet_versioned(path) -> None:
         df_temp = wr.s3.read_parquet(path_file, version_id=version_id)
         assert df_temp.equals(df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
+
+
+def test_parquet_schema_evolution(path, glue_database, glue_table):
+    df = pd.DataFrame(
+        {
+            "id": [1, 2],
+            "value": ["foo", "boo"],
+        }
+    )
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+    )
+
+    df2 = pd.DataFrame(
+        {"id": [3, 4], "value": ["bar", None], "date": [date(2020, 1, 3), date(2020, 1, 4)], "flag": [True, False]}
+    )
+    wr.s3.to_parquet(
+        df=df2,
+        path=path,
+        dataset=True,
+        mode="append",
+        database=glue_database,
+        table=glue_table,
+        schema_evolution=True,
+        catalog_versioning=True,
+    )
+
+    column_types = wr.catalog.get_table_types(glue_database, glue_table)
+    assert len(column_types) == len(df2.columns)
+
+
+def test_to_parquet_schema_evolution_out_of_order(path, glue_database, glue_table) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"]})
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
+
+    df2 = df.copy()
+    df2["c2"] = ["x", "y", "z"]
+
+    wr.s3.to_parquet(
+        df=df2,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        mode="append",
+        schema_evolution=True,
+        catalog_versioning=True,
+    )
+
+    df_out = wr.s3.read_parquet(path=path, dataset=True)
+    df_expected = pd.concat([df, df2], ignore_index=True)
+
+    assert len(df_out) == len(df_expected)
+    assert list(df_out.columns) == list(df_expected.columns)
 
 
 def test_read_parquet_schema_validation_with_index_column(path) -> None:
