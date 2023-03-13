@@ -446,7 +446,7 @@ def detect_oracle_decimal_datatype(cursor: Any) -> Dict[str, pa.DataType]:
 def handle_oracle_objects(
     col_values: List[Any], col_name: str, dtype: Optional[Dict[str, pa.DataType]] = None
 ) -> List[Any]:
-    """Retrieve Oracle LOB values by calling read() method, may return string or bytes"""
+    """Retrieve Oracle LOB values by calling read() method, may return string or bytes."""
     if any(isinstance(col_value, oracledb.LOB) for col_value in col_values):
         col_values = [
             col_value.read() if isinstance(col_value, oracledb.LOB) else col_value for col_value in col_values
