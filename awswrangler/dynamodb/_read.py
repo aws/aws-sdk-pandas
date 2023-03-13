@@ -484,6 +484,8 @@ def read_items(  # pylint: disable=too-many-branches
         Used for Parallel Scan requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
+    ray_args: typing.RayReadParquetSettings, optional
+        Params of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session, optional
         Boto3 Session. Defaults to None (the default boto3 Session will be used).
     pyarrow_additional_kwargs : Dict[str, Any], optional
