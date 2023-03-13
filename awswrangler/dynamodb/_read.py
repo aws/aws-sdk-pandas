@@ -26,8 +26,8 @@ from boto3.dynamodb.conditions import ConditionBase
 from boto3.dynamodb.types import Binary
 from botocore.exceptions import ClientError
 
-from awswrangler import _data_types, _utils, exceptions
-from awswrangler._distributed import engine
+from awswrangler import _data_types, _utils, exceptions, typing
+from awswrangler._distributed import EngineEnum, engine
 from awswrangler._threading import _get_executor
 from awswrangler.distributed.ray import ray_get
 from awswrangler.dynamodb._utils import _serialize_kwargs, execute_statement, get_table
@@ -285,8 +285,11 @@ def _read_items(
     arrow_kwargs: Dict[str, Any],
     use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session] = None,
+    ray_args: Optional[typing.RaySettings] = None,
     **kwargs: Any,
 ) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
+    ray_args = ray_args if ray_args else {}
+
     # Extract 'Keys' and 'IndexName' from provided kwargs: if needed, will be reinserted later on
     keys = kwargs.pop("Keys", None)
     index = kwargs.pop("IndexName", None)
@@ -318,7 +321,12 @@ def _read_items(
             # Last resort use Parallel Scan
             executor = _get_executor(use_threads=use_threads)
             dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
-            total_segments = _utils.ensure_cpu_count(use_threads=use_threads)
+
+            if engine.get() == EngineEnum.RAY:
+                total_segments = ray_args.get("parallelism", 100)
+            else:
+                total_segments = _utils.ensure_cpu_count(use_threads=use_threads)
+
             kwargs = _serialize_kwargs(kwargs)
             kwargs["TableName"] = table_name
             kwargs["TotalSegments"] = total_segments
@@ -349,6 +357,7 @@ def read_items(
     max_items_evaluated: Optional[int] = ...,
     as_dataframe: Literal[True] = ...,
     use_threads: Union[bool, int] = ...,
+    ray_args: Optional[typing.RaySettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> pd.DataFrame:
@@ -372,6 +381,7 @@ def read_items(
     max_items_evaluated: Optional[int] = ...,
     as_dataframe: Literal[False],
     use_threads: Union[bool, int] = ...,
+    ray_args: Optional[typing.RaySettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> List[Dict[str, Any]]:
@@ -395,6 +405,7 @@ def read_items(
     max_items_evaluated: Optional[int] = ...,
     as_dataframe: bool,
     use_threads: Union[bool, int] = ...,
+    ray_args: Optional[typing.RaySettings] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
@@ -419,6 +430,7 @@ def read_items(  # pylint: disable=too-many-branches
     max_items_evaluated: Optional[int] = None,
     as_dataframe: bool = True,
     use_threads: Union[bool, int] = True,
+    ray_args: Optional[typing.RaySettings] = None,
     boto3_session: Optional[boto3.Session] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
@@ -625,6 +637,7 @@ def read_items(  # pylint: disable=too-many-branches
             table_name=table_name,
             as_dataframe=as_dataframe,
             arrow_kwargs=arrow_kwargs,
+            ray_args=ray_args,
             use_threads=use_threads,
             boto3_session=boto3_session,
             **kwargs,
