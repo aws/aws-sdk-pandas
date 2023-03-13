@@ -22,7 +22,6 @@ def _fill_dynamodb_table(table_name: str, num_objects: int) -> None:
     table = dynamodb_resource.Table(table_name)
 
     with table.batch_writer() as writer:
-
         for i in range(num_objects):
             item = _generate_item(i)
             writer.put_item(Item=item)
