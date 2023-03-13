@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar
 import boto3
 import pandas as pd
 import pyarrow as pa
-import pyarrow.types as types
+from pyarrow import types
 
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
@@ -464,8 +464,8 @@ def handle_oracle_objects(
         if types.is_string(dtype[col_name]) or types.is_large_string(dtype[col_name]):
             if any(isinstance(col_value, bytes) for col_value in col_values):
                 col_values = [
-                    base64.b64encode(col_value) if isinstance(col_value, bytes)
-                    else col_value for col_value in col_values
+                    base64.b64encode(col_value) if isinstance(col_value, bytes) else col_value
+                    for col_value in col_values
                 ]
 
     return col_values
