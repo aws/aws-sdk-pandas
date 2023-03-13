@@ -268,6 +268,7 @@ OpenSearch
     :toctree: stubs
 
     connect
+    create_collection
     create_index
     delete_index
     index_csv

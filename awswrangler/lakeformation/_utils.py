@@ -9,6 +9,7 @@ import boto3
 import botocore.exceptions
 
 from awswrangler import _utils, exceptions
+from awswrangler._config import apply_configs
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from awswrangler.s3._describe import describe_objects
 
@@ -303,7 +304,12 @@ def extend_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
     client_lakeformation.extend_transaction(TransactionId=transaction_id)
 
 
-def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
+@apply_configs
+def wait_query(
+    query_id: str,
+    boto3_session: Optional[boto3.Session] = None,
+    lakeformation_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+) -> Dict[str, Any]:
     """Wait for the query to end.
 
     Parameters
@@ -312,6 +318,9 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
         Lake Formation query execution ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session received None.
+    lakeformation_query_wait_polling_delay: float, default: 2 seconds
+        Interval in seconds for how often the function will check if the LakeFormation query has completed.
+
 
     Returns
     -------
@@ -329,7 +338,7 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
     response: Dict[str, Any] = client_lakeformation.get_query_state(QueryId=query_id)
     state: str = response["State"]
     while state not in _QUERY_FINAL_STATES:
-        time.sleep(_QUERY_WAIT_POLLING_DELAY)
+        time.sleep(lakeformation_query_wait_polling_delay)
         response = client_lakeformation.get_query_state(QueryId=query_id)
         state = response["State"]
     _logger.debug("state: %s", state)

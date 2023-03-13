@@ -12,6 +12,7 @@ from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
 from awswrangler import _utils, exceptions
+from awswrangler.annotations import Experimental
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -242,6 +243,7 @@ def connect(
     return es
 
 
+@Experimental
 def create_collection(
     name: str,
     collection_type: str = "SEARCH",

@@ -1,8 +1,10 @@
 import datetime as dt
 import logging
+import time
 from datetime import datetime
 
 import boto3
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -219,6 +221,162 @@ def test_real_csv_load_scenario(timestream_database_and_table):
     assert df["counter"].iloc[0] == 126_000
 
 
+# This test covers every possible combination of common_attributes and data frame inputs
+@pytest.mark.parametrize("record_type", ["SCALAR", "MULTI"])
+@pytest.mark.parametrize(
+    "common_attributes_details",
+    [
+        ({}, (4, 6)),
+        ({"MeasureName": "cpu_util"}, (4, 6)),
+        ({"MeasureValue": "13.1", "MeasureValueType": "DOUBLE"}, (4, 5)),
+        (
+            {
+                "MeasureValues": [
+                    {"Name": "cpu_util", "Value": "12.0", "Type": "DOUBLE"},
+                    {"Name": "mem_util", "Value": "45.6", "Type": "DOUBLE"},
+                ],
+                "MeasureValueType": "MULTI",
+            },
+            (5, 6),
+        ),
+        ({"Time": str(round(time.time())), "TimeUnit": "SECONDS"}, (4, 5)),
+        ({"Time": str(round(time.time()) * 1_000), "MeasureValue": "13.1", "MeasureValueType": "DOUBLE"}, (4, 5)),
+        ({"Dimensions": [{"Name": "region", "Value": "us-east-1"}]}, (4, 5)),
+        ({"Dimensions": [{"Name": "region", "Value": "us-east-1"}, {"Name": "host", "Value": "linux"}]}, (5, 6)),
+        (
+            {
+                "Dimensions": [{"Name": "region", "Value": "us-east-1"}],
+                "MeasureValue": "13.1",
+                "MeasureValueType": "DOUBLE",
+            },
+            (4, 4),
+        ),
+        (
+            {
+                "Dimensions": [{"Name": "region", "Value": "us-east-1"}, {"Name": "host", "Value": "linux"}],
+                "MeasureValues": [
+                    {"Name": "cpu_util", "Value": "12.0", "Type": "DOUBLE"},
+                    {"Name": "mem_util", "Value": "45.6", "Type": "DOUBLE"},
+                ],
+                "MeasureValueType": "MULTI",
+            },
+            (6, 6),
+        ),
+    ],
+)
+def test_common_attributes(timestream_database_and_table, record_type, common_attributes_details):
+    common_attributes, num_cols = common_attributes_details
+    df = pd.DataFrame({"dummy": ["a"] * 3})
+
+    kwargs = {
+        "df": df,
+        "database": timestream_database_and_table,
+        "table": timestream_database_and_table,
+        "common_attributes": common_attributes,
+        "measure_name": "cpu",
+    }
+    if "Time" not in common_attributes:
+        df["time"] = [datetime.now() + dt.timedelta(seconds=(60 * c)) for c in range(3)]
+        kwargs["time_col"] = "time"
+    if all(k not in common_attributes for k in ("MeasureValue", "MeasureValues")):
+        df["cpu_utilization"] = [13.1] * 3
+        measure_cols = ["cpu_utilization"]
+        if record_type == "MULTI":
+            df["mem_utilization"] = [45.2] * 3
+            measure_cols += ["mem_utilization"]
+        kwargs["measure_col"] = measure_cols
+    if "Dimensions" not in common_attributes:
+        df["region"] = ["us-east-1", "us-east-2", "us-west-2"]
+        dimensions_cols = ["region"]
+        if record_type == "MULTI":
+            df["host"] = ["AL2", "Ubuntu", "Debian"]
+            dimensions_cols += ["host"]
+        kwargs["dimensions_cols"] = dimensions_cols
+
+    rejected_records = wr.timestream.write(**kwargs)
+    assert len(rejected_records) == 0
+
+    df = wr.timestream.query(f"""SELECT * FROM "{timestream_database_and_table}"."{timestream_database_and_table}" """)
+    assert df.shape == (3, num_cols[1] if record_type == "MULTI" else num_cols[0])
+
+
+@pytest.mark.parametrize("record_type", ["SCALAR", "MULTI"])
+def test_merge_dimensions(timestream_database_and_table, record_type):
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now()] * 3,
+            "measure": [13.1, 13.2, 13.3],
+            "dim1": ["az1", "az2", "az3"],
+        }
+    )
+
+    kwargs = {
+        "df": df,
+        "database": timestream_database_and_table,
+        "table": timestream_database_and_table,
+        "common_attributes": {
+            "Dimensions": [{"Name": "region", "Value": "us-east-1"}, {"Name": "host", "Value": "linux"}]
+        },
+        "time_col": "time",
+        "measure_col": ["measure"],
+        "dimensions_cols": ["dim1"],
+    }
+    if record_type == "MULTI":
+        df["dim2"] = ["arm", "intel", "arm"]
+        kwargs["dimensions_cols"] = ["dim1", "dim2"]
+
+    rejected_records = wr.timestream.write(**kwargs)
+    assert len(rejected_records) == 0
+
+    df = wr.timestream.query(f"""SELECT * FROM "{timestream_database_and_table}"."{timestream_database_and_table}" """)
+    assert df.shape == (3, 7) if record_type == "MULTI" else (3, 6)
+
+
+def test_exceptions():
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now(), datetime.now(), datetime.now()],
+            "measure1": [1.0, 1.1, 1.2],
+        }
+    )
+
+    # No columns supplied
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.timestream.write(
+            df=df,
+            database="test",
+            table="test",
+            common_attributes={"MeasureName": "test", "MeasureValueType": "Double"},
+        )
+
+    # Missing MeasureValueType
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.timestream.write(
+            df=df, database="test", table="test", time_col="time", common_attributes={"MeasureValue": "13.1"}
+        )
+
+    # Missing MeasureName
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.timestream.write(
+            df=df,
+            database="test",
+            table="test",
+            time_col="time",
+            common_attributes={"MeasureValue": "13.1", "MeasureValueType": "DOUBLE"},
+        )
+
+    # None timestamp time_col
+    with pytest.raises(wr.exceptions.InvalidArgumentType):
+        df["time"] = ["a"] * 3
+        wr.timestream.write(
+            df=df,
+            database="test",
+            table="test",
+            time_col="time",
+            common_attributes={"MeasureName": "test", "MeasureValue": "13.1", "MeasureValueType": "Double"},
+        )
+
+
 def test_multimeasure_scenario(timestream_database_and_table):
     df = pd.DataFrame(
         {
@@ -248,6 +406,59 @@ def test_multimeasure_scenario(timestream_database_and_table):
         """,
     )
     assert df.shape == (3, 6)
+
+
+@pytest.mark.parametrize(
+    "test_input, expected",
+    [
+        (
+            {
+                "df": pd.DataFrame(
+                    {
+                        "time": [datetime.now(), datetime.now(), datetime.now()],
+                        "dim0": [1, 2, 3],
+                        "measure1": [None, np.nan, 1.2],
+                        "measure2": [pd.NaT, 2.1, 2.2],
+                    }
+                ),
+                "measure_col": ["measure1", "measure2"],
+            },
+            (2, 5),
+        ),
+        (
+            {
+                "df": pd.DataFrame(
+                    {
+                        "time": [datetime.now(), datetime.now(), datetime.now()],
+                        "dim0": [1, 2, 3],
+                        "measure1": [None, 1.1, 1.2],
+                    }
+                ),
+                "measure_col": ["measure1"],
+            },
+            (2, 4),
+        ),
+    ],
+)
+def test_nans(timestream_database_and_table, test_input, expected):
+    rejected_records = wr.timestream.write(
+        **test_input,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        dimensions_cols=["dim0"],
+    )
+    assert len(rejected_records) == 0
+    df = wr.timestream.query(
+        f"""
+        SELECT
+            *
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        ORDER BY time
+        DESC LIMIT 10
+        """,
+    )
+    assert df.shape == expected
 
 
 def test_list_databases(timestream_database_and_table, timestream_database):
