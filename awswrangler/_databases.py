@@ -125,8 +125,11 @@ def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...],
         return args + [list(params)]
     return args
 
+
 def _should_handle_oracle_objects(dtype: str) -> bool:
-    return dtype == pa.string() or dtype == pa.large_string() or isinstance(dtype, pa.Decimal128Type) or dtype == pa.binary() or dtype == pa.large_binary() 
+    return (dtype == pa.string() or dtype == pa.large_string() or isinstance(dtype, pa.Decimal128Type)
+            or dtype == pa.binary() or dtype == pa.large_binary())
+
 
 def _records2df(
     records: List[Tuple[Any]],
