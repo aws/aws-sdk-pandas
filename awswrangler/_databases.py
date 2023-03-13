@@ -126,7 +126,7 @@ def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...],
     return args
 
 
-def _should_handle_oracle_objects(dtype: str) -> bool:
+def _should_handle_oracle_objects(dtype: pa.DataType) -> bool:
     return (
         dtype == pa.string()
         or dtype == pa.large_string()

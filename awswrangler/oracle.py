@@ -10,7 +10,6 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar
 import boto3
 import pandas as pd
 import pyarrow as pa
-from pyarrow import types
 
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
@@ -446,7 +445,7 @@ def detect_oracle_decimal_datatype(cursor: Any) -> Dict[str, pa.DataType]:
 def handle_oracle_objects(
     col_values: List[Any], col_name: str, dtype: Optional[Dict[str, pa.DataType]] = None
 ) -> List[Any]:
-    """Retrieve Oracle LOB values by calling read() method, may return string or bytes."""
+    """Retrieve Oracle LOB values which may be string or bytes, and convert float to decimal."""
     if any(isinstance(col_value, oracledb.LOB) for col_value in col_values):
         col_values = [
             col_value.read() if isinstance(col_value, oracledb.LOB) else col_value for col_value in col_values
@@ -459,9 +458,9 @@ def handle_oracle_objects(
                 Decimal(repr(col_value)) if isinstance(col_value, float) else col_value for col_value in col_values
             ]
 
-        # A user may wish to represent Oracle blob binary data as plain text
+        # A user may wish to represent Oracle blob binary data as plain text - if so base64 encode bytes
         # This intent can be inferred should dtype be string and col_value binary.
-        if types.is_string(dtype[col_name]) or types.is_large_string(dtype[col_name]):
+        if dtype[col_name] == pa.string() or dtype[col_name] == pa.large_string():
             if any(isinstance(col_value, bytes) for col_value in col_values):
                 col_values = [
                     base64.b64encode(col_value) if isinstance(col_value, bytes) else col_value
