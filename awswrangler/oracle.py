@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar
 import boto3
 import pandas as pd
 import pyarrow as pa
+import pyarrow.types as types
 
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
@@ -459,11 +460,11 @@ def handle_oracle_objects(
                 Decimal(repr(col_value)) if isinstance(col_value, float) else col_value for col_value in col_values
             ]
 
-    # A user may wish to represent Oracle blob binary data as plain text - we can infer this intent should dtype be string and col_value binary.
-    if dtype is str:
-        if any(isinstance(col_value, bytes) for col_value in col_values):
-            col_values = [
-                base64.b64encode(col_value) if isinstance(col_value, bytes) else col_value for col_value in col_values
-            ]        
+        # A user may wish to represent Oracle blob binary data as plain text - we can infer this intent should dtype be string and col_value binary.
+        if types.is_string(dtype[col_name]) or types.is_large_string(dtype[col_name]):
+            if any(isinstance(col_value, bytes) for col_value in col_values):
+                col_values = [
+                    base64.b64encode(col_value) if isinstance(col_value, bytes) else col_value for col_value in col_values
+                ]        
 
     return col_values
