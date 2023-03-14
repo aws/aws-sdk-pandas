@@ -1,3 +1,4 @@
+"""Ray DynamoDBDatasource Module."""
 from typing import TYPE_CHECKING, Any, Dict, List
 
 import boto3
@@ -14,6 +15,8 @@ if TYPE_CHECKING:
 
 
 class DynamoDBDatasource(Datasource[Any]):  # pylint: disable=abstract-method
+    """Datasource for writing data blocks to a DynamoDB table."""
+
     def _write_block(
         self,
         table: "Table",
@@ -37,6 +40,7 @@ class DynamoDBDatasource(Datasource[Any]):  # pylint: disable=abstract-method
         ray_remote_args: Dict[str, Any],
         **write_args: Any,
     ) -> List[ObjectRef[WriteResult]]:
+        """Create and return write tasks for the datasource."""
         _write_block_to_dynamodb = self._write_block
 
         def write_block(block: Block[Dict[str, Any]]) -> None:
