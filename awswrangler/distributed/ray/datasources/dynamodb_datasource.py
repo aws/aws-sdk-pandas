@@ -16,13 +16,13 @@ if TYPE_CHECKING:
 class DynamoDBDatasource(Datasource[Any]):  # pylint: disable=abstract-method
     def _write_block(
         self,
-        table: Table,
+        table: "Table",
         writer: BatchWriter,
         block: BlockAccessor[Dict[str, Any]],
         **writer_args: Any,
     ) -> None:
         frame = block.to_pandas()
-        items: List[Dict[str, Any]] = [v.dropna().to_dict() for k, v in frame.iterrows()]
+        items: List[Dict[str, Any]] = [v.dropna().to_dict() for _, v in frame.iterrows()]
 
         _validate_items(items=items, dynamodb_table=table)
 
@@ -55,7 +55,7 @@ class DynamoDBDatasource(Datasource[Any]):  # pylint: disable=abstract-method
 
         write_tasks = []
         for block in blocks:
-            write_task = write_block_fn.remote(block)
+            write_task = write_block_fn(block)
             write_tasks.append(write_task)
 
         return write_tasks

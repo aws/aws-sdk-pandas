@@ -8,8 +8,9 @@ from typing import Any, Dict, List, Mapping, Optional, Union
 import boto3
 import pandas as pd
 
-from awswrangler import _utils, engine
+from awswrangler import _utils
 from awswrangler._config import apply_configs
+from awswrangler._distributed import engine
 
 from ._utils import _validate_items, get_table
 
