@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Mapping, Optional, Union
 import boto3
 import pandas as pd
 
+from awswrangler import _utils, engine
 from awswrangler._config import apply_configs
 
 from ._utils import _validate_items, get_table
@@ -113,7 +114,21 @@ def put_csv(
     put_df(df=df, table_name=table_name, boto3_session=boto3_session)
 
 
+@engine.dispatch_on_engine
+def _put_df(
+    df: pd.DataFrame,
+    table_name: str,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    items: List[Mapping[str, Any]] = [v.dropna().to_dict() for k, v in df.iterrows()]
+
+    put_items(items=items, table_name=table_name, boto3_session=boto3_session)
+
+
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def put_df(
     df: pd.DataFrame,
     table_name: str,
@@ -146,9 +161,7 @@ def put_df(
     ...     table_name='table'
     ... )
     """
-    items: List[Mapping[str, Any]] = [v.dropna().to_dict() for k, v in df.iterrows()]
-
-    put_items(items=items, table_name=table_name, boto3_session=boto3_session)
+    _put_df(df=df, table_name=table_name, boto3_session=boto3_session)
 
 
 @apply_configs
