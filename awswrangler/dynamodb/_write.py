@@ -13,6 +13,7 @@ from awswrangler import _utils
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
+from awswrangler.distributed.ray import ray_get
 
 from ._utils import _validate_items, get_table
 
@@ -121,11 +122,11 @@ def put_csv(
 
 @engine.dispatch_on_engine
 def _put_df(
+    boto3_session: Optional[boto3.Session],
     df: pd.DataFrame,
     table_name: str,
-    boto3_session: Optional[boto3.Session] = None,
 ) -> None:
-    items: List[Mapping[str, Any]] = [v.dropna().to_dict() for k_, v in df.iterrows()]
+    items: List[Mapping[str, Any]] = [v.dropna().to_dict() for _, v in df.iterrows()]
 
     _put_items(items=items, table_name=table_name, boto3_session=boto3_session)
 
@@ -172,20 +173,21 @@ def put_df(
     executor = _get_executor(use_threads=use_threads)
     dfs = _utils.split_pandas_frame(df, _utils.ensure_cpu_count(use_threads=use_threads))
 
-    executor.map(
-        _put_df,
-        None,
-        dfs,
-        itertools.repeat(table_name),
-        itertools.repeat(boto3_session),
+    ray_get(
+        executor.map(
+            _put_df,
+            boto3_session,  # type: ignore[arg-type]
+            dfs,
+            itertools.repeat(table_name),
+        )
     )
 
 
 @engine.dispatch_on_engine
 def _put_items(
+    boto3_session: Optional[boto3.Session],
     items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]],
     table_name: str,
-    boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     dynamodb_table = get_table(table_name=table_name, boto3_session=boto3_session)
     _validate_items(items=items, dynamodb_table=dynamodb_table)
@@ -238,10 +240,11 @@ def put_items(
         num_chunks=_utils.ensure_cpu_count(use_threads=use_threads),
     )
 
-    executor.map(
-        _put_items,
-        None,
-        batches,
-        itertools.repeat(table_name),
-        itertools.repeat(boto3_session),
+    ray_get(
+        executor.map(
+            _put_items,
+            boto3_session,  # type: ignore[arg-type]
+            batches,
+            itertools.repeat(table_name),
+        )
     )
