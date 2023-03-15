@@ -55,6 +55,7 @@ class DynamoDBDatasource(Datasource[Any]):  # pylint: disable=abstract-method
                     **write_args,
                 )
 
+        ray_remote_args = {} if ray_remote_args is None else ray_remote_args
         write_block_fn = ray_remote(**ray_remote_args)(write_block)
 
         write_tasks = []
