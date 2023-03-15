@@ -1,5 +1,6 @@
 """Amazon DynamoDB Write Module (PRIVATE)."""
 
+import itertools
 import json
 import logging
 from pathlib import Path
@@ -11,6 +12,7 @@ import pandas as pd
 from awswrangler import _utils
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
+from awswrangler._threading import _get_executor
 
 from ._utils import _validate_items, get_table
 
@@ -22,6 +24,7 @@ def put_json(
     path: Union[str, Path],
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
+    use_threads: Union[bool, int] = True,
 ) -> None:
     """Write all items from JSON file to a DynamoDB.
 
@@ -58,7 +61,7 @@ def put_json(
     if isinstance(items, dict):
         items = [items]
 
-    put_items(items=items, table_name=table_name, boto3_session=boto3_session)
+    put_items(items=items, table_name=table_name, boto3_session=boto3_session, use_threads=use_threads)
 
 
 @apply_configs
@@ -66,6 +69,7 @@ def put_csv(
     path: Union[str, Path],
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
+    use_threads: Union[bool, int] = True,
     **pandas_kwargs: Any,
 ) -> None:
     """Write all items from a CSV file to a DynamoDB.
@@ -112,7 +116,7 @@ def put_csv(
     # Loading data from file
     df = pd.read_csv(path, **pandas_kwargs)
 
-    put_df(df=df, table_name=table_name, boto3_session=boto3_session)
+    put_df(df=df, table_name=table_name, boto3_session=boto3_session, use_threads=use_threads)
 
 
 @engine.dispatch_on_engine
@@ -121,9 +125,9 @@ def _put_df(
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
-    items: List[Mapping[str, Any]] = [v.dropna().to_dict() for k, v in df.iterrows()]
+    items: List[Mapping[str, Any]] = [v.dropna().to_dict() for k_, v in df.iterrows()]
 
-    put_items(items=items, table_name=table_name, boto3_session=boto3_session)
+    _put_items(items=items, table_name=table_name, boto3_session=boto3_session)
 
 
 @apply_configs
@@ -134,6 +138,7 @@ def put_df(
     df: pd.DataFrame,
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
+    use_threads: Union[bool, int] = True,
 ) -> None:
     """Write all items from a DataFrame to a DynamoDB.
 
@@ -162,14 +167,42 @@ def put_df(
     ...     table_name='table'
     ... )
     """
-    _put_df(df=df, table_name=table_name, boto3_session=boto3_session)
+    _logger.debug("Inserting data frame into DynamoDB table")
+
+    executor = _get_executor(use_threads=use_threads)
+    dfs = _utils.split_pandas_frame(df, _utils.ensure_cpu_count(use_threads=use_threads))
+
+    executor.map(
+        _put_df,
+        None,
+        dfs,
+        itertools.repeat(table_name),
+        itertools.repeat(boto3_session),
+    )
+
+
+@engine.dispatch_on_engine
+def _put_items(
+    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]],
+    table_name: str,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    dynamodb_table = get_table(table_name=table_name, boto3_session=boto3_session)
+    _validate_items(items=items, dynamodb_table=dynamodb_table)
+    with dynamodb_table.batch_writer() as writer:
+        for item in items:
+            writer.put_item(Item=item)  # type: ignore[arg-type]
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def put_items(
     items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]],
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
+    use_threads: Union[bool, int] = True,
 ) -> None:
     """Insert all items to the specified DynamoDB table.
 
@@ -199,8 +232,16 @@ def put_items(
     """
     _logger.debug("Inserting items into DynamoDB table")
 
-    dynamodb_table = get_table(table_name=table_name, boto3_session=boto3_session)
-    _validate_items(items=items, dynamodb_table=dynamodb_table)
-    with dynamodb_table.batch_writer() as writer:
-        for item in items:
-            writer.put_item(Item=item)  # type: ignore[arg-type]
+    executor = _get_executor(use_threads=use_threads)
+    batches = _utils.chunkify(  # type: ignore[misc]
+        items,
+        num_chunks=_utils.ensure_cpu_count(use_threads=use_threads),
+    )
+
+    executor.map(
+        _put_items,
+        None,
+        batches,
+        itertools.repeat(table_name),
+        itertools.repeat(boto3_session),
+    )

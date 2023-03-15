@@ -7,7 +7,7 @@ from awswrangler.distributed.ray import ray_remote
 from awswrangler.distributed.ray.s3._list import _list_objects_s3fs
 from awswrangler.distributed.ray.s3._read_parquet import _read_parquet_metadata_file_distributed
 from awswrangler.dynamodb._read import _read_scan
-from awswrangler.dynamodb._write import _put_df
+from awswrangler.dynamodb._write import _put_df, _put_items
 from awswrangler.lakeformation._read import _get_work_unit_results
 from awswrangler.s3._copy import _copy_objects
 from awswrangler.s3._delete import _delete_objects
@@ -39,6 +39,8 @@ def register_ray() -> None:
         engine.register_func(func, ray_remote(scheduling_strategy="SPREAD")(func))
 
     for func in [
+        _put_df,
+        _put_items,
         _write_batch,
         _write_df,
     ]:
@@ -58,7 +60,6 @@ def register_ray() -> None:
             _is_pandas_or_modin_frame,
             _split_modin_frame,
         )
-        from awswrangler.distributed.ray.modin.dynamodb._write import _put_df_distributed
         from awswrangler.distributed.ray.modin.s3._read_parquet import _read_parquet_distributed
         from awswrangler.distributed.ray.modin.s3._read_text import _read_text_distributed
         from awswrangler.distributed.ray.modin.s3._write_dataset import (
@@ -76,7 +77,6 @@ def register_ray() -> None:
             _to_parquet: _to_parquet_distributed,
             _to_partitions: _to_partitions_distributed,
             _to_text: _to_text_distributed,
-            _put_df: _put_df_distributed,
             copy_df_shallow: _copy_modin_df_shallow,
             is_pandas_frame: _is_pandas_or_modin_frame,
             split_pandas_frame: _split_modin_frame,

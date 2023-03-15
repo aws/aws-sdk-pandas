@@ -562,7 +562,12 @@ def ensure_cpu_count(use_threads: Union[bool, int] = True) -> int:
     return cpus
 
 
-def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = None) -> List[List[Any]]:
+ChunkifyItemType = TypeVar("ChunkifyItemType")
+
+
+def chunkify(
+    lst: List[ChunkifyItemType], num_chunks: int = 1, max_length: Optional[int] = None
+) -> List[List[ChunkifyItemType]]:
     """Split a list in a List of List (chunks) with even sizes.
 
     Parameters
@@ -591,7 +596,7 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
     if not lst:
         return []
     n: int = num_chunks if max_length is None else int(math.ceil((float(len(lst)) / float(max_length))))
-    np_chunks = np.array_split(lst, n)
+    np_chunks = np.array_split(lst, n)  # type: ignore[arg-type,var-annotated]
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 
