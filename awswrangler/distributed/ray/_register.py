@@ -2,8 +2,10 @@
 # pylint: disable=import-outside-toplevel
 from awswrangler._data_types import pyarrow_types_from_pandas
 from awswrangler._distributed import MemoryFormatEnum, engine, memory_format
+from awswrangler._executor import _get_executor
 from awswrangler._utils import copy_df_shallow, is_pandas_frame, split_pandas_frame, table_refs_to_df
 from awswrangler.distributed.ray import ray_remote
+from awswrangler.distributed.ray._executor import _get_ray_executor
 from awswrangler.distributed.ray.s3._list import _list_objects_s3fs
 from awswrangler.distributed.ray.s3._read_parquet import _read_parquet_metadata_file_distributed
 from awswrangler.dynamodb._read import _read_scan
@@ -44,6 +46,7 @@ def register_ray() -> None:
         engine.register_func(func, ray_remote()(func))
 
     for o_f, d_f in {
+        _get_executor: _get_ray_executor,
         _list_objects_paginate: _list_objects_s3fs,
         _read_parquet_metadata_file: ray_remote()(_read_parquet_metadata_file_distributed),
     }.items():

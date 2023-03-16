@@ -10,7 +10,7 @@ import pandas as pd
 
 from awswrangler import _utils, exceptions
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
@@ -53,7 +53,7 @@ def _read_text(  # pylint: disable=W0613
     pandas_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     parser_func = _resolve_format(read_format)
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_text_file,
         s3_client,
