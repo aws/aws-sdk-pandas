@@ -100,51 +100,7 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
 ## At scale
 AWS SDK for pandas can also run your workflows at scale by leveraging [Modin](https://modin.readthedocs.io/en/stable/) and [Ray](https://www.ray.io/). Both projects aim to speed up data workloads by distributing processing over a cluster of workers.
 
-The quickest way to get started is to use AWS Glue with Ray. Read our [blog](https://aws.amazon.com/blogs/big-data/scale-aws-sdk-for-pandas-workloads-with-aws-glue-for-ray/) to learn about it, then head to our latest [tutorials](https://github.com/aws/aws-sdk-pandas/tree/release-3.0.0/tutorials) to discover even more features.
-
-### Installation
-```
-pip install "awswrangler[modin,ray]==3.0.0rc3"
-```
-
-As a result existing scripts can run on significantly larger datasets with no code rewrite. Supported APIs are parallelized across cores on a single machine or across multiple nodes on a cluster in the cloud.
-
-### Supported APIs
-
-<p align="center">
-
-| Service         | API                      | Implementation |
-|-----------------|--------------------------|:--------------:|
-| `S3`            | `read_parquet`           |       ✅        |
-|                 | `read_parquet_metadata`  |       ✅        |
-|                 | `read_parquet_table`     |       ✅        |
-|                 | `read_csv`               |       ✅        |
-|                 | `read_json`              |       ✅        |
-|                 | `read_fwf`               |       ✅        |
-|                 | `to_parquet`             |       ✅        |
-|                 | `to_csv`                 |       ✅        |
-|                 | `to_json`                |       ✅        |
-|                 | `select_query`           |       ✅        |
-|                 | `store_parquet_metadata` |       ✅        |
-|                 | `delete_objects`         |       ✅        |
-|                 | `describe_objects`       |       ✅        |
-|                 | `size_objects`           |       ✅        |
-|                 | `wait_objects_exist`     |       ✅        |
-|                 | `wait_objects_not_exist` |       ✅        |
-|                 | `merge_datasets`         |       ✅        |
-|                 | `copy_objects`           |       ✅        |
-| `Redshift`      | `copy`                   |       ✅        |
-|                 | `unload`                 |       ✅        |
-| `Athena`        | `read_sql_query`         |       ✅        |
-|                 | `read_sql_table`         |       ✅        |
-|                 | `describe_table`         |       ✅        |
-|                 | `get_query_results`      |       ✅        |
-|                 | `show_create_table`      |       ✅        |
-| `DynamoDB`      | `read_items`             |       ✅        |
-| `LakeFormation` | `read_sql_query`         |       ✅        |
-|                 | `read_sql_table`         |       ✅        |
-| `Timestream`    | `write`                  |       ✅        |
-</p>
+The quickest way to get started is to use AWS Glue with Ray. Read our [docs](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/scale.html), our [blog](https://aws.amazon.com/blogs/big-data/scale-aws-sdk-for-pandas-workloads-with-aws-glue-for-ray/), or head to our latest [tutorials](https://github.com/aws/aws-sdk-pandas/tree/release-3.0.0/tutorials) to discover even more features.
 
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
 
@@ -159,6 +115,10 @@ As a result existing scripts can run on significantly larger datasets with no co
   - [Amazon SageMaker Notebook Lifecycle](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/install.html#amazon-sagemaker-notebook-lifecycle)
   - [EMR](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/install.html#emr)
   - [From source](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/install.html#from-source)
+- [**At scale**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/scale.html)
+  - [Getting Started](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/scale.html#getting-started)
+  - [Supported APIs](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/scale.html#supported-apis)
+  - [Resources](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/scale.html#resources)
 - [**Tutorials**](https://github.com/aws/aws-sdk-pandas/tree/main/tutorials)
   - [001 - Introduction](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/001%20-%20Introduction.ipynb)
   - [002 - Sessions](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/002%20-%20Sessions.ipynb)
