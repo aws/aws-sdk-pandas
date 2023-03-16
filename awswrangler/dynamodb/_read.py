@@ -318,7 +318,8 @@ def _read_items(
             # Last resort use Parallel Scan
             executor: _BaseExecutor = _get_executor(use_threads=use_threads)
             dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
-            total_segments = _utils.ensure_cpu_count(use_threads=use_threads)
+            total_segments = _utils.ensure_worker_or_thread_count(use_threads=use_threads)
+
             kwargs = _serialize_kwargs(kwargs)
             kwargs["TableName"] = table_name
             kwargs["TotalSegments"] = total_segments
