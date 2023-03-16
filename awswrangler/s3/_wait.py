@@ -8,7 +8,7 @@ import boto3
 
 from awswrangler import _utils
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
 
 if TYPE_CHECKING:
@@ -55,7 +55,7 @@ def _wait_objects(
         else _utils.chunkify(paths, max_length=1)
     )
 
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     ray_get(
         executor.map(
             _wait_object_batch,

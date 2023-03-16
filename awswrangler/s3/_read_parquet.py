@@ -29,7 +29,7 @@ from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _add_table_partitions, _table_to_df
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
 from awswrangler.distributed.ray import ray_get
@@ -115,7 +115,7 @@ def _read_schemas_from_files(
 ) -> List[pa.schema]:
     paths = _utils.list_sampling(lst=paths, sampling=sampling)
 
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     schemas = ray_get(
         executor.map(
             _read_parquet_metadata_file,
@@ -333,7 +333,7 @@ def _read_parquet(  # pylint: disable=W0613
     arrow_kwargs: Dict[str, Any],
     bulk_read: bool,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_parquet_file,
         s3_client,

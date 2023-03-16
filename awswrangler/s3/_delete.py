@@ -9,7 +9,7 @@ import boto3
 
 from awswrangler import _utils, exceptions
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import _path2list
@@ -136,7 +136,7 @@ def delete_objects(
     for _, paths in paths_by_bucket.items():
         chunks += _utils.chunkify(lst=paths, max_length=1_000)
 
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     ray_get(
         executor.map(
             _delete_objects,
