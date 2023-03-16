@@ -10,8 +10,8 @@ from pyarrow import NativeFile, RecordBatchStreamReader, Table
 from awswrangler import _data_types, _utils, catalog
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler._sql_formatter import _EngineType, _process_sql_params
-from awswrangler._threading import _get_executor
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from awswrangler.lakeformation._utils import commit_transaction, start_transaction, wait_query
 
@@ -64,7 +64,7 @@ def _resolve_sql_query(
         next_token = response.get("NextToken", None)
         scan_kwargs["NextToken"] = next_token  # type: ignore[assignment]
 
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
 
     tables = executor.map(
         _get_work_unit_results,

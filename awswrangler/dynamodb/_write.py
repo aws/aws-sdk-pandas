@@ -12,7 +12,7 @@ import pandas as pd
 from awswrangler import _utils
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._executor import _get_executor
 from awswrangler.distributed.ray import ray_get
 
 from ._utils import _validate_items, get_table
