@@ -11,7 +11,7 @@ from botocore.config import Config
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor, _ThreadPoolExecutor
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
 
 if TYPE_CHECKING:
@@ -161,7 +161,7 @@ def _write_batch(
 @engine.dispatch_on_engine
 def _write_df(
     df: pd.DataFrame,
-    executor: _ThreadPoolExecutor,
+    executor: _BaseExecutor,
     database: str,
     table: str,
     common_attributes: Dict[str, Any],
@@ -425,7 +425,7 @@ def write(
         )
     _logger.debug("len(dfs): %s", len(dfs))
 
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     errors = list(
         itertools.chain(
             *ray_get(

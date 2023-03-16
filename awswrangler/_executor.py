@@ -1,12 +1,13 @@
-"""Threading Module (PRIVATE)."""
+"""Executor Module (PRIVATE)."""
 
 import concurrent.futures
 import itertools
 import logging
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, TypeVar, Union
 
 from awswrangler import _utils
-from awswrangler._distributed import EngineEnum, engine
+from awswrangler._distributed import engine
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient
@@ -17,7 +18,21 @@ _logger: logging.Logger = logging.getLogger(__name__)
 MapOutputType = TypeVar("MapOutputType")
 
 
-class _ThreadPoolExecutor:
+class _BaseExecutor(ABC):
+    def __init__(self) -> None:
+        _logger.debug("Creating an %s executor: ", self.__class__)
+
+    @abstractmethod
+    def map(
+        self,
+        func: Callable[..., MapOutputType],
+        boto3_client: Optional["BaseClient"],
+        *args: Any,
+    ) -> List[MapOutputType]:
+        pass
+
+
+class _ThreadPoolExecutor(_BaseExecutor):
     def __init__(self, use_threads: Union[bool, int]):
         super().__init__()
         self._exec: Optional[concurrent.futures.ThreadPoolExecutor] = None
@@ -26,20 +41,17 @@ class _ThreadPoolExecutor:
             self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)  # pylint: disable=R1732
 
     def map(
-        self, func: Callable[..., MapOutputType], boto3_client: Optional["BaseClient"], *iterables: Any
+        self, func: Callable[..., MapOutputType], boto3_client: Optional["BaseClient"], *args: Any
     ) -> List[MapOutputType]:
         """Map iterables to multi-threaded function."""
         _logger.debug("Map: %s", func)
         if self._exec is not None:
-            args = (itertools.repeat(boto3_client), *iterables)
-            return list(self._exec.map(func, *args))
+            iterables = (itertools.repeat(boto3_client), *args)
+            return list(self._exec.map(func, *iterables))
         # Single-threaded
-        return list(map(func, *(itertools.repeat(boto3_client), *iterables)))
+        return list(map(func, *(itertools.repeat(boto3_client), *args)))
 
 
-def _get_executor(use_threads: Union[bool, int]) -> _ThreadPoolExecutor:
-    if engine.get() == EngineEnum.RAY:
-        from awswrangler.distributed.ray._pool import _RayPoolExecutor  # pylint: disable=import-outside-toplevel
-
-        return _RayPoolExecutor()  # type: ignore[return-value]
+@engine.dispatch_on_engine
+def _get_executor(use_threads: Union[bool, int]) -> _BaseExecutor:
     return _ThreadPoolExecutor(use_threads)
