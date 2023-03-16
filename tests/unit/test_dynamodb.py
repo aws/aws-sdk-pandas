@@ -1,6 +1,7 @@
 import tempfile
 from datetime import datetime
 from decimal import Decimal
+from typing import Any, Dict
 
 import pytest
 from boto3.dynamodb.conditions import Attr, Key
@@ -30,7 +31,8 @@ pytestmark = pytest.mark.distributed
         }
     ],
 )
-def test_write(params, dynamodb_table):
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_write(params: Dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
     df = pd.DataFrame(
         {
             "title": ["Titanic", "Snatch", "The Godfather"],
@@ -44,7 +46,7 @@ def test_write(params, dynamodb_table):
     # JSON
     file_path = f"{path}/movies.json"
     df.to_json(file_path, orient="records")
-    wr.dynamodb.put_json(file_path, dynamodb_table)
+    wr.dynamodb.put_json(file_path, dynamodb_table, use_threads=use_threads)
     df2 = wr.dynamodb.read_partiql_query(query)
     assert df.shape == df2.shape
 
@@ -52,7 +54,7 @@ def test_write(params, dynamodb_table):
     wr.dynamodb.delete_items(items=df.to_dict("records"), table_name=dynamodb_table)
     file_path = f"{path}/movies.csv"
     df.to_csv(file_path, index=False)
-    wr.dynamodb.put_csv(file_path, dynamodb_table)
+    wr.dynamodb.put_csv(file_path, dynamodb_table, use_threads=use_threads)
     df3 = wr.dynamodb.read_partiql_query(query)
     assert df.shape == df3.shape
 
@@ -69,7 +71,8 @@ def test_write(params, dynamodb_table):
         }
     ],
 )
-def test_read_partiql(params, dynamodb_table):
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_read_partiql(params: Dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
     df = pd.DataFrame(
         {
             "par0": [1, 1, 2],
@@ -82,7 +85,7 @@ def test_read_partiql(params, dynamodb_table):
         }
     )
 
-    wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
+    wr.dynamodb.put_df(df=df, table_name=dynamodb_table, use_threads=use_threads)
 
     query: str = f'SELECT * FROM "{dynamodb_table}"'
     df2 = wr.dynamodb.read_partiql_query(
@@ -107,7 +110,8 @@ def test_read_partiql(params, dynamodb_table):
         }
     ],
 )
-def test_execute_statement(params, dynamodb_table):
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_execute_statement(params: Dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
     df = pd.DataFrame(
         {
             "title": ["Titanic", "Snatch", "The Godfather"],
@@ -116,7 +120,7 @@ def test_execute_statement(params, dynamodb_table):
         }
     )
 
-    wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
+    wr.dynamodb.put_df(df=df, table_name=dynamodb_table, use_threads=use_threads)
 
     title = "The Lord of the Rings: The Fellowship of the Ring"
     year = datetime.now().year
@@ -171,7 +175,10 @@ def test_execute_statement(params, dynamodb_table):
     ],
 )
 @pytest.mark.parametrize("format", ["csv", "json"])
-def test_dynamodb_put_from_file(format, params, dynamodb_table, local_filename) -> None:
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_dynamodb_put_from_file(
+    format: str, use_threads: bool, params: Dict[str, Any], dynamodb_table: str, local_filename: str
+) -> None:
     df = pd.DataFrame({"par0": [1, 2], "par1": ["foo", "boo"]})
 
     if format == "csv":
@@ -179,12 +186,14 @@ def test_dynamodb_put_from_file(format, params, dynamodb_table, local_filename) 
         wr.dynamodb.put_csv(
             path=local_filename,
             table_name=dynamodb_table,
+            use_threads=use_threads,
         )
     elif format == "json":
         df.to_json(local_filename, orient="records")
         wr.dynamodb.put_json(
             path=local_filename,
             table_name=dynamodb_table,
+            use_threads=use_threads,
         )
     else:
         raise RuntimeError(f"Unknown format {format}")
@@ -206,7 +215,8 @@ def test_dynamodb_put_from_file(format, params, dynamodb_table, local_filename) 
         }
     ],
 )
-def test_read_items_simple(params, dynamodb_table):
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
     data = [
         {
             "par0": Decimal("2"),
@@ -237,7 +247,7 @@ def test_read_items_simple(params, dynamodb_table):
         },
     ]
     df = pd.DataFrame(data)
-    wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
+    wr.dynamodb.put_df(df=df, table_name=dynamodb_table, use_threads=use_threads)
 
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.dynamodb.read_items(table_name=dynamodb_table)
@@ -279,7 +289,8 @@ def test_read_items_simple(params, dynamodb_table):
         }
     ],
 )
-def test_read_items_reserved(params, dynamodb_table):
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_read_items_reserved(params: Dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
     df = pd.DataFrame(
         {
             "id": [1, 2, 3],
@@ -288,7 +299,7 @@ def test_read_items_reserved(params, dynamodb_table):
             "volume": [100, 200, 300],
         }
     )
-    wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
+    wr.dynamodb.put_df(df=df, table_name=dynamodb_table, use_threads=use_threads)
 
     columns = ["id", "capacity", "connection"]
     df2 = wr.dynamodb.read_items(table_name=dynamodb_table, partition_values=[2], columns=columns)
@@ -318,7 +329,8 @@ def test_read_items_reserved(params, dynamodb_table):
         }
     ],
 )
-def test_read_items_index(params, dynamodb_table):
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_read_items_index(params: Dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
     df = pd.DataFrame(
         {
             "Author": ["John Grisham", "John Grisham", "James Patterson"],
@@ -331,7 +343,7 @@ def test_read_items_index(params, dynamodb_table):
             ],
         }
     )
-    wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
+    wr.dynamodb.put_df(df=df, table_name=dynamodb_table, use_threads=use_threads)
 
     df2 = wr.dynamodb.read_items(
         table_name=dynamodb_table,
@@ -358,7 +370,8 @@ def test_read_items_index(params, dynamodb_table):
         }
     ],
 )
-def test_read_items_expression(params, dynamodb_table):
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_read_items_expression(params: Dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
     df = pd.DataFrame(
         {
             "par0": [1, 1, 2],
