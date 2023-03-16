@@ -48,6 +48,7 @@ def read_partiql_query(
     query: str,
     parameters: Optional[List[Any]] = ...,
     chunked: Literal[False] = ...,
+    consistent_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
 ) -> pd.DataFrame:
     ...
@@ -59,6 +60,7 @@ def read_partiql_query(
     *,
     parameters: Optional[List[Any]] = ...,
     chunked: Literal[True],
+    consistent_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
 ) -> Iterator[pd.DataFrame]:
     ...
@@ -70,6 +72,7 @@ def read_partiql_query(
     *,
     parameters: Optional[List[Any]] = ...,
     chunked: bool,
+    consistent_read: bool = ...,
     boto3_session: Optional[boto3.Session] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ...
@@ -79,6 +82,7 @@ def read_partiql_query(
     query: str,
     parameters: Optional[List[Any]] = None,
     chunked: bool = False,
+    consistent_read: bool = False,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read data from a DynamoDB table via a PartiQL query.
@@ -117,7 +121,7 @@ def read_partiql_query(
     """
     _logger.debug("Reading results for PartiQL query:  '%s'", query)
     iterator: Iterator[Dict[str, Any]] = execute_statement(  # type: ignore[assignment]
-        query, parameters=parameters, boto3_session=boto3_session
+        query, parameters=parameters, consistent_read=consistent_read, boto3_session=boto3_session
     )
     if chunked:
         return _read_chunked(iterator=iterator)

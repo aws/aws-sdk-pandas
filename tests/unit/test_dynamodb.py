@@ -47,7 +47,7 @@ def test_write(params: Dict[str, Any], use_threads: bool, dynamodb_table: str) -
     file_path = f"{path}/movies.json"
     df.to_json(file_path, orient="records")
     wr.dynamodb.put_json(file_path, dynamodb_table, use_threads=use_threads)
-    df2 = wr.dynamodb.read_partiql_query(query)
+    df2 = wr.dynamodb.read_partiql_query(query, consistent_read=True)
     assert df.shape == df2.shape
 
     # CSV
@@ -55,7 +55,7 @@ def test_write(params: Dict[str, Any], use_threads: bool, dynamodb_table: str) -
     file_path = f"{path}/movies.csv"
     df.to_csv(file_path, index=False)
     wr.dynamodb.put_csv(file_path, dynamodb_table, use_threads=use_threads)
-    df3 = wr.dynamodb.read_partiql_query(query)
+    df3 = wr.dynamodb.read_partiql_query(query, consistent_read=True)
     assert df.shape == df3.shape
 
 
@@ -91,10 +91,11 @@ def test_read_partiql(params: Dict[str, Any], use_threads: bool, dynamodb_table:
     df2 = wr.dynamodb.read_partiql_query(
         query=f'SELECT * FROM "{dynamodb_table}" WHERE par0=? AND par1=?',
         parameters=[2, "b"],
+        consistent_read=True,
     )
     assert df2.shape == (1, len(df.columns))
 
-    dfs = wr.dynamodb.read_partiql_query(query, chunked=True)
+    dfs = wr.dynamodb.read_partiql_query(query, chunked=True, consistent_read=True)
     assert df.shape == pd.concat(dfs).shape
 
 
@@ -198,7 +199,7 @@ def test_dynamodb_put_from_file(
     else:
         raise RuntimeError(f"Unknown format {format}")
 
-    df2 = wr.dynamodb.read_partiql_query(query=f"SELECT * FROM {dynamodb_table}")
+    df2 = wr.dynamodb.read_partiql_query(query=f"SELECT * FROM {dynamodb_table}", consistent_read=True)
 
     assert df.shape == df2.shape
 
@@ -349,11 +350,12 @@ def test_read_items_index(params: Dict[str, Any], dynamodb_table: str, use_threa
         table_name=dynamodb_table,
         key_condition_expression=Key("Category").eq("Suspense"),
         index_name="CategoryIndex",
+        consistent=True,
     )
     assert df2.shape == df.shape
 
     df3 = wr.dynamodb.read_items(
-        table_name=dynamodb_table, allow_full_scan=True, index_name="CategoryIndex", use_threads=1
+        table_name=dynamodb_table, allow_full_scan=True, index_name="CategoryIndex", consistent=True, use_threads=1
     )
     assert df3.shape == df.shape
 
@@ -388,12 +390,13 @@ def test_read_items_expression(params: Dict[str, Any], dynamodb_table: str, use_
         table_name=dynamodb_table,
         partition_values=[1, 2],
         sort_values=["b", "c"],
+        consistent=True,
     )
     assert df1.shape == (2, len(df.columns))
 
     # KeyConditionExpression as Key
     df2 = wr.dynamodb.read_items(
-        table_name=dynamodb_table, key_condition_expression=(Key("par0").eq(1) & Key("par1").eq("b"))
+        table_name=dynamodb_table, key_condition_expression=(Key("par0").eq(1) & Key("par1").eq("b")), consistent=True
     )
     assert df2.shape == (1, len(df.columns))
 
@@ -402,16 +405,17 @@ def test_read_items_expression(params: Dict[str, Any], dynamodb_table: str, use_
         table_name=dynamodb_table,
         key_condition_expression="par0 = :v1 and par1 = :v2",
         expression_attribute_values={":v1": 1, ":v2": "b"},
+        consistent=True,
     )
     assert df3.shape == (1, len(df.columns))
 
     # FilterExpression as Attr
-    df4 = wr.dynamodb.read_items(table_name=dynamodb_table, filter_expression=Attr("par0").eq(1))
+    df4 = wr.dynamodb.read_items(table_name=dynamodb_table, filter_expression=Attr("par0").eq(1), consistent=True)
     assert df4.shape == (2, len(df.columns))
 
     # FilterExpression as string
     df5 = wr.dynamodb.read_items(
-        table_name=dynamodb_table, filter_expression="par0 = :v", expression_attribute_values={":v": 1}
+        table_name=dynamodb_table, filter_expression="par0 = :v", expression_attribute_values={":v": 1}, consistent=True
     )
     assert df5.shape == (2, len(df.columns))
 
@@ -421,5 +425,6 @@ def test_read_items_expression(params: Dict[str, Any], dynamodb_table: str, use_
         filter_expression="#operator = :v",
         expression_attribute_names={"#operator": "operator"},
         expression_attribute_values={":v": "Eido"},
+        consistent=True,
     )
     assert df6.shape == (1, len(df.columns))
