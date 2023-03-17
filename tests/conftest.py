@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from importlib import reload
 from types import ModuleType
-from typing import Iterator
+from typing import Iterator, Optional
 
 import boto3
 import botocore.exceptions
@@ -459,3 +459,12 @@ def awswrangler_import() -> Iterator[ModuleType]:
 
     # Reset for future tests
     awswrangler.config.reset()
+
+
+@pytest.fixture(scope="function")
+def data_gen_bucket() -> Optional[str]:
+    try:
+        ssm_parameter = boto3.client("ssm").get_parameter(Name="/SDKPandas/GlueRay/DataGenBucketName")
+    except botocore.exceptions.ClientError:
+        return None
+    return ssm_parameter["Parameter"]["Value"]  # type: ignore
