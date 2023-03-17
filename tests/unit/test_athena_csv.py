@@ -476,6 +476,7 @@ def test_csv_compressed(path, glue_table, glue_database, use_threads, concurrent
     ensure_data_types_csv(df2)
 
 
+@pytest.mark.xfail(is_ray_modin, raises=TypeError, reason="Broken sort_values in Modin")
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("ctas_approach", [True, False])
 def test_opencsv_serde(path, glue_table, glue_database, use_threads, ctas_approach):

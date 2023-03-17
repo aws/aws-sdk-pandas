@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     from boto3.resources.base import ServiceResource
     from botocore.client import BaseClient
     from mypy_boto3_athena import AthenaClient
-    from mypy_boto3_athena.literals import ServiceName
     from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_emr.client import EMRClient
@@ -54,7 +53,9 @@ if TYPE_CHECKING:
     from mypy_boto3_logs.client import CloudWatchLogsClient
     from mypy_boto3_opensearch.client import OpenSearchServiceClient
     from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
+    from mypy_boto3_opensearchserverless.literals import ServiceName
     from mypy_boto3_quicksight.client import QuickSightClient
+    from mypy_boto3_rds_data.client import RDSDataServiceClient
     from mypy_boto3_redshift.client import RedshiftClient
     from mypy_boto3_redshift_data.client import RedshiftDataAPIServiceClient
     from mypy_boto3_s3 import S3Client, S3ServiceResource
@@ -349,6 +350,16 @@ def client(
     botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
 ) -> "QuickSightClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["rds-data"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "RDSDataServiceClient":
     ...
 
 
