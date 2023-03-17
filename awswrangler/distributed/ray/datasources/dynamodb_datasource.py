@@ -25,6 +25,7 @@ class DynamoDBDatasource(Datasource[Any]):  # pylint: disable=abstract-method
         **writer_args: Any,
     ) -> None:
         frame = block.to_pandas()
+        print(f"Writing block to {table.table_name} (size {len(frame)})")
         items: List[Dict[str, Any]] = [v.dropna().to_dict() for _, v in frame.iterrows()]
 
         _validate_items(items=items, dynamodb_table=table)

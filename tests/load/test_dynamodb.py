@@ -68,6 +68,7 @@ def test_dynamodb_write(
     params: Dict[str, Any], dynamodb_table: str, big_modin_df: pd.DataFrame, request: pytest.FixtureRequest
 ) -> None:
     benchmark_time = 30
+    wr.config.log_to_driver = True
 
     with ExecutionTimer(request) as timer:
         wr.dynamodb.put_df(df=big_modin_df, table_name=dynamodb_table)
