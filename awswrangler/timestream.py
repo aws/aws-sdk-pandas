@@ -516,7 +516,11 @@ def query(
         return result_iterator
 
     # Prepending an empty DataFrame ensures returning an empty DataFrame if result_iterator is empty
-    return pd.concat(itertools.chain([pd.DataFrame()], result_iterator), ignore_index=True)
+    results = list(result_iterator)
+    if len(results) > 0:
+        # Modin's concat() can not concatenate empty data frames
+        return pd.concat(results, ignore_index=True)
+    return pd.DataFrame()
 
 
 def create_database(
