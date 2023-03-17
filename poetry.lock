@@ -320,6 +320,7 @@ mypy-boto3-opensearch = {version = ">=1.26.0,<1.27.0", optional = true, markers 
 mypy-boto3-opensearchserverless = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"opensearchserverless\""}
 mypy-boto3-quicksight = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"quicksight\""}
 mypy-boto3-rds = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"rds\""}
+mypy-boto3-rds-data = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"rds-data\""}
 mypy-boto3-redshift = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"redshift\""}
 mypy-boto3-redshift-data = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"redshift-data\""}
 mypy-boto3-s3 = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"s3\""}
@@ -1917,6 +1918,17 @@ typing-extensions = ">=4.1.0"
 name = "mypy-boto3-rds"
 version = "1.26.72"
 description = "Type annotations for boto3.RDS 1.26.72 service generated with mypy-boto3-builder 7.12.3"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+typing-extensions = ">=4.1.0"
+
+[[package]]
+name = "mypy-boto3-rds-data"
+version = "1.26.0.post1"
+description = "Type annotations for boto3.RDSDataService 1.26.0 service generated with mypy-boto3-builder 7.11.10"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
@@ -3553,7 +3565,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "86feb5fdf5bf71342d9466fa08fa5bb6a4d7938512893dde353c1b7a40abf681"
+content-hash = "9d5700db34517c1f2af93311d8269ad58b76ae638af438fdafdb8179b7085249"
 
 [metadata.files]
 aenum = [
@@ -4761,6 +4773,10 @@ mypy-boto3-quicksight = [
 mypy-boto3-rds = [
     {file = "mypy-boto3-rds-1.26.72.tar.gz", hash = "sha256:2cda6425e279e8d1e802c77b059e1fd183ff9fcd65e5482bf7cb43aab1c42aad"},
     {file = "mypy_boto3_rds-1.26.72-py3-none-any.whl", hash = "sha256:edd0b70740f6460a72ecd27e64227f6f1b216fe04c852f6585c67bc51a0e6e2c"},
+]
+mypy-boto3-rds-data = [
+    {file = "mypy-boto3-rds-data-1.26.0.post1.tar.gz", hash = "sha256:db327b5c29e4e03b9d2c4baca083750cefbc83c639edaa33a200d553909a8f65"},
+    {file = "mypy_boto3_rds_data-1.26.0.post1-py3-none-any.whl", hash = "sha256:23bbcc10fb757df69ee688f697584c0d31667a268daa4ffea9daf1e7776a5d5a"},
 ]
 mypy-boto3-redshift = [
     {file = "mypy-boto3-redshift-1.26.79.tar.gz", hash = "sha256:608b6f2dd0da94587580e16d5008a5a0aeed3dbfbcecaa260c1345881fda82e3"},
