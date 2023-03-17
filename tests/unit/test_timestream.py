@@ -10,6 +10,8 @@ import pytest
 import awswrangler as wr
 import awswrangler.pandas as pd
 
+from .._utils import is_ray_modin
+
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed
@@ -121,7 +123,9 @@ def test_chunked_scenario(timestream_database_and_table):
         ),
         shapes,
     ):
-        assert "QueryId" in df.attrs
+        if not is_ray_modin:
+            # Modin does not support attribute assignment
+            assert "QueryId" in df.attrs
         assert df.shape == shape
 
 

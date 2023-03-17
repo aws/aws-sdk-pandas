@@ -233,7 +233,11 @@ def _rows_to_df(
 ) -> pd.DataFrame:
     df = pd.DataFrame(data=rows, columns=[c["name"] for c in schema])
     if df_metadata:
-        df.attrs = df_metadata
+        try:
+            df.attrs = df_metadata
+        except AttributeError as ex:
+            # Modin does not support attribute assignment
+            _logger.error(ex)
     for col in schema:
         if col["type"] == "VARCHAR":
             df[col["name"]] = df[col["name"]].astype("string")
