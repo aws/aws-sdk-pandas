@@ -180,14 +180,9 @@ def test_update_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
         {"rule_type": "ColumnValues", "parameter": '"c2"', "expression": "in [0, 1, 2]"}, ignore_index=True
     )
 
-    new_glue_ruleset_name = f"{glue_ruleset} 2.0"
-    wr.data_quality.update_ruleset(
-        name=glue_ruleset,
-        updated_name=new_glue_ruleset_name,
-        df_rules=df_rules,
-    )
+    wr.data_quality.update_ruleset(name=glue_ruleset, df_rules=df_rules)
 
-    df_ruleset = wr.data_quality.get_ruleset(name=new_glue_ruleset_name)
+    df_ruleset = wr.data_quality.get_ruleset(name=glue_ruleset)
 
     assert df_rules.equals(df_ruleset)
 
@@ -202,11 +197,7 @@ def test_update_ruleset_exceptions(df: pd.DataFrame, glue_ruleset: str) -> None:
     )
 
     with pytest.raises(wr.exceptions.ResourceDoesNotExist):
-        wr.data_quality.update_ruleset(
-            name=glue_ruleset,
-            updated_name=f"{glue_ruleset} 2.0",
-            df_rules=df_rules,
-        )
+        wr.data_quality.update_ruleset(name=glue_ruleset, df_rules=df_rules)
 
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.data_quality.update_ruleset(name=glue_ruleset, df_rules=df_rules, mode="append")
