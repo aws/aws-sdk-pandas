@@ -6,10 +6,9 @@ import pyarrow as pa
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import ensure_data_types_csv, get_df_csv, is_ray_modin
-
-pd = wr._utils.import_pandas()
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

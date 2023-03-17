@@ -10,6 +10,7 @@ import pytest
 from pandas import DataFrame as PandasDataFrame
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import (
     ensure_athena_ctas_table,
@@ -24,8 +25,6 @@ from .._utils import (
     is_ray_modin,
     pandas_equals,
 )
-
-pd = wr._utils.import_pandas()
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

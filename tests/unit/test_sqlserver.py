@@ -7,10 +7,9 @@ import pyodbc
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import ensure_data_types, get_df, pandas_equals
-
-pd = wr._utils.import_pandas()
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

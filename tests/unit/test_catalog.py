@@ -7,10 +7,9 @@ import boto3
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import ensure_data_types_csv, get_df_csv
-
-pd = wr._utils.import_pandas()
 
 logger = logging.getLogger("awswrangler")
 logger.setLevel(logging.DEBUG)

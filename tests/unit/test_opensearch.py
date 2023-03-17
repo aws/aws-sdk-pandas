@@ -11,11 +11,11 @@ import opensearchpy
 import pytest  # type: ignore
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 from awswrangler.opensearch._utils import _is_serverless
 
 from .._utils import extract_cloudformation_outputs
 
-pd = wr._utils.import_pandas()
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed

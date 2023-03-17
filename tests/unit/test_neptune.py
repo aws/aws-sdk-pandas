@@ -9,10 +9,10 @@ import pytest  # type: ignore
 from gremlin_python.process.traversal import Direction, T
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import extract_cloudformation_outputs
 
-pd = wr._utils.import_pandas()
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed

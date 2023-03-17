@@ -2,10 +2,9 @@ import boto3
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import get_time_str_with_random_suffix, pandas_equals
-
-pd = wr._utils.import_pandas()
 
 pytestmark = pytest.mark.distributed
 

@@ -3,8 +3,8 @@ import logging
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
-pd = wr._utils.import_pandas()
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed

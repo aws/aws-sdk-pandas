@@ -7,8 +7,7 @@ from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
-
-pd = wr._utils.import_pandas()
+import awswrangler.pandas as pd
 
 pytestmark = pytest.mark.distributed
 
