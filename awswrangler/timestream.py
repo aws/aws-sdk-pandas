@@ -9,9 +9,9 @@ import boto3
 from botocore.config import Config
 
 import awswrangler.pandas as pd
-from awswrangler import _data_types, _utils
+from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor, _ThreadPoolExecutor
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
 
 if TYPE_CHECKING:
@@ -33,12 +33,49 @@ def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     return parameters
 
 
+def _format_timestamp(timestamp: Union[int, datetime]) -> str:
+    if isinstance(timestamp, int):
+        return str(round(timestamp / 1_000_000))
+    if isinstance(timestamp, datetime):
+        return str(round(timestamp.timestamp() * 1_000))
+    raise exceptions.InvalidArgumentType("`time_col` must be of type timestamp.")
+
+
 def _format_measure(measure_name: str, measure_value: Any, measure_type: str) -> Dict[str, str]:
     return {
         "Name": measure_name,
-        "Value": str(round(measure_value.timestamp() * 1_000) if measure_type == "TIMESTAMP" else measure_value),
+        "Value": _format_timestamp(measure_value) if measure_type == "TIMESTAMP" else str(measure_value),
         "Type": measure_type,
     }
+
+
+def _sanitize_common_attributes(
+    common_attributes: Optional[Dict[str, Any]],
+    version: int,
+    measure_name: Optional[str],
+) -> Dict[str, Any]:
+    common_attributes = {} if not common_attributes else common_attributes
+    # Values in common_attributes take precedence
+    common_attributes.setdefault("Version", version)
+
+    if "Time" not in common_attributes:
+        # TimeUnit is MILLISECONDS by default for Timestream writes
+        # But if a time_col is supplied (i.e. Time is not in common_attributes)
+        # then TimeUnit must be set to MILLISECONDS explicitly
+        common_attributes["TimeUnit"] = "MILLISECONDS"
+
+    if "MeasureValue" in common_attributes and "MeasureValueType" not in common_attributes:
+        raise exceptions.InvalidArgumentCombination(
+            "MeasureValueType must be supplied alongside MeasureValue in common_attributes."
+        )
+
+    if measure_name:
+        common_attributes.setdefault("MeasureName", measure_name)
+    elif "MeasureName" not in common_attributes:
+        raise exceptions.InvalidArgumentCombination(
+            "MeasureName must be supplied with the `measure_name` argument or in common_attributes."
+        )
+    return common_attributes
 
 
 @engine.dispatch_on_engine
@@ -46,62 +83,76 @@ def _write_batch(
     timestream_client: Optional["TimestreamWriteClient"],
     database: str,
     table: str,
-    cols_names: List[str],
-    measure_cols_names: List[str],
+    common_attributes: Dict[str, Any],
+    cols_names: List[Optional[str]],
+    measure_cols: List[Optional[str]],
     measure_types: List[str],
-    version: int,
+    dimensions_cols: List[Optional[str]],
     batch: List[Any],
-    measure_name: Optional[str] = None,
 ) -> List[Dict[str, str]]:
-    timestream_client = timestream_client if timestream_client else _utils.client(service_name="timestream-write")
-    try:
-        time_loc = 0
-        measure_cols_loc = 1
-        dimensions_cols_loc = 1 + len(measure_cols_names)
-        records: List[Dict[str, Any]] = []
-        for rec in batch:
-            record: Dict[str, Any] = {
-                "Dimensions": [
-                    {"Name": name, "DimensionValueType": "VARCHAR", "Value": str(value)}
-                    for name, value in zip(cols_names[dimensions_cols_loc:], rec[dimensions_cols_loc:])
-                ],
-                "Time": str(round(rec[time_loc].timestamp() * 1_000)),
-                "TimeUnit": "MILLISECONDS",
-                "Version": version,
-            }
-            if len(measure_cols_names) == 1:
-                measure_value = rec[measure_cols_loc]
-                if pd.isnull(measure_value):
-                    continue
-                record["MeasureName"] = measure_name if measure_name else measure_cols_names[0]
-                record["MeasureValueType"] = measure_types[0]
-                record["MeasureValue"] = str(measure_value)
-            else:
-                record["MeasureName"] = measure_name if measure_name else measure_cols_names[0]
-                record["MeasureValueType"] = "MULTI"
-                record["MeasureValues"] = [
-                    _format_measure(measure_name, measure_value, measure_value_type)
-                    for measure_name, measure_value, measure_value_type in zip(
-                        measure_cols_names, rec[measure_cols_loc:dimensions_cols_loc], measure_types
-                    )
-                    if not pd.isnull(measure_value)
-                ]
-                if len(record["MeasureValues"]) == 0:
-                    continue
+    client_timestream = timestream_client if timestream_client else _utils.client(service_name="timestream-write")
+    records: List[Dict[str, Any]] = []
+    scalar = bool(len(measure_cols) == 1 and "MeasureValues" not in common_attributes)
+    time_loc = 0
+    measure_cols_loc = 1 if cols_names[0] else 0
+    dimensions_cols_loc = 1 if len(measure_cols) == 1 else 1 + len(measure_cols)
+    if all(cols_names):
+        # Time and Measures are supplied in the data frame
+        dimensions_cols_loc = 1 + len(measure_cols)
+    elif all(v is None for v in cols_names[:2]):
+        # Time and Measures are supplied in common_attributes
+        dimensions_cols_loc = 0
+
+    for row in batch:
+        record: Dict[str, Any] = {}
+        if "Time" not in common_attributes:
+            record["Time"] = _format_timestamp(row[time_loc])
+        if scalar and "MeasureValue" not in common_attributes:
+            measure_value = row[measure_cols_loc]
+            if pd.isnull(measure_value):
+                continue
+            record["MeasureValue"] = str(measure_value)
+        elif not scalar and "MeasureValues" not in common_attributes:
+            record["MeasureValues"] = [
+                _format_measure(measure_name, measure_value, measure_value_type)  # type: ignore[arg-type]
+                for measure_name, measure_value, measure_value_type in zip(
+                    measure_cols, row[measure_cols_loc:dimensions_cols_loc], measure_types
+                )
+                if not pd.isnull(measure_value)
+            ]
+            if len(record["MeasureValues"]) == 0:
+                continue
+        if "MeasureValueType" not in common_attributes:
+            record["MeasureValueType"] = measure_types[0] if scalar else "MULTI"
+        # Dimensions can be specified in both common_attributes and the data frame
+        dimensions = (
+            [
+                {"Name": name, "DimensionValueType": "VARCHAR", "Value": str(value)}
+                for name, value in zip(dimensions_cols, row[dimensions_cols_loc:])
+            ]
+            if all(dimensions_cols)
+            else []
+        )
+        if dimensions:
+            record["Dimensions"] = dimensions
+        if record:
             records.append(record)
-        if len(records) > 0:
+
+    try:
+        if records:
             _utils.try_it(
-                f=timestream_client.write_records,
+                f=client_timestream.write_records,
                 ex=(
-                    timestream_client.exceptions.ThrottlingException,
-                    timestream_client.exceptions.InternalServerException,
+                    client_timestream.exceptions.ThrottlingException,
+                    client_timestream.exceptions.InternalServerException,
                 ),
                 max_num_tries=5,
                 DatabaseName=database,
                 TableName=table,
+                CommonAttributes=common_attributes,
                 Records=records,
             )
-    except timestream_client.exceptions.RejectedRecordsException as ex:
+    except client_timestream.exceptions.RejectedRecordsException as ex:
         return cast(List[Dict[str, str]], ex.response["RejectedRecords"])
     return []
 
@@ -109,15 +160,15 @@ def _write_batch(
 @engine.dispatch_on_engine
 def _write_df(
     df: pd.DataFrame,
-    executor: _ThreadPoolExecutor,
+    executor: _BaseExecutor,
     database: str,
     table: str,
-    cols_names: List[str],
-    measure_cols_names: List[str],
+    common_attributes: Dict[str, Any],
+    cols_names: List[Optional[str]],
+    measure_cols: List[Optional[str]],
     measure_types: List[str],
-    version: int,
+    dimensions_cols: List[Optional[str]],
     boto3_session: Optional[boto3.Session],
-    measure_name: Optional[str] = None,
 ) -> List[Dict[str, str]]:
     timestream_client = _utils.client(
         service_name="timestream-write",
@@ -131,12 +182,12 @@ def _write_df(
         timestream_client,
         itertools.repeat(database),
         itertools.repeat(table),
+        itertools.repeat(common_attributes),
         itertools.repeat(cols_names),
-        itertools.repeat(measure_cols_names),
+        itertools.repeat(measure_cols),
         itertools.repeat(measure_types),
-        itertools.repeat(version),
+        itertools.repeat(dimensions_cols),
         batches,
-        itertools.repeat(measure_name),
     )
 
 
@@ -240,12 +291,13 @@ def write(
     df: pd.DataFrame,
     database: str,
     table: str,
-    time_col: str,
-    measure_col: Union[str, List[str]],
-    dimensions_cols: List[str],
+    time_col: Optional[str] = None,
+    measure_col: Union[str, List[Optional[str]], None] = None,
+    dimensions_cols: Optional[List[Optional[str]]] = None,
     version: int = 1,
     use_threads: Union[bool, int] = True,
     measure_name: Optional[str] = None,
+    common_attributes: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[Dict[str, str]]:
     """Store a Pandas DataFrame into a Amazon Timestream table.
@@ -258,6 +310,16 @@ def write(
     this function will not throw a Python exception.
     Instead it will return the rejection information.
 
+    Note
+    ----
+    Values in `common_attributes` take precedence over all other arguments and data frame values.
+    Dimension attributes are merged with attributes in record objects.
+    Example: common_attributes = {"Dimensions": {"Name": "device_id", "Value": "12345"}, "MeasureValueType": "DOUBLE"}.
+
+    Note
+    ----
+    If the `time_col` column is supplied it must be of type timestamp. `TimeUnit` is set to MILLISECONDS by default.
+
     Parameters
     ----------
     df : pandas.DataFrame
@@ -266,11 +328,11 @@ def write(
         Amazon Timestream database name.
     table : str
         Amazon Timestream table name.
-    time_col : str
+    time_col : Optional[str]
         DataFrame column name to be used as time. MUST be a timestamp column.
-    measure_col : Union[str, List[str]]
+    measure_col : Union[str, List[str], None]
         DataFrame column name(s) to be used as measure.
-    dimensions_cols : List[str]
+    dimensions_cols : Optional[List[str]]
         List of DataFrame column names to be used as dimensions.
     version : int
         Version number used for upserts.
@@ -282,6 +344,9 @@ def write(
     measure_name : Optional[str]
         Name that represents the data attribute of the time series.
         Overrides ``measure_col`` if specified.
+    common_attributes : Optional[Dict[str, Any]]
+        Dictionary of attributes that is shared across all records in the request.
+        Using common attributes can optimize the cost of writes by reducing the size of request payloads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
@@ -328,16 +393,38 @@ def write(
     >>> ]
 
     """
-    measure_cols_names = measure_col if isinstance(measure_col, list) else [measure_col]
-    _logger.debug("measure_cols_names: %s", measure_cols_names)
-    measure_types: List[str] = _data_types.timestream_type_from_pandas(df.loc[:, measure_cols_names])
-    _logger.debug("measure_types: %s", measure_types)
-    cols_names: List[str] = [time_col] + measure_cols_names + dimensions_cols
-    _logger.debug("cols_names: %s", cols_names)
-    dfs = _utils.split_pandas_frame(df.loc[:, cols_names], _utils.ensure_cpu_count(use_threads=use_threads))
+    measure_cols = measure_col if isinstance(measure_col, list) else [measure_col]
+    measure_types: List[str] = (
+        _data_types.timestream_type_from_pandas(df.loc[:, measure_cols]) if all(measure_cols) else []
+    )
+    dimensions_cols = dimensions_cols if dimensions_cols else [dimensions_cols]  # type: ignore[list-item]
+    cols_names: List[Optional[str]] = [time_col] + measure_cols + dimensions_cols
+    measure_name = measure_name if measure_name else measure_cols[0]
+    common_attributes = _sanitize_common_attributes(common_attributes, version, measure_name)
+
+    _logger.debug(
+        "common_attributes: %s\n, cols_names: %s\n, measure_types: %s",
+        common_attributes,
+        cols_names,
+        measure_types,
+    )
+
+    # User can supply arguments in one of two ways:
+    # 1. With the `common_attributes` dictionary which takes precedence
+    # 2. With data frame columns
+    # However, the data frame cannot be completely empty.
+    # So if all values in `cols_names` are None, an exception is raised.
+    if any(cols_names):
+        dfs = _utils.split_pandas_frame(
+            df.loc[:, [c for c in cols_names if c]], _utils.ensure_cpu_count(use_threads=use_threads)
+        )
+    else:
+        raise exceptions.InvalidArgumentCombination(
+            "At least one of `time_col`, `measure_col` or `dimensions_cols` must be specified."
+        )
     _logger.debug("len(dfs): %s", len(dfs))
 
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     errors = list(
         itertools.chain(
             *ray_get(
@@ -347,12 +434,12 @@ def write(
                         executor=executor,
                         database=database,
                         table=table,
+                        common_attributes=common_attributes,
                         cols_names=cols_names,
-                        measure_cols_names=measure_cols_names,
+                        measure_cols=measure_cols,
                         measure_types=measure_types,
-                        version=version,
+                        dimensions_cols=dimensions_cols,
                         boto3_session=boto3_session,
-                        measure_name=measure_name,
                     )
                     for df in dfs
                 ]

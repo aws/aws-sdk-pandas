@@ -9,7 +9,7 @@ import boto3
 
 from awswrangler import _utils
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
 from awswrangler.s3 import _fs
 from awswrangler.s3._list import _path2list
@@ -128,7 +128,7 @@ def describe_objects(
     if len(paths) < 1:
         return {}
 
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     resp_list = ray_get(
         executor.map(
             _describe_object,

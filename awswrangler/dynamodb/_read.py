@@ -28,7 +28,7 @@ from botocore.exceptions import ClientError
 import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
 from awswrangler.dynamodb._utils import _serialize_kwargs, execute_statement, get_table
 
@@ -316,9 +316,10 @@ def _read_items(
             items = _read_query(table_name, boto3_session, **kwargs)
         else:
             # Last resort use Parallel Scan
-            executor = _get_executor(use_threads=use_threads)
+            executor: _BaseExecutor = _get_executor(use_threads=use_threads)
             dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
-            total_segments = _utils.ensure_cpu_count(use_threads=use_threads)
+            total_segments = _utils.ensure_worker_or_thread_count(use_threads=use_threads)
+
             kwargs = _serialize_kwargs(kwargs)
             kwargs["TableName"] = table_name
             kwargs["TotalSegments"] = total_segments

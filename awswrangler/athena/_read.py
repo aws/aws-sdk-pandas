@@ -907,11 +907,11 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -975,7 +975,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -1350,11 +1350,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -1418,7 +1418,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 

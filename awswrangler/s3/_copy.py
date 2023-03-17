@@ -9,7 +9,7 @@ from boto3.s3.transfer import TransferConfig
 
 from awswrangler import _utils, exceptions
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import get_botocore_valid_kwargs
@@ -55,7 +55,7 @@ def _copy(
         boto3_kwargs: Optional[Dict[str, Any]] = None
     else:
         boto3_kwargs = get_botocore_valid_kwargs(function_name="copy_object", s3_additional_kwargs=s3_additional_kwargs)
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     ray_get(
         executor.map(
             _copy_objects,

@@ -82,10 +82,9 @@ def _does_table_exist(cursor: "redshift_connector.Cursor", schema: Optional[str]
 
 
 def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
-    resource_s3 = _utils.resource(service_name="s3", session=boto3_session)
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
     bucket, key = _utils.parse_path(path)
-    content_object = resource_s3.Object(bucket, key)
-    manifest_content = json.loads(content_object.get()["Body"].read().decode("utf-8"))
+    manifest_content = json.loads(client_s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8"))
     return [path["url"] for path in manifest_content["entries"]]
 
 

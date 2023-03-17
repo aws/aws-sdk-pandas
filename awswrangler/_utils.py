@@ -562,6 +562,39 @@ def ensure_cpu_count(use_threads: Union[bool, int] = True) -> int:
     return cpus
 
 
+@engine.dispatch_on_engine
+def ensure_worker_or_thread_count(use_threads: Union[bool, int] = True) -> int:
+    """Get the number of CPU cores or Ray workers to be used.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of threads that could be spawned will be spawned from the OS
+    or the Ray cluster configuration.
+
+
+    Parameters
+    ----------
+    use_threads : Union[bool, int]
+            True to enable multi-core utilization, False to disable.
+            If given an int will simply return the input value.
+
+    Returns
+    -------
+    int
+        Number of workers of threads to be used.
+
+    Examples
+    --------
+    >>> from awswrangler._utils import ensure_worker_or_thread_count
+    >>> ensure_worker_or_thread_count(use_threads=True)
+    4
+    >>> ensure_worker_or_thread_count(use_threads=False)
+    1
+
+    """
+    return ensure_cpu_count(use_threads=use_threads)
+
+
 def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = None) -> List[List[Any]]:
     """Split a list in a List of List (chunks) with even sizes.
 
