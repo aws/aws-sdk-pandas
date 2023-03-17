@@ -25,6 +25,7 @@ from boto3.dynamodb.conditions import ConditionBase
 from boto3.dynamodb.types import Binary
 from botocore.exceptions import ClientError
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
@@ -34,7 +35,6 @@ from awswrangler.dynamodb._utils import _serialize_kwargs, execute_statement, ge
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.client import DynamoDBClient
 
-pd = _utils.import_pandas()
 _logger: logging.Logger = logging.getLogger(__name__)
 
 

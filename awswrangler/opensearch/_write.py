@@ -11,11 +11,11 @@ import boto3
 import numpy as np
 from pandas import notna
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
-from awswrangler._utils import import_pandas, parse_path
+from awswrangler._utils import parse_path
 from awswrangler.opensearch._utils import _get_distribution, _get_version_major, _is_serverless
 
-pd = import_pandas()
 progressbar = _utils.import_optional_dependency("progressbar")
 opensearchpy = _utils.import_optional_dependency("opensearchpy")
 if opensearchpy:

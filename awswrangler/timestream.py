@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, 
 import boto3
 from botocore.config import Config
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils
 from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor, _ThreadPoolExecutor
@@ -17,7 +18,6 @@ if TYPE_CHECKING:
     from mypy_boto3_timestream_query.type_defs import PaginatorConfigTypeDef, QueryResponseTypeDef, RowTypeDef
     from mypy_boto3_timestream_write.client import TimestreamWriteClient
 
-pd = _utils.import_pandas()
 _logger: logging.Logger = logging.getLogger(__name__)
 
 

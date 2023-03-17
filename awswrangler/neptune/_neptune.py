@@ -6,10 +6,10 @@ import re
 from typing import Any, Callable, TypeVar
 
 import awswrangler.neptune._gremlin_init as gremlin
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler.neptune._client import NeptuneClient
 
-pd = _utils.import_pandas()
 gremlin_python = _utils.import_optional_dependency("gremlin_python")
 opencypher = _utils.import_optional_dependency("requests")
 sparql = _utils.import_optional_dependency("SPARQLWrapper")

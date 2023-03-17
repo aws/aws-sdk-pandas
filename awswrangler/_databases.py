@@ -8,11 +8,11 @@ from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, T
 import boto3
 import pyarrow as pa
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions, oracle, secretsmanager
 from awswrangler.catalog import get_connection
 
 _oracledb_found = importlib.util.find_spec("oracledb")
-pd = _utils.import_pandas()
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

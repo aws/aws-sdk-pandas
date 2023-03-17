@@ -5,10 +5,9 @@ from typing import Any, Dict, List, Optional
 
 import boto3
 
+import awswrangler.pandas as pd
 from awswrangler import _utils
 from awswrangler.data_api import _connector
-
-pd = _utils.import_pandas()
 
 
 class RedshiftDataApi(_connector.DataApiConnector):

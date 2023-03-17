@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union, ca
 import boto3
 import botocore.exceptions
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._utils import _catalog_id, _extract_dtypes_from_table_details, _transaction_id
@@ -16,7 +17,6 @@ from awswrangler.catalog._utils import _catalog_id, _extract_dtypes_from_table_d
 if TYPE_CHECKING:
     from mypy_boto3_glue.type_defs import GetPartitionsResponseTypeDef
 
-pd = _utils.import_pandas()
 _logger: logging.Logger = logging.getLogger(__name__)
 
 

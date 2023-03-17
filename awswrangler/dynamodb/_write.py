@@ -7,12 +7,11 @@ from typing import Any, Dict, List, Mapping, Optional, Union
 
 import boto3
 
+import awswrangler.pandas as pd
 from awswrangler._config import apply_configs
-from awswrangler._utils import import_pandas
 
 from ._utils import _validate_items, get_table
 
-pd = import_pandas()
 _logger: logging.Logger = logging.getLogger(__name__)
 
 

@@ -1,6 +1,5 @@
 """Modin on Ray utilities (PRIVATE)."""
 from dataclasses import dataclass
-from types import ModuleType
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 import modin.pandas as modin_pd
@@ -82,10 +81,6 @@ def _copy_modin_df_shallow(frame: Union[pd.DataFrame, modin_pd.DataFrame]) -> Un
         engine.dispatch_func(copy_df_shallow, "python")(frame)
 
     return modin_pd.DataFrame(frame, copy=False)
-
-
-def _import_modin() -> ModuleType:
-    return modin_pd
 
 
 @dataclass

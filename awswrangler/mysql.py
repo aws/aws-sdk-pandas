@@ -8,12 +8,12 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union, over
 import boto3
 import pyarrow as pa
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
 
 pymysql = _utils.import_optional_dependency("pymysql")
-pd = _utils.import_pandas()
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

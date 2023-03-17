@@ -813,12 +813,6 @@ def copy_df_shallow(df: pd.DataFrame) -> pd.DataFrame:
     return df.copy(deep=False)
 
 
-@engine.dispatch_on_engine
-def import_pandas() -> ModuleType:
-    """Import Pandas library."""
-    return pd
-
-
 def list_to_arrow_table(
     mapping: List[Dict[str, Any]],
     schema: Optional[pa.Schema] = None,

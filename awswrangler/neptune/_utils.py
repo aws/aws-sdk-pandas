@@ -9,10 +9,10 @@ from gremlin_python.process.translator import Translator
 from gremlin_python.process.traversal import Cardinality, T
 from gremlin_python.structure.graph import Graph
 
-from awswrangler import _utils, exceptions
+import awswrangler.pandas as pd
+from awswrangler import exceptions
 from awswrangler.neptune._client import NeptuneClient
 
-pd = _utils.import_pandas()
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
