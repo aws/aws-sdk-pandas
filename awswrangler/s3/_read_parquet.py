@@ -600,9 +600,11 @@ def read_parquet(
 
     There are two batching strategies on awswrangler:
 
-    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+    - If **chunked=True**, depending on the size of the data, one or more data frames will be
+      returned per each file in the path/dataset.
+      Unlike **chunked=INTEGER**, rows from different files will not be mixed in the resulting data frames.
 
-    - If **chunked=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunked=INTEGER**, awswrangler will iterate on the data by number of rows egual the received INTEGER.
 
     `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
     in number of rows for each Dataframe.
@@ -652,7 +654,7 @@ def read_parquet(
     chunked : Union[int, bool]
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows egual the received INTEGER.
     dataset: bool
         If `True` read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
     categories: Optional[List[str]], optional
@@ -830,10 +832,12 @@ def read_parquet_table(
 
     There are two batching strategies on awswrangler:
 
-    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+    - If **chunked=True**, depending on the size of the data, one or more data frames will be
+      returned per each file in the path/dataset.
+      Unlike **chunked=INTEGER**, rows from different files will not be mixed in the resulting data frames.
 
     - If **chunked=INTEGER**, awswrangler will paginate through files slicing and concatenating
-      to return DataFrames with the number of row igual the received INTEGER.
+      to return DataFrames with the number of rows egual the received INTEGER.
 
     `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
     in number of rows for each Dataframe.
@@ -866,7 +870,7 @@ def read_parquet_table(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/2.19.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/2.20.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     columns : List[str], optional
         Names of columns to read from the file(s).
     validate_schema:

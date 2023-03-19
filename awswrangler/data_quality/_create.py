@@ -121,7 +121,6 @@ def create_ruleset(
 @apply_configs
 def update_ruleset(
     name: str,
-    updated_name: Optional[str] = None,
     mode: str = "overwrite",
     df_rules: Optional[pd.DataFrame] = None,
     dqdl_rules: Optional[str] = None,
@@ -134,8 +133,6 @@ def update_ruleset(
     ----------
     name : str
         Ruleset name.
-    updated_name : str
-        New ruleset name if renaming an existing ruleset.
     mode : str
         overwrite (default) or upsert.
     df_rules : str, optional
@@ -152,7 +149,6 @@ def update_ruleset(
     Overwrite rules in the existing ruleset.
     >>> wr.data_quality.update_ruleset(
     >>>     name="ruleset",
-    >>>     new_name="my_ruleset",
     >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
     >>>)
 
@@ -183,8 +179,6 @@ def update_ruleset(
         "Description": description,
         "Ruleset": dqdl_rules,
     }
-    if updated_name:
-        args["UpdatedName"] = updated_name
 
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     try:

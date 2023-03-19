@@ -22,7 +22,6 @@ def _copy_objects(
 ) -> None:
     _logger.debug("len(batch): %s", len(batch))
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
     if s3_additional_kwargs is None:
         boto3_kwargs: Optional[Dict[str, Any]] = None
     else:
@@ -31,11 +30,10 @@ def _copy_objects(
         source_bucket, source_key = _utils.parse_path(path=source)
         copy_source: Dict[str, str] = {"Bucket": source_bucket, "Key": source_key}
         target_bucket, target_key = _utils.parse_path(path=target)
-        resource_s3.meta.client.copy(
+        client_s3.copy(
             CopySource=copy_source,
             Bucket=target_bucket,
             Key=target_key,
-            SourceClient=client_s3,
             ExtraArgs=boto3_kwargs,
             Config=TransferConfig(num_download_attempts=10, use_threads=use_threads),
         )

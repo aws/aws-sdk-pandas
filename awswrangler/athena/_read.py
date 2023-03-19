@@ -14,6 +14,7 @@ from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
 from awswrangler.athena._utils import (
+    _QUERY_WAIT_POLLING_DELAY,
     _apply_query_metadata,
     _empty_dataframe_response,
     _get_query_metadata,
@@ -212,6 +213,7 @@ def _resolve_query_with_cache(
     categories: Optional[List[str]],
     chunksize: Optional[Union[int, bool]],
     use_threads: Union[bool, int],
+    athena_query_wait_polling_delay: float,
     session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -226,6 +228,7 @@ def _resolve_query_with_cache(
         categories=categories,
         query_execution_payload=cache_info.query_execution_payload,
         metadata_cache_manager=_cache_manager,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
     )
     if cache_info.file_format == "parquet":
         return _fetch_parquet_result(
@@ -265,6 +268,7 @@ def _resolve_query_without_cache_ctas(
     name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
     ctas_write_compression: Optional[str],
+    athena_query_wait_polling_delay: float,
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
@@ -283,6 +287,7 @@ def _resolve_query_without_cache_ctas(
         write_compression=ctas_write_compression,
         kms_key=kms_key,
         wait=True,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         boto3_session=boto3_session,
     )
     fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
@@ -317,6 +322,7 @@ def _resolve_query_without_cache_unload(
     kms_key: Optional[str],
     workgroup: Optional[str],
     use_threads: Union[bool, int],
+    athena_query_wait_polling_delay: float,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -334,6 +340,7 @@ def _resolve_query_without_cache_unload(
         kms_key=kms_key,
         boto3_session=boto3_session,
         data_source=data_source,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
     )
     if file_format == "PARQUET":
         return _fetch_parquet_result(
@@ -361,6 +368,7 @@ def _resolve_query_without_cache_regular(
     workgroup: Optional[str],
     kms_key: Optional[str],
     use_threads: Union[bool, int],
+    athena_query_wait_polling_delay: float,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -385,6 +393,7 @@ def _resolve_query_without_cache_regular(
         boto3_session=boto3_session,
         categories=categories,
         metadata_cache_manager=_cache_manager,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
     )
     return _fetch_csv_result(
         query_metadata=query_metadata,
@@ -415,6 +424,7 @@ def _resolve_query_without_cache(
     ctas_temp_table_name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
     ctas_write_compression: Optional[str],
+    athena_query_wait_polling_delay: float,
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
@@ -446,6 +456,7 @@ def _resolve_query_without_cache(
                 name=name,
                 ctas_bucketing_info=ctas_bucketing_info,
                 ctas_write_compression=ctas_write_compression,
+                athena_query_wait_polling_delay=athena_query_wait_polling_delay,
                 use_threads=use_threads,
                 s3_additional_kwargs=s3_additional_kwargs,
                 boto3_session=boto3_session,
@@ -474,6 +485,7 @@ def _resolve_query_without_cache(
             kms_key=kms_key,
             workgroup=workgroup,
             use_threads=use_threads,
+            athena_query_wait_polling_delay=athena_query_wait_polling_delay,
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
@@ -490,6 +502,7 @@ def _resolve_query_without_cache(
         workgroup=workgroup,
         kms_key=kms_key,
         use_threads=use_threads,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     )
@@ -508,6 +521,7 @@ def _unload(
     kms_key: Optional[str],
     boto3_session: boto3.Session,
     data_source: Optional[str],
+    athena_query_wait_polling_delay: float,
 ) -> _QueryMetadata:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output: str = _get_s3_output(s3_output=path, wg_config=wg_config, boto3_session=boto3_session)
@@ -552,6 +566,7 @@ def _unload(
             query_execution_id=query_id,
             boto3_session=boto3_session,
             metadata_cache_manager=_cache_manager,
+            athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         )
     except exceptions.QueryFailed as ex:
         msg = str(ex)
@@ -581,6 +596,7 @@ def get_query_results(
     chunksize: Optional[Union[int, bool]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Get AWS Athena SQL query results as a Pandas DataFrame.
 
@@ -612,6 +628,8 @@ def get_query_results(
         outputs) you can use coerce_int96_timestamp_unit to specify what timestamp unit to encode INT96 to (by default
         this is "ns", if you know the output parquet came from a system that encodes timestamp to a particular unit
         then set this to that same unit e.g. coerce_int96_timestamp_unit="ms").
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns
     -------
@@ -631,6 +649,7 @@ def get_query_results(
         boto3_session=boto3_session,
         categories=categories,
         metadata_cache_manager=_cache_manager,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
     )
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
     query_info: Dict[str, Any] = client_athena.get_query_execution(QueryExecutionId=query_execution_id)[
@@ -687,6 +706,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     max_remote_cache_entries: int = 50,
     max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     params: Optional[Dict[str, Any]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -695,11 +715,11 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/2.19.0/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/2.20.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/2.19.0/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/2.20.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/2.19.0/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/2.20.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -763,7 +783,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/2.19.0/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/2.20.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -787,9 +807,11 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
 
     There are two batching strategies:
 
-    - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
+    - If **chunksize=True**, depending on the size of the data, one or more data frames will be
+      returned per each file in the query result.
+      Unlike **chunksize=INTEGER**, rows from different files will not be mixed in the resulting data frames.
 
-    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows egual the received INTEGER.
 
     `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
     in number of rows for each Dataframe.
@@ -877,6 +899,8 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         Only takes effect if max_cache_seconds > 0 and default value is 100.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     params: Dict[str, any], optional
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
@@ -950,6 +974,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
                 chunksize=chunksize,
                 use_threads=use_threads,
                 session=boto3_session,
+                athena_query_wait_polling_delay=athena_query_wait_polling_delay,
                 s3_additional_kwargs=s3_additional_kwargs,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
@@ -974,6 +999,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         ctas_temp_table_name=ctas_temp_table_name,
         ctas_bucketing_info=ctas_bucketing_info,
         ctas_write_compression=ctas_write_compression,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
@@ -1013,11 +1039,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/2.19.0/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/2.20.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/2.19.0/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/2.20.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/2.19.0/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/2.20.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -1062,7 +1088,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/2.19.0/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/2.20.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -1086,9 +1112,11 @@ def read_sql_table(
 
     There are two batching strategies:
 
-    - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
+    - If **chunksize=True**, depending on the size of the data, one or more data frames will be
+      returned per each file in the query result.
+      Unlike **chunksize=INTEGER**, rows from different files will not be mixed in the resulting data frames.
 
-    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows egual the received INTEGER.
 
     `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
     in number of rows for each Dataframe.
@@ -1244,6 +1272,7 @@ def unload(
     boto3_session: Optional[boto3.Session] = None,
     data_source: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> _QueryMetadata:
     """Write query results from a SELECT statement to the specified data format using UNLOAD.
 
@@ -1283,6 +1312,8 @@ def unload(
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
         `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns
     -------
@@ -1314,6 +1345,7 @@ def unload(
         database=database,
         encryption=encryption,
         kms_key=kms_key,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         boto3_session=boto3_session,
         data_source=data_source,
     )
