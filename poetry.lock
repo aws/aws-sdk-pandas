@@ -2083,14 +2083,14 @@ test = ["pep440", "pre-commit", "pytest", "testpath"]
 
 [[package]]
 name = "nbsphinx"
-version = "0.8.12"
+version = "0.9.1"
 description = "Jupyter Notebook Tools for Sphinx"
 category = "dev"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "nbsphinx-0.8.12-py3-none-any.whl", hash = "sha256:c15b681c7fce287000856f91fe1edac50d29f7b0c15bbc746fbe55c8eb84750b"},
-    {file = "nbsphinx-0.8.12.tar.gz", hash = "sha256:76570416cdecbeb21dbf5c3d6aa204ced6c1dd7ebef4077b5c21b8c6ece9533f"},
+    {file = "nbsphinx-0.9.1-py3-none-any.whl", hash = "sha256:c2991a2c497715f52f6c727f8a633e309f097fe9bb794538011ca1ddb6b698fa"},
+    {file = "nbsphinx-0.9.1.tar.gz", hash = "sha256:59bbfb7bc676a6647805fb3ca83490338ae7f96c1674a9e5e707f055c272c59d"},
 ]
 
 [package.dependencies]
@@ -4167,4 +4167,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7.1, <4.0"
-content-hash = "42f32e36d9df41a388f52a427cc2551cdc59ef492ed9d2119a4f46f24740f1a0"
+content-hash = "00f9e1033d2cf94e935b7f423073bb034061fe85db6a55aad0b3deb76504b56a"
