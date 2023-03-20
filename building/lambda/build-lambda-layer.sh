@@ -80,7 +80,7 @@ popd
 
 pushd /aws-sdk-pandas
 
-pip3 install . -t ./python
+pip3 install . -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]"
 
 rm -rf python/pyarrow*
 rm -rf python/boto*
