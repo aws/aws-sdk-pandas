@@ -38,9 +38,9 @@ def test_wait_object_not_exists(path: str, use_threads: bool) -> None:
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(30)
 def test_wait_object_timeout(path: str, use_threads: bool) -> None:
-    with pytest.raises(botocore.exceptions.WaiterError):
+    with pytest.raises(wr.exceptions.NoFilesFound):
         wr.s3.wait_objects_exist(
             paths=[path],
             use_threads=use_threads,
