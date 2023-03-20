@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-VERSION=$(python -c "import awswrangler as wr; print(wr.__version__)")
+VERSION=$(poetry version --short)
 DIR_NAME=$(dirname "$PWD")
 
 ARCH=$(arch)
