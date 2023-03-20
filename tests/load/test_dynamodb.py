@@ -4,6 +4,7 @@ from typing import Any, Dict
 import boto3
 import modin.pandas as pd
 import pytest
+import ray
 
 import awswrangler as wr
 
@@ -26,6 +27,18 @@ def _fill_dynamodb_table(table_name: str, num_objects: int) -> None:
         for i in range(num_objects):
             item = _generate_item(i)
             writer.put_item(Item=item)
+
+
+@pytest.fixture(scope="function")
+def big_modin_df() -> pd.DataFrame:
+    pandas_refs = ray.data.range_table(100_000).to_pandas_refs()
+    dataset = ray.data.from_pandas_refs(pandas_refs).repartition(num_blocks=8)
+
+    frame = dataset.to_modin()
+    frame["foo"] = frame.value * 2
+    frame["bar"] = frame.value % 2
+
+    return frame
 
 
 @pytest.mark.parametrize(
