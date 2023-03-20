@@ -1,4 +1,5 @@
 """Ray DynamoDBDatasource Module."""
+import logging
 from typing import TYPE_CHECKING, Any, Dict, List
 
 import boto3
@@ -14,6 +15,9 @@ if TYPE_CHECKING:
     from mypy_boto3_dynamodb.service_resource import Table
 
 
+_logger: logging.Logger = logging.getLogger(__name__)
+
+
 class DynamoDBDatasource(Datasource[Any]):  # pylint: disable=abstract-method
     """Datasource for writing data blocks to a DynamoDB table."""
 
@@ -25,7 +29,7 @@ class DynamoDBDatasource(Datasource[Any]):  # pylint: disable=abstract-method
         **writer_args: Any,
     ) -> None:
         frame = block.to_pandas()
-        print(f"Writing block to {table.table_name} (size {len(frame)})")
+        _logger.info(f"Writing block to {table.table_name} (size {len(frame)})")
         items: List[Dict[str, Any]] = [v.dropna().to_dict() for _, v in frame.iterrows()]
 
         _validate_items(items=items, dynamodb_table=table)
