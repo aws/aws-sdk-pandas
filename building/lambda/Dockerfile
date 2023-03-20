@@ -19,7 +19,6 @@ RUN yum install -y \
 WORKDIR /root
 
 FROM ${python_version}
-COPY pyproject.toml poetry.lock ./
 
 RUN pip3 install --upgrade pip wheel && pip3 install --upgrade six cython cmake hypothesis
 
