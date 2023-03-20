@@ -30,9 +30,9 @@ def _fill_dynamodb_table(table_name: str, num_objects: int) -> None:
 
 
 @pytest.fixture(scope="function")
-def big_modin_df() -> pd.DataFrame:
+def big_modin_df(num_blocks: int) -> pd.DataFrame:
     pandas_refs = ray.data.range_table(100_000).to_pandas_refs()
-    dataset = ray.data.from_pandas_refs(pandas_refs).repartition(num_blocks=8)
+    dataset = ray.data.from_pandas_refs(pandas_refs).repartition(num_blocks=num_blocks)
 
     frame = dataset.to_modin()
     frame["foo"] = frame.value * 2
@@ -77,8 +77,13 @@ def test_dynamodb_read(params: Dict[str, Any], dynamodb_table: str, request: pyt
         }
     ],
 )
+@pytest.mark.parametrize("num_blocks", [4, 8, 16])
 def test_dynamodb_write(
-    params: Dict[str, Any], dynamodb_table: str, big_modin_df: pd.DataFrame, request: pytest.FixtureRequest
+    params: Dict[str, Any],
+    num_blocks: int,
+    dynamodb_table: str,
+    big_modin_df: pd.DataFrame,
+    request: pytest.FixtureRequest,
 ) -> None:
     benchmark_time = 30
 
