@@ -144,12 +144,12 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     def _load_config(self, name: str) -> bool:
         if _CONFIG_ARGS[name].loaded:
             self._set_config_value(key=name, value=_CONFIG_ARGS[name].default)
-            return True
 
         env_var: Optional[str] = os.getenv(f"WR_{name.upper()}")
         if env_var is not None:
             self._set_config_value(key=name, value=env_var)
             return True
+
         return False
 
     def _set_config_value(self, key: str, value: Any) -> None:
