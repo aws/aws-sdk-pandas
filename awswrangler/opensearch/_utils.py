@@ -332,7 +332,7 @@ def create_collection(
             status = response["collectionDetails"][0]["status"]  # type: ignore
 
         if status == "FAILED":
-            errors = response["collectionErrorDetails"]
+            errors = response["collectionErrorDetails"]  # type: ignore
             error_details = errors[0] if len(errors) > 0 else "No error details provided"
             raise exceptions.QueryFailed(f"Failed to create collection `{name}`: {error_details}.")
 
