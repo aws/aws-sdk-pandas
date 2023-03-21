@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 from datetime import datetime
@@ -407,6 +408,25 @@ def glue_ruleset() -> str:
     name = f"ruleset_{get_time_str_with_random_suffix()}"
     print(f"Ruleset name: {name}")
     yield name
+
+
+@pytest.fixture(scope="function")
+def emr_security_configuration():
+    name = f"emr_{get_time_str_with_random_suffix()}"
+    print(f"EMR Security Configuration: {name}")
+    security_configuration = {
+        "EncryptionConfiguration": {"EnableInTransitEncryption": False, "EnableAtRestEncryption": False},
+        "InstanceMetadataServiceConfiguration": {
+            "MinimumInstanceMetadataServiceVersion": 2,
+            "HttpPutResponseHopLimit": 1,
+        },
+    }
+    boto3.client("emr").create_security_configuration(
+        Name=name, SecurityConfiguration=json.dumps(security_configuration)
+    )
+    yield name
+    boto3.client("emr").delete_security_configuration(Name=name)
+    print(f"Security Configuration: {name} deleted.")
 
 
 @pytest.fixture(scope="session")

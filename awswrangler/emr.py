@@ -407,7 +407,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     subnet_id: str,
     cluster_name: str = "my-emr-cluster",
     logging_s3_path: Optional[str] = None,
-    emr_release: str = "emr-6.0.0",
+    emr_release: str = "emr-6.7.0",
     emr_ec2_role: str = "EMR_EC2_DefaultRole",
     emr_role: str = "EMR_DefaultRole",
     instance_type_master: str = "r5.xlarge",
@@ -449,6 +449,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     security_group_slave: Optional[str] = None,
     security_groups_slave_additional: Optional[List[str]] = None,
     security_group_service_access: Optional[str] = None,
+    security_configuration: Optional[str] = None,
     docker: bool = False,
     extra_public_registries: Optional[List[str]] = None,
     spark_log_level: str = "WARN",
@@ -586,6 +587,8 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     security_group_service_access : str, optional
         The identifier of the Amazon EC2 security group for the Amazon EMR
         service to access clusters in VPC private subnets.
+    security_configuration:str, optional
+        The name of a security configuration to apply to the cluster.
     docker : bool
         Enable Docker Hub and ECR registries access.
     extra_public_registries: List[str], optional

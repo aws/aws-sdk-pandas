@@ -13,13 +13,15 @@ from awswrangler import exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_ConfigValueType = Union[str, bool, int, float, botocore.config.Config, None]
+_ConfigValueType = Union[str, bool, int, float, botocore.config.Config]
 
 
 class _ConfigArg(NamedTuple):
-    dtype: Type[Union[str, bool, int, float, botocore.config.Config]]
+    dtype: Type[_ConfigValueType]
     nullable: bool
     enforced: bool = False
+    loaded: bool = False
+    default: Optional[_ConfigValueType] = None
 
 
 # Please, also add any new argument as a property in the _Config class
@@ -38,22 +40,23 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
+    "suppress_warnings": _ConfigArg(dtype=bool, nullable=False, default=False, loaded=True),
     # Endpoints URLs
-    "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "sts_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "glue_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "redshift_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "timestream_query_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "timestream_write_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "sts_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "glue_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "redshift_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "timestream_query_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "timestream_write_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     # Botocore config
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
-    "verify": _ConfigArg(dtype=str, nullable=True),
+    "verify": _ConfigArg(dtype=str, nullable=True, loaded=True),
 }
 
 
@@ -61,7 +64,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     """AWS Wrangler's Configuration class."""
 
     def __init__(self) -> None:
-        self._loaded_values: Dict[str, _ConfigValueType] = {}
+        self._loaded_values: Dict[str, Optional[_ConfigValueType]] = {}
         name: str
         self.s3_endpoint_url = None
         self.athena_endpoint_url = None
@@ -139,10 +142,14 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return pd.DataFrame(args)
 
     def _load_config(self, name: str) -> bool:
+        if _CONFIG_ARGS[name].loaded:
+            self._set_config_value(key=name, value=_CONFIG_ARGS[name].default)
+
         env_var: Optional[str] = os.getenv(f"WR_{name.upper()}")
         if env_var is not None:
             self._set_config_value(key=name, value=env_var)
             return True
+
         return False
 
     def _set_config_value(self, key: str, value: Any) -> None:
@@ -150,20 +157,20 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             raise exceptions.InvalidArgumentValue(
                 f"{key} is not a valid configuration. Please use: {list(_CONFIG_ARGS.keys())}"
             )
-        value_casted: _ConfigValueType = self._apply_type(
+        value_casted: Optional[_ConfigValueType] = self._apply_type(
             name=key, value=value, dtype=_CONFIG_ARGS[key].dtype, nullable=_CONFIG_ARGS[key].nullable
         )
         self._loaded_values[key] = value_casted
 
-    def __getitem__(self, item: str) -> _ConfigValueType:
+    def __getitem__(self, item: str) -> Optional[_ConfigValueType]:
         if item not in self._loaded_values:
             raise AttributeError(f"{item} not configured yet.")
         return self._loaded_values[item]
 
     def _reset_item(self, item: str) -> None:
         if item in self._loaded_values:
-            if item.endswith("_endpoint_url") or item == "verify":
-                self._loaded_values[item] = None
+            if _CONFIG_ARGS[item].loaded:
+                self._loaded_values[item] = _CONFIG_ARGS[item].default
             else:
                 del self._loaded_values[item]
         self._load_config(name=item)
@@ -172,9 +179,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return self.to_pandas().to_html()
 
     @staticmethod
-    def _apply_type(
-        name: str, value: Any, dtype: Type[Union[str, bool, int, float]], nullable: bool
-    ) -> _ConfigValueType:
+    def _apply_type(name: str, value: Any, dtype: Type[_ConfigValueType], nullable: bool) -> Optional[_ConfigValueType]:
         if _Config._is_null(value=value):
             if nullable is True:
                 return None
@@ -187,7 +192,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.") from ex
 
     @staticmethod
-    def _is_null(value: _ConfigValueType) -> bool:
+    def _is_null(value: Optional[_ConfigValueType]) -> bool:
         if value is None:
             return True
         if isinstance(value, str) is True:
@@ -332,6 +337,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @chunksize.setter
     def chunksize(self, value: int) -> None:
         self._set_config_value(key="chunksize", value=value)
+
+    @property
+    def suppress_warnings(self) -> bool:
+        """Property suppress_warnings."""
+        return cast(bool, self["suppress_warnings"])
+
+    @suppress_warnings.setter
+    def suppress_warnings(self, value: bool) -> None:
+        self._set_config_value(key="suppress_warnings", value=value)
 
     @property
     def s3_endpoint_url(self) -> Optional[str]:

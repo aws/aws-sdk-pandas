@@ -8,14 +8,14 @@ import awswrangler as wr
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-def test_cluster(bucket, cloudformation_outputs):
+def test_cluster(bucket, cloudformation_outputs, emr_security_configuration):
     steps = []
     for cmd in ['echo "Hello"', "ls -la"]:
         steps.append(wr.emr.build_step(name=cmd, command=cmd))
     cluster_id = wr.emr.create_cluster(
         cluster_name="wrangler_cluster",
         logging_s3_path=f"s3://{bucket}/emr-logs/",
-        emr_release="emr-5.29.0",
+        emr_release="emr-6.7.0",
         subnet_id=cloudformation_outputs["PublicSubnet1"],
         emr_ec2_role="EMR_EC2_DefaultRole",
         emr_role="EMR_DefaultRole",
@@ -52,6 +52,7 @@ def test_cluster(bucket, cloudformation_outputs):
         key_pair_name=None,
         spark_pyarrow=True,
         steps=steps,
+        security_configuration=emr_security_configuration,
     )
     time.sleep(10)
     cluster_state = wr.emr.get_cluster_state(cluster_id=cluster_id)
@@ -66,11 +67,11 @@ def test_cluster(bucket, cloudformation_outputs):
     wr.s3.delete_objects(f"s3://{bucket}/emr-logs/")
 
 
-def test_cluster_single_node(bucket, cloudformation_outputs):
+def test_cluster_single_node(bucket, cloudformation_outputs, emr_security_configuration):
     cluster_id = wr.emr.create_cluster(
         cluster_name="wrangler_cluster",
         logging_s3_path=f"s3://{bucket}/emr-logs/",
-        emr_release="emr-5.29.0",
+        emr_release="emr-6.7.0",
         subnet_id=cloudformation_outputs["PublicSubnet1"],
         emr_ec2_role="EMR_EC2_DefaultRole",
         emr_role="EMR_DefaultRole",
@@ -115,6 +116,7 @@ def test_cluster_single_node(bucket, cloudformation_outputs):
         keep_cluster_alive_when_no_steps=False,
         termination_protected=False,
         spark_pyarrow=False,
+        security_configuration=emr_security_configuration,
         tags={"foo": "boo", "bar": "xoo"},
     )
     time.sleep(10)
@@ -136,7 +138,7 @@ def test_default_logging_path(cloudformation_outputs):
         wr.emr._get_default_logging_path()
 
 
-def test_docker(bucket, cloudformation_outputs):
+def test_docker(bucket, cloudformation_outputs, emr_security_configuration):
     cluster_id = wr.emr.create_cluster(
         subnet_id=cloudformation_outputs["PublicSubnet1"],
         docker=True,
@@ -151,6 +153,7 @@ def test_docker(bucket, cloudformation_outputs):
             }
         ],
         steps=[wr.emr.build_step("spark-submit --deploy-mode cluster s3://bucket/emr.py")],
+        security_configuration=emr_security_configuration,
     )
     wr.emr.submit_ecr_credentials_refresh(cluster_id, path=f"s3://{bucket}/emr/")
     wr.emr.submit_steps(
