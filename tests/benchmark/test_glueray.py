@@ -5,6 +5,8 @@ from typing import Any, Dict, Iterable
 import boto3
 import pytest
 
+from .._utils import ExecutionTimer
+
 
 @pytest.fixture(scope="session")
 def wrangler_zip_location(cloudformation_outputs: Dict[str, str]) -> str:
@@ -21,7 +23,7 @@ def glue_ray_athena_workgroup_name(cloudformation_outputs: Dict[str, str]) -> st
     return cloudformation_outputs["GlueRayAthenaWorkgroupName"]
 
 
-@pytest.fixture(scope="function", params=["glue_example_1"])
+@pytest.fixture(scope="function")
 def glue_job(
     request: Any,
     path: str,
@@ -85,7 +87,8 @@ def run_glue_job_get_status(job_name: str, arguments: Dict[str, str] = {}) -> st
 
 
 @pytest.mark.timeout(300)
-def test_glue_job(path: str, glue_table: str, glue_database: str, glue_job: str) -> None:
+@pytest.mark.parametrize("glue_job", ["wrangler_blog_simple"], indirect=True)
+def test_blog_simple(path: str, glue_table: str, glue_database: str, glue_job: str) -> None:
     state = run_glue_job_get_status(
         job_name=glue_job,
         arguments={
@@ -94,4 +97,15 @@ def test_glue_job(path: str, glue_table: str, glue_database: str, glue_job: str)
             "--glue-table": glue_table,
         },
     )
+    assert state == "SUCCEEDED"
+
+
+@pytest.mark.timeout(600)
+@pytest.mark.parametrize("glue_job", ["ray_read_txt", "wrangler_read_txt"], indirect=True)
+def test_read_benchmark(data_gen_bucket: str, glue_job: str, request: pytest.FixtureRequest) -> None:
+    with ExecutionTimer(request):
+        state = run_glue_job_get_status(
+            job_name=glue_job,
+            arguments={"--data-gen-bucket": data_gen_bucket},
+        )
     assert state == "SUCCEEDED"
