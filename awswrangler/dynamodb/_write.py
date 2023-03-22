@@ -128,7 +128,8 @@ def _put_df(
 ) -> None:
     items: List[Mapping[str, Any]] = [v.dropna().to_dict() for _, v in df.iterrows()]
 
-    _put_items(items=items, table_name=table_name, boto3_session=boto3_session)
+    put_items_func = engine.dispatch_func(_put_items, "python")
+    put_items_func(items=items, table_name=table_name, boto3_session=boto3_session)
 
 
 @apply_configs
