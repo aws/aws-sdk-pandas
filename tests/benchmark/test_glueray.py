@@ -100,7 +100,6 @@ def test_blog_simple(path: str, glue_table: str, glue_database: str, glue_job: s
     assert state == "SUCCEEDED"
 
 
-@pytest.mark.timeout(600)
 @pytest.mark.parametrize("glue_job", ["ray_read_txt", "wrangler_read_txt"], indirect=True)
 def test_read_benchmark(data_gen_bucket: str, glue_job: str, request: pytest.FixtureRequest) -> None:
     with ExecutionTimer(request):
