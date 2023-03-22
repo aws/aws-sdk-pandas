@@ -127,6 +127,10 @@ inspections_documents = [
 ]
 
 
+def _get_unique_suffix() -> str:
+    return str(uuid.uuid4())[:8]
+
+
 @pytest.fixture(scope="session")
 def cloudformation_outputs():
     return extract_cloudformation_outputs()
@@ -249,7 +253,7 @@ def client(request, opensearch_1_0_client, elasticsearch_7_10_fgac_client, opens
 
 
 def test_create_index(client):
-    index = "test_create_index"
+    index = f"test_create_index_{_get_unique_suffix()}"
     wr.opensearch.delete_index(client, index)
     time.sleep(30)  # let the cluster clean up
     response = wr.opensearch.create_index(
@@ -259,56 +263,65 @@ def test_create_index(client):
         settings={"index": {"number_of_shards": 1, "number_of_replicas": 1}},
     )
     assert response.get("acknowledged", False) is True
+    wr.opensearch.delete_index(client, index)
 
 
 def test_delete_index(client):
-    index = "test_delete_index"
+    index = f"test_create_index_{_get_unique_suffix()}"
     wr.opensearch.create_index(client, index=index)
     response = wr.opensearch.delete_index(client, index=index)
     assert response.get("acknowledged", False) is True
 
 
 def test_index_df(client):
+    index = f"test_index_df_{_get_unique_suffix()}"
     response = wr.opensearch.index_df(
         client,
         df=pd.DataFrame([{"_id": "1", "name": "John"}, {"_id": "2", "name": "George"}, {"_id": "3", "name": "Julia"}]),
-        index="test_index_df1",
+        index=index,
     )
     assert response.get("success", 0) == 3
+    wr.opensearch.delete_index(client, index)
 
 
 def test_index_df_with_array(client):
+    index = f"test_index_df_array_{_get_unique_suffix()}"
     response = wr.opensearch.index_df(
         client,
         df=pd.DataFrame(
             [{"_id": "1", "name": "John", "tags": ["foo", "bar"]}, {"_id": "2", "name": "George", "tags": ["foo"]}]
         ),
-        index="test_index_df1",
+        index=index,
     )
     assert response.get("success", 0) == 2
+    wr.opensearch.delete_index(client, index)
 
 
 def test_index_documents(client):
+    index = f"test_index_documents_{_get_unique_suffix()}"
     response = wr.opensearch.index_documents(
         client,
         documents=[{"_id": "1", "name": "John"}, {"_id": "2", "name": "George"}, {"_id": "3", "name": "Julia"}],
-        index="test_index_documents1",
+        index=index,
     )
     assert response.get("success", 0) == 3
+    wr.opensearch.delete_index(client, index)
 
 
 def test_index_documents_id_keys(client):
-    wr.opensearch.index_documents(
-        client, documents=inspections_documents, index="test_index_documents_id_keys", id_keys=["inspection_id"]
-    )
+    index = f"test_index_documents_id_keys_{_get_unique_suffix()}"
+    wr.opensearch.index_documents(client, documents=inspections_documents, index=index, id_keys=["inspection_id"])
+    wr.opensearch.delete_index(client, index)
 
 
 def test_index_documents_no_id_keys(client):
-    wr.opensearch.index_documents(client, documents=inspections_documents, index="test_index_documents_no_id_keys")
+    index = f"test_index_documents_no_id_keys_{_get_unique_suffix()}"
+    wr.opensearch.index_documents(client, documents=inspections_documents, index=index)
+    wr.opensearch.delete_index(client, index)
 
 
 def test_search(client):
-    index = "test_search"
+    index = f"test_search_{_get_unique_suffix()}"
     kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
     wr.opensearch.index_documents(
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
@@ -330,11 +343,12 @@ def test_search(client):
         search_body={"query": {"match": {"business_name": "message"}}},
     )
     assert df.shape == (0, 0)
+    wr.opensearch.delete_index(client, index)
 
 
 @pytest.mark.parametrize("filter_path", [None, "hits.hits._source", ["hits.hits._source"]])
 def test_search_filter_path(client, filter_path):
-    index = "test_search"
+    index = f"test_search_filter_{_get_unique_suffix()}"
     kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
     wr.opensearch.index_documents(
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
@@ -351,11 +365,12 @@ def test_search_filter_path(client, filter_path):
         filter_path=filter_path,
     )
     assert df.shape[0] == 3
+    wr.opensearch.delete_index(client, index)
 
 
 @pytest.mark.xfail(raises=wr.exceptions.NotSupported, reason="Scroll not available for OpenSearch Serverless.")
 def test_search_scroll(client):
-    index = "test_search_scroll"
+    index = f"test_search_scroll_{_get_unique_suffix()}"
     kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
     wr.opensearch.index_documents(
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
@@ -364,13 +379,14 @@ def test_search_scroll(client):
         client, index=index, is_scroll=True, _source=["inspection_id", "business_name", "business_location"]
     )
     assert df.shape[0] == 5
+    wr.opensearch.delete_index(client, index)
 
 
 @pytest.mark.xfail(raises=wr.exceptions.NotSupported, reason="SQL plugin not available for OpenSearch Serverless.")
 @pytest.mark.parametrize("fetch_size", [None, 1000, 10000])
 @pytest.mark.parametrize("fetch_size_param_name", ["size", "fetch_size"])
 def test_search_sql(client, fetch_size, fetch_size_param_name):
-    index = "test_search_sql"
+    index = f"test_search_sql_{_get_unique_suffix()}"
     kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
     wr.opensearch.index_documents(
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
@@ -378,18 +394,22 @@ def test_search_sql(client, fetch_size, fetch_size_param_name):
     search_kwargs = {fetch_size_param_name: fetch_size} if fetch_size else {}
     df = wr.opensearch.search_by_sql(client, sql_query=f"select * from {index}", **search_kwargs)
     assert df.shape[0] == 5
+    wr.opensearch.delete_index(client, index)
 
 
 def test_index_json_local(client):
+    index = f"test_index_json_local_{_get_unique_suffix()}"
     file_path = f"{tempfile.gettempdir()}/inspections.json"
     with open(file_path, "w") as filehandle:
         for doc in inspections_documents:
             filehandle.write("%s\n" % json.dumps(doc))
-    response = wr.opensearch.index_json(client, index="test_index_json_local", path=file_path)
+    response = wr.opensearch.index_json(client, index=index, path=file_path)
     assert response.get("success", 0) == 6
+    wr.opensearch.delete_index(client, index)
 
 
 def test_index_json_s3(client, path):
+    index = f"test_index_json_s3_{_get_unique_suffix()}"
     file_path = f"{tempfile.gettempdir()}/inspections.json"
     with open(file_path, "w") as filehandle:
         for doc in inspections_documents:
@@ -398,22 +418,24 @@ def test_index_json_s3(client, path):
     path = f"{path}opensearch/inspections.json"
     bucket, key = wr._utils.parse_path(path)
     s3.upload_file(file_path, bucket, key)
-    response = wr.opensearch.index_json(client, index="test_index_json_s3", path=path)
+    response = wr.opensearch.index_json(client, index=index, path=path)
     assert response.get("success", 0) == 6
+    wr.opensearch.delete_index(client, index)
 
 
 def test_index_csv_local(client):
     file_path = f"{tempfile.gettempdir()}/inspections.csv"
-    index = "test_index_csv_local"
+    index = f"test_index_csv_local_{_get_unique_suffix()}"
     df = pd.DataFrame(inspections_documents)
     df.to_csv(file_path, index=False)
     response = wr.opensearch.index_csv(client, path=file_path, index=index)
     assert response.get("success", 0) == 6
+    wr.opensearch.delete_index(client, index)
 
 
 def test_index_csv_s3(client, path):
     file_path = f"{tempfile.gettempdir()}/inspections.csv"
-    index = "test_index_csv_s3"
+    index = f"test_index_csv_s3_{_get_unique_suffix()}"
     df = pd.DataFrame(inspections_documents)
     df.to_csv(file_path, index=False)
     s3 = boto3.client("s3")
@@ -422,19 +444,23 @@ def test_index_csv_s3(client, path):
     s3.upload_file(file_path, bucket, key)
     response = wr.opensearch.index_csv(client, path=path, index=index)
     assert response.get("success", 0) == 6
+    wr.opensearch.delete_index(client, index)
 
 
 @pytest.mark.skip(reason="takes a long time (~5 mins) since testing against small clusters")
 def test_index_json_s3_large_file(client):
+    index = f"test_index_json_s3_large_file_{_get_unique_suffix()}"
     path = "s3://irs-form-990/index_2011.json"
     response = wr.opensearch.index_json(
-        client, index="test_index_json_s3_large_file", path=path, json_path="Filings2011", id_keys=["EIN"], bulk_size=20
+        client, index=index, path=path, json_path="Filings2011", id_keys=["EIN"], bulk_size=20
     )
     assert response.get("success", 0) > 0
+    wr.opensearch.delete_index(client, index)
 
 
+@pytest.mark.skip(reason="Temporary skip until collection cleanup issue is resolved")
 def test_opensearch_serverless_create_collection(opensearch_serverless_client) -> None:
-    collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
+    collection_name: str = f"col-{_get_unique_suffix()}"
     client = boto3.client(service_name="opensearchserverless")
 
     collection: Dict[str, Any] = wr.opensearch.create_collection(
