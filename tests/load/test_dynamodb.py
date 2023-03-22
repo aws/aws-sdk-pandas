@@ -29,9 +29,8 @@ def _fill_dynamodb_table(table_name: str, num_objects: int) -> None:
             writer.put_item(Item=item)
 
 
-@pytest.fixture(scope="function")
-def big_modin_df(num_blocks: int) -> pd.DataFrame:
-    pandas_refs = ray.data.range_table(100_000).to_pandas_refs()
+def create_big_modin_df(table_size: int, num_blocks: int) -> pd.DataFrame:
+    pandas_refs = ray.data.range_table(table_size).to_pandas_refs()
     dataset = ray.data.from_pandas_refs(pandas_refs).repartition(num_blocks=num_blocks)
 
     frame = dataset.to_modin()
@@ -82,10 +81,10 @@ def test_dynamodb_write(
     params: Dict[str, Any],
     num_blocks: int,
     dynamodb_table: str,
-    big_modin_df: pd.DataFrame,
     request: pytest.FixtureRequest,
 ) -> None:
     benchmark_time = 30
+    big_modin_df = create_big_modin_df(100_000, num_blocks)
 
     with ExecutionTimer(request) as timer:
         wr.dynamodb.put_df(df=big_modin_df, table_name=dynamodb_table)
