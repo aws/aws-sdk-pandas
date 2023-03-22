@@ -76,7 +76,7 @@ def test_dynamodb_read(params: Dict[str, Any], dynamodb_table: str, request: pyt
         }
     ],
 )
-@pytest.mark.parametrize("num_blocks", [4, 8, 16])
+@pytest.mark.parametrize("num_blocks", [1, 2, 4, 8])
 def test_dynamodb_write(
     params: Dict[str, Any],
     num_blocks: int,
