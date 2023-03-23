@@ -91,5 +91,5 @@ def test_dynamodb_write(
 
     assert timer.elapsed_time < benchmark_time
 
-    df_out = wr.dynamodb.read_items(dynamodb_table)
+    df_out = wr.dynamodb.read_items(dynamodb_table, allow_full_scan=True)
     assert len(df_out) == len(big_modin_df)
