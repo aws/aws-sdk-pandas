@@ -99,6 +99,7 @@ pytest-cov = "^4.0"
 pytest-rerunfailures = "^10.0"
 pytest-timeout = "^2.1.0"
 pytest-xdist = "^3.0"
+pytest-forked = "^1.6.0"
 s3fs = "0.4.2"  # Must be pinned to 0.4.2
 tox = "^3.25.1"
 
