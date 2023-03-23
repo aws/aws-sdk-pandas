@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import boto3
 import modin.pandas as pd
@@ -29,9 +29,12 @@ def _fill_dynamodb_table(table_name: str, num_objects: int) -> None:
             writer.put_item(Item=item)
 
 
-def create_big_modin_df(table_size: int, num_blocks: int) -> pd.DataFrame:
+def create_big_modin_df(table_size: int, num_blocks: Optional[int]) -> pd.DataFrame:
     pandas_refs = ray.data.range_table(table_size).to_pandas_refs()
-    dataset = ray.data.from_pandas_refs(pandas_refs).repartition(num_blocks=num_blocks)
+    dataset = ray.data.from_pandas_refs(pandas_refs)
+    
+    if num_blocks:
+        dataset = dataset.repartition(num_blocks=num_blocks)
 
     frame = dataset.to_modin()
     frame["foo"] = frame.value * 2
@@ -76,7 +79,7 @@ def test_dynamodb_read(params: Dict[str, Any], dynamodb_table: str, request: pyt
         }
     ],
 )
-@pytest.mark.parametrize("num_blocks", [1, 2, 3, 4, 8])
+@pytest.mark.parametrize("num_blocks", [2, 4, 8, None])
 def test_dynamodb_write(
     params: Dict[str, Any],
     num_blocks: int,

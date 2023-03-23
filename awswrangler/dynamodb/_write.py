@@ -171,8 +171,10 @@ def put_df(
     """
     _logger.debug("Inserting data frame into DynamoDB table")
 
-    executor = _get_executor(use_threads=use_threads)
-    dfs = _utils.split_pandas_frame(df, _utils.ensure_cpu_count(use_threads=use_threads))
+    concurrency = _utils.ensure_worker_or_thread_count(use_threads=use_threads)
+    executor = _get_executor(use_threads=use_threads, parallelism=concurrency)
+
+    dfs = _utils.split_pandas_frame(df, concurrency)
 
     ray_get(
         executor.map(
@@ -238,7 +240,7 @@ def put_items(
     executor = _get_executor(use_threads=use_threads)
     batches = _utils.chunkify(  # type: ignore[misc]
         items,
-        num_chunks=_utils.ensure_cpu_count(use_threads=use_threads),
+        num_chunks=_utils.ensure_worker_or_thread_count(use_threads=use_threads),
     )
 
     ray_get(

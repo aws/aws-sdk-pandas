@@ -53,5 +53,5 @@ class _ThreadPoolExecutor(_BaseExecutor):
 
 
 @engine.dispatch_on_engine
-def _get_executor(use_threads: Union[bool, int]) -> _BaseExecutor:
+def _get_executor(use_threads: Union[bool, int], **kwargs: Any) -> _BaseExecutor:
     return _ThreadPoolExecutor(use_threads)
