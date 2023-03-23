@@ -701,8 +701,8 @@ def create_database(
         r = client_glue.get_database(**_catalog_id(catalog_id=catalog_id, Name=name))
         if not exist_ok:
             raise exceptions.AlreadyExists(f"Database {name} already exists and <exist_ok> is set to False.")
-        for arg in args:
-            if args[arg] != r["Database"].get(arg, ""):
+        for k, v in args.items():
+            if v != r["Database"].get(k, ""):
                 client_glue.update_database(**_catalog_id(catalog_id=catalog_id, Name=name, DatabaseInput=args))
                 break
     except client_glue.exceptions.EntityNotFoundException:
