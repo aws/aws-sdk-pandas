@@ -1,6 +1,5 @@
 import logging
 
-import botocore
 import pytest
 
 import awswrangler as wr

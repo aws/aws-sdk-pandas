@@ -3,10 +3,10 @@
 # pylint: disable=import-outside-toplevel
 
 import importlib.util
-from importlib import reload
 from collections import defaultdict
 from enum import Enum, unique
 from functools import wraps
+from importlib import reload
 from typing import Any, Callable, Dict, Optional, TypeVar
 
 

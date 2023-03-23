@@ -72,8 +72,8 @@ def test_engine_python_without_ray_installed(wr: ModuleType) -> None:
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
 def test_engine_switch(wr: ModuleType) -> None:
-    from pandas import DataFrame as PandasDataFrame
     from modin.pandas import DataFrame as ModinDataFrame
+    from pandas import DataFrame as PandasDataFrame
 
     from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 

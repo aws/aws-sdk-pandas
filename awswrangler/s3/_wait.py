@@ -22,7 +22,7 @@ def _wait_object(waiter, path: str, delay: int, max_attempts: int) -> None:
     bucket, key = _utils.parse_path(path=path)
     try:
         waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
-    except botocore.exceptions.WaiterError as e:
+    except botocore.exceptions.WaiterError:
         raise exceptions.NoFilesFound(f"No files found: {key}.")
 
 

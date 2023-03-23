@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 import pytest
 
-import awswrangler as wr
 import awswrangler.pandas as pd
 
 from .._utils import ensure_athena_query_metadata
