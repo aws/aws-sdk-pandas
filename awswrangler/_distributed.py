@@ -3,6 +3,7 @@
 # pylint: disable=import-outside-toplevel
 
 import importlib.util
+from importlib import reload
 from collections import defaultdict
 from enum import Enum, unique
 from functools import wraps
@@ -164,6 +165,15 @@ class MemoryFormat:
     def set(cls, name: str) -> None:
         """Set the memory format."""
         cls._enum = MemoryFormatEnum._member_map_[name.upper()]  # pylint: disable=protected-access,no-member
+
+        _reload()
+
+
+def _reload():
+    """Reload Pandas proxy module."""
+    import awswrangler.pandas
+
+    reload(awswrangler.pandas)
 
 
 engine: Engine = Engine()
