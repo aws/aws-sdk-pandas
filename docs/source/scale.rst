@@ -98,6 +98,28 @@ Supported APIs
 | `Timestream`    | `write`                  |       ✅       |
 +-----------------+--------------------------+----------------+
 
+Caveats
+--------------------------
+
+S3FS Filesystem
+^^^^^^^^^^^^^^
+
+When running in a Ray cluster, for certain operations that are known
+to be slow, AWS SDK for pandas is using `S3Fs <https://s3fs.readthedocs.io/en/latest/>`_.
+to optimize performanc. As a side effect, in those cases users will
+not be able to use `s3_additional_kwargs` parameter because it is not
+currently supported by S3Fs.
+
+Unsupported kwargs
+^^^^^^^^^^^^^^
+
+Most AWS SDK for pandas calls support passing `boto3_session` argument.
+While it is acceptable for an application running in a single process,
+distributed application would require to serialize the session and
+pass it to the nodes of the cluster which imposes a security risk.
+Due to that, passing `boto3_session` when running in a Ray cluster
+is not supported.
+
 Resources
 --------------------------
 
