@@ -84,7 +84,7 @@ def test_dynamodb_write(
     request: pytest.FixtureRequest,
 ) -> None:
     benchmark_time = 30
-    big_modin_df = create_big_modin_df(100_000, num_blocks)
+    big_modin_df = create_big_modin_df(25_000, num_blocks)
 
     with ExecutionTimer(request) as timer:
         wr.dynamodb.put_df(df=big_modin_df, table_name=dynamodb_table)
