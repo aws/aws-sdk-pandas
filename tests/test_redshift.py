@@ -1198,3 +1198,33 @@ def test_copy_upsert_with_column_names(path, redshift_table, redshift_con, datab
     )
     assert len(df.index) + len(df3.index) == len(df4.index)
     assert len(df.columns) == len(df4.columns)
+
+
+def test_to_sql_with_identity_column(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
+    schema = "public"
+    with redshift_con.cursor() as cursor:
+        cursor.execute(
+            f"""
+            CREATE TABLE {schema}.{redshift_table} (
+                id BIGINT IDENTITY(1, 1),
+                foo VARCHAR(100),
+                PRIMARY KEY(id)
+            );
+            """
+        )
+
+    df = pd.DataFrame({"foo": ["a", "b", "c"]})
+    wr.redshift.to_sql(
+        df=df,
+        con=redshift_con,
+        table=redshift_table,
+        schema=schema,
+        use_column_names=True,
+        mode="append",
+    )
+
+    df_out = wr.redshift.read_sql_table(redshift_table, redshift_con)
+
+    assert len(df_out) == len(df)
+    assert df_out["id"].to_list() == list(range(1, len(df) + 1))
+    assert df_out["foo"].to_list() == df["foo"].to_list()
