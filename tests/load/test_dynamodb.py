@@ -76,7 +76,7 @@ def test_dynamodb_read(params: Dict[str, Any], dynamodb_table: str, request: pyt
         }
     ],
 )
-@pytest.mark.parametrize("num_blocks", [1, 2, 4, 8])
+@pytest.mark.parametrize("num_blocks", [1, 2, 3, 4, 8])
 def test_dynamodb_write(
     params: Dict[str, Any],
     num_blocks: int,
@@ -90,3 +90,6 @@ def test_dynamodb_write(
         wr.dynamodb.put_df(df=big_modin_df, table_name=dynamodb_table)
 
     assert timer.elapsed_time < benchmark_time
+
+    df_out = wr.dynamodb.read_items(dynamodb_table)
+    assert len(df_out) == len(big_modin_df)
