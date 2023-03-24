@@ -36,7 +36,7 @@ class _RayPoolExecutor(_BaseExecutor):
     def __init__(self, processes: int) -> None:
         super().__init__()
 
-        self._actor: ray.actor.ActorHandle = AsyncActor.options(max_concurrency=processes).remote()
+        self._actor: ray.actor.ActorHandle = AsyncActor.options(max_concurrency=processes).remote()  # type: ignore[attr-defined]
 
     def map(self, func: Callable[..., MapOutputType], _: Optional["BaseClient"], *args: Any) -> List[MapOutputType]:
         """Map func and return ray futures."""
