@@ -32,11 +32,11 @@ class AsyncActor:
         return func(*args)
 
 
-class _RayPoolExecutor(_BaseExecutor):
-    def __init__(self, processes: int) -> None:
+class _RayMaxConcurrencyExecutor(_BaseExecutor):
+    def __init__(self, max_concurrency: int) -> None:
         super().__init__()
 
-        self._actor: ray.actor.ActorHandle = AsyncActor.options(max_concurrency=processes).remote()  # type: ignore[attr-defined]
+        self._actor: ray.actor.ActorHandle = AsyncActor.options(max_concurrency=max_concurrency).remote()  # type: ignore[attr-defined]
 
     def map(self, func: Callable[..., MapOutputType], _: Optional["BaseClient"], *args: Any) -> List[MapOutputType]:
         """Map func and return ray futures."""
@@ -51,4 +51,4 @@ class _RayPoolExecutor(_BaseExecutor):
 
 def _get_ray_executor(use_threads: Union[bool, int], **kwargs: Any) -> _BaseExecutor:  # pylint: disable=unused-argument
     parallelism: Optional[int] = kwargs.get("parallelism")
-    return _RayPoolExecutor(parallelism) if parallelism else _RayExecutor()
+    return _RayMaxConcurrencyExecutor(parallelism) if parallelism else _RayExecutor()
