@@ -1,6 +1,5 @@
 """Amazon Oracle Database Module."""
 
-import base64
 import importlib.util
 import inspect
 import logging
@@ -457,14 +456,5 @@ def handle_oracle_objects(
             col_values = [
                 Decimal(repr(col_value)) if isinstance(col_value, float) else col_value for col_value in col_values
             ]
-
-        # A user may wish to represent Oracle blob binary data as plain text - if so base64 encode bytes
-        # This intent can be inferred should dtype be string and col_value binary.
-        if dtype[col_name] == pa.string() or dtype[col_name] == pa.large_string():
-            if any(isinstance(col_value, bytes) for col_value in col_values):
-                col_values = [
-                    base64.b64encode(col_value) if isinstance(col_value, bytes) else col_value
-                    for col_value in col_values
-                ]
 
     return col_values
