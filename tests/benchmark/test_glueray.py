@@ -56,7 +56,7 @@ def glue_job(
         },
         DefaultArguments={
             "--additional-python-modules": wrangler_zip_location,
-            "--auto-scaling-ray-min-workers": "5",
+            "--auto-scaling-ray-min-workers": "2",
         },
         GlueVersion="4.0",
         WorkerType="Z.2X",
@@ -68,10 +68,15 @@ def glue_job(
     glue_client.delete_job(JobName=glue_job_name)
 
 
-def run_glue_job_get_status(job_name: str, arguments: Dict[str, str] = {}) -> str:
+def run_glue_job_get_status(job_name: str, arguments: Dict[str, str] = {}, num_workers: int = 2) -> str:
     session = boto3.session.Session()
     glue_client = session.client("glue")
-    job_run_id = glue_client.start_job_run(JobName=job_name, Arguments=arguments)
+    job_run_id = glue_client.start_job_run(
+        JobName=job_name,
+        Arguments=arguments,
+        NumberOfWorkers=num_workers,
+        WorkerType="Z.2X",
+    )
 
     while True:
         status_detail = glue_client.get_job_run(JobName=job_name, RunId=job_run_id.get("JobRunId"))
@@ -110,6 +115,10 @@ def test_read_benchmark(data_gen_bucket: str, glue_job: str, request: pytest.Fix
     with ExecutionTimer(request):
         state = run_glue_job_get_status(
             job_name=glue_job,
-            arguments={"--data-gen-bucket": data_gen_bucket},
+            arguments={
+                "--data-gen-bucket": data_gen_bucket,
+                "--auto-scaling-ray-min-workers": "10",
+            },
+            num_workers=10,
         )
     assert state == "SUCCEEDED"
