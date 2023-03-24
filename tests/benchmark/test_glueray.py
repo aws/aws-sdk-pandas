@@ -29,7 +29,6 @@ def glue_job(
     path: str,
     wrangler_zip_location: str,
     glue_job_role_arn: str,
-    glue_ray_athena_workgroup_name: str,
 ) -> Iterable[str]:
     glue_script_name = request.param
     session = boto3.session.Session()
@@ -58,7 +57,6 @@ def glue_job(
         DefaultArguments={
             "--additional-python-modules": wrangler_zip_location,
             "--auto-scaling-ray-min-workers": "5",
-            "--athena-workgroup": glue_ray_athena_workgroup_name,
         },
         GlueVersion="4.0",
         WorkerType="Z.2X",
@@ -88,13 +86,20 @@ def run_glue_job_get_status(job_name: str, arguments: Dict[str, str] = {}) -> st
 
 @pytest.mark.timeout(300)
 @pytest.mark.parametrize("glue_job", ["wrangler_blog_simple"], indirect=True)
-def test_blog_simple(path: str, glue_table: str, glue_database: str, glue_job: str) -> None:
+def test_blog_simple(
+    path: str,
+    glue_table: str,
+    glue_database: str,
+    glue_ray_athena_workgroup_name: str,
+    glue_job: str,
+) -> None:
     state = run_glue_job_get_status(
         job_name=glue_job,
         arguments={
             "--output-path": path,
             "--glue-database": glue_database,
             "--glue-table": glue_table,
+            "--athena-workgroup": glue_ray_athena_workgroup_name,
         },
     )
     assert state == "SUCCEEDED"
