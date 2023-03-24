@@ -5,6 +5,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, TypeVar, Union
 
 import ray
+import ray.actor
 
 from awswrangler import engine
 from awswrangler._executor import _BaseExecutor
@@ -27,15 +28,15 @@ class _RayExecutor(_BaseExecutor):
 
 @ray.remote
 class AsyncActor:
-    async def apply_async(self, func: Callable[..., MapOutputType], *args: Any) -> MapOutputType:
-        return await func(*args)
+    async def run_concurrent(self, func: Callable[..., MapOutputType], *args: Any) -> MapOutputType:
+        return func(*args)
 
 
 class _RayPoolExecutor(_BaseExecutor):
     def __init__(self, processes: int) -> None:
         super().__init__()
 
-        self._actor = AsyncActor.options(max_concurrency=processes).remote()
+        self._actor: ray.actor.ActorHandle = AsyncActor.options(max_concurrency=processes).remote()
 
     def map(self, func: Callable[..., MapOutputType], _: Optional["BaseClient"], *args: Any) -> List[MapOutputType]:
         """Map func and return ray futures."""
@@ -45,7 +46,7 @@ class _RayPoolExecutor(_BaseExecutor):
         iterables = (itertools.repeat(None), *args)
         func_python = engine.dispatch_func(func, "python")
 
-        return list(self._actor.apply_async.remote(func_python, *arg) for arg in iterables)
+        return [self._actor.run_concurrent.remote(func_python, *arg) for arg in zip(*iterables)]
 
 
 def _get_ray_executor(use_threads: Union[bool, int], **kwargs: Any) -> _BaseExecutor:  # pylint: disable=unused-argument

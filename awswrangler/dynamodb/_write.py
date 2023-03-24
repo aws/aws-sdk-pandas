@@ -120,6 +120,7 @@ def put_csv(
     put_df(df=df, table_name=table_name, boto3_session=boto3_session, use_threads=use_threads)
 
 
+@engine.dispatch_on_engine
 def _put_df(
     boto3_session: Optional[boto3.Session],
     df: pd.DataFrame,
