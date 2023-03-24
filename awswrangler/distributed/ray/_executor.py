@@ -28,7 +28,7 @@ class _RayExecutor(_BaseExecutor):
 @ray.remote
 class AsyncActor:
     async def apply_async(self, func: Callable[..., MapOutputType], *args: Any) -> MapOutputType:
-        return func(*args)
+        return await func(*args)
 
 
 class _RayPoolExecutor(_BaseExecutor):
