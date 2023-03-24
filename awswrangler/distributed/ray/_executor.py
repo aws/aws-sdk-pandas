@@ -4,7 +4,7 @@ import itertools
 import logging
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, TypeVar, Union
 
-from ray.util.multiprocessing.pool import Pool
+import ray
 
 from awswrangler import engine
 from awswrangler._executor import _BaseExecutor
@@ -23,22 +23,29 @@ class _RayExecutor(_BaseExecutor):
         _logger.debug("Ray map: %s", func)
         # Discard boto3 client
         return list(func(*arg) for arg in zip(itertools.repeat(None), *args))
-    
+
+
+@ray.remote
+class AsyncActor:
+    async def apply_async(self, func: Callable[..., MapOutputType], *args: Any) -> MapOutputType:
+        return func(*args)
+
 
 class _RayPoolExecutor(_BaseExecutor):
     def __init__(self, processes: int) -> None:
         super().__init__()
 
-        self._pool = Pool(processes=processes)
+        self._actor = AsyncActor.options(max_concurrency=processes).remote()
 
     def map(self, func: Callable[..., MapOutputType], _: Optional["BaseClient"], *args: Any) -> List[MapOutputType]:
         """Map func and return ray futures."""
         _logger.debug("Ray map: %s", func)
+
         # Discard boto3 client
         iterables = (itertools.repeat(None), *args)
-
         func_python = engine.dispatch_func(func, "python")
-        return list(self._pool.map_async(func_python, *iterables))
+
+        return list(self._actor.apply_async.remote(func_python, *arg) for arg in iterables)
 
 
 def _get_ray_executor(use_threads: Union[bool, int], **kwargs: Any) -> _BaseExecutor:  # pylint: disable=unused-argument
