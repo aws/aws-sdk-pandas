@@ -286,3 +286,13 @@ def test_athena_wait_delay_config_override(wr: ModuleType, glue_database: str) -
         mock_wait_query.assert_called_once()
 
         assert mock_wait_query.call_args[1]["athena_query_wait_polling_delay"] == polling_delay_argument
+
+
+@pytest.mark.parametrize("suppress_warnings", [False, True])
+def test_load_from_env_variable(wr: ModuleType, suppress_warnings: bool) -> None:
+    env_variable_value = "1" if suppress_warnings else ""
+
+    with patch.dict(os.environ, {"WR_SUPPRESS_WARNINGS": env_variable_value}):
+        wr.config.reset()
+
+        assert wr.config.suppress_warnings == suppress_warnings

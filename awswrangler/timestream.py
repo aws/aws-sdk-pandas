@@ -301,7 +301,7 @@ def write(
     common_attributes: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[Dict[str, str]]:
-    """Store a Pandas DataFrame into a Amazon Timestream table.
+    """Store a Pandas DataFrame into an Amazon Timestream table.
 
     Note
     ----
@@ -313,13 +313,7 @@ def write(
 
     Note
     ----
-    Values in `common_attributes` take precedence over all other arguments and data frame values.
-    Dimension attributes are merged with attributes in record objects.
-    Example: common_attributes = {"Dimensions": {"Name": "device_id", "Value": "12345"}, "MeasureValueType": "DOUBLE"}.
-
-    Note
-    ----
-    If the `time_col` column is supplied it must be of type timestamp. `TimeUnit` is set to MILLISECONDS by default.
+    If ``time_col`` column is supplied, it must be of type timestamp. ``TimeUnit`` is set to MILLISECONDS by default.
 
     Parameters
     ----------
@@ -346,10 +340,13 @@ def write(
         Name that represents the data attribute of the time series.
         Overrides ``measure_col`` if specified.
     common_attributes : Optional[Dict[str, Any]]
-        Dictionary of attributes that is shared across all records in the request.
+        Dictionary of attributes shared across all records in the request.
         Using common attributes can optimize the cost of writes by reducing the size of request payloads.
+        Values in ``common_attributes`` take precedence over all other arguments and data frame values.
+        Dimension attributes are merged with attributes in record objects.
+        Example: ``{"Dimensions": [{"Name": "device_id", "Value": "12345"}], "MeasureValueType": "DOUBLE"}``.
     boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+        Boto3 Session. If None, the default boto3 Session is used.
 
     Returns
     -------
