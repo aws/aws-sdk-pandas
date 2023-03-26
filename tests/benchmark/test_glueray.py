@@ -5,6 +5,8 @@ from typing import Any, Dict, Iterable
 import boto3
 import pytest
 
+from .._utils import ExecutionTimer
+
 
 @pytest.fixture(scope="session")
 def wrangler_zip_location(cloudformation_outputs: Dict[str, str]) -> str:
@@ -21,13 +23,12 @@ def glue_ray_athena_workgroup_name(cloudformation_outputs: Dict[str, str]) -> st
     return cloudformation_outputs["GlueRayAthenaWorkgroupName"]
 
 
-@pytest.fixture(scope="function", params=["glue_example_1"])
+@pytest.fixture(scope="function")
 def glue_job(
     request: Any,
     path: str,
     wrangler_zip_location: str,
     glue_job_role_arn: str,
-    glue_ray_athena_workgroup_name: str,
 ) -> Iterable[str]:
     glue_script_name = request.param
     session = boto3.session.Session()
@@ -55,8 +56,7 @@ def glue_job(
         },
         DefaultArguments={
             "--additional-python-modules": wrangler_zip_location,
-            "--auto-scaling-ray-min-workers": "5",
-            "--athena-workgroup": glue_ray_athena_workgroup_name,
+            "--auto-scaling-ray-min-workers": "2",
         },
         GlueVersion="4.0",
         WorkerType="Z.2X",
@@ -68,10 +68,15 @@ def glue_job(
     glue_client.delete_job(JobName=glue_job_name)
 
 
-def run_glue_job_get_status(job_name: str, arguments: Dict[str, str] = {}) -> str:
+def run_glue_job_get_status(job_name: str, arguments: Dict[str, str] = {}, num_workers: int = 2) -> str:
     session = boto3.session.Session()
     glue_client = session.client("glue")
-    job_run_id = glue_client.start_job_run(JobName=job_name, Arguments=arguments)
+    job_run_id = glue_client.start_job_run(
+        JobName=job_name,
+        Arguments=arguments,
+        NumberOfWorkers=num_workers,
+        WorkerType="Z.2X",
+    )
 
     while True:
         status_detail = glue_client.get_job_run(JobName=job_name, RunId=job_run_id.get("JobRunId"))
@@ -85,13 +90,35 @@ def run_glue_job_get_status(job_name: str, arguments: Dict[str, str] = {}) -> st
 
 
 @pytest.mark.timeout(300)
-def test_glue_job(path: str, glue_table: str, glue_database: str, glue_job: str) -> None:
+@pytest.mark.parametrize("glue_job", ["wrangler_blog_simple"], indirect=True)
+def test_blog_simple(
+    path: str,
+    glue_table: str,
+    glue_database: str,
+    glue_ray_athena_workgroup_name: str,
+    glue_job: str,
+) -> None:
     state = run_glue_job_get_status(
         job_name=glue_job,
         arguments={
             "--output-path": path,
             "--glue-database": glue_database,
             "--glue-table": glue_table,
+            "--athena-workgroup": glue_ray_athena_workgroup_name,
         },
     )
+    assert state == "SUCCEEDED"
+
+
+@pytest.mark.parametrize("glue_job", ["ray_read_parquet", "wrangler_read_parquet"], indirect=True)
+def test_read_benchmark(data_gen_bucket: str, glue_job: str, request: pytest.FixtureRequest) -> None:
+    with ExecutionTimer(request):
+        state = run_glue_job_get_status(
+            job_name=glue_job,
+            arguments={
+                "--data-gen-bucket": data_gen_bucket,
+                "--auto-scaling-ray-min-workers": "10",
+            },
+            num_workers=10,
+        )
     assert state == "SUCCEEDED"
