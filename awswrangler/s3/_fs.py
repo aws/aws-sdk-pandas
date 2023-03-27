@@ -43,7 +43,7 @@ def _snake_to_camel_case(s: str) -> str:
 def get_botocore_valid_kwargs(function_name: str, s3_additional_kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Filter and keep only the valid botocore key arguments."""
     s3_operation_model = _S3_SERVICE_MODEL.operation_model(_snake_to_camel_case(function_name))
-    allowed_kwargs = s3_operation_model.input_shape.members.keys()  # pylint: disable=E1101
+    allowed_kwargs = s3_operation_model.input_shape.members.keys()  # type: ignore[union-attr] # pylint: disable=E1101
     return {k: v for k, v in s3_additional_kwargs.items() if k in allowed_kwargs}
 
 

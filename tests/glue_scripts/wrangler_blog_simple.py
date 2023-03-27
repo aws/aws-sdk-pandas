@@ -39,3 +39,6 @@ df5_athena = wr.athena.read_sql_query(
     workgroup=workgroup_name,
     s3_output=f"{output_path}unload/{category}/",
 )
+
+# Delete table (required due to LF)
+wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
