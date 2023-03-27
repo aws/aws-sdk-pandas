@@ -184,7 +184,7 @@ def put_df(
     _logger.debug("Inserting data frame into DynamoDB table")
 
     concurrency = _utils.ensure_worker_or_thread_count(use_threads=use_threads)
-    executor = _get_executor(use_threads=use_threads, parallelism=concurrency)
+    executor = _get_executor(use_threads=use_threads, ray_parallelism=concurrency)
 
     dfs = _utils.split_pandas_frame(df, concurrency)
 

@@ -54,4 +54,6 @@ class _ThreadPoolExecutor(_BaseExecutor):
 
 @engine.dispatch_on_engine
 def _get_executor(use_threads: Union[bool, int], **kwargs: Any) -> _BaseExecutor:
+    # kwargs allows for parameter that will be used by other variants of this function,
+    # such as `parallelism` for _get_ray_executor
     return _ThreadPoolExecutor(use_threads)
