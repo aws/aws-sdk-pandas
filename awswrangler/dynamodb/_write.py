@@ -41,7 +41,7 @@ def put_json(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     use_threads : Union[bool, int]
-        Used for Parallel Scan requests. True (default) to enable concurrency, False to disable multiple threads.
+        Used for Parallel Write requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
 
@@ -88,7 +88,7 @@ def put_csv(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     use_threads : Union[bool, int]
-        Used for Parallel Scan requests. True (default) to enable concurrency, False to disable multiple threads.
+        Used for Parallel Write requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
     pandas_kwargs :
@@ -159,7 +159,7 @@ def put_df(
     table_name: str
         Name of the Amazon DynamoDB table.
     use_threads: Union[bool, int]
-        Used for Parallel Scan requests. True (default) to enable concurrency, False to disable multiple threads.
+        Used for Parallel Write requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
     boto3_session: boto3.Session(), optional
@@ -232,7 +232,7 @@ def put_items(
     boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     use_threads: Union[bool, int]
-        Used for Parallel Scan requests. True (default) to enable concurrency, False to disable multiple threads.
+        Used for Parallel Write requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
 
