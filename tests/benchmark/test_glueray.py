@@ -125,7 +125,9 @@ def test_read_parquet_small_benchmark(data_gen_bucket: str, glue_job: str, reque
 
 
 @pytest.mark.parametrize("glue_job", ["wrangler_write_partitioned_parquet"], indirect=True)
-def test_write_partitioned_parquet_benchmark(data_gen_bucket: str, path: str, glue_job: str, request: pytest.FixtureRequest) -> None:
+def test_write_partitioned_parquet_benchmark(
+    data_gen_bucket: str, path: str, glue_job: str, request: pytest.FixtureRequest
+) -> None:
     with ExecutionTimer(request):
         state = run_glue_job_get_status(
             job_name=glue_job,
