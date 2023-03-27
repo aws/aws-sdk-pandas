@@ -110,8 +110,8 @@ def test_blog_simple(
     assert state == "SUCCEEDED"
 
 
-@pytest.mark.parametrize("glue_job", ["ray_read_parquet", "modin_read_parquet", "wrangler_read_parquet"], indirect=True)
-def test_read_parquet_benchmark(data_gen_bucket: str, glue_job: str, request: pytest.FixtureRequest) -> None:
+@pytest.mark.parametrize("glue_job", ["ray_read_small_parquet", "wrangler_read_small_parquet"], indirect=True)
+def test_read_parquet_small_benchmark(data_gen_bucket: str, glue_job: str, request: pytest.FixtureRequest) -> None:
     with ExecutionTimer(request):
         state = run_glue_job_get_status(
             job_name=glue_job,
@@ -124,15 +124,13 @@ def test_read_parquet_benchmark(data_gen_bucket: str, glue_job: str, request: py
     assert state == "SUCCEEDED"
 
 
-@pytest.mark.parametrize(
-    "glue_job", ["modin_write_partitioned_parquet", "wrangler_write_partitioned_parquet"], indirect=True
-)
-def test_write_partitioned_parquet_benchmark(path: str, glue_job: str, request: pytest.FixtureRequest) -> None:
+@pytest.mark.parametrize("glue_job", ["wrangler_write_partitioned_parquet"], indirect=True)
+def test_write_partitioned_parquet_benchmark(data_gen_bucket: str, path: str, glue_job: str, request: pytest.FixtureRequest) -> None:
     with ExecutionTimer(request):
         state = run_glue_job_get_status(
             job_name=glue_job,
             arguments={
-                "--input-path": "s3://ursa-labs-taxi-data/2018/",
+                "--data-gen-bucket": data_gen_bucket,
                 "--output-path": path,
                 "--auto-scaling-ray-min-workers": "10",
             },
