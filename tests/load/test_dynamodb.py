@@ -90,7 +90,7 @@ def test_dynamodb_write(
     big_modin_df = create_big_modin_df(25_000, num_blocks)
 
     with ExecutionTimer(request) as timer:
-        wr.dynamodb.put_df(df=big_modin_df, table_name=dynamodb_table)
+        wr.dynamodb.put_df(df=big_modin_df, table_name=dynamodb_table, use_threads=4)
 
     assert timer.elapsed_time < benchmark_time
 
