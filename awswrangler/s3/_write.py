@@ -93,10 +93,17 @@ def _validate_args(
 
 
 def _sanitize(
-    df: pd.DataFrame, dtype: Dict[str, str], partition_cols: List[str]
-) -> Tuple[pd.DataFrame, Dict[str, str], List[str]]:
+    df: pd.DataFrame,
+    dtype: Dict[str, str],
+    partition_cols: List[str],
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
+) -> Tuple[pd.DataFrame, Dict[str, str], List[str], Optional[Tuple[List[str], int]]]:
     df = catalog.sanitize_dataframe_columns_names(df=df)
     partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
+    if bucketing_info:
+        bucketing_info = [
+            catalog.sanitize_column_name(bucketing_col) for bucketing_col in bucketing_info[0]
+        ], bucketing_info[1]
     dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
     _utils.check_duplicated_columns(df=df)
-    return df, dtype, partition_cols
+    return df, dtype, partition_cols, bucketing_info

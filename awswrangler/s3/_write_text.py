@@ -447,7 +447,12 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
-        df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
+        df, dtype, partition_cols, bucketing_info = _sanitize(
+            df=df,
+            dtype=dtype,
+            partition_cols=partition_cols,
+            bucketing_info=bucketing_info
+        )
 
     # Evaluating dtype
     catalog_table_input: Optional[Dict[str, Any]] = None
@@ -912,7 +917,12 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
-        df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
+        df, dtype, partition_cols, bucketing_info = _sanitize(
+            df=df,
+            dtype=dtype,
+            partition_cols=partition_cols,
+            bucketing_info=bucketing_info
+        )
 
     # Evaluating dtype
     catalog_table_input: Optional[Dict[str, Any]] = None
