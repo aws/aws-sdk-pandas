@@ -228,7 +228,7 @@ def test_wait_object_exists(path: str, benchmark_time: int, request: pytest.Fixt
     paths = wr.s3.to_parquet(df=df, path=path, max_rows_by_file=1)["paths"]
 
     with ExecutionTimer(request) as timer:
-        wr.s3.wait_objects_exist(paths, parallelism=16)
+        wr.s3.wait_objects_exist(paths, use_threads=16)
 
     assert timer.elapsed_time < benchmark_time
 
@@ -240,7 +240,7 @@ def test_wait_object_not_exists(path: str, benchmark_time: int, request: pytest.
     file_paths = [f"{path}{i}.txt" for i in range(num_objects)]
 
     with ExecutionTimer(request) as timer:
-        wr.s3.wait_objects_not_exist(file_paths, parallelism=16)
+        wr.s3.wait_objects_not_exist(file_paths, use_threads=16)
 
     assert timer.elapsed_time < benchmark_time
 
