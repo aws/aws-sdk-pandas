@@ -21,18 +21,23 @@ def test_list_buckets() -> None:
     assert len(wr.s3.list_buckets()) > 0
 
 
-@pytest.mark.parametrize("format,write_function,read_function", [
-    ("parquet", wr.s3.to_parquet, wr.s3.read_parquet),
-    ("csv", wr.s3.to_csv, wr.s3.read_csv),
-    ("json", wr.s3.to_json, wr.s3.read_json)
-])
-@pytest.mark.parametrize("sanitize_columns,expected_cols", [
-    (True, ["barbuzz", "fizzfuzz",  "fooboo"]),
-    (False, ["BarBuzz", "FizzFuzz", "FooBoo"])
-])
+@pytest.mark.parametrize(
+    "format,write_function,read_function",
+    [
+        ("parquet", wr.s3.to_parquet, wr.s3.read_parquet),
+        ("csv", wr.s3.to_csv, wr.s3.read_csv),
+        ("json", wr.s3.to_json, wr.s3.read_json),
+    ],
+)
+@pytest.mark.parametrize(
+    "sanitize_columns,expected_cols",
+    [(True, ["barbuzz", "fizzfuzz", "fooboo"]), (False, ["BarBuzz", "FizzFuzz", "FooBoo"])],
+)
 @pytest.mark.parametrize("partition_cols", [None, ["FooBoo"]])
 @pytest.mark.parametrize("bucketing_info", [None, (["BarBuzz"], 1)])
-def test_sanitize_columns(path, format, write_function, read_function, sanitize_columns, expected_cols, partition_cols, bucketing_info):
+def test_sanitize_columns(
+    path, format, write_function, read_function, sanitize_columns, expected_cols, partition_cols, bucketing_info
+):
     df = pd.DataFrame({"FooBoo": [1, 2, 3], "BarBuzz": [4, 5, 6], "FizzFuzz": [7, 8, 9]})
     dataset = bool(partition_cols or bucketing_info)
     file_path = f"{path}0.{format}" if not dataset else path
