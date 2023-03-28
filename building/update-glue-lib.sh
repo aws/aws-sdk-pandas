@@ -5,7 +5,7 @@ pushd ..
 rm -fr awswrangler.zip
 
 # Zip the library
-zip -r awswrangler.zip awswrangler -x *__pycache__*
+git archive HEAD:awswrangler --format zip --prefix awswrangler/awswrangler/ --output awswrangler.zip
 
 # Upload the Zip file
 s3_location=$(aws cloudformation describe-stacks --stack-name aws-sdk-pandas-glueray --query "Stacks[0].Outputs[?OutputKey=='AWSSDKforpandasZIPLocation'].OutputValue" --output text)
