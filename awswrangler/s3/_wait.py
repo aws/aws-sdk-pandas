@@ -39,19 +39,19 @@ def _wait_objects(
     delay: Optional[float],
     max_attempts: Optional[int],
     use_threads: Union[bool, int],
-    parallelism: Optional[int],
     s3_client: "S3Client",
 ) -> None:
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
-    parallelism = 100 if parallelism is None else parallelism
+
+    concurrency = _utils.ensure_worker_or_thread_count(use_threads)
 
     if len(paths) < 1:
         return None
 
     path_batches = (
-        _utils.chunkify(paths, num_chunks=parallelism)
-        if len(paths) > parallelism
+        _utils.chunkify(paths, num_chunks=concurrency)
+        if len(paths) > concurrency
         else _utils.chunkify(paths, max_length=1)
     )
 
@@ -79,7 +79,6 @@ def wait_objects_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
-    parallelism: Optional[int] = None,
 ) -> None:
     """Wait Amazon S3 objects exist.
 
@@ -104,9 +103,6 @@ def wait_objects_exist(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    parallelism: int, optional
-        The requested parallelism of the wait. Only used when `distributed` add-on is installed.
-        Parallelism may be limited by the number of files of the dataset. 100 by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -128,7 +124,6 @@ def wait_objects_exist(
         delay=delay,
         max_attempts=max_attempts,
         use_threads=use_threads,
-        parallelism=parallelism,
         s3_client=s3_client,
     )
 
@@ -142,7 +137,6 @@ def wait_objects_not_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
-    parallelism: Optional[int] = None,
 ) -> None:
     """Wait Amazon S3 objects not exist.
 
@@ -167,9 +161,6 @@ def wait_objects_not_exist(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    parallelism: int, optional
-        The requested parallelism of the wait. Only used when `distributed` add-on is installed.
-        Parallelism may be limited by the number of files of the dataset. 100 by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -191,6 +182,5 @@ def wait_objects_not_exist(
         delay=delay,
         max_attempts=max_attempts,
         use_threads=use_threads,
-        parallelism=parallelism,
         s3_client=s3_client,
     )
