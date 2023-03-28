@@ -94,6 +94,7 @@ html_theme_options = {
     "navbar_links": [
         ("About", "about"),
         ("Install", "install"),
+        ("At Scale", "scale"),
         ("Tutorials", "tutorials"),
         ("API Reference", "api"),
         ("License", "https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE.txt", True),

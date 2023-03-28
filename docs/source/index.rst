@@ -66,6 +66,7 @@ Read The Docs
 
    about
    install
+   scale
    tutorials
    api
    Community Resources <https://github.com/aws/aws-sdk-pandas#community-resources>
