@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     from boto3.resources.base import ServiceResource
     from botocore.client import BaseClient
     from mypy_boto3_athena import AthenaClient
-    from mypy_boto3_athena.literals import ServiceName
     from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_emr.client import EMRClient
@@ -54,7 +53,9 @@ if TYPE_CHECKING:
     from mypy_boto3_logs.client import CloudWatchLogsClient
     from mypy_boto3_opensearch.client import OpenSearchServiceClient
     from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
+    from mypy_boto3_opensearchserverless.literals import ServiceName
     from mypy_boto3_quicksight.client import QuickSightClient
+    from mypy_boto3_rds_data.client import RDSDataServiceClient
     from mypy_boto3_redshift.client import RedshiftClient
     from mypy_boto3_redshift_data.client import RedshiftDataAPIServiceClient
     from mypy_boto3_s3 import S3Client, S3ServiceResource
@@ -354,6 +355,16 @@ def client(
 
 @overload
 def client(
+    service_name: 'Literal["rds-data"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "RDSDataServiceClient":
+    ...
+
+
+@overload
+def client(
     service_name: 'Literal["redshift"]',
     session: Optional[boto3.Session] = None,
     botocore_config: Optional[Config] = None,
@@ -595,7 +606,12 @@ def ensure_worker_or_thread_count(use_threads: Union[bool, int] = True) -> int:
     return ensure_cpu_count(use_threads=use_threads)
 
 
-def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = None) -> List[List[Any]]:
+ChunkifyItemType = TypeVar("ChunkifyItemType")
+
+
+def chunkify(
+    lst: List[ChunkifyItemType], num_chunks: int = 1, max_length: Optional[int] = None
+) -> List[List[ChunkifyItemType]]:
     """Split a list in a List of List (chunks) with even sizes.
 
     Parameters
@@ -624,7 +640,7 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
     if not lst:
         return []
     n: int = num_chunks if max_length is None else int(math.ceil((float(len(lst)) / float(max_length))))
-    np_chunks = np.array_split(lst, n)
+    np_chunks = np.array_split(lst, n)  # type: ignore[arg-type,var-annotated]
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 

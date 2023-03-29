@@ -51,17 +51,14 @@ def test_read_parquet_metadata_nulls(path):
 @pytest.mark.parametrize(
     "partition_cols",
     [
-        None,
+        ["c2"],
+        ["value", "c2"],
         pytest.param(
-            ["c2"],
+            None,
             marks=pytest.mark.xfail(
-                is_ray_modin, raises=ValueError, reason="https://github.com/modin-project/modin/issues/5552"
-            ),
-        ),
-        pytest.param(
-            ["value", "c2"],
-            marks=pytest.mark.xfail(
-                is_ray_modin, raises=ValueError, reason="https://github.com/modin-project/modin/issues/5552"
+                is_ray_modin,
+                raises=TypeError,
+                reason="Broken sort_values in Modin",
             ),
         ),
     ],

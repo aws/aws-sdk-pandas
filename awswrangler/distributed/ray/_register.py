@@ -16,6 +16,7 @@ from awswrangler.distributed.ray._utils import ensure_worker_count
 from awswrangler.distributed.ray.s3._list import _list_objects_s3fs
 from awswrangler.distributed.ray.s3._read_parquet import _read_parquet_metadata_file_distributed
 from awswrangler.dynamodb._read import _read_scan
+from awswrangler.dynamodb._write import _put_df, _put_items
 from awswrangler.lakeformation._read import _get_work_unit_results
 from awswrangler.s3._copy import _copy_objects
 from awswrangler.s3._delete import _delete_objects
@@ -47,6 +48,8 @@ def register_ray() -> None:
         engine.register_func(func, ray_remote(scheduling_strategy="SPREAD")(func))
 
     for func in [
+        _put_df,
+        _put_items,
         _write_batch,
         _write_df,
     ]:

@@ -346,7 +346,8 @@ def create_collection(
 
         response = cast("BatchGetCollectionResponseTypeDef", response)
         if status == "FAILED":
-            error_details = response["collectionErrorDetails"][0]
+            errors = response["collectionErrorDetails"]
+            error_details = errors[0] if len(errors) > 0 else "No error details provided"
             raise exceptions.QueryFailed(f"Failed to create collection `{name}`: {error_details}.")
 
         return response["collectionDetails"][0]  # type: ignore[return-value]
