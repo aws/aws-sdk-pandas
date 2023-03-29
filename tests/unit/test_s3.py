@@ -122,6 +122,7 @@ def test_missing_or_wrong_path(path, glue_database, glue_table):
         wr.s3.to_parquet(df=df, path=wrong_path, dataset=True, database=glue_database, table=glue_table)
 
 
+@pytest.mark.xfail(is_ray_modin, raises=ValueError, reason="Ray dataset cannot write empty DF")
 def test_s3_empty_dfs(path):
     df = pd.DataFrame()
     file_path = f"{path}empty"
@@ -223,6 +224,7 @@ def test_merge_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_thr
     descs = wr.s3.describe_objects(paths, use_threads=use_threads)
     for desc in descs.values():
         if s3_additional_kwargs is None:
+            # SSE enabled by default
             assert desc.get("ServerSideEncryption") == "AES256"
         elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
             assert desc.get("ServerSideEncryption") == "aws:kms"
