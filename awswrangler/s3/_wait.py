@@ -13,12 +13,14 @@ from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
 
 if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client
+    from mypy_boto3_s3 import ObjectExistsWaiter, ObjectNotExistsWaiter, S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _wait_object(waiter, path: str, delay: int, max_attempts: int) -> None:
+def _wait_object(
+    waiter: Union["ObjectExistsWaiter", "ObjectNotExistsWaiter"], path: str, delay: int, max_attempts: int
+) -> None:
     bucket, key = _utils.parse_path(path=path)
     try:
         waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})

@@ -169,7 +169,7 @@ class MemoryFormat:
         _reload()
 
 
-def _reload():
+def _reload() -> None:
     """Reload Pandas proxy module."""
     import awswrangler.pandas
 
