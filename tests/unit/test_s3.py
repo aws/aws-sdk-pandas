@@ -137,12 +137,20 @@ def test_missing_or_wrong_path(path, glue_database, glue_table):
         wr.s3.to_parquet(df=df, path=wrong_path, dataset=True, database=glue_database, table=glue_table)
 
 
-def test_s3_empty_dfs():
+@pytest.mark.xfail(is_ray_modin, raises=ValueError, reason="Ray dataset cannot write empty DF")
+def test_s3_empty_dfs(path):
     df = pd.DataFrame()
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_parquet(df=df, path="")
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_csv(df=df, path="")
+    file_path = f"{path}empty"
+    assert df.empty
+
+    wr.s3.to_csv(df, f"{file_path}.csv")
+    wr.s3.to_json(df, f"{file_path}.json")
+
+    df_read_csv = wr.s3.read_csv(f"{file_path}.csv")
+    assert df_read_csv.empty
+
+    df_read_json = wr.s3.read_json(f"{file_path}.json")
+    assert df_read_json.empty
 
 
 def test_absent_object(path):

@@ -479,12 +479,6 @@ def test_to_json_schema_evolution(path, glue_database, glue_table, mode) -> None
 
 
 def test_exceptions(path):
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_json(df=pd.DataFrame(), path=path)
-
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_csv(df=pd.DataFrame(), path=path)
-
     df = pd.DataFrame({"c0": [1, 2], "c1": ["a", "b"]})
     with pytest.raises(wr.exceptions.InvalidArgument):
         wr.s3.to_csv(df=df, path=path, pandas_kwargs={})

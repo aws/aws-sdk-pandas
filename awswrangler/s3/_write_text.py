@@ -49,7 +49,7 @@ def _to_text(  # pylint: disable=unused-argument
 ) -> List[str]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     if df.empty is True:
-        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+        _logger.warning("Empty DataFrame will be written.")
     if path is None and path_root is not None:
         file_path: str = (
             f"{path_root}{filename_prefix}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"

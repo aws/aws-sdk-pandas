@@ -60,7 +60,7 @@ def _validate_args(
     execution_engine: Enum,
 ) -> None:
     if df.empty is True:
-        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+        _logger.warning("Empty DataFrame will be written.")
     if dataset is False:
         if path is None:
             raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
