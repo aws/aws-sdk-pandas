@@ -638,10 +638,11 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
-        df, dtype, partition_cols = _sanitize(
+        df, dtype, partition_cols, bucketing_info = _sanitize(
             df=copy_df_shallow(df),
             dtype=dtype,
             partition_cols=partition_cols,
+            bucketing_info=bucketing_info,
         )
 
     # Evaluating dtype
