@@ -2,7 +2,7 @@
 
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional
 
 import pandas as pd
 
@@ -95,12 +95,19 @@ def _validate_args(
         )
 
 
+class _SanitizeResult(NamedTuple):
+    frame: pd.DataFrame
+    dtype: Dict[str, str]
+    partition_cols: List[str]
+    bucketing_info: Optional[typing.BucketingInfoTuple]
+
+
 def _sanitize(
     df: pd.DataFrame,
     dtype: Dict[str, str],
     partition_cols: List[str],
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
-) -> Tuple[pd.DataFrame, Dict[str, str], List[str], Optional[Tuple[List[str], int]]]:
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
+) -> _SanitizeResult:
     df = catalog.sanitize_dataframe_columns_names(df=df)
     partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
     if bucketing_info:
@@ -109,4 +116,4 @@ def _sanitize(
         ], bucketing_info[1]
     dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
     _utils.check_duplicated_columns(df=df)
-    return df, dtype, partition_cols, bucketing_info
+    return _SanitizeResult(df, dtype, partition_cols, bucketing_info)
