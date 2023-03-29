@@ -59,7 +59,7 @@ deltalake = ["deltalake"]
 [tool.poetry.dev-dependencies]
 wheel = "^0.38.1"
 isort = "^5.9.2"
-black = "^22.1.0"
+black = "^23.3.0"
 pylint = "^2.11.1"
 flake8 = "^5.0.1"
 mypy = "^1.0"
