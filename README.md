@@ -191,6 +191,7 @@ You may also find help on these community resources:
 * The #aws-sdk-pandas Slack [channel](https://join.slack.com/t/aws-sdk-pandas/shared_invite/zt-sxdx38sl-E0coRfAds8WdpxXD2Nzfrg)
 * Ask a question on [Stack Overflow](https://stackoverflow.com/questions/tagged/awswrangler)
   and tag it with `awswrangler`
+* [Runbook](https://github.com/aws/aws-sdk-pandas/discussions/1815) for AWS SDK for pandas with Ray
 
 ## Community Resources
 
