@@ -475,7 +475,7 @@ def get_dashboard_ids(
     Returns
     -------
     List[str]
-        Dashboad IDs.
+        Dashboard IDs.
 
     Examples
     --------
@@ -502,7 +502,7 @@ def get_dashboard_id(name: str, account_id: Optional[str] = None, boto3_session:
     Returns
     -------
     str
-        Dashboad ID.
+        Dashboard ID.
 
     Examples
     --------
@@ -660,7 +660,7 @@ def get_template_ids(
     Returns
     -------
     List[str]
-        Tamplate IDs.
+        Template IDs.
 
     Examples
     --------

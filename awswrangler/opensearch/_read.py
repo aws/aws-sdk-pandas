@@ -52,7 +52,7 @@ def search(
     filter_path: Optional[Union[str, Collection[str]]] = None,
     **kwargs: Any,
 ) -> pd.DataFrame:
-    """Return results matching query DSL as pandas dataframe.
+    """Return results matching query DSL as pandas DataFrame.
 
     Parameters
     ----------
@@ -131,7 +131,7 @@ def search(
 
 @_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def search_by_sql(client: "opensearchpy.OpenSearch", sql_query: str, **kwargs: Any) -> pd.DataFrame:
-    """Return results matching `SQL query <https://opensearch.org/docs/search-plugins/sql/index/>`_ as pandas dataframe.
+    """Return results matching `SQL query <https://opensearch.org/docs/search-plugins/sql/index/>`_ as pandas DataFrame.
 
     Parameters
     ----------

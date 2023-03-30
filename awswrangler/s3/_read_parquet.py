@@ -561,7 +561,7 @@ def read_parquet(
         If enabled, os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
     ray_args: typing.RayReadParquetSettings, optional
-        Params of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
+        Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
     s3_additional_kwargs : Optional[Dict[str, Any]]
@@ -866,7 +866,7 @@ def read_parquet_table(
         If enabled, os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
     ray_args: typing.RayReadParquetSettings, optional
-        Params of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
+        Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
     s3_additional_kwargs : Optional[Dict[str, Any]]

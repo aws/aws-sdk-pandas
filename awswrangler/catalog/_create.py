@@ -622,7 +622,7 @@ def create_database(
     name : str
         Database name.
     description : str, optional
-        A Descrption for the Database.
+        A description for the Database.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -719,7 +719,7 @@ def create_parquet_table(
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
-        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
 
@@ -904,7 +904,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
-        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
 
@@ -1086,7 +1086,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
-        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
 

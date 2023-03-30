@@ -141,8 +141,8 @@ def _deserialize_pieces(
 # This retry helps when the upstream datasource is not able to handle
 # overloaded read request or failed with some retriable failures.
 # For example when reading data from HA hdfs service, hdfs might
-# lose connection for some unknown reason expecially when
-# simutaneously running many hyper parameter tuning jobs
+# lose connection for some unknown reason especially when
+# simultaneously running many hyper parameter tuning jobs
 # with ray.data parallelism setting at high value like the default 200
 # Such connection failure can be restored with some waiting and retry.
 def _deserialize_pieces_with_retry(

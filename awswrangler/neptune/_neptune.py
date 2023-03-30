@@ -21,7 +21,7 @@ FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 @_utils.check_optional_dependency(gremlin_python, "gremlin_python")
 def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
-    """Return results of a Gremlin traversal as pandas dataframe.
+    """Return results of a Gremlin traversal as pandas DataFrame.
 
     Parameters
     ----------
@@ -50,7 +50,7 @@ def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
 
 @_utils.check_optional_dependency(opencypher, "opencypher")
 def execute_opencypher(client: NeptuneClient, query: str) -> pd.DataFrame:
-    """Return results of a openCypher traversal as pandas dataframe.
+    """Return results of a openCypher traversal as pandas DataFrame.
 
     Parameters
     ----------
@@ -79,7 +79,7 @@ def execute_opencypher(client: NeptuneClient, query: str) -> pd.DataFrame:
 
 @_utils.check_optional_dependency(sparql, "SPARQLWrapper")
 def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
-    """Return results of a SPARQL query as pandas dataframe.
+    """Return results of a SPARQL query as pandas DataFrame.
 
     Parameters
     ----------
@@ -171,7 +171,7 @@ def to_property_graph(
                 is_edge_df = True
     else:
         raise exceptions.InvalidArgumentValue(
-            "Dataframe must contain at least a ~id and a ~label column to be saved to Amazon Neptune"
+            "DataFrame must contain at least a ~id and a ~label column to be saved to Amazon Neptune"
         )
 
     # Loop through items in the DF
@@ -214,13 +214,13 @@ def to_rdf_graph(
     df (pandas.DataFrame) :
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     subject_column (str, optional) :
-        The column name in the dataframe for the subject.  Defaults to 's'
+        The column name in the DataFrame for the subject.  Defaults to 's'
     predicate_column (str, optional) :
-        The column name in the dataframe for the predicate.  Defaults to 'p'
+        The column name in the DataFrame for the predicate.  Defaults to 'p'
     object_column (str, optional) :
-        The column name in the dataframe for the object.  Defaults to 'o'
+        The column name in the DataFrame for the object.  Defaults to 'o'
     graph_column (str, optional) :
-        The column name in the dataframe for the graph if sending across quads.  Defaults to 'g'
+        The column name in the DataFrame for the graph if sending across quads.  Defaults to 'g'
 
     Returns
     -------
@@ -243,7 +243,7 @@ def to_rdf_graph(
             is_quads = True
     else:
         raise exceptions.InvalidArgumentValue(
-            """Dataframe must contain at least the subject, predicate, and object columns defined or the defaults
+            """DataFrame must contain at least the subject, predicate, and object columns defined or the defaults
             (s, p, o) to be saved to Amazon Neptune"""
         )
 

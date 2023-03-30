@@ -238,7 +238,7 @@ def connect(
 
 
 def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = None) -> pd.DataFrame:
-    """Run an SQL query on a RedshiftDataApi connection and return the result as a dataframe.
+    """Run an SQL query on a RedshiftDataApi connection and return the result as a DataFrame.
 
     Parameters
     ----------
@@ -251,6 +251,6 @@ def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = Non
 
     Returns
     -------
-    A Pandas dataframe containing the query results.
+    A Pandas DataFrame containing the query results.
     """
     return con.execute(sql, database=database)

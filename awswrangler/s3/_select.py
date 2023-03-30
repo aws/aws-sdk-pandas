@@ -201,7 +201,7 @@ def select_query(
         Valid values: "SSECustomerAlgorithm", "SSECustomerKey", "ExpectedBucketOwner".
         e.g. s3_additional_kwargs={'SSECustomerAlgorithm': 'md5'}.
     pyarrow_additional_kwargs : Dict[str, Any], optional
-        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas dataframe.
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 

@@ -1237,7 +1237,7 @@ def unload(
     - If **chunked=INTEGER**, awswrangler iterates on the data by number of rows (equal to the received INTEGER).
 
     `P.S.` `chunked=True` is faster and uses less memory while `chunked=INTEGER` is more precise
-    in the number of rows for each Dataframe.
+    in the number of rows for each DataFrame.
 
 
     Note
@@ -1280,7 +1280,7 @@ def unload(
     chunked : Union[int, bool]
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.

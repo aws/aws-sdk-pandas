@@ -94,7 +94,7 @@ def read_sql_query(
 
     Note
     ----
-    ORDER BY operations are not honoured.
+    ORDER BY operations are not honored.
     i.e. sql="SELECT * FROM my_table ORDER BY my_column" is NOT valid
 
     Note
@@ -132,7 +132,7 @@ def read_sql_query(
         The dict must contain the information in the form {"name": "value"} and the SQL query must contain
         `:name`.
     pyarrow_additional_kwargs : Dict[str, Any], optional
-        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas dataframe.
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
@@ -214,7 +214,7 @@ def read_sql_table(
 
     Note
     ----
-    ORDER BY operations are not honoured.
+    ORDER BY operations are not honored.
     i.e. sql="SELECT * FROM my_table ORDER BY my_column" is NOT valid
 
     Note
@@ -242,7 +242,7 @@ def read_sql_table(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if boto3_session receives None.
     pyarrow_additional_kwargs : Dict[str, Any], optional
-        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas dataframe.
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 

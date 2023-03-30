@@ -622,7 +622,7 @@ def chunkify(
     Parameters
     ----------
     lst: List
-        List of anything to be splitted.
+        List of anything to be split up.
     num_chunks: int, optional
         Maximum number of chunks.
     max_length: int, optional
@@ -851,7 +851,7 @@ def split_pandas_frame(df: pd.DataFrame, splits: int) -> List[pd.DataFrame]:
 
 @engine.dispatch_on_engine
 def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataFrame:
-    """Build Pandas dataframe from list of PyArrow tables."""
+    """Build Pandas DataFrame from list of PyArrow tables."""
     return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)
 
 
