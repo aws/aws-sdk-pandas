@@ -375,9 +375,12 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     bucket_name = f"aws-athena-query-results-{account_id}-{region_name}"
     path = f"s3://{bucket_name}/"
     client_s3 = _utils.client(service_name="s3", session=boto3_session)
-    args = {} if region_name == "us-east-1" else {"CreateBucketConfiguration": {"LocationConstraint": region_name}}
+    kwargs = {"ACL": "private"}
+    if region_name != "us-east-1":
+        kwargs["CreateBucketConfiguration"] =  {"LocationConstraint": region_name}
     try:
-        client_s3.create_bucket(Bucket=bucket_name, **args)  # type: ignore[arg-type]
+        _logger.debug(f"Creating {bucket_name} Athena query results bucket.")
+        client_s3.create_bucket(Bucket=bucket_name, **kwargs)  # type: ignore[arg-type]
     except (client_s3.exceptions.BucketAlreadyExists, client_s3.exceptions.BucketAlreadyOwnedByYou) as err:
         _logger.debug("Bucket %s already exists.", err.response["Error"]["BucketName"])
     except botocore.exceptions.ClientError as err:
