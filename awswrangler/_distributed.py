@@ -7,7 +7,7 @@ from collections import defaultdict
 from enum import Enum, unique
 from functools import wraps
 from importlib import reload
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, Callable, Dict, Literal, Optional, TypeVar, cast
 
 
 @unique
@@ -26,6 +26,8 @@ class MemoryFormatEnum(Enum):
     PANDAS = "pandas"
 
 
+EngineLiteral = Literal["python", "ray"]
+MemoryFormatLiteral = Literal["pandas", "modin"]
 FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
 
@@ -34,7 +36,7 @@ class Engine:
 
     _engine: Optional[EngineEnum] = None
     _initialized_engine: Optional[EngineEnum] = None
-    _registry: Dict[str, Dict[str, Callable[..., Any]]] = defaultdict(dict)
+    _registry: Dict[EngineLiteral, Dict[str, Callable[..., Any]]] = defaultdict(dict)
 
     @classmethod
     def get_installed(cls) -> EngineEnum:
@@ -65,14 +67,14 @@ class Engine:
         return cls._engine if cls._engine else cls.get_installed()
 
     @classmethod
-    def set(cls, name: str) -> None:
+    def set(cls, name: EngineLiteral) -> None:
         """Set the distribution engine."""
         cls._engine = EngineEnum._member_map_[  # type: ignore[assignment]  # pylint: disable=protected-access,no-member
             name.upper()
         ]
 
     @classmethod
-    def dispatch_func(cls, source_func: FunctionType, value: Optional[Any] = None) -> FunctionType:
+    def dispatch_func(cls, source_func: FunctionType, value: Optional[EngineLiteral] = None) -> FunctionType:
         """Dispatch a func based on value or the distribution engine and the source function."""
         try:
             return cls._registry[value or cls.get().value][source_func.__name__]  # type: ignore[return-value]
@@ -98,9 +100,9 @@ class Engine:
         return wrapper  # type: ignore[return-value]
 
     @classmethod
-    def register(cls, name: Optional[str] = None) -> None:
+    def register(cls, name: Optional[EngineLiteral] = None) -> None:
         """Register the distribution engine dispatch methods."""
-        engine_name = name or cls.get_installed().value
+        engine_name = cast(EngineLiteral, name or cls.get_installed().value)
         cls.set(engine_name)
         cls._registry.clear()
 
@@ -110,9 +112,9 @@ class Engine:
             register_ray()
 
     @classmethod
-    def initialize(cls, name: Optional[str] = None) -> None:
+    def initialize(cls, name: Optional[EngineLiteral] = None) -> None:
         """Initialize the distribution engine."""
-        engine_name = name or cls.get_installed().value
+        engine_name = cast(EngineLiteral, name or cls.get_installed().value)
         if engine_name == EngineEnum.RAY.value:
             from awswrangler.distributed.ray import initialize_ray
 
@@ -121,9 +123,9 @@ class Engine:
         cls._initialized_engine = cls.get()
 
     @classmethod
-    def is_initialized(cls, name: Optional[str] = None) -> bool:
+    def is_initialized(cls, name: Optional[EngineLiteral] = None) -> bool:
         """Check if the distribution engine is initialized."""
-        engine_name = name or cls.get_installed().value
+        engine_name = cast(EngineLiteral, name or cls.get_installed().value)
 
         return False if not cls._initialized_engine else cls._initialized_engine.value == engine_name
 
@@ -131,10 +133,10 @@ class Engine:
 class MemoryFormat:
     """Memory format configuration class."""
 
-    _enum: Optional[Enum] = None
+    _enum: Optional[MemoryFormatEnum] = None
 
     @classmethod
-    def get_installed(cls) -> Enum:
+    def get_installed(cls) -> MemoryFormatEnum:
         """Get the installed memory format.
 
         This is the format that can be imported.
@@ -149,7 +151,7 @@ class MemoryFormat:
         return MemoryFormatEnum.PANDAS
 
     @classmethod
-    def get(cls) -> Enum:
+    def get(cls) -> MemoryFormatEnum:
         """Get the configured memory format.
 
         This is the memory format currently configured. If None, the installed memory format is returned.
@@ -162,9 +164,9 @@ class MemoryFormat:
         return cls._enum if cls._enum else cls.get_installed()
 
     @classmethod
-    def set(cls, name: str) -> None:
+    def set(cls, name: EngineLiteral) -> None:
         """Set the memory format."""
-        cls._enum = MemoryFormatEnum._member_map_[name.upper()]  # pylint: disable=protected-access,no-member
+        cls._enum = MemoryFormatEnum._member_map_[name.upper()]  # type: ignore[assignment]  # pylint: disable=protected-access,no-member
 
         _reload()
 

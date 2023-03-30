@@ -16,7 +16,9 @@ Once installed, you can use the library in your code as usual:
 
     >>> import awswrangler as wr
 
-At import, SDK for pandas looks for an environmental variable called ``WR_ADDRESS``. If found, it is used to send commands to a remote cluster. If not found, a local Ray runtime is initialized on your machine instead.
+At import, SDK for pandas looks for an environmental variable called ``WR_ADDRESS``.
+If found, it is used to send commands to a remote cluster.
+If not found, a local Ray runtime is initialized on your machine instead.
 
 To confirm that you are in distributed mode, run:
 
@@ -124,14 +126,18 @@ S3FS Filesystem
 ^^^^^^^^^^^^^^^^
 
 When Ray is chosen as an engine, `S3Fs <https://s3fs.readthedocs.io/en/latest/>`_ is used instead of boto3 for certain API calls.
-These include listing a large number of S3 objects for example. This choice was made for performance reasons as a boto3 implementation can be much slower in some cases.
-As a side effect, users won't be able to use the ``s3_additional_kwargs`` input parameter as it's currently not supported by S3Fs.
+These include listing a large number of S3 objects for example.
+This choice was made for performance reasons as a boto3 implementation can be much slower in some cases.
+As a side effect,
+users won't be able to use the ``s3_additional_kwargs`` input parameter as it's currently not supported by S3Fs.
 
 Unsupported kwargs
 ^^^^^^^^^^^^^^^^^^^
 
-Most AWS SDK for pandas calls support passing the ``boto3_session`` argument. While this is acceptable for an application running in a single process,
-distributed applications require the session to be serialized and passed to the worker nodes in the cluster. This constitutes a security risk.
+Most AWS SDK for pandas calls support passing the ``boto3_session`` argument.
+While this is acceptable for an application running in a single process,
+distributed applications require the session to be serialized and passed to the worker nodes in the cluster.
+This constitutes a security risk.
 As a result, passing ``boto3_session`` when using the Ray runtime is not supported.
 
 To learn more

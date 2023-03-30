@@ -49,7 +49,7 @@ def _to_text(  # pylint: disable=unused-argument
 ) -> List[str]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     if df.empty is True:
-        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+        _logger.warning("Empty DataFrame will be written.")
     if path is None and path_root is not None:
         file_path: str = (
             f"{path_root}{filename_prefix}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
@@ -504,10 +504,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
-        df, dtype, partition_cols = _sanitize(
+        df, dtype, partition_cols, bucketing_info = _sanitize(
             df=copy_df_shallow(df),
             dtype=dtype,
             partition_cols=partition_cols,
+            bucketing_info=bucketing_info,
         )
 
     # Evaluating dtype
@@ -992,10 +993,11 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
-        df, dtype, partition_cols = _sanitize(
+        df, dtype, partition_cols, bucketing_info = _sanitize(
             df=copy_df_shallow(df),
             dtype=dtype,
             partition_cols=partition_cols,
+            bucketing_info=bucketing_info,
         )
 
     # Evaluating dtype
