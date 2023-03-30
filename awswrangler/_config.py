@@ -1,9 +1,9 @@
 """Configuration file for AWS SDK for pandas."""
 
-from functools import wraps
 import inspect
 import logging
 import os
+from functools import wraps
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar, Union, cast
 
 import botocore.config
