@@ -266,8 +266,7 @@ def create_athena_dataset(
         Valid types: 'STRING'|'INTEGER'|'DECIMAL'|'DATETIME'
     tag_columns : Dict[str, List[Dict[str, Any]]], optional
         Dictionary to map column tags.
-        e.g. {"col_name": [{ "ColumnGeographicRole": "CITY" }],
-              "col_name2": [{ "ColumnDescription": { "Text": "description" }}]}
+        e.g. {"col_name": [{ "ColumnGeographicRole": "CITY" }],"col_name2": [{ "ColumnDescription": { "Text": "description" }}]}
         Valid geospatial roles: 'COUNTRY'|'STATE'|'COUNTY'|'CITY'|'POSTCODE'|'LONGITUDE'|'LATITUDE'
     account_id : str, optional
         If None, the account ID will be inferred from your boto3 session.

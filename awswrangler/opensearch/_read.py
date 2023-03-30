@@ -78,7 +78,7 @@ def search(
         KEYWORD arguments forwarded to `opensearchpy.OpenSearch.search \
 <https://opensearch-py.readthedocs.io/en/latest/api.html#opensearchpy.OpenSearch.search>`_
         and also to `opensearchpy.helpers.scan <https://opensearch-py.readthedocs.io/en/master/helpers.html#scan>`_
-         if `is_scroll=True`
+        if `is_scroll=True`
 
     Returns
     -------
