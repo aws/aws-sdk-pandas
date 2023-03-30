@@ -98,7 +98,7 @@ def _get_table_objects(
         for objects in response["Objects"]:
             for table_object in objects["Objects"]:
                 if objects["PartitionValues"]:
-                    table_object["PartitionValues"] = objects["PartitionValues"]  # type: ignore[typeddict-unknown-key]
+                    table_object["PartitionValues"] = objects["PartitionValues"]  # type: ignore[typeddict-item]
                 table_objects.append(table_object)  # type: ignore[arg-type]
         next_token = response.get("NextToken", None)
         scan_kwargs["NextToken"] = next_token
