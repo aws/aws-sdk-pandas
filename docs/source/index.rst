@@ -71,7 +71,6 @@ Read The Docs
    api
    Community Resources <https://github.com/aws/aws-sdk-pandas#community-resources>
    Logging <https://github.com/aws/aws-sdk-pandas#logging>
-   AWS SDK for pandas on Ray - Runbook <https://github.com/aws/aws-sdk-pandas/discussions/1815>
    Who uses AWS SDK for pandas? <https://github.com/aws/aws-sdk-pandas#who-uses-aws-sdk-pandas>
    License <https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE.txt>
    Contributing <https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING.md>
