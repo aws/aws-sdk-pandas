@@ -1,5 +1,6 @@
 """Configuration file for AWS SDK for pandas."""
 
+from functools import wraps
 import inspect
 import logging
 import os
@@ -673,6 +674,7 @@ def apply_configs(function: FunctionType) -> FunctionType:
     args_names: Tuple[str, ...] = tuple(signature.parameters.keys())
     available_configs: Tuple[str, ...] = tuple(x for x in _CONFIG_ARGS if x in args_names)
 
+    @wraps(function)
     def wrapper(*args_raw: Any, **kwargs: Any) -> Any:
         args: Dict[str, Any] = signature.bind_partial(*args_raw, **kwargs).arguments
         for name in available_configs:

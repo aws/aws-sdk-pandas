@@ -1,6 +1,7 @@
 """Internal (private) Utilities Module."""
 
 import importlib
+import inspect
 import itertools
 import logging
 import math
@@ -131,6 +132,8 @@ def validate_kwargs(
     unsupported_kwargs = unsupported_kwargs if unsupported_kwargs else []
 
     def decorator(func: FunctionType) -> FunctionType:
+        signature = inspect.signature(func)
+
         @wraps(func)
         def inner(*args: Any, **kwargs: Any) -> Any:
             passed_unsupported_kwargs = set(unsupported_kwargs).intersection(  # type: ignore
@@ -147,6 +150,8 @@ def validate_kwargs(
             unsupported_kwargs=unsupported_kwargs,
             message=message,
         )
+        inner.__name__ = func.__name__
+        inner.__setattr__("__signature__", signature)  # pylint: disable=no-member
 
         return cast(FunctionType, inner)
 
@@ -169,7 +174,7 @@ def _inject_kwargs_validation_doc(
 validate_distributed_kwargs = partial(
     validate_kwargs,
     condition_fn=lambda: engine.get() == EngineEnum.RAY,
-    message=f"Following arguments not supported in distributed mode with engine `{EngineEnum.RAY}`:",
+    message=f"Following arguments are not supported in distributed mode with engine `{EngineEnum.RAY}`:",
 )
 
 
