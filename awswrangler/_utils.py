@@ -30,10 +30,10 @@ from typing import (
 import boto3
 import botocore.credentials
 import numpy as np
-import pandas as pd
 import pyarrow as pa
 from botocore.config import Config
 
+import awswrangler.pandas as pd
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
