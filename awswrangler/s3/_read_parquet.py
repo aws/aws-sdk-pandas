@@ -33,6 +33,7 @@ from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
 from awswrangler.distributed.ray import ray_get
+from awswrangler.pandas import DataFrameType
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -332,7 +333,7 @@ def _read_parquet(  # pylint: disable=W0613
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
     bulk_read: bool,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> Union[DataFrameType, Iterator[pd.DataFrame]]:
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_parquet_file,
@@ -369,7 +370,7 @@ def read_parquet(
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> pd.DataFrame:
+) -> DataFrameType:
     ...
 
 
@@ -421,7 +422,7 @@ def read_parquet(
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> Union[DataFrameType, Iterator[pd.DataFrame]]:
     ...
 
 
@@ -474,7 +475,7 @@ def read_parquet(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> Union[DataFrameType, Iterator[pd.DataFrame]]:
     """Read Parquet file(s) from an S3 prefix or list of S3 objects paths.
 
     The concept of `dataset` enables more complex features like partitioning
@@ -713,7 +714,7 @@ def read_parquet_table(
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> pd.DataFrame:
+) -> DataFrameType:
     ...
 
 
@@ -757,7 +758,7 @@ def read_parquet_table(
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> Union[DataFrameType, Iterator[pd.DataFrame]]:
     ...
 
 
@@ -803,7 +804,7 @@ def read_parquet_table(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> Union[DataFrameType, Iterator[pd.DataFrame]]:
     """Read Apache Parquet table registered in the AWS Glue Catalog.
 
     Note
