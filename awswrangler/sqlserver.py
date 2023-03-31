@@ -442,7 +442,7 @@ def to_sql(
 
         Note: when using this mode, pyodbc converts the Python parameter values to their ODBC "C" equivalents,
         based on the target column types in the database which may lead to subtle data type conversion
-        diffferences depending on whether fast_executemany is True or False.
+        differences depending on whether fast_executemany is True or False.
 
     Returns
     -------

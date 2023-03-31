@@ -37,7 +37,7 @@ def describe_dashboard(
     Returns
     -------
     Dict[str, Any]
-        Dashboad Description.
+        Dashboard Description.
 
     Examples
     --------

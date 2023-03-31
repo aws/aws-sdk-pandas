@@ -1,6 +1,7 @@
 """Internal (private) Utilities Module."""
 
 import importlib
+import inspect
 import itertools
 import logging
 import math
@@ -131,6 +132,8 @@ def validate_kwargs(
     unsupported_kwargs = unsupported_kwargs if unsupported_kwargs else []
 
     def decorator(func: FunctionType) -> FunctionType:
+        signature = inspect.signature(func)
+
         @wraps(func)
         def inner(*args: Any, **kwargs: Any) -> Any:
             passed_unsupported_kwargs = set(unsupported_kwargs).intersection(  # type: ignore
@@ -147,6 +150,8 @@ def validate_kwargs(
             unsupported_kwargs=unsupported_kwargs,
             message=message,
         )
+        inner.__name__ = func.__name__
+        inner.__setattr__("__signature__", signature)  # pylint: disable=no-member
 
         return cast(FunctionType, inner)
 
@@ -169,7 +174,7 @@ def _inject_kwargs_validation_doc(
 validate_distributed_kwargs = partial(
     validate_kwargs,
     condition_fn=lambda: engine.get() == EngineEnum.RAY,
-    message=f"Following arguments not supported in distributed mode with engine `{EngineEnum.RAY}`:",
+    message=f"Following arguments are not supported in distributed mode with engine `{EngineEnum.RAY}`:",
 )
 
 
@@ -617,7 +622,7 @@ def chunkify(
     Parameters
     ----------
     lst: List
-        List of anything to be splitted.
+        List of anything to be split up.
     num_chunks: int, optional
         Maximum number of chunks.
     max_length: int, optional
@@ -846,7 +851,7 @@ def split_pandas_frame(df: pd.DataFrame, splits: int) -> List[pd.DataFrame]:
 
 @engine.dispatch_on_engine
 def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataFrame:
-    """Build Pandas dataframe from list of PyArrow tables."""
+    """Build Pandas DataFrame from list of PyArrow tables."""
     return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)
 
 

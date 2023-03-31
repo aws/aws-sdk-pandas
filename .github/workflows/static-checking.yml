@@ -45,4 +45,4 @@ jobs:
       - name: Pylint Lint
         run: pylint -j 0 --disable=all --enable=R0913,R0915 awswrangler
       - name: Documentation check
-        run: doc8 --ignore D005,D002 --max-line-length 120 docs/source
+        run: doc8 --max-line-length 120 docs/source

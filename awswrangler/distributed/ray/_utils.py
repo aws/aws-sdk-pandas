@@ -34,7 +34,7 @@ def _estimate_avail_cpus(cur_pg: Optional[PlacementGroup]) -> int:
             gpu_fraction = bundle.get("GPU", 0) / max(1, cluster_gpus)
             max_fraction = max(cpu_fraction, gpu_fraction)
             # Over-parallelize by up to a factor of 2, but no more than that. It's
-            # preferrable to over-estimate than under-estimate.
+            # preferable to over-estimate than under-estimate.
             pg_cpus += 2 * int(max_fraction * cluster_cpus)
 
         return min(cluster_cpus, pg_cpus)

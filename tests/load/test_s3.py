@@ -14,7 +14,7 @@ from .._utils import ExecutionTimer
 
 
 def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
-    """Repartition modin dataframe into n blocks"""
+    """Repartition modin DataFrame into n blocks."""
     dataset = ray.data.from_modin(df)
     dataset = dataset.repartition(num_blocks)
     return dataset.to_modin()

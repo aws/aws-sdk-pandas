@@ -40,7 +40,7 @@ Quick Start
 
     # Amazon Timestream Write
     df = pd.DataFrame({
-        "time": [datetime.now(), datetime.now()],   
+        "time": [datetime.now(), datetime.now()],
         "my_dimension": ["foo", "boo"],
         "measure": [1.0, 1.1],
     })

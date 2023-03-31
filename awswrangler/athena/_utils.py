@@ -276,7 +276,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
 def _empty_dataframe_response(
     chunked: bool, query_metadata: _QueryMetadata
 ) -> Union[pd.DataFrame, Generator[None, None, None]]:
-    """Generate an empty dataframe response."""
+    """Generate an empty DataFrame response."""
     if chunked is False:
         df = pd.DataFrame()
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
@@ -486,7 +486,7 @@ def start_query_execution(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     athena_cache_settings: typing.AthenaCacheSettings, optional
-        Params of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
+        Parameters of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
         max_remote_cache_entries, and max_local_cache_entries.
         AthenaCacheSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaCacheSettings or as a regular Python dict.
@@ -693,7 +693,7 @@ def describe_table(
     Returns
     -------
     pandas.DataFrame
-        Pandas DataFrame filled by formatted infos.
+        Pandas DataFrame filled by formatted table information.
 
     Examples
     --------

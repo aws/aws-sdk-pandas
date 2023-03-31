@@ -54,7 +54,7 @@ The optional modules are:
 - opensearch
 - deltalake
 
-Calling these modules without the required dependencies raises an error prompting you to install the missing package. 
+Calling these modules without the required dependencies raises an error prompting you to install the missing package.
 
 AWS Lambda Layer
 ----------------
@@ -117,12 +117,12 @@ This option provides the ability to use semantic versions (i.e. library version)
      - Layer for ``Python 3.8.x`` runtimes
    * - aws-sdk-pandas-layer-py3-9
      - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-9
-     - Layer for ``Python 3.9.x`` runtimes     
+     - Layer for ``Python 3.9.x`` runtimes
 
 Here is an example of how to create and use the AWS SDK for pandas Lambda layer in your CDK app:
 
 .. code-block:: python
-    
+
     from aws_cdk import core, aws_sam as sam, aws_lambda
 
     class AWSSDKPandasApp(core.Construct):

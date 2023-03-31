@@ -678,7 +678,7 @@ def get_query_results(
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -1030,16 +1030,16 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         Wraps the query using UNLOAD, and read the results from S3.
         Only PARQUET format is supported.
     ctas_parameters: typing.AthenaCTASSettings, optional
-        Params of the CTAS such as database, temp_table_name, bucketing_info, and compression.
+        Parameters of the CTAS such as database, temp_table_name, bucketing_info, and compression.
     unload_parameters : typing.AthenaUNLOADSettings, optional
-        Params of the UNLOAD such as format, compression, field_delimiter, and partitioned_by.
+        Parameters of the UNLOAD such as format, compression, field_delimiter, and partitioned_by.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
     s3_output : str, optional
         Amazon S3 path.
     workgroup : str, optional
@@ -1057,7 +1057,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     athena_cache_settings: typing.AthenaCacheSettings, optional
-        Params of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
+        Parameters of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
         max_remote_cache_entries, and max_local_cache_entries.
         AthenaCacheSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaCacheSettings or as a regular Python dict.
@@ -1471,16 +1471,16 @@ def read_sql_table(
         Wraps the query using UNLOAD, and read the results from S3.
         Only PARQUET format is supported.
     ctas_parameters: typing.AthenaCTASSettings, optional
-        Params of the CTAS such as database, temp_table_name, bucketing_info, and compression.
+        Parameters of the CTAS such as database, temp_table_name, bucketing_info, and compression.
     unload_parameters : typing.AthenaUNLOADSettings, optional
-        Params of the UNLOAD such as format, compression, field_delimiter, and partitioned_by.
+        Parameters of the UNLOAD such as format, compression, field_delimiter, and partitioned_by.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
     s3_output : str, optional
         AWS S3 path.
     workgroup : str, optional
@@ -1498,7 +1498,7 @@ def read_sql_table(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     athena_cache_settings: typing.AthenaCacheSettings, optional
-        Params of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
+        Parameters of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
         max_remote_cache_entries, and max_local_cache_entries.
         AthenaCacheSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaCacheSettings or as a regular Python dict.

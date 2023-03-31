@@ -14,7 +14,7 @@ class SDKPandasDeprecatedWarning(Warning):
 
 
 class SDKPandasExperimentalWarning(Warning):
-    """Experiental Warning."""
+    """Experimental Warning."""
 
 
 def _inject_note(

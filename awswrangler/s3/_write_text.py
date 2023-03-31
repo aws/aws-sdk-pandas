@@ -196,7 +196,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
-        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
 
@@ -805,7 +805,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
-        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
 
