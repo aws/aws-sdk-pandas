@@ -71,22 +71,22 @@ def test_engine_python_without_ray_installed(wr: ModuleType) -> None:
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
-def test_engine_switch(wr: ModuleType) -> None:
+def test_engine_switch() -> None:
+    import awswrangler as wr2
+
     from modin.pandas import DataFrame as ModinDataFrame
     from pandas import DataFrame as PandasDataFrame
 
-    from awswrangler._distributed import EngineEnum, MemoryFormatEnum
+    assert wr2.engine.get_installed() == wr2.EngineEnum.RAY
+    assert wr2.memory_format.get_installed() == wr2.MemoryFormatEnum.MODIN
 
-    assert wr.engine.get_installed() == EngineEnum.RAY
-    assert wr.memory_format.get_installed() == MemoryFormatEnum.MODIN
+    assert wr2.engine.get() == wr2.EngineEnum.RAY
+    assert wr2.memory_format.get() == wr2.MemoryFormatEnum.MODIN
+    assert wr2.pandas.DataFrame == ModinDataFrame
 
-    assert wr.engine.get() == EngineEnum.RAY
-    assert wr.memory_format.get() == MemoryFormatEnum.MODIN
-    assert wr.pandas.DataFrame == ModinDataFrame
+    wr2.engine.set("python")
+    wr2.memory_format.set("pandas")
 
-    wr.engine.set("python")
-    wr.memory_format.set("pandas")
-
-    assert wr.engine.get() == EngineEnum.PYTHON
-    assert wr.memory_format.get() == MemoryFormatEnum.PANDAS
-    assert wr.pandas.DataFrame == PandasDataFrame
+    assert wr2.engine.get() == wr2.EngineEnum.PYTHON
+    assert wr2.memory_format.get() == wr2.MemoryFormatEnum.PANDAS
+    assert wr2.pandas.DataFrame == PandasDataFrame
