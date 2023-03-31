@@ -23,6 +23,7 @@ API Reference
 * `AWS STS`_
 * `AWS Secrets Manager`_
 * `Amazon Chime`_
+* `Typing`_
 * `Global Configurations`_
 * `Distributed - Ray`_
 
@@ -440,6 +441,24 @@ Amazon Chime
     :toctree: stubs
 
     post_message
+
+Typing
+---------------------
+
+.. currentmodule:: awswrangler.typing
+
+.. autosummary::
+    :toctree: stubs
+    :template: typed-dict-template.rst
+
+    GlueTableSettings
+    AthenaCTASSettings
+    AthenaUNLOADSettings
+    AthenaCacheSettings
+    AthenaPartitionProjectionSettings
+    RaySettings
+    RayReadParquetSettings
+    _S3WriteDataReturnValue
 
 Global Configurations
 ---------------------
