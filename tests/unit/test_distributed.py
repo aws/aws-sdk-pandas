@@ -1,11 +1,14 @@
 import logging
 from importlib import reload
 from types import ModuleType
-from typing import Iterator
+from typing import TYPE_CHECKING, Iterator
 
 import pytest
 
 from .._utils import is_ray_modin
+
+if TYPE_CHECKING:
+    import awswrangler
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -27,12 +30,12 @@ def wr() -> Iterator[ModuleType]:
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
-def test_engine_initialization(wr: ModuleType, path: str) -> None:
+def test_engine_initialization(wr: "awswrangler", path: str) -> None:
     assert wr.engine.is_initialized()
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
-def test_engine_python(wr: ModuleType) -> None:
+def test_engine_python(wr: "awswrangler") -> None:
     from awswrangler._distributed import EngineEnum
     from awswrangler.s3._write_parquet import _to_parquet
 
@@ -47,7 +50,7 @@ def test_engine_python(wr: ModuleType) -> None:
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
-def test_engine_ray(wr: ModuleType) -> None:
+def test_engine_ray(wr: "awswrangler") -> None:
     from awswrangler._distributed import EngineEnum
     from awswrangler.s3._write_parquet import _to_parquet
 
@@ -60,7 +63,7 @@ def test_engine_ray(wr: ModuleType) -> None:
 
 
 @pytest.mark.skipif(condition=is_ray_modin, reason="ray is installed")
-def test_engine_python_without_ray_installed(wr: ModuleType) -> None:
+def test_engine_python_without_ray_installed(wr: "awswrangler") -> None:
     from awswrangler._distributed import EngineEnum
     from awswrangler.s3._write_parquet import _to_parquet
 

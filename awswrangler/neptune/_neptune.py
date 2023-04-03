@@ -3,7 +3,7 @@
 
 import logging
 import re
-from typing import Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 import pandas as pd
 
@@ -11,9 +11,23 @@ import awswrangler.neptune._gremlin_init as gremlin
 from awswrangler import _utils, exceptions
 from awswrangler.neptune._client import NeptuneClient
 
-gremlin_python = _utils.import_optional_dependency("gremlin_python")
-opencypher = _utils.import_optional_dependency("requests")
-sparql = _utils.import_optional_dependency("SPARQLWrapper")
+if TYPE_CHECKING:
+    try:
+        import gremlin_python
+    except ImportError:
+        pass
+    try:
+        import requests as opencypher
+    except ImportError:
+        pass
+    try:
+        import SPARQLWrapper as sparql
+    except ImportError:
+        pass
+else:
+    gremlin_python = _utils.import_optional_dependency("gremlin_python")
+    opencypher = _utils.import_optional_dependency("requests")
+    sparql = _utils.import_optional_dependency("SPARQLWrapper")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])

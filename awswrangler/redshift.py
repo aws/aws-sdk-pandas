@@ -5,7 +5,7 @@
 import json
 import logging
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union, overload
 
 import boto3
 import botocore
@@ -17,7 +17,13 @@ from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
 
-redshift_connector = _utils.import_optional_dependency("redshift_connector")
+if TYPE_CHECKING:
+    try:
+        import redshift_connector
+    except ImportError:
+        pass
+else:
+    redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

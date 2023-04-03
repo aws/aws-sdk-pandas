@@ -2,7 +2,7 @@
 """Amazon Microsoft SQL Server Module."""
 
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union, overload
 
 import boto3
 import pandas as pd
@@ -14,7 +14,13 @@ from awswrangler._config import apply_configs
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
-pyodbc = _utils.import_optional_dependency("pyodbc")
+if TYPE_CHECKING:
+    try:
+        import pyodbc
+    except ImportError:
+        pass
+else:
+    pyodbc = _utils.import_optional_dependency("pyodbc")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])

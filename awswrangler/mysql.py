@@ -3,7 +3,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union, overload
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Type, Union, overload
 
 import boto3
 import pandas as pd
@@ -13,7 +13,13 @@ from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
 
-pymysql = _utils.import_optional_dependency("pymysql")
+if TYPE_CHECKING:
+    try:
+        import pymysql
+    except ImportError:
+        pass
+else:
+    pymysql = _utils.import_optional_dependency("pymysql")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -164,7 +170,7 @@ def connect(
         password=attrs.password,
         port=attrs.port,
         host=attrs.host,
-        ssl=attrs.ssl_context,
+        ssl=attrs.ssl_context,  # type: ignore[arg-type]
         read_timeout=read_timeout,
         write_timeout=write_timeout,
         connect_timeout=connect_timeout,

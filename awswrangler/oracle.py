@@ -3,7 +3,7 @@
 
 import logging
 from decimal import Decimal
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union, overload
 
 import boto3
 import pandas as pd
@@ -15,7 +15,13 @@ from awswrangler._config import apply_configs
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
-oracledb = _utils.import_optional_dependency("oracledb")
+if TYPE_CHECKING:
+    try:
+        import oracledb
+    except ImportError:
+        pass
+else:
+    oracledb = _utils.import_optional_dependency("oracledb")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])

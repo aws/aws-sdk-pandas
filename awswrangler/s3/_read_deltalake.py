@@ -1,13 +1,19 @@
 """Amazon S3 Read Delta Lake Module (PRIVATE)."""
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import boto3
 import pandas as pd
 
 from awswrangler import _data_types, _utils
 
-deltalake = _utils.import_optional_dependency("deltalake")
+if TYPE_CHECKING:
+    try:
+        import deltalake
+    except ImportError:
+        pass
+else:
+    deltalake = _utils.import_optional_dependency("deltalake")
 
 
 def _set_default_storage_options_kwargs(

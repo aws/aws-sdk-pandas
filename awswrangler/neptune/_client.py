@@ -2,7 +2,7 @@
 """Amazon NeptuneClient Module."""
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import boto3
 from botocore.auth import SigV4Auth
@@ -12,9 +12,24 @@ import awswrangler.neptune._gremlin_init as gremlin
 from awswrangler import _utils, exceptions
 from awswrangler.neptune._gremlin_parser import GremlinParser
 
-gremlin_python = _utils.import_optional_dependency("gremlin_python")
-opencypher = _utils.import_optional_dependency("requests")
-sparql = _utils.import_optional_dependency("SPARQLWrapper")
+if TYPE_CHECKING:
+    try:
+        import gremlin_python
+    except ImportError:
+        pass
+    try:
+        import requests as opencypher
+    except ImportError:
+        pass
+    try:
+        import SPARQLWrapper as sparql
+    except ImportError:
+        pass
+else:
+    gremlin_python = _utils.import_optional_dependency("gremlin_python")
+    opencypher = _utils.import_optional_dependency("requests")
+    sparql = _utils.import_optional_dependency("SPARQLWrapper")
+
 if any((gremlin_python, opencypher, sparql)):
     import requests
 

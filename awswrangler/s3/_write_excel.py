@@ -1,7 +1,7 @@
 """Amazon S3 Excel Write Module (PRIVATE)."""
 
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import boto3
 import pandas as pd
@@ -9,7 +9,13 @@ import pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler.s3._fs import open_s3_object
 
-openpyxl = _utils.import_optional_dependency("openpyxl")
+if TYPE_CHECKING:
+    try:
+        import openpyxl
+    except ImportError:
+        pass
+else:
+    openpyxl = _utils.import_optional_dependency("openpyxl")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ import ast
 import json
 import logging
 import uuid
-from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, List, Mapping, Optional, Tuple, Union, cast
 
 import boto3
 import numpy as np
@@ -16,8 +16,19 @@ from awswrangler import _utils, exceptions
 from awswrangler._utils import parse_path
 from awswrangler.opensearch._utils import _get_distribution, _get_version_major, _is_serverless
 
-progressbar = _utils.import_optional_dependency("progressbar")
-opensearchpy = _utils.import_optional_dependency("opensearchpy")
+if TYPE_CHECKING:
+    try:
+        import opensearchpy
+    except ImportError:
+        pass
+    try:
+        import progressbar
+    except ImportError:
+        pass
+else:
+    opensearchpy = _utils.import_optional_dependency("opensearchpy")
+    progressbar = _utils.import_optional_dependency("progressbar")
+
 if opensearchpy:
     from jsonpath_ng import parse
     from jsonpath_ng.exceptions import JsonPathParserError
@@ -117,7 +128,7 @@ def _get_documents_w_json_path(documents: List[Mapping[str, Any]], json_path: st
 def _get_refresh_interval(client: "opensearchpy.OpenSearch", index: str) -> Any:
     url = f"/{index}/_settings"
     try:
-        response = client.transport.perform_request("GET", url)
+        response = cast(Dict[str, Any], client.transport.perform_request("GET", url))
         index_settings = response.get(index, {}).get("index", {})
         refresh_interval = index_settings.get("refresh_interval", _DEFAULT_REFRESH_INTERVAL)
         return refresh_interval

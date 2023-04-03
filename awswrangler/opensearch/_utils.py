@@ -13,7 +13,14 @@ import botocore
 from awswrangler import _utils, exceptions
 from awswrangler.annotations import Experimental
 
-opensearchpy = _utils.import_optional_dependency("opensearchpy")
+if TYPE_CHECKING:
+    try:
+        import opensearchpy
+    except ImportError:
+        pass
+else:
+    opensearchpy = _utils.import_optional_dependency("opensearchpy")
+
 if opensearchpy:
     from requests_aws4auth import AWS4Auth
 
@@ -247,7 +254,7 @@ def connect(
             retry_on_timeout=retry_on_timeout,
             retry_on_status=retry_on_status,
         )
-        es._serverless = service == "aoss"  # pylint: disable=protected-access
+        es._serverless = service == "aoss"  # type: ignore[attr-defined]  # pylint: disable=protected-access  
     except Exception as e:
         _logger.error("Error connecting to Opensearch cluster. Please verify authentication details")
         raise e

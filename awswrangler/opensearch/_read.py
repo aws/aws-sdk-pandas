@@ -1,14 +1,20 @@
 # mypy: disable-error-code=name-defined
 """Amazon OpenSearch Read Module (PRIVATE)."""
 
-from typing import Any, Collection, Dict, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Collection, Dict, List, Mapping, Optional, Union
 
 import pandas as pd
 
 from awswrangler import _utils, exceptions
 from awswrangler.opensearch._utils import _get_distribution, _is_serverless
 
-opensearchpy = _utils.import_optional_dependency("opensearchpy")
+if TYPE_CHECKING:
+    try:
+        import opensearchpy
+    except ImportError:
+        pass
+else:
+    opensearchpy = _utils.import_optional_dependency("opensearchpy")
 
 
 def _resolve_fields(row: Mapping[str, Any]) -> Mapping[str, Any]:
