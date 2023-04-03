@@ -1,4 +1,4 @@
-# mypy: disable-error-code=name-defined
+# mypy: disable-error-code="name-defined,attr-defined"
 """Amazon Oracle Database Module."""
 
 import logging
