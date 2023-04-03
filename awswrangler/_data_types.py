@@ -171,7 +171,7 @@ def pyarrow2oracle(  # pylint: disable=too-many-branches,too-many-return-stateme
     if pa.types.is_dictionary(dtype):
         return pyarrow2oracle(dtype=dtype.value_type, string_type=string_type)
     if pa.types.is_binary(dtype):
-        return "RAW"
+        return "BLOB"
     raise exceptions.UnsupportedType(f"Unsupported Oracle type: {dtype}")
 
 
@@ -242,7 +242,7 @@ def pyarrow2sqlserver(  # pylint: disable=too-many-branches,too-many-return-stat
         return pyarrow2sqlserver(dtype=dtype.value_type, string_type=string_type)
     if pa.types.is_binary(dtype):
         return "VARBINARY"
-    raise exceptions.UnsupportedType(f"Unsupported PostgreSQL type: {dtype}")
+    raise exceptions.UnsupportedType(f"Unsupported SQL Server type: {dtype}")
 
 
 def pyarrow2timestream(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
