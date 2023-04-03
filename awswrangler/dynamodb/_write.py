@@ -181,7 +181,7 @@ def put_df(
     ...     table_name='table'
     ... )
     """
-    _logger.debug("Inserting data frame into DynamoDB table")
+    _logger.debug("Inserting data frame into DynamoDB table: %s", table_name)
 
     concurrency = _utils.ensure_worker_or_thread_count(use_threads=use_threads)
     executor = _get_executor(use_threads=use_threads, ray_parallelism=concurrency)
@@ -251,7 +251,7 @@ def put_items(
     ...     table_name='table'
     ... )
     """
-    _logger.debug("Inserting items into DynamoDB table")
+    _logger.debug("Inserting items into DynamoDB table: %s", table_name)
 
     executor = _get_executor(use_threads=use_threads)
     batches = _utils.chunkify(  # type: ignore[misc]
