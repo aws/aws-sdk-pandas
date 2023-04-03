@@ -31,7 +31,7 @@ import pandas as pd
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts, typing
 from awswrangler._config import apply_configs
 from awswrangler._sql_formatter import _process_sql_params
-from awswrangler.catalog._utils import _catalog_id, _transaction_id
+from awswrangler.catalog._utils import _catalog_id
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager
 
@@ -1031,8 +1031,6 @@ def show_create_table(
 def generate_create_query(
     table: str,
     database: Optional[str] = None,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -1046,11 +1044,6 @@ def generate_create_query(
         Table name.
     database : str
         Database name.
-    transaction_id: str, optional
-        The ID of the transaction.
-    query_as_of_time: str, optional
-        The time as of when to read the table contents. Must be a valid Unix epoch timestamp.
-        Cannot be specified alongside transaction_id.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -1088,14 +1081,9 @@ def generate_create_query(
         return ", \n".join(properties_str)
 
     client_glue = _utils.client(service_name="glue", session=boto3_session)
-    table_detail = client_glue.get_table(
-        **_catalog_id(
-            catalog_id=catalog_id,
-            **_transaction_id(
-                transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database, Name=table
-            ),
-        )
-    )["Table"]
+    table_detail = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))[
+        "Table"
+    ]
     if table_detail["TableType"] == "VIRTUAL_VIEW":
         glue_base64_query: str = table_detail["ViewOriginalText"].replace("/* Presto View: ", "").replace(" */", "")
         glue_query: str = json.loads(base64.b64decode(glue_base64_query))["originalSql"]
