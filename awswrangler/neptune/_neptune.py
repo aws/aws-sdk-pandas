@@ -1,4 +1,3 @@
-# mypy: disable-error-code=name-defined
 """Amazon Neptune Module."""
 
 import logging

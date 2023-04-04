@@ -1,4 +1,3 @@
-# mypy: disable-error-code=name-defined
 """Amazon OpenSearch Read Module (PRIVATE)."""
 
 from typing import TYPE_CHECKING, Any, Collection, Dict, List, Mapping, Optional, Union

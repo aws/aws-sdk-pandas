@@ -1,4 +1,3 @@
-# mypy: disable-error-code=name-defined
 """Amazon Neptune GremlinParser Module (PRIVATE)."""
 from typing import Any, Dict, List
 

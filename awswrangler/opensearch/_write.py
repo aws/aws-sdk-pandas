@@ -1,4 +1,3 @@
-# mypy: disable-error-code=name-defined
 """Amazon OpenSearch Write Module (PRIVATE)."""
 
 import ast

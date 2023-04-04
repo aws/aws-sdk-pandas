@@ -1,4 +1,3 @@
-# mypy: disable-error-code=name-defined
 """Amazon Microsoft SQL Server Module."""
 
 import logging

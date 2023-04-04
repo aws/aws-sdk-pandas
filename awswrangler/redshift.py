@@ -1,4 +1,3 @@
-# mypy: disable-error-code=name-defined
 # pylint: disable=too-many-lines
 """Amazon Redshift Module."""
 

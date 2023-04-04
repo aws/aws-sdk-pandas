@@ -1,4 +1,3 @@
-# mypy: disable-error-code=name-defined
 """Amazon PostgreSQL Module."""
 
 import logging
