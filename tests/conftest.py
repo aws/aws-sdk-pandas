@@ -378,8 +378,16 @@ def timestream_database_and_table():
     wr.timestream.create_database(name)
     wr.timestream.create_table(name, name, 1, 1)
     yield name
-    wr.timestream.delete_table(name, name)
-    wr.timestream.delete_database(name)
+    try:
+        wr.timestream.delete_table(name, name)
+    except botocore.exceptions.ClientError as err:
+        if err.response["Error"]["Code"] == "ResourceNotFound":
+            pass
+    try:
+        wr.timestream.delete_database(name)
+    except botocore.exceptions.ClientError as err:
+        if err.response["Error"]["Code"] == "ResourceNotFound":
+            pass
 
 
 @pytest.fixture(scope="function")

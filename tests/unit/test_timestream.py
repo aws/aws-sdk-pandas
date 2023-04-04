@@ -9,7 +9,7 @@ import pytest
 
 import awswrangler as wr
 
-from .._utils import is_ray_modin
+from .._utils import get_time_str_with_random_suffix, is_ray_modin
 
 if is_ray_modin:
     import modin.pandas as pd
@@ -19,6 +19,50 @@ else:
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed
+
+
+def test_create_database_with_logs(request: pytest.FixtureRequest, caplog: pytest.LogCaptureFixture) -> None:
+    db_name = f"db_{get_time_str_with_random_suffix()}"
+
+    with caplog.at_level(logging.INFO, "awswrangler.timestream"):
+        wr.timestream.create_database(db_name)
+
+    request.addfinalizer(lambda: wr.timestream.delete_database(db_name))
+
+    info_logs = [rec for rec in caplog.records if rec.levelno == logging.INFO]
+    assert len(info_logs) == 1
+    assert info_logs[0].message == f"Creating Timestream database {db_name}"
+
+
+def test_delete_database_with_logs(timestream_database: str, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO, "awswrangler.timestream"):
+        wr.timestream.delete_database(timestream_database)
+
+    info_logs = [rec for rec in caplog.records if rec.levelno == logging.INFO]
+    assert len(info_logs) == 1
+    assert info_logs[0].message == f"Deleting Timestream database {timestream_database}"
+
+
+def test_create_table_with_logs(timestream_database: str, request: pytest.FixtureRequest, caplog: pytest.LogCaptureFixture) -> None:
+    table_name = f"tbl_{get_time_str_with_random_suffix()}"
+
+    with caplog.at_level(logging.INFO, "awswrangler.timestream"):
+        wr.timestream.create_table(timestream_database, table_name, 1, 1)
+
+    request.addfinalizer(lambda: wr.timestream.delete_table(timestream_database, table_name))
+
+    info_logs = [rec for rec in caplog.records if rec.levelno == logging.INFO]
+    assert len(info_logs) == 1
+    assert info_logs[0].message == f"Creating Timestream table {table_name} in database {timestream_database}"
+
+
+def test_delete_table_with_logs(timestream_database_and_table: str, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO, "awswrangler.timestream"):
+        wr.timestream.delete_table(timestream_database_and_table, timestream_database_and_table)
+
+    info_logs = [rec for rec in caplog.records if rec.levelno == logging.INFO]
+    assert len(info_logs) == 1
+    assert info_logs[0].message == f"Deleting Timestream table {timestream_database_and_table} in database {timestream_database_and_table}"
 
 
 @pytest.mark.parametrize("pagination", [None, {}, {"MaxItems": 3, "PageSize": 2}])
