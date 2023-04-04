@@ -1,9 +1,9 @@
 import logging
 
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
