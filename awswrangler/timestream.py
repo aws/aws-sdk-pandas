@@ -177,7 +177,7 @@ def _write_df(
         botocore_config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
     )
     batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df), max_length=100)
-    _logger.debug("Writing %d nbatches of data", len(batches))
+    _logger.debug("Writing %d batches of data", len(batches))
     return executor.map(
         _write_batch,  # type: ignore[arg-type]
         timestream_client,
@@ -422,7 +422,7 @@ def write(
         raise exceptions.InvalidArgumentCombination(
             "At least one of `time_col`, `measure_col` or `dimensions_cols` must be specified."
         )
-    _logger.debug("Writing %d dataframes to Timestrea table", len(dfs))
+    _logger.debug("Writing %d dataframes to Timestream table", len(dfs))
 
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     errors = list(
@@ -561,7 +561,7 @@ def create_database(
 
     """
     _logger.info("Creating Timestream database %s", database)
-    client = _utils.client(service_name="timestream-wxrite", session=boto3_session)
+    client = _utils.client(service_name="timestream-write", session=boto3_session)
     args: Dict[str, Any] = {"DatabaseName": database}
     if kms_key_id is not None:
         args["KmsKeyId"] = kms_key_id
