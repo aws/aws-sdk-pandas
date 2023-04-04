@@ -236,7 +236,8 @@ def _read_scan(
             ]
         )
         next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
-        kwargs["ExclusiveStartKey"] = next_token
+        if next_token:
+            kwargs["ExclusiveStartKey"] = next_token
     return _utils.list_to_arrow_table(mapping=items) if as_dataframe else items
 
 
