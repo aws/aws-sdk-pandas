@@ -1,8 +1,9 @@
 """Pandas "proxy" package."""
+from typing import TYPE_CHECKING
 
 from awswrangler._distributed import MemoryFormatEnum, memory_format
 
-if memory_format.get() == MemoryFormatEnum.PANDAS:
+if TYPE_CHECKING or memory_format.get() == MemoryFormatEnum.PANDAS:
     from pandas import *  # noqa: F403
 
     # Explicit import because mypy doesn't support forward references to a star import
