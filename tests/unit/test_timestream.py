@@ -43,7 +43,9 @@ def test_delete_database_with_logs(timestream_database: str, caplog: pytest.LogC
     assert info_logs[0].message == f"Deleting Timestream database {timestream_database}"
 
 
-def test_create_table_with_logs(timestream_database: str, request: pytest.FixtureRequest, caplog: pytest.LogCaptureFixture) -> None:
+def test_create_table_with_logs(
+    timestream_database: str, request: pytest.FixtureRequest, caplog: pytest.LogCaptureFixture
+) -> None:
     table_name = f"tbl_{get_time_str_with_random_suffix()}"
 
     with caplog.at_level(logging.INFO, "awswrangler.timestream"):
@@ -62,7 +64,10 @@ def test_delete_table_with_logs(timestream_database_and_table: str, caplog: pyte
 
     info_logs = [rec for rec in caplog.records if rec.levelno == logging.INFO]
     assert len(info_logs) == 1
-    assert info_logs[0].message == f"Deleting Timestream table {timestream_database_and_table} in database {timestream_database_and_table}"
+    assert (
+        info_logs[0].message
+        == f"Deleting Timestream table {timestream_database_and_table} in database {timestream_database_and_table}"
+    )
 
 
 @pytest.mark.parametrize("pagination", [None, {}, {"MaxItems": 3, "PageSize": 2}])
