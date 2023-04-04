@@ -204,6 +204,8 @@ def _put_items(
     items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]],
     table_name: str,
 ) -> None:
+    _logger.debug("Inserting %d items", len(items))
+
     dynamodb_table = get_table(table_name=table_name, boto3_session=boto3_session)
     _validate_items(items=items, dynamodb_table=dynamodb_table)
     with dynamodb_table.batch_writer() as writer:

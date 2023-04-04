@@ -313,6 +313,7 @@ def _read_items(
 
         if use_query:
             # Query
+            _logger.debug("Query DynamoDB table %s", table_name)
             items = _read_query(table_name, boto3_session, **kwargs)
         else:
             # Last resort use Parallel Scan
@@ -323,6 +324,8 @@ def _read_items(
             kwargs = _serialize_kwargs(kwargs)
             kwargs["TableName"] = table_name
             kwargs["TotalSegments"] = total_segments
+
+            _logger.debug("Scanning DynamoDB table %s with %d segments", table_name, total_segments)
 
             items = executor.map(
                 _read_scan,
@@ -619,7 +622,7 @@ def read_items(  # pylint: disable=too-many-branches
     if max_items_evaluated:
         kwargs["Limit"] = max_items_evaluated
 
-    _logger.debug("kwargs: %s", kwargs)
+    _logger.debug("DynamoDB scan/query kwargs: %s", kwargs)
     # If kwargs are sufficiently informative, proceed with actual read op
     if any((partition_values, key_condition_expression, filter_expression, allow_full_scan, max_items_evaluated)):
         return _read_items(
