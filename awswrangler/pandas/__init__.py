@@ -1,14 +1,6 @@
 """Pandas "proxy" package."""
 
-from typing import Union
-
-import pandas as pd
-
 from awswrangler._distributed import MemoryFormatEnum, memory_format
-
-if memory_format.get_installed() == MemoryFormatEnum.MODIN:
-    from modin.pandas import DataFrame as ModinDataFrame
-
 
 if memory_format.get() == MemoryFormatEnum.PANDAS:
     from pandas import *  # noqa: F403
@@ -23,6 +15,7 @@ if memory_format.get() == MemoryFormatEnum.PANDAS:
         json_normalize,
         notna,
         read_csv,
+        read_excel,
         to_datetime,
     )
 elif memory_format.get() == MemoryFormatEnum.MODIN:
@@ -38,17 +31,15 @@ elif memory_format.get() == MemoryFormatEnum.MODIN:
         json_normalize,
         notna,
         read_csv,
+        read_excel,
         to_datetime,
     )
 else:
     raise ImportError(f"Unknown memory format {memory_format}")
 
-DataFrameType = Union[pd.DataFrame, "ModinDataFrame"]
-
 
 __all__ = [
     "DataFrame",
-    "DataFrameType",
     "Series",
     "concat",
     "isna",
@@ -56,5 +47,6 @@ __all__ = [
     "json_normalize",
     "notna",
     "read_csv",
+    "read_excel",
     "to_datetime",
 ]
