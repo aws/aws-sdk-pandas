@@ -14,7 +14,6 @@ import awswrangler.pandas as pd
 
 from .._utils import get_df_csv, is_ray_modin
 
-
 EXT = {"gzip": ".gz", "bz2": ".bz2", "xz": ".xz", "zip": ".zip"}
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)

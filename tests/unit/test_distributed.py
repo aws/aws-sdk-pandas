@@ -72,10 +72,10 @@ def test_engine_python_without_ray_installed(wr: ModuleType) -> None:
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
 def test_engine_switch() -> None:
-    import awswrangler as wr2
-
     from modin.pandas import DataFrame as ModinDataFrame
     from pandas import DataFrame as PandasDataFrame
+
+    import awswrangler as wr2
 
     assert wr2.engine.get_installed() == wr2.EngineEnum.RAY
     assert wr2.memory_format.get_installed() == wr2.MemoryFormatEnum.MODIN
