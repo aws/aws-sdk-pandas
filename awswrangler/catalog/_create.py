@@ -657,6 +657,7 @@ def create_database(
     description: Optional[str] = None,
     catalog_id: Optional[str] = None,
     exist_ok: bool = False,
+    database_input_args: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Create a database in AWS Glue Catalog.
@@ -673,6 +674,9 @@ def create_database(
     exist_ok : bool
         If set to True will not raise an Exception if a Database with the same already exists.
         In this case the description will be updated if it is different from the current one.
+    database_input_args : dict[str, Any], optional
+        Additional metadata to pass to database creation. Supported arguments listed here:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.create_database
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -689,7 +693,7 @@ def create_database(
     ... )
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    args: Dict[str, str] = {"Name": name}
+    args: Dict[str, Any] = {"Name": name, **database_input_args} if database_input_args else {"Name": name}
     if description is not None:
         args["Description"] = description
 
@@ -697,8 +701,10 @@ def create_database(
         r = client_glue.get_database(**_catalog_id(catalog_id=catalog_id, Name=name))
         if not exist_ok:
             raise exceptions.AlreadyExists(f"Database {name} already exists and <exist_ok> is set to False.")
-        if description and description != r["Database"].get("Description", ""):
-            client_glue.update_database(**_catalog_id(catalog_id=catalog_id, Name=name, DatabaseInput=args))
+        for k, v in args.items():
+            if v != r["Database"].get(k, ""):
+                client_glue.update_database(**_catalog_id(catalog_id=catalog_id, Name=name, DatabaseInput=args))
+                break
     except client_glue.exceptions.EntityNotFoundException:
         client_glue.create_database(**_catalog_id(catalog_id=catalog_id, DatabaseInput=args))
 

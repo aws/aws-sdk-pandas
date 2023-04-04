@@ -443,6 +443,17 @@ def test_create_database(random_glue_database: str, account_id: str, use_catalog
     assert r["Database"]["Name"] == random_glue_database
     assert r["Database"]["Description"] == description
 
+    wr.catalog.create_database(
+        name=random_glue_database,
+        catalog_id=account_id,
+        description="additional arguments",
+        database_input_args={
+            "Parameters": {"foo": "bar"},
+        },
+        exist_ok=True,
+    )
+    assert glue_client.get_database(Name=random_glue_database)["Database"]["Parameters"] == {"foo": "bar"}
+
 
 def test_catalog_json(path: str, glue_database: str, glue_table: str) -> None:
     # Create JSON table
