@@ -67,7 +67,7 @@ def modin_repartition(function: FunctionType) -> FunctionType:
             if validate_partitions and not _validate_partition_shape(df):
                 _logger.warning(
                     "Partitions of this data frame are detected to be split along column axis. "
-                    "The dataframe will be automatically repartitioned along row axis to ensure "
+                    "The DataFrame will be automatically repartitioned along row axis to ensure "
                     "each partition can be processed independently."
                 )
                 axis = 0

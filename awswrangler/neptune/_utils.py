@@ -17,7 +17,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class WriteDFType(Enum):
-    """Dataframe type enum."""
+    """DataFrame type enum."""
 
     VERTEX = 1
     EDGE = 2
@@ -25,16 +25,16 @@ class WriteDFType(Enum):
 
 
 def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType, batch_size: int) -> bool:
-    """Write the provided dataframe using Gremlin.
+    """Write the provided DataFrame using Gremlin.
 
     Parameters
     ----------
     client : NeptuneClient
-        The Neptune client to write the dataframe
+        The Neptune client to write the DataFrame
     df : pd.DataFrame
-        The dataframe to write
+        The DataFrame to write
     mode : WriteDFType
-        The type of dataframe to write
+        The type of DataFrame to write
     batch_size : int
         The size of the batch to write
 

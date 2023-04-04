@@ -216,7 +216,7 @@ def databases(
     Returns
     -------
     pandas.DataFrame
-        Pandas DataFrame filled by formatted infos.
+        Pandas DataFrame filled by formatted table information.
 
     Examples
     --------
@@ -356,7 +356,7 @@ def tables(
     Returns
     -------
     pandas.DataFrame
-        Pandas Dataframe filled by formatted infos.
+        Pandas DataFrame filled by formatted table information.
 
     Examples
     --------
@@ -489,7 +489,7 @@ def table(
     Returns
     -------
     pandas.DataFrame
-        Pandas DataFrame filled by formatted infos.
+        Pandas DataFrame filled by formatted table information.
 
     Examples
     --------
@@ -1058,7 +1058,7 @@ def get_table_versions(
 def get_table_number_of_versions(
     database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> int:
-    """Get tatal number of versions.
+    """Get total number of versions.
 
     Parameters
     ----------

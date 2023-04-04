@@ -125,7 +125,7 @@ def read_partiql_query(
 
 
 def _get_invalid_kwarg(msg: str) -> Optional[str]:
-    """Detect which kwarg contains reserved keywords based on given error message.
+    """Detect which keyword argument contains reserved keywords based on given error message.
 
     Parameters
     ----------
@@ -135,7 +135,7 @@ def _get_invalid_kwarg(msg: str) -> Optional[str]:
     Returns
     -------
     str, optional
-        Detected invalid kwarg if any, None otherwise.
+        Detected invalid keyword argument if any, None otherwise.
     """
     for kwarg in ("ProjectionExpression", "KeyConditionExpression", "FilterExpression"):
         if msg.startswith(f"Invalid {kwarg}: Attribute name is a reserved keyword; reserved keyword: "):
@@ -428,7 +428,7 @@ def read_items(  # pylint: disable=too-many-branches
 
     This function aims to gracefully handle (some of) the complexity of read actions
     available in Boto3 towards a DynamoDB table, abstracting it away while providing
-    a single, unified entrypoint.
+    a single, unified entry point.
 
     Under the hood, it wraps all the four available read actions: get_item, batch_get_item,
     query and scan.
@@ -477,7 +477,7 @@ def read_items(  # pylint: disable=too-many-branches
     boto3_session : boto3.Session, optional
         Boto3 Session. Defaults to None (the default boto3 Session will be used).
     pyarrow_additional_kwargs : Dict[str, Any], optional
-        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas dataframe.
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 

@@ -182,7 +182,7 @@ def delete_template(
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
-    """Delete a tamplate.
+    """Delete a template.
 
     Note
     ----

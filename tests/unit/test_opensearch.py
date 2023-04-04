@@ -444,51 +444,59 @@ def test_index_json_local(client):
 def test_index_json_s3(client, path):
     index = f"test_index_json_s3_{_get_unique_suffix()}"
     file_path = f"{tempfile.gettempdir()}/inspections.json"
-    with open(file_path, "w") as filehandle:
-        for doc in inspections_documents:
-            filehandle.write("%s\n" % json.dumps(doc))
-    s3 = boto3.client("s3")
-    path = f"{path}opensearch/inspections.json"
-    bucket, key = wr._utils.parse_path(path)
-    s3.upload_file(file_path, bucket, key)
-    response = wr.opensearch.index_json(client, index=index, path=path)
-    assert response.get("success", 0) == 6
-    wr.opensearch.delete_index(client, index)
+    try:
+        with open(file_path, "w") as filehandle:
+            for doc in inspections_documents:
+                filehandle.write("%s\n" % json.dumps(doc))
+        s3 = boto3.client("s3")
+        path = f"{path}opensearch/inspections.json"
+        bucket, key = wr._utils.parse_path(path)
+        s3.upload_file(file_path, bucket, key)
+        response = wr.opensearch.index_json(client, index=index, path=path)
+        assert response.get("success", 0) == 6
+    finally:
+        wr.opensearch.delete_index(client, index)
 
 
 def test_index_csv_local(client):
     file_path = f"{tempfile.gettempdir()}/inspections.csv"
     index = f"test_index_csv_local_{_get_unique_suffix()}"
-    df = pd.DataFrame(inspections_documents)
-    df.to_csv(file_path, index=False)
-    response = wr.opensearch.index_csv(client, path=file_path, index=index)
-    assert response.get("success", 0) == 6
-    wr.opensearch.delete_index(client, index)
+    try:
+        df = pd.DataFrame(inspections_documents)
+        df.to_csv(file_path, index=False)
+        response = wr.opensearch.index_csv(client, path=file_path, index=index)
+        assert response.get("success", 0) == 6
+    finally:
+        wr.opensearch.delete_index(client, index)
 
 
 def test_index_csv_s3(client, path):
     file_path = f"{tempfile.gettempdir()}/inspections.csv"
     index = f"test_index_csv_s3_{_get_unique_suffix()}"
-    df = pd.DataFrame(inspections_documents)
-    df.to_csv(file_path, index=False)
-    s3 = boto3.client("s3")
-    path = f"{path}opensearch/inspections.csv"
-    bucket, key = wr._utils.parse_path(path)
-    s3.upload_file(file_path, bucket, key)
-    response = wr.opensearch.index_csv(client, path=path, index=index)
-    assert response.get("success", 0) == 6
-    wr.opensearch.delete_index(client, index)
+    try:
+        df = pd.DataFrame(inspections_documents)
+        df.to_csv(file_path, index=False)
+        s3 = boto3.client("s3")
+        path = f"{path}opensearch/inspections.csv"
+        bucket, key = wr._utils.parse_path(path)
+        s3.upload_file(file_path, bucket, key)
+        response = wr.opensearch.index_csv(client, path=path, index=index)
+        assert response.get("success", 0) == 6
+    finally:
+        wr.opensearch.delete_index(client, index)
 
 
 @pytest.mark.skip(reason="takes a long time (~5 mins) since testing against small clusters")
 def test_index_json_s3_large_file(client):
     index = f"test_index_json_s3_large_file_{_get_unique_suffix()}"
     path = "s3://irs-form-990/index_2011.json"
-    response = wr.opensearch.index_json(
-        client, index=index, path=path, json_path="Filings2011", id_keys=["EIN"], bulk_size=20
-    )
-    assert response.get("success", 0) > 0
-    wr.opensearch.delete_index(client, index)
+    try:
+        response = wr.opensearch.index_json(
+            client, index=index, path=path, json_path="Filings2011", id_keys=["EIN"], bulk_size=20
+        )
+        assert response.get("success", 0) > 0
+    finally:
+        wr.opensearch.delete_index(client, index)
 
 
 @pytest.mark.skip(reason="Temporary skip until collection cleanup issue is resolved")

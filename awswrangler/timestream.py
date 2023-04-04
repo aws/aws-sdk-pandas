@@ -493,7 +493,7 @@ def query(
     sql: str
         SQL query.
     chunked: bool
-        If True returns dataframe iterator, and a single dataframe otherwise. False by default.
+        If True returns DataFrame iterator, and a single DataFrame otherwise. False by default.
     pagination_config: Dict[str, Any], optional
         Pagination configuration dictionary of a form {'MaxItems': 10, 'PageSize': 10, 'StartingToken': '...'}
     boto3_session : boto3.Session(), optional

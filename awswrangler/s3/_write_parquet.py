@@ -258,7 +258,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
     Note
     ----
-    This operation may mutate the original pandas dataframe in-place. To avoid this behaviour
+    This operation may mutate the original pandas DataFrame in-place. To avoid this behaviour
     please pass in a deep copy instead (i.e. `df.copy()`)
 
     Note
@@ -290,9 +290,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         'allow_truncated_timestamps'=False}
     max_rows_by_file : int
         Max number of rows in each file.
-        Default is None i.e. dont split the files.
+        Default is None i.e. don't split the files.
         (e.g. 33554432, 268435456)
-        Is not supported in conjuction with `index=True` when running the library with Ray/Modin.
+        Is not supported in conjunction with `index=True` when running the library with Ray/Modin.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -345,7 +345,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
-        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
 
@@ -900,7 +900,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
         Keep enabled even when working with projections is useful to keep
         Redshift Spectrum working with the regular partitions.
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
-        Params of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
 

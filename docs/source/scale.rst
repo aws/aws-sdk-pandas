@@ -144,3 +144,5 @@ To learn more
 --------------
 
 Read our `blog post <https://aws.amazon.com/blogs/big-data/scale-aws-sdk-for-pandas-workloads-with-aws-glue-for-ray/>`_, then head to our latest `tutorials <https://github.com/aws/aws-sdk-pandas/tree/release-3.0.0/tutorials>`_ to discover even more features.
+
+A runbook with common errors when running the library with Ray is available `here <https://github.com/aws/aws-sdk-pandas/discussions/1815>`_.
