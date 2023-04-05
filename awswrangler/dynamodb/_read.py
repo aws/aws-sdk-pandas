@@ -219,6 +219,7 @@ def _read_scan(
 ) -> Union[pa.Table, List[Dict[str, Any]]]:
     # SEE: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan
     client_dynamodb = dynamodb_client if dynamodb_client else _utils.client(service_name="dynamodb")
+    _logger.debug("Scanning segment %d from DynamoDB table %s", segment, kwargs["TableName"])
 
     deserializer = boto3.dynamodb.types.TypeDeserializer()
     next_token = "init_token"  # Dummy token
