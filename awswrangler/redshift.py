@@ -320,6 +320,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     lock: bool = False,
 ) -> Tuple[str, Optional[str]]:
+    _logger.debug("Creating table %s with mode %s, and overwrite method %s", table, mode, overwrite_method)
     if mode == "overwrite":
         if overwrite_method == "truncate":
             try:
@@ -346,6 +347,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
             _drop_table(cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "cascade"))
             # No point in locking here, the oid will change.
     elif _does_table_exist(cursor=cursor, schema=schema, table=table) is True:
+        _logger.debug("Table %s exists", table)
         if lock:
             _lock(cursor, [table], schema=schema)
         if mode == "upsert":
@@ -414,6 +416,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     )
     _logger.debug("Executing create table query:\n%s", sql)
     cursor.execute(sql)
+    _logger.debug("Created table %s", table)
     if lock:
         _lock(cursor, [table], schema=schema)
     return table, schema
