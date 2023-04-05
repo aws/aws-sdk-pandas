@@ -673,7 +673,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
                 catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
-                    _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_csv_partitions(
                         database=database,
                         table=table,
@@ -1133,7 +1132,6 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
             catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
             if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
-                _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_json_partitions(
                     database=database,
                     table=table,

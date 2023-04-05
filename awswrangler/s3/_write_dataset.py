@@ -318,8 +318,8 @@ def _to_dataset(
             s3_client=s3_client,
             **func_kwargs,
         )
-    _logger.debug("len(paths): %s", len(paths))
-    _logger.debug("partitions_values: %s", partitions_values)
+    _logger.debug("Wrote %s paths", len(paths))
+    _logger.debug("Created partitions_values: %s", partitions_values)
     if (table_type == "GOVERNED") and (table is not None) and (database is not None):
         list_add_objects: List[
             List[Dict[str, Any]]

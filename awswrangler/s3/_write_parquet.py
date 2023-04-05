@@ -683,7 +683,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
     )
-    _logger.debug("schema: \n%s", schema)
+    _logger.debug("Resolved pyarrow schema: \n%s", schema)
 
     if dataset is False:
         paths = _to_parquet(
@@ -770,11 +770,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             schema=schema,
             max_rows_by_file=max_rows_by_file,
         )
-        if (database is not None) and (table is not None):
+        if database and table:
             try:
                 catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
-                    _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_parquet_partitions(
                         database=database,
                         table=table,
@@ -995,9 +994,9 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     )
-    _logger.debug("columns_types: %s", columns_types)
-    _logger.debug("partitions_types: %s", partitions_types)
-    _logger.debug("partitions_values: %s", partitions_values)
+    _logger.debug("Resolved columns_types: %s", columns_types)
+    _logger.debug("Resolved partitions_types: %s", partitions_types)
+    _logger.debug("Resolved partitions_values: %s", partitions_values)
     catalog.create_parquet_table(
         database=database,
         table=table,
