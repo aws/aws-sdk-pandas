@@ -8,7 +8,6 @@ import pyarrow as pa
 
 from awswrangler import _data_types, _utils
 from awswrangler._arrow import _df_to_table
-from awswrangler.typing import _S3WriteDataReturnValue
 
 if TYPE_CHECKING:
     try:
