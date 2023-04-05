@@ -181,7 +181,12 @@ markers = [
 
 [tool.coverage.run]
 branch = true
-omit = ["awswrangler/distributed/*", "awswrangler/neptune/_utils.py"]
+omit = [
+    "awswrangler/distributed/*",
+    "awswrangler/neptune/_utils.py",
+    "awswrangler/opensearch/_utils.py",
+    "awswrangler/chime.py",
+]
 
 [tool.coverage.report]
 show_missing = true
