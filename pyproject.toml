@@ -107,7 +107,7 @@ tox = "^3.25.1"
 
 # Docs
 bump2version = "^1.0.1"
-IPython = "^7.34.0"
+IPython = "^8.10.0"
 jupyterlab = "^3.0"
 nbsphinx = "^0.8.8"
 nbsphinx-link = "^1.3.0"
@@ -181,7 +181,12 @@ markers = [
 
 [tool.coverage.run]
 branch = true
-omit = ["awswrangler/distributed/*", "awswrangler/neptune/_utils.py"]
+omit = [
+    "awswrangler/distributed/*",
+    "awswrangler/neptune/_utils.py",
+    "awswrangler/opensearch/_utils.py",
+    "awswrangler/chime.py",
+]
 
 [tool.coverage.report]
 show_missing = true
