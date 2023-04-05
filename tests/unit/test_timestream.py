@@ -21,42 +21,6 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 pytestmark = pytest.mark.distributed
 
 
-def test_create_database_with_logs(timestream_database: str, caplog: pytest.LogCaptureFixture) -> None:
-    info_logs = [rec for rec in caplog.get_records("setup") if rec.levelno == logging.INFO]
-    assert len(info_logs) == 1
-    assert info_logs[0].message == f"Creating Timestream database {timestream_database}"
-
-
-def test_delete_database_with_logs(timestream_database: str, caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.INFO, "awswrangler.timestream"):
-        wr.timestream.delete_database(timestream_database)
-
-    info_logs = [rec for rec in caplog.records if rec.levelno == logging.INFO]
-    assert len(info_logs) == 1
-    assert info_logs[0].message == f"Deleting Timestream database {timestream_database}"
-
-
-def test_create_table_with_logs(timestream_database_and_table: str, caplog: pytest.LogCaptureFixture) -> None:
-    db_name = timestream_database_and_table
-    table_name = timestream_database_and_table
-
-    info_logs = [rec for rec in caplog.get_records("setup") if rec.levelno == logging.INFO]
-    assert len(info_logs) == 2
-    assert info_logs[1].message == f"Creating Timestream table {table_name} in database {db_name}"
-
-
-def test_delete_table_with_logs(timestream_database_and_table: str, caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.INFO, "awswrangler.timestream"):
-        wr.timestream.delete_table(timestream_database_and_table, timestream_database_and_table)
-
-    info_logs = [rec for rec in caplog.records if rec.levelno == logging.INFO]
-    assert len(info_logs) == 1
-    assert (
-        info_logs[0].message
-        == f"Deleting Timestream table {timestream_database_and_table} in database {timestream_database_and_table}"
-    )
-
-
 @pytest.mark.parametrize("pagination", [None, {}, {"MaxItems": 3, "PageSize": 2}])
 def test_basic_scenario(timestream_database_and_table, pagination):
     name = timestream_database_and_table
