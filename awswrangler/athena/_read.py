@@ -105,7 +105,6 @@ def _fetch_parquet_result(
     _logger.debug("Manifest path: %s", manifest_path)
     _logger.debug("Metadata path: %s", metadata_path)
     paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=boto3_session)
-    _logger.debug("Read %d paths from the manifest", len(paths))
     if not paths:
         if not temp_table_fqn:
             raise exceptions.EmptyDataFrame("Query would return untyped, empty dataframe.")
@@ -139,7 +138,6 @@ def _fetch_parquet_result(
     paths_delete: List[str] = paths + [manifest_path, metadata_path]
     if chunked is False:
         if keep_files is False:
-            _logger.debug("Deleting objects in S3 path: %s", paths_delete)
             s3.delete_objects(
                 path=paths_delete,
                 use_threads=use_threads,
@@ -148,7 +146,6 @@ def _fetch_parquet_result(
             )
         return ret
     if keep_files is False:
-        _logger.debug("Deleting objects in S3 path: %s", paths_delete)
         return _delete_after_iterate(
             dfs=ret,
             paths=paths_delete,
@@ -467,7 +464,6 @@ def _resolve_query_without_cache(
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
         finally:
-            _logger.debug("Deleting catalog table: %s", name)
             catalog.delete_table_if_exists(database=ctas_database or database, table=name, boto3_session=boto3_session)
     elif unload_approach is True:
         if unload_parameters is None:

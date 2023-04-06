@@ -91,6 +91,7 @@ def delete_table_if_exists(
                 )
             )
         )
+        _logger.debug("Deleted catalog table: %s", table)
         return True
     except client_glue.exceptions.EntityNotFoundException:
         return False

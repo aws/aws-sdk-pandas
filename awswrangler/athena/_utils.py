@@ -176,10 +176,8 @@ def _fetch_txt_result(
         sep="\t",
     )
     if keep_files is False:
-        paths = [path, f"{path}.metadata"]
-        _logger.debug("Deleting objects in S3 paths: %s", paths)
         s3.delete_objects(
-            path=paths,
+            path=[path, f"{path}.metadata"],
             use_threads=False,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
