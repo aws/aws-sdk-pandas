@@ -29,7 +29,7 @@ def _copy_objects(
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
-    _logger.debug("len(batch): %s", len(batch))
+    _logger.debug("Copying %s objects", len(batch))
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     for source, target in batch:
         source_bucket, source_key = _utils.parse_path(path=source)
@@ -154,7 +154,6 @@ def merge_datasets(
     target_path = target_path[:-1] if target_path[-1] == "/" else target_path
 
     paths: List[str] = list_objects(path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=boto3_session)
-    _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
         return []
 
@@ -180,7 +179,6 @@ def merge_datasets(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    _logger.debug("len(new_objects): %s", len(new_objects))
     return new_objects
 
 
@@ -255,7 +253,6 @@ def copy_objects(
     ["s3://bucket1/dir1/key0", "s3://bucket1/dir1/key1"]
 
     """
-    _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
         return []
     source_path = source_path[:-1] if source_path[-1] == "/" else source_path
@@ -276,7 +273,7 @@ def copy_objects(
                     path_final = f"{path_wo_filename}/{new_filename}"
         new_objects.append(path_final)
         batch.append((path, path_final))
-    _logger.debug("len(new_objects): %s", len(new_objects))
+    _logger.debug("Creating %s new objects", len(new_objects))
     _copy(
         batches=_utils.chunkify(lst=batch, max_length=1_000),
         use_threads=use_threads,

@@ -124,7 +124,6 @@ def describe_objects(
         last_modified_end=last_modified_end,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
         return {}
 

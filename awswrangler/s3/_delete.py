@@ -38,7 +38,7 @@ def _delete_objects(
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
-    _logger.debug("len(paths): %s", len(paths))
+
     if s3_additional_kwargs:
         extra_kwargs: Dict[str, Any] = get_botocore_valid_kwargs(
             function_name="list_objects_v2", s3_additional_kwargs=s3_additional_kwargs
@@ -53,7 +53,7 @@ def _delete_objects(
         **extra_kwargs,
     )
     deleted = res.get("Deleted", [])
-    _logger.debug("len(deleted): %s", len(deleted))
+    _logger.debug("Deleted %s objects", len(deleted))
     errors = res.get("Errors", [])
     for error in errors:
         _logger.debug("error: %s", error)

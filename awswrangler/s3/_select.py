@@ -67,7 +67,11 @@ def _select_object_content(
             payload_records.extend([json.loads(record) for record in records])
         elif "End" in event:
             # End Event signals the request was successful
-            _logger.debug("Received End Event. Result is complete")
+            _logger.debug(
+                "Received End Event. Result is complete for S3 key: %s, Scan Range: %s",
+                args["Key"],
+                scan_range if scan_range else 0,
+            )
             request_complete = True
     # If the End Event is not received, the results may be incomplete
     if not request_complete:
@@ -268,7 +272,6 @@ def select_query(
     )
     if len(paths) < 1:
         raise exceptions.NoFilesFound(f"No files Found: {path}.")
-    _logger.debug("len(paths): %s", len(paths))
 
     select_kwargs: Dict[str, Any] = {
         "sql": sql,
@@ -279,7 +282,6 @@ def select_query(
         "boto3_session": boto3_session,
         "s3_additional_kwargs": s3_additional_kwargs,
     }
-    _logger.debug("kwargs:\n%s", pprint.pformat(select_kwargs))
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
