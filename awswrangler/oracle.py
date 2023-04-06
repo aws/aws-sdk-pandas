@@ -6,9 +6,9 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union, overload
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
@@ -516,7 +516,7 @@ def detect_oracle_decimal_datatype(cursor: Any) -> Dict[str, pa.DataType]:
 def handle_oracle_objects(
     col_values: List[Any], col_name: str, dtype: Optional[Dict[str, pa.DataType]] = None
 ) -> List[Any]:
-    """Get the string representation of an Oracle LOB value, and convert float to decimal."""
+    """Retrieve Oracle LOB values which may be string or bytes, and convert float to decimal."""
     if any(isinstance(col_value, oracledb.LOB) for col_value in col_values):
         col_values = [
             col_value.read() if isinstance(col_value, oracledb.LOB) else col_value for col_value in col_values

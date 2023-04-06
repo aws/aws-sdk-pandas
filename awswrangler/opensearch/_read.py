@@ -3,8 +3,7 @@
 
 from typing import Any, Collection, Dict, List, Mapping, Optional, Union
 
-import pandas as pd
-
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler.opensearch._utils import _get_distribution, _is_serverless
 

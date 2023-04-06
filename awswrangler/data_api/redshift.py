@@ -4,8 +4,8 @@ import time
 from typing import Any, Dict, List, Optional
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils
 from awswrangler.data_api import _connector
 

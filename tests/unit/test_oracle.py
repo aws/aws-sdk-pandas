@@ -3,15 +3,17 @@ from decimal import Decimal
 
 import boto3
 import oracledb
-import pandas as pd
 import pyarrow as pa
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
-from .._utils import ensure_data_types, get_df
+from .._utils import ensure_data_types, get_df, pandas_equals
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="function")
@@ -38,7 +40,6 @@ def test_to_sql_simple(oracle_table, oracle_con):
 def test_sql_types(oracle_table, oracle_con):
     table = oracle_table
     df = get_df()
-    df.drop(["binary"], axis=1, inplace=True)
     wr.oracle.to_sql(
         df=df,
         con=oracle_con,
@@ -122,7 +123,7 @@ def test_null(oracle_table, oracle_con):
 
     df2 = wr.oracle.read_sql_table(table=table, schema="TEST", con=oracle_con)
     df["id"] = df["id"].astype("Int64")
-    assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
+    assert pandas_equals(pd.concat(objs=[df, df], ignore_index=True), df2)
 
 
 def test_decimal_cast(oracle_table, oracle_con):

@@ -13,6 +13,7 @@ import redshift_connector
 from redshift_connector.error import ProgrammingError
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 from awswrangler import _utils
 
 from .._utils import (
@@ -26,11 +27,6 @@ from .._utils import (
     to_pandas,
     ts,
 )
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

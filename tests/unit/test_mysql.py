@@ -1,17 +1,19 @@
 import logging
 from decimal import Decimal
 
-import pandas as pd
 import pyarrow as pa
 import pymysql
 import pytest
 from pymysql.cursors import SSCursor
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
-from .._utils import ensure_data_types, get_df
+from .._utils import ensure_data_types, get_df, pandas_equals
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="function")
@@ -160,7 +162,7 @@ def test_null(mysql_table, mysql_con):
     )
     df2 = wr.mysql.read_sql_table(table=table, schema="test", con=mysql_con)
     df["id"] = df["id"].astype("Int64")
-    assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
+    assert pandas_equals(pd.concat(objs=[df, df], ignore_index=True), df2)
 
 
 def test_decimal_cast(mysql_table, mysql_con):

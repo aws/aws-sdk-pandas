@@ -9,7 +9,7 @@ from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import _update_table_definition
 from awswrangler.catalog._get import _get_partitions
-from awswrangler.catalog._utils import _catalog_id, _transaction_id
+from awswrangler.catalog._utils import _catalog_id
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -48,7 +48,6 @@ def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: 
 def delete_table_if_exists(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> bool:
@@ -60,8 +59,6 @@ def delete_table_if_exists(
         Database name.
     table : str
         Table name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -84,13 +81,7 @@ def delete_table_if_exists(
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.delete_table(
-            **_catalog_id(
-                **_transaction_id(
-                    transaction_id=transaction_id, DatabaseName=database, Name=table, catalog_id=catalog_id
-                )
-            )
-        )
+        client_glue.delete_table(**_catalog_id(DatabaseName=database, Name=table, catalog_id=catalog_id))
         _logger.debug("Deleted catalog table: %s", table)
         return True
     except client_glue.exceptions.EntityNotFoundException:
@@ -201,7 +192,6 @@ def delete_column(
     database: str,
     table: str,
     column_name: str,
-    transaction_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
@@ -215,8 +205,6 @@ def delete_column(
         Table name.
     column_name : str
         Column name
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     catalog_id : str, optional
@@ -238,21 +226,13 @@ def delete_column(
     ... )
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
-    table_res = client_glue.get_table(
-        **_catalog_id(
-            catalog_id=catalog_id,
-            **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table),
-        )
-    )
+    table_res = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
     table_input: Dict[str, Any] = _update_table_definition(table_res)
     table_input["StorageDescriptor"]["Columns"] = [
         i for i in table_input["StorageDescriptor"]["Columns"] if i["Name"] != column_name
     ]
     res: Dict[str, Any] = client_glue.update_table(
-        **_catalog_id(
-            catalog_id=catalog_id,
-            **_transaction_id(transaction_id=transaction_id, DatabaseName=database, TableInput=table_input),
-        )
+        **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
     )
     if ("Errors" in res) and res["Errors"]:
         for error in res["Errors"]:

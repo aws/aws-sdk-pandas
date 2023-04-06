@@ -36,7 +36,6 @@ def _parquet_table_definition(
     table: str,
     path: str,
     columns_types: Dict[str, str],
-    table_type: Optional[str],
     partitions_types: Dict[str, str],
     bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
@@ -45,7 +44,7 @@ def _parquet_table_definition(
     return {
         "Name": table,
         "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
-        "TableType": "EXTERNAL_TABLE" if table_type is None else table_type,
+        "TableType": "EXTERNAL_TABLE",
         "Parameters": {"classification": "parquet", "compressionType": str(compression).lower(), "typeOfData": "file"},
         "StorageDescriptor": {
             "Columns": [{"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()],
@@ -108,7 +107,6 @@ def _csv_table_definition(
     table: str,
     path: Optional[str],
     columns_types: Dict[str, str],
-    table_type: Optional[str],
     partitions_types: Dict[str, str],
     bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
@@ -137,7 +135,7 @@ def _csv_table_definition(
     return {
         "Name": table,
         "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
-        "TableType": "EXTERNAL_TABLE" if table_type is None else table_type,
+        "TableType": "EXTERNAL_TABLE",
         "Parameters": parameters,
         "StorageDescriptor": {
             "Columns": [{"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()],
@@ -198,7 +196,6 @@ def _json_table_definition(
     table: str,
     path: str,
     columns_types: Dict[str, str],
-    table_type: Optional[str],
     partitions_types: Dict[str, str],
     bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
@@ -218,7 +215,7 @@ def _json_table_definition(
     return {
         "Name": table,
         "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
-        "TableType": "EXTERNAL_TABLE" if table_type is None else table_type,
+        "TableType": "EXTERNAL_TABLE",
         "Parameters": parameters,
         "StorageDescriptor": {
             "Columns": [{"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()],

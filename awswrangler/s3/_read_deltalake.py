@@ -3,8 +3,8 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils
 
 deltalake = _utils.import_optional_dependency("deltalake")
