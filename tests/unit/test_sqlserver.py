@@ -2,16 +2,18 @@ import logging
 from decimal import Decimal
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 import pyodbc
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
-from .._utils import ensure_data_types, get_df
+from .._utils import ensure_data_types, get_df, pandas_equals
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -162,7 +164,7 @@ def test_null(sqlserver_table, sqlserver_con):
     )
     df2 = wr.sqlserver.read_sql_table(table=table, schema="dbo", con=sqlserver_con)
     df["id"] = df["id"].astype("Int64")
-    assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
+    assert pandas_equals(pd.concat(objs=[df, df], ignore_index=True), df2)
 
 
 def test_decimal_cast(sqlserver_table, sqlserver_con):

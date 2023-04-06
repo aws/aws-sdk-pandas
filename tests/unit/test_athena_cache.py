@@ -3,12 +3,9 @@ from unittest.mock import patch
 
 import pytest
 
-from .._utils import ensure_athena_query_metadata, is_ray_modin
+import awswrangler.pandas as pd
 
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+from .._utils import ensure_athena_query_metadata
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

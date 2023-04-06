@@ -13,14 +13,10 @@ import pyarrow.parquet as pq
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 from awswrangler._distributed import MemoryFormatEnum
 
 from .._utils import ensure_data_types, get_df_list, is_ray_modin, pandas_equals, to_pandas
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

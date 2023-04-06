@@ -6,9 +6,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Union, cast, overload
 
 import boto3
-import pandas as pd
 from botocore.config import Config
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
@@ -17,7 +17,6 @@ from awswrangler.distributed.ray import ray_get
 if TYPE_CHECKING:
     from mypy_boto3_timestream_query.type_defs import PaginatorConfigTypeDef, QueryResponseTypeDef, RowTypeDef
     from mypy_boto3_timestream_write.client import TimestreamWriteClient
-
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -177,7 +176,7 @@ def _write_df(
         botocore_config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
     )
     batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df), max_length=100)
-    _logger.debug("len(batches): %s", len(batches))
+    _logger.debug("Writing %d batches of data", len(batches))
     return executor.map(
         _write_batch,  # type: ignore[arg-type]
         timestream_client,
@@ -234,7 +233,11 @@ def _rows_to_df(
 ) -> pd.DataFrame:
     df = pd.DataFrame(data=rows, columns=[c["name"] for c in schema])
     if df_metadata:
-        df.attrs = df_metadata
+        try:
+            df.attrs = df_metadata
+        except AttributeError as ex:
+            # Modin does not support attribute assignment
+            _logger.error(ex)
     for col in schema:
         if col["type"] == "VARCHAR":
             df[col["name"]] = df[col["name"]].astype("string")
@@ -401,7 +404,9 @@ def write(
     common_attributes = _sanitize_common_attributes(common_attributes, version, measure_name)
 
     _logger.debug(
-        "common_attributes: %s\n, cols_names: %s\n, measure_types: %s",
+        "Writing to Timestream table %s in database %s\ncommon_attributes: %s\n, cols_names: %s\n, measure_types: %s",
+        table,
+        database,
         common_attributes,
         cols_names,
         measure_types,
@@ -420,7 +425,7 @@ def write(
         raise exceptions.InvalidArgumentCombination(
             "At least one of `time_col`, `measure_col` or `dimensions_cols` must be specified."
         )
-    _logger.debug("len(dfs): %s", len(dfs))
+    _logger.debug("Writing %d dataframes to Timestream table", len(dfs))
 
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     errors = list(
@@ -514,7 +519,11 @@ def query(
         return result_iterator
 
     # Prepending an empty DataFrame ensures returning an empty DataFrame if result_iterator is empty
-    return pd.concat(itertools.chain([pd.DataFrame()], result_iterator), ignore_index=True)
+    results = list(result_iterator)
+    if len(results) > 0:
+        # Modin's concat() can not concatenate empty data frames
+        return pd.concat(results, ignore_index=True)
+    return pd.DataFrame()
 
 
 def create_database(
@@ -558,6 +567,7 @@ def create_database(
     >>> arn = wr.timestream.create_database("MyDatabase")
 
     """
+    _logger.info("Creating Timestream database %s", database)
     client = _utils.client(service_name="timestream-write", session=boto3_session)
     args: Dict[str, Any] = {"DatabaseName": database}
     if kms_key_id is not None:
@@ -602,6 +612,7 @@ def delete_database(
     >>> arn = wr.timestream.delete_database("MyDatabase")
 
     """
+    _logger.info("Deleting Timestream database %s", database)
     client = _utils.client(service_name="timestream-write", session=boto3_session)
     client.delete_database(DatabaseName=database)
 
@@ -661,6 +672,7 @@ def create_table(
     ... )
 
     """
+    _logger.info("Creating Timestream table %s in database %s", table, database)
     client = _utils.client(service_name="timestream-write", session=boto3_session)
     timestream_additional_kwargs = {} if timestream_additional_kwargs is None else timestream_additional_kwargs
     args: Dict[str, Any] = {
@@ -715,6 +727,7 @@ def delete_table(
     >>> arn = wr.timestream.delete_table("MyDatabase", "MyTable")
 
     """
+    _logger.info("Deleting Timestream table %s in database %s", table, database)
     client = _utils.client(service_name="timestream-write", session=boto3_session)
     client.delete_table(DatabaseName=database, TableName=table)
 
