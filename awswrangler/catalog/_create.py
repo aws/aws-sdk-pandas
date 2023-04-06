@@ -10,7 +10,7 @@ from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import _csv_table_definition, _json_table_definition, _parquet_table_definition
 from awswrangler.catalog._delete import delete_all_partitions, delete_table_if_exists
 from awswrangler.catalog._get import _get_table_input
-from awswrangler.catalog._utils import _catalog_id, _transaction_id, sanitize_column_name, sanitize_table_name
+from awswrangler.catalog._utils import _catalog_id, sanitize_column_name, sanitize_table_name
 
 if TYPE_CHECKING:
     from mypy_boto3_glue import GlueClient
@@ -27,7 +27,7 @@ def _update_if_necessary(dic: Dict[str, str], key: str, value: Optional[str], mo
     return mode
 
 
-def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     database: str,
     table: str,
     description: Optional[str],
@@ -36,11 +36,9 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
     catalog_versioning: bool,
     boto3_session: Optional[boto3.Session],
     table_input: Dict[str, Any],
-    table_type: Optional[str],
     table_exist: bool,
     partitions_types: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
-    transaction_id: Optional[str],
     athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
     catalog_id: Optional[str],
 ) -> None:
@@ -135,23 +133,15 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         )
     args: Dict[str, Any] = _catalog_id(
         catalog_id=catalog_id,
-        **_transaction_id(
-            transaction_id=transaction_id,
-            DatabaseName=database,
-            TableInput=table_input,
-        ),
+        DatabaseName=database,
+        TableInput=table_input,
     )
-    if table_exist:
+    if table_exist and mode in ("overwrite", "update"):
         _logger.debug("Updating table (%s)...", mode)
         args["SkipArchive"] = skip_archive
         if mode == "overwrite":
-            if table_type != "GOVERNED":
-                delete_all_partitions(
-                    table=table, database=database, catalog_id=catalog_id, boto3_session=boto3_session
-                )
-            client_glue.update_table(**args)
-        elif mode == "update":
-            client_glue.update_table(**args)
+            delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=boto3_session)
+        client_glue.update_table(**args)
     else:
         try:
             _logger.debug("Creating table (%s)...", mode)
@@ -166,7 +156,6 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
                     database=database,
                     table=table,
                     table_input=table_input,
-                    transaction_id=transaction_id,
                     boto3_session=boto3_session,
                 )
     _logger.debug("Leaving table as is (%s)...", mode)
@@ -178,23 +167,18 @@ def _overwrite_table(
     database: str,
     table: str,
     table_input: Dict[str, Any],
-    transaction_id: Optional[str],
     boto3_session: boto3.Session,
 ) -> None:
     delete_table_if_exists(
         database=database,
         table=table,
-        transaction_id=transaction_id,
         boto3_session=boto3_session,
         catalog_id=catalog_id,
     )
     args: Dict[str, Any] = _catalog_id(
         catalog_id=catalog_id,
-        **_transaction_id(
-            transaction_id=transaction_id,
-            DatabaseName=database,
-            TableInput=table_input,
-        ),
+        DatabaseName=database,
+        TableInput=table_input,
     )
     client_glue.create_table(**args)
 
@@ -202,7 +186,6 @@ def _overwrite_table(
 def _upsert_table_parameters(
     parameters: Dict[str, str],
     database: str,
-    transaction_id: Optional[str],
     catalog_versioning: bool,
     catalog_id: Optional[str],
     table_input: Dict[str, Any],
@@ -218,7 +201,6 @@ def _upsert_table_parameters(
         _overwrite_table_parameters(
             parameters=pars,
             database=database,
-            transaction_id=transaction_id,
             catalog_id=catalog_id,
             boto3_session=boto3_session,
             table_input=table_input,
@@ -230,7 +212,6 @@ def _upsert_table_parameters(
 def _overwrite_table_parameters(
     parameters: Dict[str, str],
     database: str,
-    transaction_id: Optional[str],
     catalog_versioning: bool,
     catalog_id: Optional[str],
     table_input: Dict[str, Any],
@@ -242,9 +223,9 @@ def _overwrite_table_parameters(
     client_glue.update_table(
         **_catalog_id(
             catalog_id=catalog_id,
-            **_transaction_id(
-                transaction_id=transaction_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive
-            ),
+            DatabaseName=database,
+            TableInput=table_input,
+            SkipArchive=skip_archive,
         )
     )
     return parameters
@@ -278,7 +259,6 @@ def _create_parquet_table(
     table: str,
     path: str,
     columns_types: Dict[str, str],
-    table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
     bucketing_info: Optional[typing.BucketingInfoTuple],
     catalog_id: Optional[str],
@@ -288,7 +268,6 @@ def _create_parquet_table(
     columns_comments: Optional[Dict[str, str]],
     mode: str,
     catalog_versioning: bool,
-    transaction_id: Optional[str],
     athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
     boto3_session: Optional[boto3.Session],
     catalog_table_input: Optional[Dict[str, Any]],
@@ -309,7 +288,6 @@ def _create_parquet_table(
             table=table,
             path=path,
             columns_types=columns_types,
-            table_type=table_type,
             partitions_types=partitions_types,
             bucketing_info=bucketing_info,
             compression=compression,
@@ -326,21 +304,18 @@ def _create_parquet_table(
         catalog_versioning=catalog_versioning,
         boto3_session=boto3_session,
         table_input=table_input,
-        table_type=table_type,
         table_exist=table_exist,
         partitions_types=partitions_types,
-        transaction_id=transaction_id,
         athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
     )
 
 
-def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
+def _create_csv_table(  # pylint: disable=too-many-arguments
     database: str,
     table: str,
     path: Optional[str],
     columns_types: Dict[str, str],
-    table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
     bucketing_info: Optional[typing.BucketingInfoTuple],
     description: Optional[str],
@@ -348,7 +323,6 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     parameters: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
     mode: str,
-    transaction_id: Optional[str],
     catalog_versioning: bool,
     schema_evolution: bool,
     sep: str,
@@ -380,7 +354,6 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
             table=table,
             path=path,
             columns_types=columns_types,
-            table_type=table_type,
             partitions_types=partitions_types,
             bucketing_info=bucketing_info,
             compression=compression,
@@ -401,10 +374,8 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         catalog_versioning=catalog_versioning,
         boto3_session=boto3_session,
         table_input=table_input,
-        table_type=table_type,
         table_exist=table_exist,
         partitions_types=partitions_types,
-        transaction_id=transaction_id,
         athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
     )
@@ -415,7 +386,6 @@ def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
     table: str,
     path: str,
     columns_types: Dict[str, str],
-    table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
     bucketing_info: Optional[typing.BucketingInfoTuple],
     description: Optional[str],
@@ -425,7 +395,6 @@ def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
     mode: str,
     catalog_versioning: bool,
     schema_evolution: bool,
-    transaction_id: Optional[str],
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
     boto3_session: Optional[boto3.Session],
@@ -451,7 +420,6 @@ def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
             table=table,
             path=path,
             columns_types=columns_types,
-            table_type=table_type,
             partitions_types=partitions_types,
             bucketing_info=bucketing_info,
             compression=compression,
@@ -468,10 +436,8 @@ def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
         columns_comments=columns_comments,
         mode=mode,
         catalog_versioning=catalog_versioning,
-        transaction_id=transaction_id,
         boto3_session=boto3_session,
         table_input=table_input,
-        table_type=table_type,
         table_exist=table_exist,
         partitions_types=partitions_types,
         athena_partition_projection_settings=athena_partition_projection_settings,
@@ -484,7 +450,6 @@ def upsert_table_parameters(
     parameters: Dict[str, str],
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
     catalog_versioning: bool = False,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -499,8 +464,6 @@ def upsert_table_parameters(
         Database name.
     table : str
         Table name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     catalog_id : str, optional
@@ -527,7 +490,6 @@ def upsert_table_parameters(
         database=database,
         table=table,
         boto3_session=boto3_session,
-        transaction_id=transaction_id,
         catalog_id=catalog_id,
     )
     if table_input is None:
@@ -536,7 +498,6 @@ def upsert_table_parameters(
         parameters=parameters,
         database=database,
         boto3_session=boto3_session,
-        transaction_id=transaction_id,
         catalog_id=catalog_id,
         table_input=table_input,
         catalog_versioning=catalog_versioning,
@@ -548,7 +509,6 @@ def overwrite_table_parameters(
     parameters: Dict[str, str],
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
     catalog_versioning: bool = False,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -563,8 +523,6 @@ def overwrite_table_parameters(
         Database name.
     table : str
         Table name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     catalog_id : str, optional
@@ -590,7 +548,6 @@ def overwrite_table_parameters(
     table_input: Optional[Dict[str, Any]] = _get_table_input(
         database=database,
         table=table,
-        transaction_id=transaction_id,
         catalog_id=catalog_id,
         boto3_session=boto3_session,
     )
@@ -600,7 +557,6 @@ def overwrite_table_parameters(
         parameters=parameters,
         database=database,
         catalog_id=catalog_id,
-        transaction_id=transaction_id,
         table_input=table_input,
         boto3_session=boto3_session,
         catalog_versioning=catalog_versioning,
@@ -671,7 +627,6 @@ def create_parquet_table(
     table: str,
     path: str,
     columns_types: Dict[str, str],
-    table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
     bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     catalog_id: Optional[str] = None,
@@ -681,7 +636,6 @@ def create_parquet_table(
     columns_comments: Optional[Dict[str, str]] = None,
     mode: str = "overwrite",
     catalog_versioning: bool = False,
-    transaction_id: Optional[str] = None,
     athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
@@ -699,8 +653,6 @@ def create_parquet_table(
         Amazon S3 path (e.g. s3://bucket/prefix/).
     columns_types: Dict[str, str]
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
-    table_type: str, optional
-        The type of the Glue Table (EXTERNAL_TABLE, GOVERNED...). Set to EXTERNAL_TABLE if None
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
     bucketing_info: Tuple[List[str], int], optional
@@ -722,8 +674,6 @@ def create_parquet_table(
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
         Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
@@ -802,7 +752,6 @@ def create_parquet_table(
         database=database,
         table=table,
         boto3_session=boto3_session,
-        transaction_id=transaction_id,
         catalog_id=catalog_id,
     )
     _create_parquet_table(
@@ -810,7 +759,6 @@ def create_parquet_table(
         table=table,
         path=path,
         columns_types=columns_types,
-        table_type=table_type,
         partitions_types=partitions_types,
         bucketing_info=bucketing_info,
         catalog_id=catalog_id,
@@ -820,7 +768,6 @@ def create_parquet_table(
         columns_comments=columns_comments,
         mode=mode,
         catalog_versioning=catalog_versioning,
-        transaction_id=transaction_id,
         athena_partition_projection_settings=athena_partition_projection_settings,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
@@ -833,7 +780,6 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     table: str,
     path: str,
     columns_types: Dict[str, str],
-    table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
     bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     compression: Optional[str] = None,
@@ -847,7 +793,6 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     skip_header_line_count: Optional[int] = None,
     serde_library: Optional[str] = None,
     serde_parameters: Optional[Dict[str, str]] = None,
-    transaction_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     catalog_id: Optional[str] = None,
@@ -871,8 +816,6 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         Amazon S3 path (e.g. s3://bucket/prefix/).
     columns_types: Dict[str, str]
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
-    table_type: str, optional
-        The type of the Glue Table (EXTERNAL_TABLE, GOVERNED...). Set to EXTERNAL_TABLE if None
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
     bucketing_info: Tuple[List[str], int], optional
@@ -888,7 +831,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     mode : str
-        'overwrite' to recreate any possible axisting table or 'append' to keep any possible axisting table.
+        'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
@@ -907,8 +850,6 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     serde_parameters : Optional[str]
         Dictionary of initialization parameters for the SerDe.
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
         Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
@@ -990,7 +931,6 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         database=database,
         table=table,
         boto3_session=boto3_session,
-        transaction_id=transaction_id,
         catalog_id=catalog_id,
     )
     _create_csv_table(
@@ -998,7 +938,6 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         table=table,
         path=path,
         columns_types=columns_types,
-        table_type=table_type,
         partitions_types=partitions_types,
         bucketing_info=bucketing_info,
         catalog_id=catalog_id,
@@ -1008,7 +947,6 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         columns_comments=columns_comments,
         mode=mode,
         catalog_versioning=catalog_versioning,
-        transaction_id=transaction_id,
         schema_evolution=schema_evolution,
         athena_partition_projection_settings=athena_partition_projection_settings,
         boto3_session=boto3_session,
@@ -1021,12 +959,11 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
 
 
 @apply_configs
-def create_json_table(  # pylint: disable=too-many-arguments
+def create_json_table(
     database: str,
     table: str,
     path: str,
     columns_types: Dict[str, str],
-    table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
     bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     compression: Optional[str] = None,
@@ -1038,7 +975,6 @@ def create_json_table(  # pylint: disable=too-many-arguments
     schema_evolution: bool = False,
     serde_library: Optional[str] = None,
     serde_parameters: Optional[Dict[str, str]] = None,
-    transaction_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     catalog_id: Optional[str] = None,
@@ -1057,8 +993,6 @@ def create_json_table(  # pylint: disable=too-many-arguments
         Amazon S3 path (e.g. s3://bucket/prefix/).
     columns_types: Dict[str, str]
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
-    table_type: str, optional
-        The type of the Glue Table (EXTERNAL_TABLE, GOVERNED...). Set to EXTERNAL_TABLE if None
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
     bucketing_info: Tuple[List[str], int], optional
@@ -1089,8 +1023,6 @@ def create_json_table(  # pylint: disable=too-many-arguments
     serde_parameters : Optional[str]
         Dictionary of initialization parameters for the SerDe.
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
         Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
@@ -1175,7 +1107,6 @@ def create_json_table(  # pylint: disable=too-many-arguments
         table=table,
         path=path,
         columns_types=columns_types,
-        table_type=table_type,
         partitions_types=partitions_types,
         bucketing_info=bucketing_info,
         catalog_id=catalog_id,
@@ -1185,7 +1116,6 @@ def create_json_table(  # pylint: disable=too-many-arguments
         columns_comments=columns_comments,
         mode=mode,
         catalog_versioning=catalog_versioning,
-        transaction_id=transaction_id,
         schema_evolution=schema_evolution,
         athena_partition_projection_settings=athena_partition_projection_settings,
         boto3_session=boto3_session,
