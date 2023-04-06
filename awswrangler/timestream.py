@@ -6,9 +6,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Union, cast, overload
 
 import boto3
-import pandas as pd
 from botocore.config import Config
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
@@ -17,7 +17,6 @@ from awswrangler.distributed.ray import ray_get
 if TYPE_CHECKING:
     from mypy_boto3_timestream_query.type_defs import PaginatorConfigTypeDef, QueryResponseTypeDef, RowTypeDef
     from mypy_boto3_timestream_write.client import TimestreamWriteClient
-
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -234,7 +233,11 @@ def _rows_to_df(
 ) -> pd.DataFrame:
     df = pd.DataFrame(data=rows, columns=[c["name"] for c in schema])
     if df_metadata:
-        df.attrs = df_metadata
+        try:
+            df.attrs = df_metadata
+        except AttributeError as ex:
+            # Modin does not support attribute assignment
+            _logger.error(ex)
     for col in schema:
         if col["type"] == "VARCHAR":
             df[col["name"]] = df[col["name"]].astype("string")
@@ -516,7 +519,11 @@ def query(
         return result_iterator
 
     # Prepending an empty DataFrame ensures returning an empty DataFrame if result_iterator is empty
-    return pd.concat(itertools.chain([pd.DataFrame()], result_iterator), ignore_index=True)
+    results = list(result_iterator)
+    if len(results) > 0:
+        # Modin's concat() can not concatenate empty data frames
+        return pd.concat(results, ignore_index=True)
+    return pd.DataFrame()
 
 
 def create_database(

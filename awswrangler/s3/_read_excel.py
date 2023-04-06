@@ -4,8 +4,8 @@ import logging
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler.s3._fs import open_s3_object
 

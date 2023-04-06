@@ -3,8 +3,8 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils
 
 if TYPE_CHECKING:

@@ -9,6 +9,8 @@ from awswrangler import exceptions
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
+pytestmark = pytest.mark.distributed
+
 
 def test_query_cancelled(loggroup):
     client_logs = boto3.client("logs")

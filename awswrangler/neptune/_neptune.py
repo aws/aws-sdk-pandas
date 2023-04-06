@@ -4,9 +4,8 @@ import logging
 import re
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
-import pandas as pd
-
 import awswrangler.neptune._gremlin_init as gremlin
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler.neptune._client import NeptuneClient
 

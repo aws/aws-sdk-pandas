@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Union
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine

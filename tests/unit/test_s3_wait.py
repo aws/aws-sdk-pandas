@@ -1,12 +1,13 @@
 import logging
 
-import botocore
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
@@ -36,9 +37,9 @@ def test_wait_object_not_exists(path: str, use_threads: bool) -> None:
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(30)
 def test_wait_object_timeout(path: str, use_threads: bool) -> None:
-    with pytest.raises(botocore.exceptions.WaiterError):
+    with pytest.raises(wr.exceptions.NoFilesFound):
         wr.s3.wait_objects_exist(
             paths=[path],
             use_threads=use_threads,

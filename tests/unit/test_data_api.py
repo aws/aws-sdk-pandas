@@ -1,10 +1,12 @@
 import boto3
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
-from .._utils import get_time_str_with_random_suffix
+from .._utils import get_time_str_with_random_suffix, pandas_equals
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture
@@ -62,7 +64,7 @@ def test_data_api_redshift_columnless_query(redshift_connector):
     dataframe = wr.data_api.redshift.read_sql_query("SELECT 1", con=redshift_connector)
     unknown_column_indicator = "?column?"
     expected_dataframe = pd.DataFrame([[1]], columns=[unknown_column_indicator])
-    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+    pandas_equals(dataframe, expected_dataframe)
 
 
 def test_data_api_redshift_basic_select(redshift_connector, redshift_table):
@@ -74,7 +76,7 @@ def test_data_api_redshift_basic_select(redshift_connector, redshift_table):
     )
     dataframe = wr.data_api.redshift.read_sql_query(f"SELECT * FROM  public.{redshift_table}", con=redshift_connector)
     expected_dataframe = pd.DataFrame([[42, "test"]], columns=["id", "name"])
-    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+    pandas_equals(dataframe, expected_dataframe)
 
 
 def test_data_api_redshift_empty_results_select(redshift_connector, redshift_table):
@@ -88,7 +90,7 @@ def test_data_api_redshift_empty_results_select(redshift_connector, redshift_tab
         f"SELECT * FROM  public.{redshift_table} where id = 50", con=redshift_connector
     )
     expected_dataframe = pd.DataFrame([], columns=["id", "name"])
-    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+    pandas_equals(dataframe, expected_dataframe)
 
 
 def test_data_api_redshift_column_subset_select(redshift_connector, redshift_table):
@@ -100,13 +102,13 @@ def test_data_api_redshift_column_subset_select(redshift_connector, redshift_tab
     )
     dataframe = wr.data_api.redshift.read_sql_query(f"SELECT name FROM public.{redshift_table}", con=redshift_connector)
     expected_dataframe = pd.DataFrame([["test"]], columns=["name"])
-    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+    pandas_equals(dataframe, expected_dataframe)
 
 
 def test_data_api_mysql_columnless_query(mysql_serverless_connector):
     dataframe = wr.data_api.rds.read_sql_query("SELECT 1", con=mysql_serverless_connector)
     expected_dataframe = pd.DataFrame([[1]], columns=["1"])
-    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+    pandas_equals(dataframe, expected_dataframe)
 
 
 def test_data_api_mysql_basic_select(mysql_serverless_connector, mysql_serverless_table):
@@ -121,7 +123,7 @@ def test_data_api_mysql_basic_select(mysql_serverless_connector, mysql_serverles
         f"SELECT * FROM test.{mysql_serverless_table}", con=mysql_serverless_connector
     )
     expected_dataframe = pd.DataFrame([[42, "test", None]], columns=["id", "name", "missing"])
-    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+    pandas_equals(dataframe, expected_dataframe)
 
 
 def test_data_api_mysql_empty_results_select(mysql_serverless_connector, mysql_serverless_table):
@@ -135,7 +137,7 @@ def test_data_api_mysql_empty_results_select(mysql_serverless_connector, mysql_s
         f"SELECT * FROM  test.{mysql_serverless_table} where id = 50", con=mysql_serverless_connector
     )
     expected_dataframe = pd.DataFrame([], columns=["id", "name"])
-    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+    pandas_equals(dataframe, expected_dataframe)
 
 
 def test_data_api_mysql_column_subset_select(mysql_serverless_connector, mysql_serverless_table):
@@ -149,7 +151,7 @@ def test_data_api_mysql_column_subset_select(mysql_serverless_connector, mysql_s
         f"SELECT name FROM test.{mysql_serverless_table}", con=mysql_serverless_connector
     )
     expected_dataframe = pd.DataFrame([["test"]], columns=["name"])
-    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+    pandas_equals(dataframe, expected_dataframe)
 
 
 def test_data_api_exception(mysql_serverless_connector, mysql_serverless_table):

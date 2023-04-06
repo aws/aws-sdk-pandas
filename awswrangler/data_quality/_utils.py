@@ -9,8 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 import botocore.exceptions
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)

@@ -6,8 +6,8 @@ import time
 from typing import Any, Dict, List, Optional, cast
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 

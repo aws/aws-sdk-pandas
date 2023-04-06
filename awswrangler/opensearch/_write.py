@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, List, Mapping,
 
 import boto3
 import numpy as np
-import pandas as pd
 from pandas import notna
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler._utils import parse_path
 from awswrangler.opensearch._utils import _get_distribution, _get_version_major, _is_serverless
