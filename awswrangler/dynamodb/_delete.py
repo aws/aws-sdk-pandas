@@ -44,7 +44,7 @@ def delete_items(
     ...     table_name='table'
     ... )
     """
-    _logger.debug("Deleting items from DynamoDB table")
+    _logger.debug("Deleting items from DynamoDB table %s", table_name)
 
     dynamodb_table = get_table(table_name=table_name, boto3_session=boto3_session)
     _validate_items(items=items, dynamodb_table=dynamodb_table)
