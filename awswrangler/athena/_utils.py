@@ -945,6 +945,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
             raise ex
     else:
         response["ctas_query_id"] = query_execution_id
+    _logger.info("Created CTAS table %s", fully_qualified_name)
     return response
 
 

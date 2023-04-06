@@ -416,7 +416,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     )
     _logger.debug("Executing create table query:\n%s", sql)
     cursor.execute(sql)
-    _logger.debug("Created table %s", table)
+    _logger.info("Created table %s", table)
     if lock:
         _lock(cursor, [table], schema=schema)
     return table, schema
