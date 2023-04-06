@@ -6,9 +6,9 @@ import ssl
 from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, Tuple, Union, cast, overload
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions, oracle, secretsmanager
 from awswrangler.catalog import get_connection
 

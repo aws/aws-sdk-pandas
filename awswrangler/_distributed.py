@@ -6,6 +6,7 @@ import importlib.util
 from collections import defaultdict
 from enum import Enum, unique
 from functools import wraps
+from importlib import reload
 from typing import Any, Callable, Dict, Literal, Optional, TypeVar, cast
 
 
@@ -166,6 +167,15 @@ class MemoryFormat:
     def set(cls, name: EngineLiteral) -> None:
         """Set the memory format."""
         cls._enum = MemoryFormatEnum._member_map_[name.upper()]  # type: ignore[assignment]  # pylint: disable=protected-access,no-member
+
+        _reload()
+
+
+def _reload() -> None:
+    """Reload Pandas proxy module."""
+    import awswrangler.pandas
+
+    reload(awswrangler.pandas)
 
 
 engine: Engine = Engine()

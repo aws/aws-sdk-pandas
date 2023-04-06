@@ -4,12 +4,12 @@ import logging
 from enum import Enum
 from typing import Any
 
-import pandas as pd
 from gremlin_python.process.graph_traversal import GraphTraversalSource, __
 from gremlin_python.process.translator import Translator
 from gremlin_python.process.traversal import Cardinality, T
 from gremlin_python.structure.graph import Graph
 
+import awswrangler.pandas as pd
 from awswrangler import exceptions
 from awswrangler.neptune._client import NeptuneClient
 

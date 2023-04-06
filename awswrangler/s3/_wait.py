@@ -5,23 +5,27 @@ import logging
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import boto3
+import botocore.exceptions
 
-from awswrangler import _utils
+from awswrangler import _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
 
 if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client
+    from mypy_boto3_s3 import ObjectExistsWaiter, ObjectNotExistsWaiter, S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _wait_object(s3_client: "S3Client", path: str, waiter_name: str, delay: int, max_attempts: int) -> None:
-    waiter = s3_client.get_waiter(waiter_name)  # type: ignore[call-overload]
-
+def _wait_object(
+    waiter: Union["ObjectExistsWaiter", "ObjectNotExistsWaiter"], path: str, delay: int, max_attempts: int
+) -> None:
     bucket, key = _utils.parse_path(path=path)
-    waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
+    try:
+        waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
+    except botocore.exceptions.WaiterError:
+        raise exceptions.NoFilesFound(f"No files found: {key}.")
 
 
 @engine.dispatch_on_engine
@@ -29,8 +33,9 @@ def _wait_object_batch(
     s3_client: Optional["S3Client"], paths: List[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
+    waiter = s3_client.get_waiter(waiter_name)  # type: ignore[call-overload]
     for path in paths:
-        _wait_object(s3_client, path, waiter_name, delay, max_attempts)
+        _wait_object(waiter, path, delay, max_attempts)
 
 
 def _wait_objects(
@@ -66,8 +71,6 @@ def _wait_objects(
             itertools.repeat(max_attempts),
         )
     )
-
-    return None
 
 
 @_utils.validate_distributed_kwargs(

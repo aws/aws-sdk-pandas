@@ -4,13 +4,9 @@ import boto3
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import is_ray_modin
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

@@ -1,11 +1,15 @@
 import logging
 
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
+
+from .._utils import pandas_equals
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture()
@@ -30,7 +34,7 @@ def test_ruleset_df(df, path, glue_database, glue_table, glue_ruleset, glue_data
         df_rules=df_rules,
     )
     df_ruleset = wr.data_quality.get_ruleset(name=glue_ruleset)
-    assert df_rules.equals(df_ruleset)
+    assert pandas_equals(df_rules, df_ruleset)
 
     df_results = wr.data_quality.evaluate_ruleset(
         name=glue_ruleset,
@@ -184,7 +188,7 @@ def test_update_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
 
     df_ruleset = wr.data_quality.get_ruleset(name=glue_ruleset)
 
-    assert df_rules.equals(df_ruleset)
+    assert pandas_equals(df_rules, df_ruleset)
 
 
 def test_update_ruleset_exceptions(df: pd.DataFrame, glue_ruleset: str) -> None:

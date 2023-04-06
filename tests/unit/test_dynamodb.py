@@ -8,13 +8,7 @@ from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
-
-from .._utils import is_ray_modin
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+import awswrangler.pandas as pd
 
 pytestmark = pytest.mark.distributed
 

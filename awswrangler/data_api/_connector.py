@@ -2,7 +2,7 @@
 import logging
 from typing import Any, Dict, Optional
 
-import pandas as pd
+import awswrangler.pandas as pd
 
 
 class DataApiConnector:

@@ -10,13 +10,9 @@ import pytest
 import pytz
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import is_ray_modin
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 API_CALL = botocore.client.BaseClient._make_api_call
 

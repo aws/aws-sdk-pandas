@@ -20,12 +20,12 @@ from typing import (
 )
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 from boto3.dynamodb.conditions import ConditionBase
 from boto3.dynamodb.types import Binary
 from botocore.exceptions import ClientError
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
@@ -237,7 +237,8 @@ def _read_scan(
             ]
         )
         next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
-        kwargs["ExclusiveStartKey"] = next_token
+        if next_token:
+            kwargs["ExclusiveStartKey"] = next_token
     return _utils.list_to_arrow_table(mapping=items) if as_dataframe else items
 
 

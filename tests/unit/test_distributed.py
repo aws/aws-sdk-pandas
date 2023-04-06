@@ -68,3 +68,25 @@ def test_engine_python_without_ray_installed(wr: ModuleType) -> None:
     assert wr.engine.get() == EngineEnum.PYTHON
 
     assert not wr.engine.dispatch_func(_to_parquet).__name__.endswith("distributed")
+
+
+@pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
+def test_engine_switch() -> None:
+    from modin.pandas import DataFrame as ModinDataFrame
+    from pandas import DataFrame as PandasDataFrame
+
+    import awswrangler as wr2
+
+    assert wr2.engine.get_installed() == wr2.EngineEnum.RAY
+    assert wr2.memory_format.get_installed() == wr2.MemoryFormatEnum.MODIN
+
+    assert wr2.engine.get() == wr2.EngineEnum.RAY
+    assert wr2.memory_format.get() == wr2.MemoryFormatEnum.MODIN
+    assert wr2.pandas.DataFrame == ModinDataFrame
+
+    wr2.engine.set("python")
+    wr2.memory_format.set("pandas")
+
+    assert wr2.engine.get() == wr2.EngineEnum.PYTHON
+    assert wr2.memory_format.get() == wr2.MemoryFormatEnum.PANDAS
+    assert wr2.pandas.DataFrame == PandasDataFrame

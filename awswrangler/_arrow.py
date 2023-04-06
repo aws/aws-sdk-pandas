@@ -5,9 +5,9 @@ import json
 import logging
 from typing import Any, Dict, Optional, Tuple, cast
 
-import pandas as pd
 import pyarrow as pa
 
+import awswrangler.pandas as pd
 from awswrangler._data_types import athena2pyarrow
 
 _logger: logging.Logger = logging.getLogger(__name__)

@@ -1,9 +1,9 @@
 import boto3
-import pandas as pd
 import pytest
 from deltalake import DeltaTable, write_deltalake
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 
 def _get_storage_options():
