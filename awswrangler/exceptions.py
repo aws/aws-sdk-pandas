@@ -37,10 +37,6 @@ class InvalidTable(Exception):
     """InvalidTable exception."""
 
 
-class CommitCancelled(Exception):
-    """CommitCancelled exception."""
-
-
 class QueryFailed(Exception):
     """QueryFailed exception."""
 

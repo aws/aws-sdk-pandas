@@ -40,7 +40,6 @@ def test_to_sql_simple(oracle_table, oracle_con):
 def test_sql_types(oracle_table, oracle_con):
     table = oracle_table
     df = get_df()
-    df.drop(["binary"], axis=1, inplace=True)
     wr.oracle.to_sql(
         df=df,
         con=oracle_con,

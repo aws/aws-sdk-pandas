@@ -50,7 +50,6 @@ if TYPE_CHECKING:
     from mypy_boto3_emr.client import EMRClient
     from mypy_boto3_glue import GlueClient
     from mypy_boto3_kms.client import KMSClient
-    from mypy_boto3_lakeformation.client import LakeFormationClient
     from mypy_boto3_logs.client import CloudWatchLogsClient
     from mypy_boto3_opensearch.client import OpenSearchServiceClient
     from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
@@ -234,8 +233,6 @@ def _get_endpoint_url(service_name: str) -> Optional[str]:
         endpoint_url = _config.config.kms_endpoint_url
     elif service_name == "emr" and _config.config.emr_endpoint_url is not None:
         endpoint_url = _config.config.emr_endpoint_url
-    elif service_name == "lakeformation" and _config.config.lakeformation_endpoint_url is not None:
-        endpoint_url = _config.config.lakeformation_endpoint_url
     elif service_name == "dynamodb" and _config.config.dynamodb_endpoint_url is not None:
         endpoint_url = _config.config.dynamodb_endpoint_url
     elif service_name == "secretsmanager" and _config.config.secretsmanager_endpoint_url is not None:
@@ -255,16 +252,6 @@ def client(
     botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
 ) -> "AthenaClient":
-    ...
-
-
-@overload
-def client(
-    service_name: 'Literal["lakeformation"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
-) -> "LakeFormationClient":
     ...
 
 
