@@ -82,6 +82,7 @@ def delete_table_if_exists(
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     try:
         client_glue.delete_table(**_catalog_id(DatabaseName=database, Name=table, catalog_id=catalog_id))
+        _logger.debug("Deleted catalog table: %s", table)
         return True
     except client_glue.exceptions.EntityNotFoundException:
         return False

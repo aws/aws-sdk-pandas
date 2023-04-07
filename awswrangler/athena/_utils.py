@@ -116,7 +116,7 @@ def _start_query_execution(
         args["WorkGroup"] = workgroup
 
     client_athena = _utils.client(service_name="athena", session=boto3_session)
-    _logger.debug("args: \n%s", pprint.pformat(args))
+    _logger.debug("Starting query execution with args: \n%s", pprint.pformat(args))
     response = _utils.try_it(
         f=client_athena.start_query_execution,
         ex=botocore.exceptions.ClientError,
@@ -124,6 +124,7 @@ def _start_query_execution(
         max_num_tries=5,
         **args,
     )
+    _logger.debug("Query response:\n%s", response)
     return response["QueryExecutionId"]
 
 
@@ -146,7 +147,7 @@ def _get_workgroup_config(session: Optional[boto3.Session] = None, workgroup: Op
     wg_config: _WorkGroupConfig = _WorkGroupConfig(
         enforced=enforced, s3_output=wg_s3_output, encryption=wg_encryption, kms_key=wg_kms_key
     )
-    _logger.debug("wg_config:\n%s", wg_config)
+    _logger.debug("Workgroup config:\n%s", wg_config)
     return wg_config
 
 
@@ -159,7 +160,7 @@ def _fetch_txt_result(
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:
         return pd.DataFrame()
     path: str = query_metadata.output_location
-    _logger.debug("Start TXT reading from %s", path)
+    _logger.debug("Reading TXT result from %s", path)
     df = s3.read_csv(
         path=[path],
         dtype=query_metadata.dtype,
@@ -225,7 +226,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     cols_types: Dict[str, str] = get_query_columns_types(
         query_execution_id=query_execution_id, boto3_session=boto3_session
     )
-    _logger.debug("cols_types: %s", cols_types)
+    _logger.debug("Casting query column types: %s", cols_types)
     dtype: Dict[str, str] = {}
     parse_timestamps: List[str] = []
     parse_dates: List[str] = []
@@ -269,7 +270,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
         manifest_location=manifest_location,
         raw_payload=_query_execution_payload,
     )
-    _logger.debug("query_metadata:\n%s", query_metadata)
+    _logger.debug("Query metadata:\n%s", query_metadata)
     return query_metadata
 
 
@@ -519,6 +520,7 @@ def start_query_execution(
 
     """
     sql = _process_sql_params(sql, params)
+    _logger.debug("Executing query:\n%s", sql)
 
     athena_cache_settings = athena_cache_settings if athena_cache_settings else {}
     max_cache_seconds = athena_cache_settings.get("max_cache_seconds", 0)
@@ -537,7 +539,7 @@ def start_query_execution(
         max_cache_query_inspections=max_cache_query_inspections,
         max_remote_cache_entries=max_remote_cache_entries,
     )
-    _logger.debug("cache_info:\n%s", cache_info)
+    _logger.debug("Cache info:\n%s", cache_info)
 
     if cache_info.has_valid_cache and cache_info.query_execution_id is not None:
         query_execution_id = cache_info.query_execution_id
@@ -941,6 +943,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
             raise ex
     else:
         response["ctas_query_id"] = query_execution_id
+    _logger.info("Created CTAS table %s", fully_qualified_name)
     return response
 
 
@@ -1107,7 +1110,9 @@ def generate_create_query(
             f"""  '{table_detail['StorageDescriptor']['Location']}'""",
             f"""TBLPROPERTIES (\n{tblproperties})""",
         ]
-        return "\n".join(query_parts)
+        sql = "\n".join(query_parts)
+        _logger.debug("Generated create query:\n%s", sql)
+        return sql
     raise NotImplementedError()
 
 
@@ -1206,8 +1211,8 @@ def wait_query(
         time.sleep(athena_query_wait_polling_delay)
         response = get_query_execution(query_execution_id=query_execution_id, boto3_session=boto3_session)
         state = response["Status"]["State"]
-    _logger.debug("state: %s", state)
-    _logger.debug("StateChangeReason: %s", response["Status"].get("StateChangeReason"))
+    _logger.debug("Query state: %s", state)
+    _logger.debug("Query state change reason: %s", response["Status"].get("StateChangeReason"))
     if state == "FAILED":
         raise exceptions.QueryFailed(response["Status"].get("StateChangeReason"))
     if state == "CANCELLED":
@@ -1246,6 +1251,7 @@ def get_query_execution(query_execution_id: str, boto3_session: Optional[boto3.S
         max_num_tries=5,
         QueryExecutionId=query_execution_id,
     )
+    _logger.debug("Get query execution response:\n%s", response)
     return cast(Dict[str, Any], response["QueryExecution"])
 
 
@@ -1347,4 +1353,5 @@ def list_query_executions(workgroup: Optional[str] = None, boto3_session: Option
             **kwargs,
         )
         query_list += response["QueryExecutionIds"]
+    _logger.debug("Running %d query executions", len(query_list))
     return query_list

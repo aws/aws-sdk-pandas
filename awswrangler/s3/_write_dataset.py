@@ -247,7 +247,7 @@ def _to_dataset(
             s3_client=s3_client,
             **func_kwargs,
         )
-    _logger.debug("len(paths): %s", len(paths))
-    _logger.debug("partitions_values: %s", partitions_values)
+    _logger.debug("Wrote %s paths", len(paths))
+    _logger.debug("Created partitions_values: %s", partitions_values)
 
     return paths, partitions_values
