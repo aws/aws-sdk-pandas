@@ -36,7 +36,7 @@ def _validate_connection(con: "redshift_connector.Connection") -> None:
 
 def _begin_transaction(cursor: "redshift_connector.Cursor") -> None:
     sql = "BEGIN TRANSACTION"
-    _logger.debug("Begin transaction query:\n%s", sql)
+    _logger.debug("Executing begin transaction query:\n%s", sql)
     cursor.execute(sql)
 
 
@@ -44,26 +44,28 @@ def _drop_table(cursor: "redshift_connector.Cursor", schema: Optional[str], tabl
     schema_str = f'"{schema}".' if schema else ""
     cascade_str = " CASCADE" if cascade else ""
     sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"' f"{cascade_str}"
-    _logger.debug("Drop table query:\n%s", sql)
+    _logger.debug("Executing drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
 def _truncate_table(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f'"{schema}".' if schema else ""
     sql = f'TRUNCATE TABLE {schema_str}"{table}"'
-    _logger.debug("Truncate table query:\n%s", sql)
+    _logger.debug("Executing truncate table query:\n%s", sql)
     cursor.execute(sql)
 
 
 def _delete_all(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f'"{schema}".' if schema else ""
     sql = f'DELETE FROM {schema_str}"{table}"'
-    _logger.debug("Delete query:\n%s", sql)
+    _logger.debug("Executing delete query:\n%s", sql)
     cursor.execute(sql)
 
 
 def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: str) -> List[str]:
-    cursor.execute(f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'")
+    sql = f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'"
+    _logger.debug("Executing select query:\n%s", sql)
+    cursor.execute(sql)
     result: str = cursor.fetchall()[0][0]
     rfields: List[str] = result.split("(")[1].strip(")").split(",")
     fields: List[str] = [field.strip().strip('"') for field in rfields]
@@ -72,12 +74,14 @@ def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: s
 
 def _does_table_exist(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
-    cursor.execute(
+    sql = (
         f"SELECT true WHERE EXISTS ("
         f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
         f"{schema_str} TABLE_NAME = '{table}'"
         f");"
     )
+    _logger.debug("Executing select query:\n%s", sql)
+    cursor.execute(sql)
     return len(cursor.fetchall()) > 0
 
 
@@ -85,7 +89,9 @@ def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] =
     client_s3 = _utils.client(service_name="s3", session=boto3_session)
     bucket, key = _utils.parse_path(path)
     manifest_content = json.loads(client_s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8"))
-    return [path["url"] for path in manifest_content["entries"]]
+    paths = [path["url"] for path in manifest_content["entries"]]
+    _logger.debug("Read %d paths from manifest file in: %s", len(paths), path)
+    return paths
 
 
 def _make_s3_auth_string(
@@ -155,7 +161,7 @@ def _copy(
     if sql_copy_extra_params:
         for param in sql_copy_extra_params:
             sql += f"\n{param}"
-    _logger.debug("copy query:\n%s", sql)
+    _logger.debug("Executing copy query:\n%s", sql)
     cursor.execute(sql)
 
 
@@ -167,7 +173,7 @@ def _lock(
     fmt = '"{schema}"."{table}"' if schema else '"{table}"'
     tables = ", ".join([fmt.format(schema=schema, table=table) for table in table_names])
     sql: str = f"LOCK {tables};\n"
-    _logger.debug("lock query:\n%s", sql)
+    _logger.debug("Executing lock query:\n%s", sql)
     cursor.execute(sql)
 
 
@@ -193,16 +199,16 @@ def _upsert(
         target_del_sql: str = (
             f'DELETE FROM "{schema}"."{table}" USING "{temp_table}" WHERE {join_clause} {delete_from_target_filter}'
         )
-        _logger.debug(target_del_sql)
+        _logger.debug("Executing delete query:\n%s", target_del_sql)
         cursor.execute(target_del_sql)
         source_del_sql: str = (
             f'DELETE FROM "{temp_table}" USING "{schema}"."{table}" WHERE {join_clause} {delete_from_temp_filter}'
         )
-        _logger.debug(source_del_sql)
+        _logger.debug("Executing delete query:\n%s", source_del_sql)
         cursor.execute(source_del_sql)
     else:
         sql: str = f'DELETE FROM "{schema}"."{table}" USING "{temp_table}" WHERE {join_clause}'
-        _logger.debug(sql)
+        _logger.debug("Executing delete query:\n%s", sql)
         cursor.execute(sql)
     if column_names:
         column_names_str = ",".join(column_names)
@@ -211,7 +217,7 @@ def _upsert(
         )
     else:
         insert_sql = f'INSERT INTO "{schema}"."{table}" SELECT * FROM "{temp_table}"'
-    _logger.debug(insert_sql)
+    _logger.debug("Executing insert query:\n%s", insert_sql)
     cursor.execute(insert_sql)
     _drop_table(cursor=cursor, schema=schema, table=temp_table)
 
@@ -267,7 +273,7 @@ def _redshift_types_from_path(
 ) -> Dict[str, str]:
     """Extract Redshift data types from a Pandas DataFrame."""
     _varchar_lengths: Dict[str, int] = {} if varchar_lengths is None else varchar_lengths
-    _logger.debug("Scanning parquet schemas on s3...")
+    _logger.debug("Scanning parquet schemas in S3 path: %s", path)
     athena_types, _ = s3.read_parquet_metadata(
         path=path,
         sampling=parquet_infer_sampling,
@@ -278,11 +284,12 @@ def _redshift_types_from_path(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    _logger.debug("athena_types: %s", athena_types)
+    _logger.debug("Parquet metadata types: %s", athena_types)
     redshift_types: Dict[str, str] = {}
     for col_name, col_type in athena_types.items():
         length: int = _varchar_lengths[col_name] if col_name in _varchar_lengths else varchar_lengths_default
         redshift_types[col_name] = _data_types.athena2redshift(dtype=col_type, varchar_length=length)
+    _logger.debug("Converted redshift types: %s", redshift_types)
     return redshift_types
 
 
@@ -313,6 +320,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     lock: bool = False,
 ) -> Tuple[str, Optional[str]]:
+    _logger.debug("Creating table %s with mode %s, and overwrite method %s", table, mode, overwrite_method)
     if mode == "overwrite":
         if overwrite_method == "truncate":
             try:
@@ -339,13 +347,14 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
             _drop_table(cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "cascade"))
             # No point in locking here, the oid will change.
     elif _does_table_exist(cursor=cursor, schema=schema, table=table) is True:
+        _logger.debug("Table %s exists", table)
         if lock:
             _lock(cursor, [table], schema=schema)
         if mode == "upsert":
             guid: str = uuid.uuid4().hex
             temp_table: str = f"temp_redshift_{guid}"
             sql: str = f'CREATE TEMPORARY TABLE {temp_table} (LIKE "{schema}"."{table}")'
-            _logger.debug(sql)
+            _logger.debug("Executing create temporary table query:\n%s", sql)
             cursor.execute(sql)
             return temp_table, None
         return table, schema
@@ -360,6 +369,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
             varchar_lengths=varchar_lengths,
             converter_func=_data_types.pyarrow2redshift,
         )
+        _logger.debug("Converted redshift types from pandas: %s", redshift_types)
     elif path is not None:
         if manifest:
             if not isinstance(path, str):
@@ -404,8 +414,9 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
         f"{distkey_str}"
         f"{sortkey_str}"
     )
-    _logger.debug("Create table query:\n%s", sql)
+    _logger.debug("Executing create table query:\n%s", sql)
     cursor.execute(sql)
+    _logger.info("Created table %s", table)
     if lock:
         _lock(cursor, [table], schema=schema)
     return table, schema
@@ -1041,7 +1052,7 @@ def to_sql(  # pylint: disable=too-many-locals
             )
             for placeholders, parameters in placeholder_parameter_pair_generator:
                 sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES {placeholders}'
-                _logger.debug("sql: %s", sql)
+                _logger.debug("Executing insert query:\n%s", sql)
                 cursor.executemany(sql, (parameters,))
             if table != created_table:  # upsert
                 _upsert(
@@ -1147,6 +1158,7 @@ def unload_to_files(
 
 
     """
+    _logger.debug("Unloading to S3 path: %s", path)
     if unload_format not in [None, "CSV", "PARQUET"]:
         raise exceptions.InvalidArgumentValue("<unload_format> argument must be 'CSV' or 'PARQUET'")
     with con.cursor() as cursor:
@@ -1185,7 +1197,7 @@ def unload_to_files(
             f"{max_file_size_str}"
             f"{manifest_str};"
         )
-        _logger.debug("sql: \n%s", sql)
+        _logger.debug("Executing unload query:\n%s", sql)
         cursor.execute(sql)
 
 
@@ -1338,6 +1350,7 @@ def unload(
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         )
         if keep_files is False:
+            _logger.debug("Deleting objects in S3 path: %s", path)
             s3.delete_objects(
                 path=path,
                 use_threads=use_threads,
@@ -1512,6 +1525,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     >>> con.close()
 
     """
+    _logger.debug("Copying objects from S3 path: %s", path)
     autocommit_temp: bool = con.autocommit
     con.autocommit = False
     try:
@@ -1794,6 +1808,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
         )
     finally:
         if keep_files is False:
+            _logger.debug("Deleting objects in S3 path: %s", path)
             s3.delete_objects(
                 path=path,
                 use_threads=use_threads,
