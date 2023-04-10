@@ -546,7 +546,6 @@ mypy-boto3-ec2 = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extr
 mypy-boto3-emr = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"emr\""}
 mypy-boto3-glue = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"glue\""}
 mypy-boto3-kms = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"kms\""}
-mypy-boto3-lakeformation = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"lakeformation\""}
 mypy-boto3-logs = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"logs\""}
 mypy-boto3-neptune = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"neptune\""}
 mypy-boto3-opensearch = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"opensearch\""}
@@ -3073,21 +3072,6 @@ python-versions = ">=3.7"
 files = [
     {file = "mypy-boto3-kms-1.26.81.tar.gz", hash = "sha256:344598ac7db4134ffda84fff491bc077e03480539e769b321cf2a79e5ffaeaed"},
     {file = "mypy_boto3_kms-1.26.81-py3-none-any.whl", hash = "sha256:a6f9ad50d02e806d506601550ffd13468f0bff280359e22c2eb663c306b223a3"},
-]
-
-[package.dependencies]
-typing-extensions = ">=4.1.0"
-
-[[package]]
-name = "mypy-boto3-lakeformation"
-version = "1.26.90"
-description = "Type annotations for boto3.LakeFormation 1.26.90 service generated with mypy-boto3-builder 7.13.0"
-category = "dev"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "mypy-boto3-lakeformation-1.26.90.tar.gz", hash = "sha256:c9e5d7dacb25293bf3ccd48180a35d48678e4b71d185efade80c0aac466ec24b"},
-    {file = "mypy_boto3_lakeformation-1.26.90-py3-none-any.whl", hash = "sha256:ac675093867773095289ccc29f99ad8c448686d5e0a76c1ad90e591270f00c42"},
 ]
 
 [package.dependencies]
@@ -6030,4 +6014,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "986651fe0baa7a8837e771ae1f8df1c7e10434aabbe6831cf848cbc30c45abc0"
+content-hash = "d1aaad0b5dba3b678f9caa014ee669c0134b0f1bb715641ce6131edde6a3702c"
