@@ -69,7 +69,9 @@ def start_query(
     """
     _logger.debug("log_group_names: %s", log_group_names)
 
-    start_time = start_time if start_time else datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc)
+    start_time = (
+        start_time if start_time else datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc)
+    )
     end_time = end_time if end_time else datetime.datetime.utcnow()
 
     start_timestamp: int = int(1000 * start_time.timestamp())
