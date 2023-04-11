@@ -1,44 +1,75 @@
 """Amazon S3 Copy Module (PRIVATE)."""
 
+import itertools
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 from boto3.s3.transfer import TransferConfig
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import engine
+from awswrangler._executor import _BaseExecutor, _get_executor
+from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import list_objects
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+    from mypy_boto3_s3.type_defs import CopySourceTypeDef
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+@engine.dispatch_on_engine
 def _copy_objects(
+    s3_client: Optional["S3Client"],
     batch: List[Tuple[str, str]],
     use_threads: Union[bool, int],
-    boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
-    _logger.debug("len(batch): %s", len(batch))
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    _logger.debug("Copying %s objects", len(batch))
+    s3_client = s3_client if s3_client else _utils.client(service_name="s3")
+    for source, target in batch:
+        source_bucket, source_key = _utils.parse_path(path=source)
+        copy_source: CopySourceTypeDef = {"Bucket": source_bucket, "Key": source_key}
+        target_bucket, target_key = _utils.parse_path(path=target)
+        s3_client.copy(
+            CopySource=copy_source,
+            Bucket=target_bucket,
+            Key=target_key,
+            ExtraArgs=s3_additional_kwargs,  # type: ignore[arg-type]
+            Config=TransferConfig(num_download_attempts=10, use_threads=use_threads),  # type: ignore[arg-type]
+        )
+
+
+def _copy(
+    batches: List[List[Tuple[str, str]]],
+    use_threads: Union[bool, int],
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, Any]],
+) -> None:
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     if s3_additional_kwargs is None:
         boto3_kwargs: Optional[Dict[str, Any]] = None
     else:
         boto3_kwargs = get_botocore_valid_kwargs(function_name="copy_object", s3_additional_kwargs=s3_additional_kwargs)
-    for source, target in batch:
-        source_bucket, source_key = _utils.parse_path(path=source)
-        copy_source: Dict[str, str] = {"Bucket": source_bucket, "Key": source_key}
-        target_bucket, target_key = _utils.parse_path(path=target)
-        client_s3.copy(
-            CopySource=copy_source,
-            Bucket=target_bucket,
-            Key=target_key,
-            ExtraArgs=boto3_kwargs,
-            Config=TransferConfig(num_download_attempts=10, use_threads=use_threads),
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
+    ray_get(
+        executor.map(
+            _copy_objects,
+            s3_client,
+            batches,
+            itertools.repeat(use_threads),
+            itertools.repeat(boto3_kwargs),
         )
+    )
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def merge_datasets(
     source_path: str,
     target_path: str,
@@ -122,10 +153,7 @@ def merge_datasets(
     source_path = source_path[:-1] if source_path[-1] == "/" else source_path
     target_path = target_path[:-1] if target_path[-1] == "/" else target_path
 
-    paths: List[str] = list_objects(  # type: ignore
-        path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=boto3_session
-    )
-    _logger.debug("len(paths): %s", len(paths))
+    paths: List[str] = list_objects(path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=boto3_session)
     if len(paths) < 1:
         return []
 
@@ -151,10 +179,12 @@ def merge_datasets(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    _logger.debug("len(new_objects): %s", len(new_objects))
     return new_objects
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def copy_objects(
     paths: List[str],
     source_path: str,
@@ -223,7 +253,6 @@ def copy_objects(
     ["s3://bucket1/dir1/key0", "s3://bucket1/dir1/key1"]
 
     """
-    _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
         return []
     source_path = source_path[:-1] if source_path[-1] == "/" else source_path
@@ -244,8 +273,11 @@ def copy_objects(
                     path_final = f"{path_wo_filename}/{new_filename}"
         new_objects.append(path_final)
         batch.append((path, path_final))
-    _logger.debug("len(new_objects): %s", len(new_objects))
-    _copy_objects(
-        batch=batch, use_threads=use_threads, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+    _logger.debug("Creating %s new objects", len(new_objects))
+    _copy(
+        batches=_utils.chunkify(lst=batch, max_length=1_000),
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     return new_objects

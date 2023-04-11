@@ -126,11 +126,11 @@ Some unit tests can be mocked locally, i.e. no AWS account is required:
 
 To run a specific test:
 
-``pytest tests/test_moto.py::test_get_bucket_region_succeed``
+``pytest tests/unit/test_moto.py::test_get_bucket_region_succeed``
 
 To run all mocked tests (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_moto.py``
+``pytest -n 8 tests/unit/test_moto.py``
 
 ### Basic test environment
 
@@ -159,11 +159,11 @@ Return to the project root directory
 
 To run a specific test:
 
-``pytest tests/test_athena_parquet.py::test_parquet_catalog``
+``pytest tests/unit/test_athena_parquet.py::test_parquet_catalog``
 
 To run all athena tests (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_athena*``
+``pytest -n 8 tests/unit/test_athena*``
 
 *OPTIONAL*: To remove the base test environment CloudFormation stack, use:
 
@@ -195,10 +195,6 @@ Deploy the `base` and `databases` CDK stacks. This step could take 15 minutes to
 ./scripts/deploy-stack.sh databases
 ```
 
-*OPTIONAL*: Deploy the `lakeformation` CDK stack (if you need to test against the AWS Lake Formation Service). You must ensure Lake Formation is enabled in the account.
-
-``./scripts/deploy-stack.sh lakeformation``
-
 *OPTIONAL*: Deploy the `opensearch` CDK stack (if you need to test against the Amazon OpenSearch Service). This step could take 15 minutes to complete.
 
 ``./scripts/deploy-stack.sh opensearch``
@@ -222,13 +218,13 @@ Return to the project root directory
 
 To run a specific test:
 
-``pytest tests/test_mysql.py::test_read_sql_query_simple``
+``pytest tests/unit/test_mysql.py::test_read_sql_query_simple``
 
 To run all database MySQL tests (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_mysql.py``
+``pytest -n 8 tests/unit/test_mysql.py``
 
-To run all tests for all python versions (assuming Amazon QuickSight/Lake Formation are activated and the optional stacks deployed):
+To run all tests for all python versions (assuming Amazon QuickSight is activated and the optional stack deployed):
 
 ``./test.sh``
 

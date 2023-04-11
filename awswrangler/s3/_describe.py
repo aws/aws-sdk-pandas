@@ -1,28 +1,34 @@
 """Amazon S3 Describe Module (INTERNAL)."""
 
-import concurrent.futures
 import datetime
 import itertools
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 
 from awswrangler import _utils
+from awswrangler._distributed import engine
+from awswrangler._executor import _BaseExecutor, _get_executor
+from awswrangler.distributed.ray import ray_get
 from awswrangler.s3 import _fs
 from awswrangler.s3._list import _path2list
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+@engine.dispatch_on_engine
 def _describe_object(
+    s3_client: "S3Client",
     path: str,
-    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     version_id: Optional[str] = None,
 ) -> Tuple[str, Dict[str, Any]]:
-    bucket: str
-    key: str
+    s3_client = s3_client if s3_client else _utils.client(service_name="s3")
+
     bucket, key = _utils.parse_path(path=path)
     if s3_additional_kwargs:
         extra_kwargs: Dict[str, Any] = _fs.get_botocore_valid_kwargs(
@@ -30,81 +36,17 @@ def _describe_object(
         )
     else:
         extra_kwargs = {}
-    desc: Dict[str, Any]
     if version_id:
         extra_kwargs["VersionId"] = version_id
     desc = _utils.try_it(
         f=s3_client.head_object, ex=s3_client.exceptions.NoSuchKey, Bucket=bucket, Key=key, **extra_kwargs
     )
-    return path, desc
+    return path, cast(Dict[str, Any], desc)
 
 
-def _describe_object_concurrent(
-    path: str,
-    s3_client: boto3.client,
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    version_id: Optional[str] = None,
-) -> Tuple[str, Dict[str, Any]]:
-    return _describe_object(
-        path=path, s3_client=s3_client, s3_additional_kwargs=s3_additional_kwargs, version_id=version_id
-    )
-
-
-def _describe_objects(
-    path: Union[str, List[str]],
-    s3_client: boto3.client,
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
-    use_threads: Union[bool, int] = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Dict[str, Any]]:
-    paths: List[str] = _path2list(
-        path=path,
-        last_modified_begin=last_modified_begin,
-        last_modified_end=last_modified_end,
-        s3_client=s3_client,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-    if len(paths) < 1:
-        return {}
-    resp_list: List[Tuple[str, Dict[str, Any]]]
-    if len(paths) == 1:
-        resp_list = [
-            _describe_object(
-                path=paths[0],
-                version_id=version_id.get(paths[0]) if isinstance(version_id, dict) else version_id,
-                s3_client=s3_client,
-                s3_additional_kwargs=s3_additional_kwargs,
-            )
-        ]
-    elif use_threads is False:
-        resp_list = [
-            _describe_object(
-                path=p,
-                version_id=version_id.get(p) if isinstance(version_id, dict) else version_id,
-                s3_client=s3_client,
-                s3_additional_kwargs=s3_additional_kwargs,
-            )
-            for p in paths
-        ]
-    else:
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-        versions = [version_id.get(p) if isinstance(version_id, dict) else version_id for p in paths]
-        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            resp_list = list(
-                executor.map(
-                    _describe_object_concurrent,
-                    paths,
-                    itertools.repeat(s3_client),
-                    itertools.repeat(s3_additional_kwargs),
-                    versions,
-                )
-            )
-    desc_dict: Dict[str, Dict[str, Any]] = dict(resp_list)
-    return desc_dict
-
-
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
 def describe_objects(
     path: Union[str, List[str]],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
@@ -173,36 +115,34 @@ def describe_objects(
     >>> descs1 = wr.s3.describe_objects('s3://bucket/prefix')  # Describe all objects under the prefix
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    return _describe_objects(
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
+
+    paths = _path2list(
         path=path,
         s3_client=s3_client,
-        version_id=version_id,
-        use_threads=use_threads,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         s3_additional_kwargs=s3_additional_kwargs,
     )
+    if len(paths) < 1:
+        return {}
 
-
-def _size_objects(
-    path: Union[str, List[str]],
-    s3_client: boto3.client,
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
-    use_threads: Union[bool, int] = True,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Optional[int]]:
-    desc_list: Dict[str, Dict[str, Any]] = _describe_objects(
-        path=path,
-        s3_client=s3_client,
-        version_id=version_id,
-        use_threads=use_threads,
-        s3_additional_kwargs=s3_additional_kwargs,
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
+    resp_list = ray_get(
+        executor.map(
+            _describe_object,
+            s3_client,
+            paths,
+            itertools.repeat(s3_additional_kwargs),
+            [version_id.get(p) if isinstance(version_id, dict) else version_id for p in paths],
+        )
     )
-    size_dict: Dict[str, Optional[int]] = {k: d.get("ContentLength", None) for k, d in desc_list.items()}
-    return size_dict
+    return dict(resp_list)
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
 def size_objects(
     path: Union[str, List[str]],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
@@ -253,14 +193,14 @@ def size_objects(
     >>> sizes1 = wr.s3.size_objects('s3://bucket/prefix')  # Get the sizes of all objects under the received prefix
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    return _size_objects(
+    desc_list = describe_objects(
         path=path,
-        s3_client=s3_client,
         version_id=version_id,
         use_threads=use_threads,
+        boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
+    return {k: d.get("ContentLength", None) for k, d in desc_list.items()}
 
 
 def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None) -> str:
@@ -292,7 +232,7 @@ def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None
     >>> region = wr.s3.get_bucket_region('bucket-name', boto3_session=boto3.Session())
 
     """
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
     _logger.debug("bucket: %s", bucket)
     region: str = client_s3.get_bucket_location(Bucket=bucket)["LocationConstraint"]
     region = "us-east-1" if region is None else region

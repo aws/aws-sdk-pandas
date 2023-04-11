@@ -7,6 +7,9 @@ Quick Start
 
     >>> pip install awswrangler
 
+    >>> # Optional modules are installed with:
+    >>> pip install 'awswrangler[redshift]'
+
 .. code-block:: py3
 
     import awswrangler as wr
@@ -37,7 +40,7 @@ Quick Start
 
     # Amazon Timestream Write
     df = pd.DataFrame({
-        "time": [datetime.now(), datetime.now()],   
+        "time": [datetime.now(), datetime.now()],
         "my_dimension": ["foo", "boo"],
         "measure": [1.0, 1.1],
     })
@@ -63,6 +66,7 @@ Read The Docs
 
    about
    install
+   scale
    tutorials
    api
    Community Resources <https://github.com/aws/aws-sdk-pandas#community-resources>

@@ -4,7 +4,6 @@ API Reference
 * `Amazon S3`_
 * `AWS Glue Catalog`_
 * `Amazon Athena`_
-* `AWS Lake Formation`_
 * `Amazon Redshift`_
 * `PostgreSQL`_
 * `MySQL`_
@@ -23,7 +22,9 @@ API Reference
 * `AWS STS`_
 * `AWS Secrets Manager`_
 * `Amazon Chime`_
+* `Typing`_
 * `Global Configurations`_
+* `Distributed - Ray`_
 
 Amazon S3
 ---------
@@ -43,7 +44,6 @@ Amazon S3
     list_directories
     list_objects
     merge_datasets
-    merge_upsert_table
     read_csv
     read_deltalake
     read_excel
@@ -132,23 +132,6 @@ Amazon Athena
     start_query_execution
     stop_query_execution
     unload
-    wait_query
-
-AWS Lake Formation
-------------------
-
-.. currentmodule:: awswrangler.lakeformation
-
-.. autosummary::
-    :toctree: stubs
-
-    read_sql_query
-    read_sql_table
-    cancel_transaction
-    commit_transaction
-    describe_transaction
-    extend_transaction
-    start_transaction
     wait_query
 
 Amazon Redshift
@@ -441,6 +424,24 @@ Amazon Chime
 
     post_message
 
+Typing
+---------------------
+
+.. currentmodule:: awswrangler.typing
+
+.. autosummary::
+    :toctree: stubs
+    :template: typed-dict-template.rst
+
+    GlueTableSettings
+    AthenaCTASSettings
+    AthenaUNLOADSettings
+    AthenaCacheSettings
+    AthenaPartitionProjectionSettings
+    RaySettings
+    RayReadParquetSettings
+    _S3WriteDataReturnValue
+
 Global Configurations
 ---------------------
 
@@ -451,3 +452,13 @@ Global Configurations
 
     reset
     to_pandas
+
+Distributed - Ray
+---------------------
+
+.. currentmodule:: awswrangler.distributed.ray
+
+.. autosummary::
+    :toctree: stubs
+
+    initialize_ray

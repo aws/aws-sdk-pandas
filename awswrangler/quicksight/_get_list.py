@@ -23,7 +23,7 @@ def _list(
 ) -> List[Dict[str, Any]]:
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=boto3_session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=boto3_session)
+    client = _utils.client(service_name="quicksight", session=boto3_session)
     func: Callable[..., Dict[str, Any]] = getattr(client, func_name)
     response: Dict[str, Any] = func(AwsAccountId=account_id, **kwargs)
     next_token: str = response.get("NextToken", None)
@@ -475,7 +475,7 @@ def get_dashboard_ids(
     Returns
     -------
     List[str]
-        Dashboad IDs.
+        Dashboard IDs.
 
     Examples
     --------
@@ -502,7 +502,7 @@ def get_dashboard_id(name: str, account_id: Optional[str] = None, boto3_session:
     Returns
     -------
     str
-        Dashboad ID.
+        Dashboard ID.
 
     Examples
     --------
@@ -660,7 +660,7 @@ def get_template_ids(
     Returns
     -------
     List[str]
-        Tamplate IDs.
+        Template IDs.
 
     Examples
     --------

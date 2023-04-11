@@ -156,3 +156,6 @@ building/lambda/arrow
 *package-lock.json
 *.cdk.staging
 *cdk.out
+
+# ruff
+.ruff_cache/

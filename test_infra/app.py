@@ -4,7 +4,7 @@ import os
 from aws_cdk import App, Environment
 from stacks.base_stack import BaseStack
 from stacks.databases_stack import DatabasesStack
-from stacks.lakeformation_stack import LakeFormationStack
+from stacks.glueray_stack import GlueRayStack
 from stacks.opensearch_stack import OpenSearchStack
 
 app = App()
@@ -26,18 +26,19 @@ DatabasesStack(
     **env,
 )
 
-LakeFormationStack(
-    app,
-    "aws-sdk-pandas-lakeformation",
-    **env,
-)
-
 OpenSearchStack(
     app,
     "aws-sdk-pandas-opensearch",
     base.get_vpc,
     base.get_bucket,
     base.get_key,
+    **env,
+)
+
+GlueRayStack(
+    app,
+    "aws-sdk-pandas-glueray",
+    base.get_bucket,
     **env,
 )
 

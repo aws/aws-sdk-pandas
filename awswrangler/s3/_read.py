@@ -1,17 +1,18 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
-import concurrent.futures
 import logging
-from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
 from pandas.api.types import union_categoricals
 
 from awswrangler import exceptions
-from awswrangler._utils import ensure_cpu_count
+from awswrangler._arrow import _extract_partitions_from_path
 from awswrangler.s3._list import _prefix_cleanup
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -65,21 +66,6 @@ def _extract_partitions_metadata_from_paths(
     return partitions_types, partitions_values
 
 
-def _extract_partitions_from_path(path_root: str, path: str) -> Dict[str, str]:
-    """Extract partitions values and names from Amazon S3 path."""
-    path_root = path_root if path_root.endswith("/") else f"{path_root}/"
-    if path_root not in path:
-        raise exceptions.InvalidArgumentValue(f"Object {path} is not under the root path ({path_root}).")
-    path_wo_filename: str = path.rpartition("/")[0] + "/"
-    path_wo_prefix: str = path_wo_filename.replace(f"{path_root}", "")
-    dirs: Tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if (x != "") and (x.count("=") > 0))
-    if not dirs:
-        return {}
-    values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
-    values_dics: Dict[str, str] = dict(values_tups)
-    return values_dics
-
-
 def _apply_partition_filter(
     path_root: str, paths: List[str], filter_func: Optional[Callable[[Dict[str, str]], bool]]
 ) -> List[str]:
@@ -102,22 +88,14 @@ def _apply_partitions(df: pd.DataFrame, dataset: bool, path: str, path_root: Opt
     return df
 
 
-def _extract_partitions_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, str]:
+def _extract_partitions_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> Dict[str, str]:
     dtypes: Dict[str, str] = {}
-    if "PartitionKeys" in response["Table"]:
-        for par in response["Table"]["PartitionKeys"]:
-            dtypes[par["Name"]] = par["Type"]
+    for par in response["Table"].get("PartitionKeys", []):
+        dtypes[par["Name"]] = par["Type"]
     return dtypes
 
 
-def _union(dfs: List[pd.DataFrame], ignore_index: Optional[bool]) -> pd.DataFrame:
-    if ignore_index is None:
-        ignore_index = False
-        for df in dfs:
-            if hasattr(df, "_awswrangler_ignore_index"):
-                if df._awswrangler_ignore_index is True:  # pylint: disable=protected-access
-                    ignore_index = True
-                    break
+def _union(dfs: List[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
     cats: Tuple[Set[str], ...] = tuple(set(df.select_dtypes(include="category").columns) for df in dfs)
     for col in set.intersection(*cats):
         cat = union_categoricals([df[col] for df in dfs])
@@ -126,25 +104,15 @@ def _union(dfs: List[pd.DataFrame], ignore_index: Optional[bool]) -> pd.DataFram
     return pd.concat(objs=dfs, sort=False, copy=False, ignore_index=ignore_index)
 
 
-def _read_dfs_from_multiple_paths(
-    read_func: Callable[..., pd.DataFrame],
-    paths: List[str],
-    version_ids: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    kwargs: Dict[str, Any],
-) -> List[pd.DataFrame]:
-    cpus = ensure_cpu_count(use_threads)
-    if cpus < 2:
-        return [
-            read_func(
-                path,
-                version_id=version_ids.get(path) if version_ids else None,
-                **kwargs,
-            )
-            for path in paths
-        ]
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
-        partial_read_func = partial(read_func, **kwargs)
-        versions = [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths]
-        return list(df for df in executor.map(partial_read_func, paths, versions))
+def _check_version_id(
+    paths: List[str], version_id: Optional[Union[str, Dict[str, str]]] = None
+) -> Optional[Dict[str, str]]:
+    if len(paths) > 1 and version_id is not None and not isinstance(version_id, dict):
+        raise exceptions.InvalidArgumentCombination(
+            "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
+        )
+    if isinstance(version_id, dict) and not all(version_id.values()):
+        raise exceptions.InvalidArgumentValue("Values in version ID dict cannot be None.")
+    return (
+        version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
+    )

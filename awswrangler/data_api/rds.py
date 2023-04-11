@@ -5,13 +5,13 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils
-from awswrangler.data_api import connector
+from awswrangler.data_api import _connector
 
 
-class RdsDataApi(connector.DataApiConnector):
+class RdsDataApi(_connector.DataApiConnector):
     """Provides access to the RDS Data API.
 
     Parameters
@@ -45,8 +45,8 @@ class RdsDataApi(connector.DataApiConnector):
         self.resource_arn = resource_arn
         self.database = database
         self.secret_arn = secret_arn
-        self.wait_config = connector.WaitConfig(sleep, backoff, retries)
-        self.client: boto3.client = _utils.client(service_name="rds-data", session=boto3_session)
+        self.wait_config = _connector.WaitConfig(sleep, backoff, retries)
+        self.client = _utils.client(service_name="rds-data", session=boto3_session)
         self.results: Dict[str, Dict[str, Any]] = {}
         logger: logging.Logger = logging.getLogger(__name__)
         super().__init__(self.client, logger)
@@ -88,7 +88,7 @@ class RdsDataApi(connector.DataApiConnector):
 
         if response is None:
             self.logger.exception("Maximum BadRequestException retries reached for query %s", sql)
-            raise last_exception  # type: ignore
+            raise last_exception  # type: ignore[misc]
 
         request_id: str = uuid.uuid4().hex
         self.results[request_id] = response
@@ -106,7 +106,7 @@ class RdsDataApi(connector.DataApiConnector):
         rows: List[List[Any]] = []
         for record in result["records"]:
             row: List[Any] = [
-                connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
+                _connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
                 for column in record
             ]
             rows.append(row)
@@ -142,7 +142,7 @@ def connect(
 
 
 def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) -> pd.DataFrame:
-    """Run an SQL query on an RdsDataApi connection and return the result as a dataframe.
+    """Run an SQL query on an RdsDataApi connection and return the result as a DataFrame.
 
     Parameters
     ----------
@@ -155,6 +155,6 @@ def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) ->
 
     Returns
     -------
-    A Pandas dataframe containing the query results.
+    A Pandas DataFrame containing the query results.
     """
     return con.execute(sql, database=database)

@@ -1,43 +1,24 @@
+# mypy: disable-error-code=name-defined
 """Amazon Oracle Database Module."""
 
-import importlib.util
-import inspect
 import logging
 from decimal import Decimal
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union, overload
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 
-from awswrangler import _data_types
+import awswrangler.pandas as pd
+from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
-from awswrangler import exceptions
 from awswrangler._config import apply_configs
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
-_oracledb_found = importlib.util.find_spec("oracledb")
-if _oracledb_found:
-    import oracledb  # pylint: disable=import-error
+oracledb = _utils.import_optional_dependency("oracledb")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
-
-
-def _check_for_oracledb(func: FuncT) -> FuncT:
-    def inner(*args: Any, **kwargs: Any) -> Any:
-        if not _oracledb_found:
-            raise ModuleNotFoundError(
-                "You need to install oracledb respectively the "
-                "AWS SDK for pandas package with the `oracle` extra for using the oracle module"
-            )
-        return func(*args, **kwargs)
-
-    inner.__doc__ = func.__doc__
-    inner.__name__ = func.__name__
-    inner.__setattr__("__signature__", inspect.signature(func))  # pylint: disable=no-member
-    return inner  # type: ignore
 
 
 def _validate_connection(con: "oracledb.Connection") -> None:
@@ -106,7 +87,7 @@ def _create_table(
     cursor.execute(sql)
 
 
-@_check_for_oracledb
+@_utils.check_optional_dependency(oracledb, "oracledb")
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
@@ -187,7 +168,51 @@ def connect(
     return oracle_connection
 
 
-@_check_for_oracledb
+@overload
+def read_sql_query(
+    sql: str,
+    con: "oracledb.Connection",
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "oracledb.Connection",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "oracledb.Connection",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(oracledb, "oracledb")
 def read_sql_query(
     sql: str,
     con: "oracledb.Connection",
@@ -253,7 +278,54 @@ def read_sql_query(
     )
 
 
-@_check_for_oracledb
+@overload
+def read_sql_table(
+    table: str,
+    con: "oracledb.Connection",
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "oracledb.Connection",
+    *,
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "oracledb.Connection",
+    *,
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(oracledb, "oracledb")
 def read_sql_table(
     table: str,
     con: "oracledb.Connection",
@@ -325,7 +397,7 @@ def read_sql_table(
     )
 
 
-@_check_for_oracledb
+@_utils.check_optional_dependency(oracledb, "oracledb")
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
@@ -434,7 +506,7 @@ def detect_oracle_decimal_datatype(cursor: Any) -> Dict[str, pa.DataType]:
     if isinstance(cursor, oracledb.Cursor):
         # Oracle stores DECIMAL as the NUMBER type
         for row in cursor.description:
-            if row[1] == oracledb.DB_TYPE_NUMBER and row[5] > 0:
+            if row[1] == oracledb.DB_TYPE_NUMBER and row[5] > 0:  # pylint: disable=no-member
                 dtype[row[0]] = pa.decimal128(row[4], row[5])
 
     _logger.debug("decimal dtypes: %s", dtype)

@@ -3,12 +3,12 @@
 import importlib.util
 import logging
 import ssl
-from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, Tuple, Union, cast, overload
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions, oracle, secretsmanager
 from awswrangler.catalog import get_connection
 
@@ -30,9 +30,9 @@ class ConnectionAttributes(NamedTuple):
 
 
 def _get_dbname(cluster_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
-    client_redshift: boto3.client = _utils.client(service_name="redshift", session=boto3_session)
-    res: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
-    return cast(str, res["DBName"])
+    client_redshift = _utils.client(service_name="redshift", session=boto3_session)
+    res = client_redshift.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
+    return res["DBName"]
 
 
 def _get_connection_attributes_from_catalog(
@@ -52,10 +52,10 @@ def _get_connection_attributes_from_catalog(
         ssl_cadata: Optional[str] = None
         if ssl_cert_path:
             bucket_name, key_path = _utils.parse_path(ssl_cert_path)
-            client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+            client_s3 = _utils.client(service_name="s3", session=boto3_session)
             try:
                 ssl_cadata = client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read().decode("utf-8")
-            except client_s3.exception.NoSuchKey:
+            except client_s3.exceptions.NoSuchKey:
                 raise exceptions.NoFilesFound(  # pylint: disable=raise-missing-from
                     f"No CA certificate found at {ssl_cert_path}."
                 )
@@ -159,7 +159,7 @@ def _records2df(
                     if _should_handle_oracle_objects(dtype[col_name]):
                         col_values = oracle.handle_oracle_objects(col_values, col_name, dtype)
                 array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
-            except pa.ArrowInvalid:
+            except (pa.ArrowInvalid, pa.ArrowTypeError):
                 array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
                 array = array.cast(target_type=dtype[col_name], safe=safe)  # Casting
         arrays.append(array)
@@ -250,6 +250,50 @@ def _fetch_all_results(
             safe=safe,
             timestamp_as_object=timestamp_as_object,
         )
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: Any,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: Any,
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: Any,
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
 
 
 def read_sql_query(

@@ -1,23 +1,24 @@
+# mypy: disable-error-code=name-defined
 """Amazon PostgreSQL Module."""
 
 import logging
 from ssl import SSLContext
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, overload
 
 import boto3
-import pandas as pd
-import pg8000
 import pyarrow as pa
 
-from awswrangler import _data_types
+import awswrangler.pandas as pd
+from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
-from awswrangler import exceptions
 from awswrangler._config import apply_configs
+
+pg8000 = _utils.import_optional_dependency("pg8000")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _validate_connection(con: pg8000.Connection) -> None:
+def _validate_connection(con: "pg8000.Connection") -> None:
     if not isinstance(con, pg8000.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -26,14 +27,14 @@ def _validate_connection(con: pg8000.Connection) -> None:
         )
 
 
-def _drop_table(cursor: pg8000.Cursor, schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "pg8000.Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f'"{schema}".' if schema else ""
     sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"'
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: pg8000.Cursor, schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "pg8000.Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     cursor.execute(
         f"SELECT true WHERE EXISTS ("
@@ -46,7 +47,7 @@ def _does_table_exist(cursor: pg8000.Cursor, schema: Optional[str], table: str) 
 
 def _create_table(
     df: pd.DataFrame,
-    cursor: pg8000.Cursor,
+    cursor: "pg8000.Cursor",
     table: str,
     schema: str,
     mode: str,
@@ -72,6 +73,7 @@ def _create_table(
     cursor.execute(sql)
 
 
+@_utils.check_optional_dependency(pg8000, "pg8000")
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
@@ -81,7 +83,7 @@ def connect(
     ssl_context: Optional[Union[bool, SSLContext]] = None,
     timeout: Optional[int] = None,
     tcp_keepalive: bool = True,
-) -> pg8000.Connection:
+) -> "pg8000.Connection":
     """Return a pg8000 connection from a Glue Catalog Connection.
 
     https://github.com/tlocke/pg8000
@@ -161,9 +163,54 @@ def connect(
     )
 
 
+@overload
 def read_sql_query(
     sql: str,
-    con: pg8000.Connection,
+    con: "pg8000.Connection",
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "pg8000.Connection",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "pg8000.Connection",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(pg8000, "pg8000")
+def read_sql_query(
+    sql: str,
+    con: "pg8000.Connection",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
@@ -227,9 +274,57 @@ def read_sql_query(
     )
 
 
+@overload
 def read_sql_table(
     table: str,
-    con: pg8000.Connection,
+    con: "pg8000.Connection",
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "pg8000.Connection",
+    *,
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "pg8000.Connection",
+    *,
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(pg8000, "pg8000")
+def read_sql_table(
+    table: str,
+    con: "pg8000.Connection",
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
@@ -298,10 +393,11 @@ def read_sql_table(
     )
 
 
+@_utils.check_optional_dependency(pg8000, "pg8000")
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: pg8000.Connection,
+    con: "pg8000.Connection",
     table: str,
     schema: str,
     mode: str = "append",
@@ -404,7 +500,7 @@ def to_sql(
                 insertion_columns = f"({', '.join(column_names)})"
             if mode == "upsert":
                 upsert_columns = ", ".join(f"{column}=EXCLUDED.{column}" for column in column_names)
-                conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore
+                conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore[arg-type]
                 upsert_str = f" ON CONFLICT ({conflict_columns}) DO UPDATE SET {upsert_columns}"
             if mode == "append" and insert_conflict_columns:
                 conflict_columns = ", ".join(insert_conflict_columns)

@@ -1,21 +1,23 @@
-"""Amazon Redshift Module."""
+# mypy: disable-error-code=name-defined
 # pylint: disable=too-many-lines
+"""Amazon Redshift Module."""
 
 import json
 import logging
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, overload
 
 import boto3
 import botocore
-import pandas as pd
 import pyarrow as pa
-import redshift_connector
 
-from awswrangler import _data_types
+import awswrangler.pandas as pd
+from awswrangler import _data_types, _utils, exceptions, s3
 from awswrangler import _databases as _db_utils
-from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
+from awswrangler._distributed import EngineEnum, engine
+
+redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ _RS_DISTSTYLES: List[str] = ["AUTO", "EVEN", "ALL", "KEY"]
 _RS_SORTSTYLES: List[str] = ["COMPOUND", "INTERLEAVED"]
 
 
-def _validate_connection(con: redshift_connector.Connection) -> None:
+def _validate_connection(con: "redshift_connector.Connection") -> None:
     if not isinstance(con, redshift_connector.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -32,50 +34,54 @@ def _validate_connection(con: redshift_connector.Connection) -> None:
         )
 
 
-def _begin_transaction(cursor: redshift_connector.Cursor) -> None:
+def _begin_transaction(cursor: "redshift_connector.Cursor") -> None:
     sql = "BEGIN TRANSACTION"
-    _logger.debug("Begin transaction query:\n%s", sql)
+    _logger.debug("Executing begin transaction query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _drop_table(cursor: redshift_connector.Cursor, schema: Optional[str], table: str, cascade: bool = False) -> None:
+def _drop_table(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str, cascade: bool = False) -> None:
     schema_str = f'"{schema}".' if schema else ""
     cascade_str = " CASCADE" if cascade else ""
     sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"' f"{cascade_str}"
-    _logger.debug("Drop table query:\n%s", sql)
+    _logger.debug("Executing drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _truncate_table(cursor: redshift_connector.Cursor, schema: Optional[str], table: str) -> None:
+def _truncate_table(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f'"{schema}".' if schema else ""
     sql = f'TRUNCATE TABLE {schema_str}"{table}"'
-    _logger.debug("Truncate table query:\n%s", sql)
+    _logger.debug("Executing truncate table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _delete_all(cursor: redshift_connector.Cursor, schema: Optional[str], table: str) -> None:
+def _delete_all(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f'"{schema}".' if schema else ""
     sql = f'DELETE FROM {schema_str}"{table}"'
-    _logger.debug("Delete query:\n%s", sql)
+    _logger.debug("Executing delete query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _get_primary_keys(cursor: redshift_connector.Cursor, schema: str, table: str) -> List[str]:
-    cursor.execute(f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'")
+def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: str) -> List[str]:
+    sql = f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'"
+    _logger.debug("Executing select query:\n%s", sql)
+    cursor.execute(sql)
     result: str = cursor.fetchall()[0][0]
     rfields: List[str] = result.split("(")[1].strip(")").split(",")
     fields: List[str] = [field.strip().strip('"') for field in rfields]
     return fields
 
 
-def _does_table_exist(cursor: redshift_connector.Cursor, schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
-    cursor.execute(
+    sql = (
         f"SELECT true WHERE EXISTS ("
         f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
         f"{schema_str} TABLE_NAME = '{table}'"
         f");"
     )
+    _logger.debug("Executing select query:\n%s", sql)
+    cursor.execute(sql)
     return len(cursor.fetchall()) > 0
 
 
@@ -83,7 +89,9 @@ def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] =
     client_s3 = _utils.client(service_name="s3", session=boto3_session)
     bucket, key = _utils.parse_path(path)
     manifest_content = json.loads(client_s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8"))
-    return [path["url"] for path in manifest_content["entries"]]
+    paths = [path["url"] for path in manifest_content["entries"]]
+    _logger.debug("Read %d paths from manifest file in: %s", len(paths), path)
+    return paths
 
 
 def _make_s3_auth_string(
@@ -118,7 +126,7 @@ def _make_s3_auth_string(
 
 
 def _copy(
-    cursor: redshift_connector.Cursor,
+    cursor: "redshift_connector.Cursor",
     path: str,
     table: str,
     serialize_to_json: bool,
@@ -126,7 +134,7 @@ def _copy(
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
     aws_session_token: Optional[str] = None,
-    boto3_session: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
     schema: Optional[str] = None,
     manifest: Optional[bool] = False,
     sql_copy_extra_params: Optional[List[str]] = None,
@@ -153,24 +161,24 @@ def _copy(
     if sql_copy_extra_params:
         for param in sql_copy_extra_params:
             sql += f"\n{param}"
-    _logger.debug("copy query:\n%s", sql)
+    _logger.debug("Executing copy query:\n%s", sql)
     cursor.execute(sql)
 
 
 def _lock(
-    cursor: redshift_connector.Cursor,
+    cursor: "redshift_connector.Cursor",
     table_names: List[str],
     schema: Optional[str] = None,
 ) -> None:
     fmt = '"{schema}"."{table}"' if schema else '"{table}"'
     tables = ", ".join([fmt.format(schema=schema, table=table) for table in table_names])
     sql: str = f"LOCK {tables};\n"
-    _logger.debug("lock query:\n%s", sql)
+    _logger.debug("Executing lock query:\n%s", sql)
     cursor.execute(sql)
 
 
 def _upsert(
-    cursor: redshift_connector.Cursor,
+    cursor: "redshift_connector.Cursor",
     table: str,
     temp_table: str,
     schema: str,
@@ -191,16 +199,16 @@ def _upsert(
         target_del_sql: str = (
             f'DELETE FROM "{schema}"."{table}" USING "{temp_table}" WHERE {join_clause} {delete_from_target_filter}'
         )
-        _logger.debug(target_del_sql)
+        _logger.debug("Executing delete query:\n%s", target_del_sql)
         cursor.execute(target_del_sql)
         source_del_sql: str = (
             f'DELETE FROM "{temp_table}" USING "{schema}"."{table}" WHERE {join_clause} {delete_from_temp_filter}'
         )
-        _logger.debug(source_del_sql)
+        _logger.debug("Executing delete query:\n%s", source_del_sql)
         cursor.execute(source_del_sql)
     else:
         sql: str = f'DELETE FROM "{schema}"."{table}" USING "{temp_table}" WHERE {join_clause}'
-        _logger.debug(sql)
+        _logger.debug("Executing delete query:\n%s", sql)
         cursor.execute(sql)
     if column_names:
         column_names_str = ",".join(column_names)
@@ -209,7 +217,7 @@ def _upsert(
         )
     else:
         insert_sql = f'INSERT INTO "{schema}"."{table}" SELECT * FROM "{temp_table}"'
-    _logger.debug(insert_sql)
+    _logger.debug("Executing insert query:\n%s", insert_sql)
     cursor.execute(insert_sql)
     _drop_table(cursor=cursor, schema=schema, table=temp_table)
 
@@ -265,7 +273,7 @@ def _redshift_types_from_path(
 ) -> Dict[str, str]:
     """Extract Redshift data types from a Pandas DataFrame."""
     _varchar_lengths: Dict[str, int] = {} if varchar_lengths is None else varchar_lengths
-    _logger.debug("Scanning parquet schemas on s3...")
+    _logger.debug("Scanning parquet schemas in S3 path: %s", path)
     athena_types, _ = s3.read_parquet_metadata(
         path=path,
         sampling=parquet_infer_sampling,
@@ -276,19 +284,20 @@ def _redshift_types_from_path(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    _logger.debug("athena_types: %s", athena_types)
+    _logger.debug("Parquet metadata types: %s", athena_types)
     redshift_types: Dict[str, str] = {}
     for col_name, col_type in athena_types.items():
         length: int = _varchar_lengths[col_name] if col_name in _varchar_lengths else varchar_lengths_default
         redshift_types[col_name] = _data_types.athena2redshift(dtype=col_type, varchar_length=length)
+    _logger.debug("Converted redshift types: %s", redshift_types)
     return redshift_types
 
 
 def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-many-branches,too-many-statements
     df: Optional[pd.DataFrame],
     path: Optional[Union[str, List[str]]],
-    con: redshift_connector.Connection,
-    cursor: redshift_connector.Cursor,
+    con: "redshift_connector.Connection",
+    cursor: "redshift_connector.Cursor",
     table: str,
     schema: str,
     mode: str,
@@ -311,6 +320,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     lock: bool = False,
 ) -> Tuple[str, Optional[str]]:
+    _logger.debug("Creating table %s with mode %s, and overwrite method %s", table, mode, overwrite_method)
     if mode == "overwrite":
         if overwrite_method == "truncate":
             try:
@@ -337,13 +347,14 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
             _drop_table(cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "cascade"))
             # No point in locking here, the oid will change.
     elif _does_table_exist(cursor=cursor, schema=schema, table=table) is True:
+        _logger.debug("Table %s exists", table)
         if lock:
             _lock(cursor, [table], schema=schema)
         if mode == "upsert":
             guid: str = uuid.uuid4().hex
             temp_table: str = f"temp_redshift_{guid}"
             sql: str = f'CREATE TEMPORARY TABLE {temp_table} (LIKE "{schema}"."{table}")'
-            _logger.debug(sql)
+            _logger.debug("Executing create temporary table query:\n%s", sql)
             cursor.execute(sql)
             return temp_table, None
         return table, schema
@@ -358,6 +369,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
             varchar_lengths=varchar_lengths,
             converter_func=_data_types.pyarrow2redshift,
         )
+        _logger.debug("Converted redshift types from pandas: %s", redshift_types)
     elif path is not None:
         if manifest:
             if not isinstance(path, str):
@@ -402,8 +414,9 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
         f"{distkey_str}"
         f"{sortkey_str}"
     )
-    _logger.debug("Create table query:\n%s", sql)
+    _logger.debug("Executing create table query:\n%s", sql)
     cursor.execute(sql)
+    _logger.info("Created table %s", table)
     if lock:
         _lock(cursor, [table], schema=schema)
     return table, schema
@@ -413,19 +426,19 @@ def _read_parquet_iterator(
     path: str,
     keep_files: bool,
     use_threads: Union[bool, int],
-    categories: Optional[List[str]],
     chunked: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Iterator[pd.DataFrame]:
     dfs: Iterator[pd.DataFrame] = s3.read_parquet(
         path=path,
-        categories=categories,
         chunked=chunked,
         dataset=False,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
     yield from dfs
     if keep_files is False:
@@ -434,6 +447,7 @@ def _read_parquet_iterator(
         )
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
@@ -445,7 +459,7 @@ def connect(
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
     **kwargs: Any,
-) -> redshift_connector.Connection:
+) -> "redshift_connector.Connection":
     """Return a redshift_connector connection from a Glue Catalog or Secret Manager.
 
     Note
@@ -545,6 +559,7 @@ def connect(
     )
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def connect_temp(
     cluster_identifier: str,
     user: str,
@@ -558,7 +573,7 @@ def connect_temp(
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
     **kwargs: Any,
-) -> redshift_connector.Connection:
+) -> "redshift_connector.Connection":
     """Return a redshift_connector temporary connection (No password required).
 
     https://github.com/aws/amazon-redshift-python-driver
@@ -618,7 +633,7 @@ def connect_temp(
     >>> con.close()
 
     """
-    client_redshift: boto3.client = _utils.client(service_name="redshift", session=boto3_session)
+    client_redshift = _utils.client(service_name="redshift", session=boto3_session)
     args: Dict[str, Any] = {
         "DbUser": user,
         "ClusterIdentifier": cluster_identifier,
@@ -629,8 +644,8 @@ def connect_temp(
         args["DbGroups"] = db_groups
     else:
         db_groups = []
-    res: Dict[str, Any] = client_redshift.get_cluster_credentials(**args)
-    cluster: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
+    res = client_redshift.get_cluster_credentials(**args)
+    cluster = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
     return redshift_connector.connect(
         user=res["DbUser"],
         database=database if database else cluster["DBName"],
@@ -646,9 +661,54 @@ def connect_temp(
     )
 
 
+@overload
 def read_sql_query(
     sql: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "redshift_connector.Connection",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "redshift_connector.Connection",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
+def read_sql_query(
+    sql: str,
+    con: "redshift_connector.Connection",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
@@ -717,9 +777,58 @@ def read_sql_query(
     )
 
 
+@overload
 def read_sql_table(
     table: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
+    *,
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "redshift_connector.Connection",
+    *,
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "redshift_connector.Connection",
+    *,
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
+def read_sql_table(
+    table: str,
+    con: "redshift_connector.Connection",
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
@@ -793,10 +902,11 @@ def read_sql_table(
     )
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 @apply_configs
 def to_sql(  # pylint: disable=too-many-locals
     df: pd.DataFrame,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     table: str,
     schema: str,
     mode: str = "append",
@@ -942,7 +1052,7 @@ def to_sql(  # pylint: disable=too-many-locals
             )
             for placeholders, parameters in placeholder_parameter_pair_generator:
                 sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES {placeholders}'
-                _logger.debug("sql: %s", sql)
+                _logger.debug("Executing insert query:\n%s", sql)
                 cursor.executemany(sql, (parameters,))
             if table != created_table:  # upsert
                 _upsert(
@@ -964,10 +1074,11 @@ def to_sql(  # pylint: disable=too-many-locals
         con.autocommit = autocommit_temp
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def unload_to_files(
     sql: str,
     path: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     iam_role: Optional[str] = None,
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
@@ -1047,6 +1158,7 @@ def unload_to_files(
 
 
     """
+    _logger.debug("Unloading to S3 path: %s", path)
     if unload_format not in [None, "CSV", "PARQUET"]:
         raise exceptions.InvalidArgumentValue("<unload_format> argument must be 'CSV' or 'PARQUET'")
     with con.cursor() as cursor:
@@ -1054,6 +1166,12 @@ def unload_to_files(
         partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
         manifest_str: str = "\nmanifest" if manifest is True else ""
         region_str: str = f"\nREGION AS '{region}'" if region is not None else ""
+        if not max_file_size and engine.get() == EngineEnum.RAY:
+            _logger.warning(
+                "Unload `MAXFILESIZE` is not specified. "
+                "Defaulting to `512.0 MB` corresponding to the recommended Ray target block size."
+            )
+            max_file_size = 512.0
         max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
         kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
 
@@ -1079,14 +1197,18 @@ def unload_to_files(
             f"{max_file_size_str}"
             f"{manifest_str};"
         )
-        _logger.debug("sql: \n%s", sql)
+        _logger.debug("Executing unload query:\n%s", sql)
         cursor.execute(sql)
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def unload(
     sql: str,
     path: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     iam_role: Optional[str] = None,
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
@@ -1094,12 +1216,12 @@ def unload(
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
-    categories: Optional[List[str]] = None,
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Load Pandas DataFrame from a Amazon Redshift query result using Parquet files on s3 as stage.
 
@@ -1121,14 +1243,13 @@ def unload(
 
     There are two batching strategies on awswrangler:
 
-    - If **chunked=True**, depending on the size of the data, one or more data frames will be
-      returned per each file in the path/dataset.
-      Unlike **chunked=INTEGER**, rows from different files will not be mixed in the resulting data frames.
+    - If **chunked=True**, depending on the size of the data, one or more data frames are returned per file.
+      Unlike **chunked=INTEGER**, rows from different files are not be mixed in the resulting data frames.
 
-    - If **chunked=INTEGER**, awswrangler will iterate on the data by number of rows (equal to the received INTEGER).
+    - If **chunked=INTEGER**, awswrangler iterates on the data by number of rows (equal to the received INTEGER).
 
     `P.S.` `chunked=True` is faster and uses less memory while `chunked=INTEGER` is more precise
-    in the number of rows for each Dataframe.
+    in the number of rows for each DataFrame.
 
 
     Note
@@ -1166,15 +1287,12 @@ def unload(
     kms_key_id : str, optional
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
-    categories: List[str], optional
-        List of columns names that should be returned as pandas.Categorical.
-        Recommended for memory restricted environments.
     keep_files : bool
         Should keep stage files?
     chunked : Union[int, bool]
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1182,7 +1300,11 @@ def unload(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Dict[str, str], optional
-        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
+        Forward to botocore requests.
+    pyarrow_additional_kwargs : Dict[str, Any], optional
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
+        Valid values include "split_blocks", "self_destruct", "ignore_metadata".
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -1220,14 +1342,15 @@ def unload(
     if chunked is False:
         df: pd.DataFrame = s3.read_parquet(
             path=path,
-            categories=categories,
             chunked=chunked,
             dataset=False,
             use_threads=use_threads,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         )
         if keep_files is False:
+            _logger.debug("Deleting objects in S3 path: %s", path)
             s3.delete_objects(
                 path=path,
                 use_threads=use_threads,
@@ -1237,18 +1360,19 @@ def unload(
         return df
     return _read_parquet_iterator(
         path=path,
-        categories=categories,
         chunked=chunked,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         keep_files=keep_files,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
 
 
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     path: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     table: str,
     schema: str,
     iam_role: Optional[str] = None,
@@ -1401,6 +1525,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     >>> con.close()
 
     """
+    _logger.debug("Copying objects from S3 path: %s", path)
     autocommit_temp: bool = con.autocommit
     con.autocommit = False
     try:
@@ -1467,10 +1592,14 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         con.autocommit = autocommit_temp
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
+@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def copy(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
     path: str,
-    con: redshift_connector.Connection,
+    con: "redshift_connector.Connection",
     table: str,
     schema: str,
     iam_role: Optional[str] = None,
@@ -1597,7 +1726,6 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     max_rows_by_file : int
         Max number of rows in each file.
-        Default is None i.e. dont split the files.
         (e.g. 33554432, 268435456)
     precombine_key : str, optional
         When there is a primary_key match during upsert, this column will change the upsert method,
@@ -1680,6 +1808,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
         )
     finally:
         if keep_files is False:
+            _logger.debug("Deleting objects in S3 path: %s", path)
             s3.delete_objects(
                 path=path,
                 use_threads=use_threads,

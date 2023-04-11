@@ -4,15 +4,18 @@
 import base64
 import itertools
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union, cast
 
 import boto3
 import botocore.exceptions
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
-from awswrangler.catalog._utils import _catalog_id, _extract_dtypes_from_table_details, _transaction_id
+from awswrangler.catalog._utils import _catalog_id, _extract_dtypes_from_table_details
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue.type_defs import GetPartitionsResponseTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -21,15 +24,12 @@ def _get_table_input(
     database: str,
     table: str,
     boto3_session: Optional[boto3.Session],
-    transaction_id: Optional[str] = None,
     catalog_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    args: Dict[str, Any] = _catalog_id(
-        catalog_id=catalog_id, **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table)
-    )
+    client_glue = _utils.client("glue", session=boto3_session)
+    args: Dict[str, Any] = _catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table)
     try:
-        response: Dict[str, Any] = client_glue.get_table(**args)
+        response = client_glue.get_table(**args)
     except client_glue.exceptions.EntityNotFoundException:
         return None
     table_input: Dict[str, Any] = {}
@@ -53,7 +53,9 @@ def _get_table_input(
     return table_input
 
 
-def _append_partitions(partitions_values: Dict[str, List[str]], response: Dict[str, Any]) -> Optional[str]:
+def _append_partitions(
+    partitions_values: Dict[str, List[str]], response: "GetPartitionsResponseTypeDef"
+) -> Optional[str]:
     _logger.debug("response: %s", response)
     token: Optional[str] = response.get("NextToken", None)
     if (response is not None) and ("Partitions" in response):
@@ -74,7 +76,7 @@ def _get_partitions(
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, List[str]]:
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
 
     args: Dict[str, Any] = _catalog_id(
         catalog_id=catalog_id,
@@ -90,7 +92,7 @@ def _get_partitions(
     partitions_values: Dict[str, List[str]] = {}
     _logger.debug("Starting pagination...")
 
-    response: Dict[str, Any] = client_glue.get_partitions(**args)
+    response = client_glue.get_partitions(**args)
     token: Optional[str] = _append_partitions(partitions_values=partitions_values, response=response)
     while token is not None:
         args["NextToken"] = response["NextToken"]
@@ -105,16 +107,10 @@ def _get_partitions(
 def get_table_types(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Optional[Dict[str, str]]:
     """Get all columns and types from a table.
-
-    Note
-    ----
-    If reading from a governed table, pass only one of `transaction_id` or `query_as_of_time`.
 
     Parameters
     ----------
@@ -122,11 +118,6 @@ def get_table_types(
         Database name.
     table: str
         Table name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
-    query_as_of_time: str, optional
-        The time as of when to read the table contents. Must be a valid Unix epoch timestamp.
-        Cannot be specified alongside transaction_id.
     catalog_id: str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -145,16 +136,9 @@ def get_table_types(
     {'col0': 'int', 'col1': double}
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     try:
-        response: Dict[str, Any] = client_glue.get_table(
-            **_catalog_id(
-                catalog_id=catalog_id,
-                **_transaction_id(
-                    transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database, Name=table
-                ),
-            )
-        )
+        response = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
     except client_glue.exceptions.EntityNotFoundException:
         return None
     return _extract_dtypes_from_table_details(response=response)
@@ -184,12 +168,12 @@ def get_databases(
     >>> dbs = wr.catalog.get_databases()
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_databases")
     response_iterator = paginator.paginate(**_catalog_id(catalog_id=catalog_id))
     for page in response_iterator:
         for db in page["DatabaseList"]:
-            yield db
+            yield cast(Dict[str, Any], db)
 
 
 @apply_configs
@@ -211,7 +195,7 @@ def databases(
     Returns
     -------
     pandas.DataFrame
-        Pandas DataFrame filled by formatted infos.
+        Pandas DataFrame filled by formatted table information.
 
     Examples
     --------
@@ -219,7 +203,7 @@ def databases(
     >>> df_dbs = wr.catalog.databases()
 
     """
-    database_iter: Iterator[Dict[str, Any]] = get_databases(catalog_id=catalog_id, boto3_session=boto3_session)
+    database_iter = get_databases(catalog_id=catalog_id, boto3_session=boto3_session)
     dbs = itertools.islice(database_iter, limit)
     df_dict: Dict[str, List[str]] = {"Database": [], "Description": []}
     for db in dbs:
@@ -232,7 +216,6 @@ def databases(
 def get_tables(
     catalog_id: Optional[str] = None,
     database: Optional[str] = None,
-    transaction_id: Optional[str] = None,
     name_contains: Optional[str] = None,
     name_prefix: Optional[str] = None,
     name_suffix: Optional[str] = None,
@@ -252,8 +235,6 @@ def get_tables(
         If none is provided, the AWS account ID is used by default.
     database : str, optional
         Database name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
     name_contains : str, optional
         Select by a specific string on table name
     name_prefix : str, optional
@@ -274,7 +255,7 @@ def get_tables(
     >>> tables = wr.catalog.get_tables()
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_tables")
     args: Dict[str, str] = {}
     if (name_prefix is not None) and (name_suffix is not None) and (name_contains is not None):
@@ -297,13 +278,11 @@ def get_tables(
         dbs = [x["Name"] for x in get_databases(catalog_id=catalog_id)]
     for db in dbs:
         args["DatabaseName"] = db
-        response_iterator = paginator.paginate(
-            **_catalog_id(catalog_id=catalog_id, **_transaction_id(transaction_id=transaction_id, **args))
-        )
+        response_iterator = paginator.paginate(**_catalog_id(catalog_id=catalog_id, **args))
         try:
             for page in response_iterator:
                 for tbl in page["TableList"]:
-                    yield tbl
+                    yield cast(Dict[str, Any], tbl)
         except client_glue.exceptions.EntityNotFoundException:
             continue
 
@@ -313,7 +292,6 @@ def tables(
     limit: int = 100,
     catalog_id: Optional[str] = None,
     database: Optional[str] = None,
-    transaction_id: Optional[str] = None,
     search_text: Optional[str] = None,
     name_contains: Optional[str] = None,
     name_prefix: Optional[str] = None,
@@ -321,10 +299,6 @@ def tables(
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
     """Get a DataFrame with tables filtered by a search term, prefix, suffix.
-
-    Note
-    ----
-    Search feature is not supported for Governed tables.
 
     Parameters
     ----------
@@ -335,8 +309,6 @@ def tables(
         If none is provided, the AWS account ID is used by default.
     database : str, optional
         Database name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
     search_text : str, optional
         Select only tables with the given string in table's properties.
     name_contains : str, optional
@@ -351,7 +323,7 @@ def tables(
     Returns
     -------
     pandas.DataFrame
-        Pandas Dataframe filled by formatted infos.
+        Pandas DataFrame filled by formatted table information.
 
     Examples
     --------
@@ -363,7 +335,6 @@ def tables(
         table_iter = get_tables(
             catalog_id=catalog_id,
             database=database,
-            transaction_id=transaction_id,
             name_contains=name_contains,
             name_prefix=name_prefix,
             name_suffix=name_suffix,
@@ -386,7 +357,6 @@ def tables(
         "Database": [],
         "Table": [],
         "Description": [],
-        "TableType": [],
         "Columns": [],
         "Partitions": [],
     }
@@ -394,7 +364,6 @@ def tables(
         df_dict["Database"].append(tbl["DatabaseName"])
         df_dict["Table"].append(tbl["Name"])
         df_dict["Description"].append(tbl.get("Description", ""))
-        df_dict["TableType"].append(tbl.get("TableType", ""))
         try:
             columns = tbl["StorageDescriptor"]["Columns"]
             df_dict["Columns"].append(", ".join([x["Name"] for x in columns]))
@@ -411,10 +380,6 @@ def search_tables(
     text: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> Iterator[Dict[str, Any]]:
     """Get Pandas DataFrame of tables filtered by a search string.
-
-    Note
-    ----
-    Search feature is not supported for Governed tables.
 
     Parameters
     ----------
@@ -437,32 +402,26 @@ def search_tables(
     >>> df_tables = wr.catalog.search_tables(text='my_property')
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
     args: Dict[str, Any] = _catalog_id(catalog_id=catalog_id, SearchText=text)
-    response: Dict[str, Any] = client_glue.search_tables(**args)
+    response = client_glue.search_tables(**args)
     for tbl in response["TableList"]:
-        yield tbl
+        yield cast(Dict[str, Any], tbl)
     while "NextToken" in response:
         args["NextToken"] = response["NextToken"]
         response = client_glue.search_tables(**args)
         for tbl in response["TableList"]:
-            yield tbl
+            yield cast(Dict[str, Any], tbl)
 
 
 @apply_configs
 def table(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
     """Get table details as Pandas DataFrame.
-
-    Note
-    ----
-    If reading from a governed table, pass only one of `transaction_id` or `query_as_of_time`.
 
     Parameters
     ----------
@@ -470,11 +429,6 @@ def table(
         Database name.
     table: str
         Table name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
-    query_as_of_time: str, optional
-        The time as of when to read the table contents. Must be a valid Unix epoch timestamp.
-        Cannot be specified alongside transaction_id.
     catalog_id: str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -484,7 +438,7 @@ def table(
     Returns
     -------
     pandas.DataFrame
-        Pandas DataFrame filled by formatted infos.
+        Pandas DataFrame filled by formatted table information.
 
     Examples
     --------
@@ -492,15 +446,8 @@ def table(
     >>> df_table = wr.catalog.table(database='default', table='my_table')
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    tbl = client_glue.get_table(
-        **_catalog_id(
-            catalog_id=catalog_id,
-            **_transaction_id(
-                transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database, Name=table
-            ),
-        )
-    )["Table"]
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
+    tbl = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))["Table"]
     df_dict: Dict[str, List[Union[str, bool]]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
     if "StorageDescriptor" in tbl:
         for col in tbl["StorageDescriptor"].get("Columns", {}):
@@ -527,16 +474,10 @@ def table(
 def get_table_location(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     """Get table's location on Glue catalog.
-
-    Note
-    ----
-    If reading from a governed table, pass only one of `transaction_id` or `query_as_of_time`.
 
     Parameters
     ----------
@@ -544,11 +485,6 @@ def get_table_location(
         Database name.
     table: str
         Table name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
-    query_as_of_time: str, optional
-        The time as of when to read the table contents. Must be a valid Unix epoch timestamp.
-        Cannot be specified alongside transaction_id.
     catalog_id: str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -567,17 +503,12 @@ def get_table_location(
     's3://bucket/prefix/'
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    res: Dict[str, Any] = client_glue.get_table(
-        **_catalog_id(
-            catalog_id=catalog_id,
-            **_transaction_id(
-                transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database, Name=table
-            ),
-        )
+    client_glue = _utils.client("glue", session=boto3_session)
+    res = client_glue.get_table(
+        **_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table),
     )
     try:
-        return cast(str, res["Table"]["StorageDescriptor"]["Location"])
+        return res["Table"]["StorageDescriptor"]["Location"]
     except KeyError as ex:
         raise exceptions.InvalidTable(f"{database}.{table}") from ex
 
@@ -609,7 +540,7 @@ def get_connection(
     >>> res = wr.catalog.get_connection(name='my_connection')
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
 
     res = _utils.try_it(
         f=client_glue.get_connection,
@@ -841,16 +772,10 @@ def get_partitions(
 def get_table_parameters(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, str]:
     """Get all parameters.
-
-    Note
-    ----
-    If reading from a governed table, pass only one of `transaction_id` or `query_as_of_time`.
 
     Parameters
     ----------
@@ -858,11 +783,6 @@ def get_table_parameters(
         Database name.
     table : str
         Table name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
-    query_as_of_time : str, optional
-        The time as of when to read the table contents. Must be a valid Unix epoch timestamp.
-        Cannot be specified alongside transaction_id.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -880,15 +800,8 @@ def get_table_parameters(
     >>> pars = wr.catalog.get_table_parameters(database="...", table="...")
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    response: Dict[str, Any] = client_glue.get_table(
-        **_catalog_id(
-            catalog_id=catalog_id,
-            **_transaction_id(
-                transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database, Name=table
-            ),
-        )
-    )
+    client_glue = _utils.client("glue", session=boto3_session)
+    response = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
     parameters: Dict[str, str] = response["Table"]["Parameters"]
     return parameters
 
@@ -896,16 +809,10 @@ def get_table_parameters(
 def get_table_description(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Optional[str]:
     """Get table description.
-
-    Note
-    ----
-    If reading from a governed table, pass only one of `transaction_id` or `query_as_of_time`.
 
     Parameters
     ----------
@@ -913,11 +820,6 @@ def get_table_description(
         Database name.
     table : str
         Table name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
-    query_as_of_time: str, optional
-        The time as of when to read the table contents. Must be a valid Unix epoch timestamp.
-        Cannot be specified alongside transaction_id.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -935,15 +837,8 @@ def get_table_description(
     >>> desc = wr.catalog.get_table_description(database="...", table="...")
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    response: Dict[str, Any] = client_glue.get_table(
-        **_catalog_id(
-            catalog_id=catalog_id,
-            **_transaction_id(
-                transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database, Name=table
-            ),
-        )
-    )
+    client_glue = _utils.client("glue", session=boto3_session)
+    response = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
     desc: Optional[str] = response["Table"].get("Description", None)
     return desc
 
@@ -952,16 +847,10 @@ def get_table_description(
 def get_columns_comments(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, str]:
     """Get all columns comments.
-
-    Note
-    ----
-    If reading from a governed table, pass only one of `transaction_id` or `query_as_of_time`.
 
     Parameters
     ----------
@@ -969,11 +858,6 @@ def get_columns_comments(
         Database name.
     table : str
         Table name.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
-    query_as_of_time: str, optional
-        The time as of when to read the table contents. Must be a valid Unix epoch timestamp.
-        Cannot be specified alongside transaction_id.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -991,21 +875,14 @@ def get_columns_comments(
     >>> pars = wr.catalog.get_columns_comments(database="...", table="...")
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    response: Dict[str, Any] = client_glue.get_table(
-        **_catalog_id(
-            catalog_id=catalog_id,
-            **_transaction_id(
-                transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database, Name=table
-            ),
-        )
-    )
+    client_glue = _utils.client("glue", session=boto3_session)
+    response = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
     comments: Dict[str, str] = {}
     for c in response["Table"]["StorageDescriptor"]["Columns"]:
-        comments[c["Name"]] = c.get("Comment")
+        comments[c["Name"]] = c["Comment"]
     if "PartitionKeys" in response["Table"]:
         for p in response["Table"]["PartitionKeys"]:
-            comments[p["Name"]] = p.get("Comment")
+            comments[p["Name"]] = p["Comment"]
     return comments
 
 
@@ -1039,13 +916,13 @@ def get_table_versions(
     >>> tables_versions = wr.catalog.get_table_versions(database="...", table="...")
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_table_versions")
     versions: List[Dict[str, Any]] = []
     response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))
     for page in response_iterator:
         for tbl in page["TableVersions"]:
-            versions.append(tbl)
+            versions.append(cast(Dict[str, Any], tbl))
     return versions
 
 
@@ -1053,7 +930,7 @@ def get_table_versions(
 def get_table_number_of_versions(
     database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> int:
-    """Get tatal number of versions.
+    """Get total number of versions.
 
     Parameters
     ----------
@@ -1078,7 +955,7 @@ def get_table_number_of_versions(
     >>> num = wr.catalog.get_table_number_of_versions(database="...", table="...")
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_table_versions")
     count: int = 0
     response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))

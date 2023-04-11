@@ -1,18 +1,26 @@
+# mypy: disable-error-code=name-defined
 """Amazon OpenSearch Utils Module (PRIVATE)."""
 
 import json
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union, cast
 
 import boto3
 import botocore
-from opensearchpy import OpenSearch, RequestsHttpConnection
-from requests_aws4auth import AWS4Auth
 
 from awswrangler import _utils, exceptions
 from awswrangler.annotations import Experimental
+
+opensearchpy = _utils.import_optional_dependency("opensearchpy")
+if opensearchpy:
+    from requests_aws4auth import AWS4Auth
+
+if TYPE_CHECKING:
+    from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
+    from mypy_boto3_opensearchserverless.literals import CollectionTypeType, SecurityPolicyTypeType
+    from mypy_boto3_opensearchserverless.type_defs import BatchGetCollectionResponseTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -20,26 +28,26 @@ _CREATE_COLLECTION_FINAL_STATUSES: List[str] = ["ACTIVE", "FAILED"]
 _CREATE_COLLECTION_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 
-def _get_distribution(client: OpenSearch) -> Any:
+def _get_distribution(client: "opensearchpy.OpenSearch") -> Any:
     if _is_serverless(client):
         return "opensearch"
     return client.info().get("version", {}).get("distribution", "elasticsearch")
 
 
-def _get_version(client: OpenSearch) -> Any:
+def _get_version(client: "opensearchpy.OpenSearch") -> Any:
     if _is_serverless(client):
         return None
     return client.info().get("version", {}).get("number")
 
 
-def _get_version_major(client: OpenSearch) -> Any:
+def _get_version_major(client: "opensearchpy.OpenSearch") -> Any:
     version = _get_version(client)
     if version:
         return int(version.split(".")[0])
     return None
 
 
-def _is_serverless(client: OpenSearch) -> bool:
+def _is_serverless(client: "opensearchpy.OpenSearch") -> bool:
     return getattr(client, "_serverless", False)
 
 
@@ -104,8 +112,8 @@ def _get_default_network_policy(collection_name: str, vpc_endpoints: Optional[Li
 def _create_security_policy(
     collection_name: str,
     policy: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
-    policy_type: str,
-    client: boto3.client,
+    policy_type: "SecurityPolicyTypeType",
+    client: "OpenSearchServiceServerlessClient",
     **kwargs: Any,
 ) -> None:
     if not kwargs:
@@ -131,7 +139,9 @@ def _create_security_policy(
         raise error
 
 
-def _create_data_policy(collection_name: str, policy: List[Dict[str, Any]], client: boto3.client) -> None:
+def _create_data_policy(
+    collection_name: str, policy: List[Dict[str, Any]], client: "OpenSearchServiceServerlessClient"
+) -> None:
     try:
         client.create_access_policy(
             name=f"{collection_name}-data-policy",
@@ -147,6 +157,7 @@ def _create_data_policy(collection_name: str, policy: List[Dict[str, Any]], clie
         raise error
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def connect(
     host: str,
     port: Optional[int] = 443,
@@ -159,7 +170,7 @@ def connect(
     max_retries: int = 5,
     retry_on_timeout: bool = True,
     retry_on_status: Optional[Sequence[int]] = None,
-) -> OpenSearch:
+) -> "opensearchpy.OpenSearch":
     """Create a secure connection to the specified Amazon OpenSearch domain.
 
     Note
@@ -224,25 +235,26 @@ def connect(
             )
         http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, service, session_token=creds.token)
     try:
-        es = OpenSearch(
+        es = opensearchpy.OpenSearch(
             host=_strip_endpoint(host),
             port=port,
             http_auth=http_auth,
             use_ssl=_is_https(port),
             verify_certs=_is_https(port),
-            connection_class=RequestsHttpConnection,
+            connection_class=opensearchpy.RequestsHttpConnection,
             timeout=timeout,
             max_retries=max_retries,
             retry_on_timeout=retry_on_timeout,
             retry_on_status=retry_on_status,
         )
-        es._serverless = service == "aoss"  # type: ignore # pylint: disable=protected-access
+        es._serverless = service == "aoss"  # pylint: disable=protected-access
     except Exception as e:
         _logger.error("Error connecting to Opensearch cluster. Please verify authentication details")
         raise e
     return es
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 @Experimental
 def create_collection(
     name: str,
@@ -297,8 +309,9 @@ def create_collection(
     """
     if collection_type not in ["SEARCH", "TIMESERIES"]:
         raise exceptions.InvalidArgumentValue("Collection `type` must be either 'SEARCH' or 'TIMESERIES'.")
+    collection_type = cast("CollectionTypeType", collection_type)
 
-    client: boto3.client = _utils.client(service_name="opensearchserverless", session=boto3_session)
+    client = _utils.client(service_name="opensearchserverless", session=boto3_session)
     # Create encryption and network policies
     _create_security_policy(
         collection_name=name,
@@ -325,18 +338,19 @@ def create_collection(
         )
         # Wait for the collection to become active
         status: Optional[str] = None
-        response: Optional[Dict[str, Any]] = {}
+        response: Optional["BatchGetCollectionResponseTypeDef"] = None
         while status not in _CREATE_COLLECTION_FINAL_STATUSES:
             time.sleep(_CREATE_COLLECTION_WAIT_POLLING_DELAY)
             response = client.batch_get_collection(names=[name])
-            status = response["collectionDetails"][0]["status"]  # type: ignore
+            status = response["collectionDetails"][0]["status"]
 
+        response = cast("BatchGetCollectionResponseTypeDef", response)
         if status == "FAILED":
-            errors = response["collectionErrorDetails"]  # type: ignore
+            errors = response["collectionErrorDetails"]
             error_details = errors[0] if len(errors) > 0 else "No error details provided"
             raise exceptions.QueryFailed(f"Failed to create collection `{name}`: {error_details}.")
 
-        return response["collectionDetails"][0]  # type: ignore
+        return response["collectionDetails"][0]  # type: ignore[return-value]
     except botocore.exceptions.ClientError as error:
         if error.response["Error"]["Code"] == "ConflictException":
             raise exceptions.AlreadyExists(f"A collection with name `{name}` already exists.") from error

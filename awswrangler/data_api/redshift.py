@@ -4,13 +4,13 @@ import time
 from typing import Any, Dict, List, Optional
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils
-from awswrangler.data_api import connector
+from awswrangler.data_api import _connector
 
 
-class RedshiftDataApi(connector.DataApiConnector):
+class RedshiftDataApi(_connector.DataApiConnector):
     """Provides access to a Redshift cluster via the Data API.
 
     Note
@@ -57,7 +57,7 @@ class RedshiftDataApi(connector.DataApiConnector):
         self.workgroup_name = workgroup_name
         self.secret_arn = secret_arn
         self.db_user = db_user
-        self.client: boto3.client = _utils.client(service_name="redshift-data", session=boto3_session)
+        self.client = _utils.client(service_name="redshift-data", session=boto3_session)
         self.waiter = RedshiftDataApiWaiter(self.client, sleep, backoff, retries)
         logger: logging.Logger = logging.getLogger(__name__)
         super().__init__(self.client, logger)
@@ -90,7 +90,7 @@ class RedshiftDataApi(connector.DataApiConnector):
             redshift_target = {"WorkgroupName": self.workgroup_name}
 
         self.logger.debug("Executing %s", sql)
-        response: Dict[str, Any] = self.client.execute_statement(
+        response = self.client.execute_statement(
             **redshift_target,
             Database=database,
             Sql=sql,
@@ -114,7 +114,7 @@ class RedshiftDataApi(connector.DataApiConnector):
             column_metadata = response["ColumnMetadata"]
             for record in response["Records"]:
                 row: List[Any] = [
-                    connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
+                    _connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
                     for column in record
                 ]
                 rows.append(row)
@@ -141,7 +141,7 @@ class RedshiftDataApiWaiter:
 
     def __init__(self, client: Any, sleep: float, backoff: float, retries: int) -> None:
         self.client = client
-        self.wait_config = connector.WaitConfig(sleep, backoff, retries)
+        self.wait_config = _connector.WaitConfig(sleep, backoff, retries)
         self.logger: logging.Logger = logging.getLogger(__name__)
 
     def wait(self, request_id: str) -> bool:
@@ -238,7 +238,7 @@ def connect(
 
 
 def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = None) -> pd.DataFrame:
-    """Run an SQL query on a RedshiftDataApi connection and return the result as a dataframe.
+    """Run an SQL query on a RedshiftDataApi connection and return the result as a DataFrame.
 
     Parameters
     ----------
@@ -251,6 +251,6 @@ def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = Non
 
     Returns
     -------
-    A Pandas dataframe containing the query results.
+    A Pandas DataFrame containing the query results.
     """
     return con.execute(sql, database=database)

@@ -37,10 +37,6 @@ class InvalidTable(Exception):
     """InvalidTable exception."""
 
 
-class CommitCancelled(Exception):
-    """CommitCancelled exception."""
-
-
 class QueryFailed(Exception):
     """QueryFailed exception."""
 
@@ -115,6 +111,10 @@ class FailedQualityCheck(Exception):
 
 class AlreadyExists(Exception):
     """AlreadyExists."""
+
+
+class S3SelectRequestIncomplete(Exception):
+    """S3SelectRequestIncomplete."""
 
 
 class ResourceDoesNotExist(Exception):

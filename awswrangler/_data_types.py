@@ -13,6 +13,7 @@ import pyarrow as pa
 import pyarrow.parquet
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import engine
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -333,7 +334,7 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
         return pa.list_(value_type=athena2pyarrow(dtype=orig_dtype[6:-1]), list_size=-1)
     if dtype.startswith("struct") is True:
         return pa.struct(
-            [(f.split(":", 1)[0], athena2pyarrow(f.split(":", 1)[1])) for f in _split_struct(orig_dtype[7:-1])]
+            [(f.split(":", 1)[0].strip(), athena2pyarrow(f.split(":", 1)[1])) for f in _split_struct(orig_dtype[7:-1])]
         )
     if dtype.startswith("map") is True:
         parts: List[str] = _split_map(s=orig_dtype[4:-1])
@@ -464,7 +465,8 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
     return None
 
 
-def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
+@engine.dispatch_on_engine
+def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches,too-many-statements
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, index_left: bool = False
 ) -> Dict[str, pa.DataType]:
     """Extract the related Pyarrow data types from any Pandas DataFrame."""
@@ -484,8 +486,14 @@ def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
             cols_dtypes[name] = pa.int32()
         elif dtype == "Int64":
             cols_dtypes[name] = pa.int64()
+        elif dtype == "float32":
+            cols_dtypes[name] = pa.float32()
+        elif dtype == "float64":
+            cols_dtypes[name] = pa.float64()
         elif dtype == "string":
             cols_dtypes[name] = pa.string()
+        elif dtype == "boolean":
+            cols_dtypes[name] = pa.bool_()
         else:
             cols.append(name)
 
@@ -540,6 +548,20 @@ def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
     columns_types = {n: cols_dtypes[n] for n in sorted_cols}
     _logger.debug("columns_types: %s", columns_types)
     return columns_types
+
+
+def pyarrow2pandas_defaults(use_threads: Union[bool, int], kwargs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Return Pyarrow to Pandas default dictionary arguments."""
+    default_kwargs = {
+        "use_threads": use_threads,
+        "split_blocks": True,
+        "self_destruct": True,
+        "ignore_metadata": True,
+        "types_mapper": pyarrow2pandas_extension,
+    }
+    if kwargs:
+        default_kwargs.update(kwargs)
+    return default_kwargs
 
 
 def process_not_inferred_dtype(ex: pa.ArrowInvalid) -> pa.DataType:
@@ -765,14 +787,12 @@ def database_types_from_pandas(
     return database_types
 
 
-def timestream_type_from_pandas(df: pd.DataFrame) -> str:
+def timestream_type_from_pandas(df: pd.DataFrame) -> List[str]:
     """Extract Amazon Timestream types from a Pandas DataFrame."""
-    pyarrow_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(df=df, index=False, ignore_cols=[])
-    if len(pyarrow_types) != 1 or list(pyarrow_types.values())[0] is None:
-        raise RuntimeError(f"Invalid pyarrow_types: {pyarrow_types}")
-    pyarrow_type: pa.DataType = list(pyarrow_types.values())[0]
-    _logger.debug("pyarrow_type: %s", pyarrow_type)
-    return pyarrow2timestream(dtype=pyarrow_type)
+    return [
+        pyarrow2timestream(pyarrow_type)
+        for pyarrow_type in pyarrow_types_from_pandas(df=df, index=False, ignore_cols=[]).values()
+    ]
 
 
 def get_arrow_timestamp_unit(data_type: pa.lib.DataType) -> Any:

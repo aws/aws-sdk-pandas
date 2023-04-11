@@ -6,8 +6,8 @@ import uuid
 from typing import Any, Dict, List, Optional, Union, cast
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.data_quality._get import get_ruleset
@@ -100,14 +100,14 @@ def create_ruleset(
     if (df_rules is not None and dqdl_rules) or (df_rules is None and not dqdl_rules):
         raise exceptions.InvalidArgumentCombination("You must pass either ruleset `df_rules` or `dqdl_rules`.")
 
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     dqdl_rules = _create_dqdl(df_rules) if df_rules is not None else dqdl_rules
 
     try:
         client_glue.create_data_quality_ruleset(
             Name=name,
             Description=description,
-            Ruleset=dqdl_rules,
+            Ruleset=cast(str, dqdl_rules),
             TargetTable={
                 "TableName": table,
                 "DatabaseName": database,
@@ -180,9 +180,9 @@ def update_ruleset(
         "Ruleset": dqdl_rules,
     }
 
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.update_data_quality_ruleset(**args)
+        client_glue.update_data_quality_ruleset(**args)  # type: ignore[arg-type]
     except client_glue.exceptions.EntityNotFoundException as not_found:
         raise exceptions.ResourceDoesNotExist(f"Ruleset {name} does not exist.") from not_found
 
@@ -246,7 +246,7 @@ def create_recommendation_ruleset(
     >>>     iam_role_arn="arn:...",
     >>>)
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
 
     args: Dict[str, Any] = {
         "DataSource": _create_datasource(
@@ -264,7 +264,7 @@ def create_recommendation_ruleset(
     if name:
         args["CreatedRulesetName"] = name
     _logger.debug("args: \n%s", pprint.pformat(args))
-    run_id: str = cast(str, client_glue.start_data_quality_rule_recommendation_run(**args)["RunId"])
+    run_id: str = client_glue.start_data_quality_rule_recommendation_run(**args)["RunId"]
 
     _logger.debug("run_id: %s", run_id)
     dqdl_recommended_rules: str = cast(

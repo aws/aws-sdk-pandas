@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-VERSION=$(python -c "import awswrangler as wr; print(wr.__version__)")
+VERSION=$(poetry version --short)
 DIR_NAME=$(dirname "$PWD")
 
 ARCH=$(arch)
@@ -13,16 +13,6 @@ pushd lambda
 
 # Building all related docker images
 ./build-docker-images.sh
-
-if [ "${ARCH}" != "aarch64" ]; then # https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
-  # Python 3.7
-  docker run \
-    --volume "$DIR_NAME":/aws-sdk-pandas/ \
-    --workdir /aws-sdk-pandas/building/lambda \
-    --rm \
-    awswrangler-build-py37 \
-    build-lambda-layer.sh "${VERSION}-py3.7" "ninja-build"
-fi
 
 # Python 3.8
 docker run \

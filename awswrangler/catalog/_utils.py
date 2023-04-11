@@ -3,13 +3,16 @@ import logging
 import re
 import unicodedata
 import warnings
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -20,26 +23,12 @@ def _catalog_id(catalog_id: Optional[str] = None, **kwargs: Any) -> Dict[str, An
     return kwargs
 
 
-def _transaction_id(
-    transaction_id: Optional[str] = None, query_as_of_time: Optional[str] = None, **kwargs: Any
-) -> Dict[str, Any]:
-    if transaction_id is not None and query_as_of_time is not None:
-        raise exceptions.InvalidArgumentCombination(
-            "Please pass only one of `transaction_id` or `query_as_of_time`, not both"
-        )
-    if transaction_id is not None:
-        kwargs["TransactionId"] = transaction_id
-    elif query_as_of_time is not None:
-        kwargs["QueryAsOfTime"] = query_as_of_time
-    return kwargs
-
-
 def _sanitize_name(name: str) -> str:
     name = "".join(c for c in unicodedata.normalize("NFD", name) if unicodedata.category(c) != "Mn")  # strip accents
     return re.sub("[^A-Za-z0-9_]+", "_", name).lower()  # Replacing non alphanumeric characters by underscore
 
 
-def _extract_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, str]:
+def _extract_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> Dict[str, str]:
     dtypes: Dict[str, str] = {}
     for col in response["Table"]["StorageDescriptor"]["Columns"]:
         dtypes[col["Name"]] = col["Type"]
@@ -55,7 +44,6 @@ def does_table_exist(
     table: str,
     boto3_session: Optional[boto3.Session] = None,
     catalog_id: Optional[str] = None,
-    transaction_id: Optional[str] = None,
 ) -> bool:
     """Check if the table exists.
 
@@ -70,8 +58,6 @@ def does_table_exist(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    transaction_id: str, optional
-        The ID of the transaction (i.e. used with GOVERNED tables).
 
     Returns
     -------
@@ -83,14 +69,9 @@ def does_table_exist(
     >>> import awswrangler as wr
     >>> wr.catalog.does_table_exist(database='default', table='my_table')
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.get_table(
-            **_catalog_id(
-                catalog_id=catalog_id,
-                **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table),
-            )
-        )
+        client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
         return True
     except client_glue.exceptions.EntityNotFoundException:
         return False
@@ -212,7 +193,7 @@ def sanitize_dataframe_columns_names(
     """
     df.columns = [sanitize_column_name(x) for x in df.columns]
     df.index.names = [None if x is None else sanitize_column_name(x) for x in df.index.names]
-    if df.columns.duplicated().any():  # type: ignore
+    if df.columns.duplicated().any():  # type: ignore[attr-defined]
         if handle_duplicate_columns == "warn":
             warnings.warn(
                 "Duplicate columns were detected, consider using `handle_duplicate_columns='[drop|rename]'`",
