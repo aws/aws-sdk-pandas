@@ -3,7 +3,7 @@
 import csv
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple, Union, cast
 
 import boto3
 import pandas as pd
@@ -96,7 +96,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     partition_cols: Optional[List[str]] = None,
     bucketing_info: Optional[BucketingInfoTuple] = None,
     concurrent_partitioning: bool = False,
-    mode: Optional[str] = None,
+    mode: Optional[Literal["append", "overwrite", "overwrite_partitions"]] = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     dtype: Optional[Dict[str, str]] = None,
@@ -657,7 +657,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     partition_cols: Optional[List[str]] = None,
     bucketing_info: Optional[BucketingInfoTuple] = None,
     concurrent_partitioning: bool = False,
-    mode: Optional[str] = None,
+    mode: Optional[Literal["append", "overwrite", "overwrite_partitions"]] = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
     dtype: Optional[Dict[str, str]] = None,

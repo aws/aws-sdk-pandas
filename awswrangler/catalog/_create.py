@@ -1,7 +1,7 @@
 """AWS Glue Catalog Module."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
 
 import boto3
 
@@ -634,7 +634,7 @@ def create_parquet_table(
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
-    mode: str = "overwrite",
+    mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -786,7 +786,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
-    mode: str = "overwrite",
+    mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     sep: str = ",",
@@ -970,7 +970,7 @@ def create_json_table(
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
-    mode: str = "overwrite",
+    mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     serde_library: Optional[str] = None,

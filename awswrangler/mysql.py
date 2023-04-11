@@ -3,7 +3,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union, overload
+from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Type, Union, cast, overload
 
 import boto3
 import pyarrow as pa
@@ -402,6 +402,11 @@ def read_sql_table(
     )
 
 
+_ToSqlModeLiteral = Literal[
+    "append", "overwrite", "upsert_replace_into", "upsert_duplicate_key", "upsert_distinct", "ignore"
+]
+
+
 @_utils.check_optional_dependency(pymysql, "pymysql")
 @apply_configs
 def to_sql(
@@ -409,7 +414,7 @@ def to_sql(
     con: "pymysql.connections.Connection[Any]",
     table: str,
     schema: str,
-    mode: str = "append",
+    mode: _ToSqlModeLiteral = "append",
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
@@ -430,7 +435,7 @@ def to_sql(
     schema : str
         Schema name
     mode : str
-        Append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct, ignore.
+        append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct, ignore.
             append: Inserts new records into table.
             overwrite: Drops table and recreates.
             upsert_duplicate_key: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
@@ -484,7 +489,7 @@ def to_sql(
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
-    mode = mode.strip().lower()
+    mode = cast(_ToSqlModeLiteral, mode.strip().lower())
     allowed_modes = [
         "append",
         "overwrite",
