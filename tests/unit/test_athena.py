@@ -1401,4 +1401,4 @@ def test_athena_date_recovery(path, glue_database, glue_table):
         database=glue_database,
         ctas_approach=False,
     )
-    assert df.equals(df2)
+    assert pandas_equals(df, df2)
