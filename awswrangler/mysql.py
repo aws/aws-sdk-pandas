@@ -15,6 +15,7 @@ from awswrangler._config import apply_configs
 if TYPE_CHECKING:
     try:
         import pymysql
+        from pymysql.cursors import Cursor
     except ImportError:
         pass
 else:
@@ -23,7 +24,7 @@ else:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _validate_connection(con: "pymysql.connections.Connection[Any]") -> None:
+def _validate_connection(con: "pymysql.connections.Connection[Cursor]") -> None:
     if not isinstance(con, pymysql.connections.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -32,14 +33,14 @@ def _validate_connection(con: "pymysql.connections.Connection[Any]") -> None:
         )
 
 
-def _drop_table(cursor: "pymysql.cursors.Cursor", schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f"`{schema}`." if schema else ""
     sql = f"DROP TABLE IF EXISTS {schema_str}`{table}`"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: "pymysql.cursors.Cursor", schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE " f"{schema_str} TABLE_NAME = '{table}'")
     return len(cursor.fetchall()) > 0
@@ -47,7 +48,7 @@ def _does_table_exist(cursor: "pymysql.cursors.Cursor", schema: Optional[str], t
 
 def _create_table(
     df: pd.DataFrame,
-    cursor: "pymysql.cursors.Cursor",
+    cursor: "Cursor",
     table: str,
     schema: str,
     mode: str,
@@ -83,7 +84,7 @@ def connect(
     read_timeout: Optional[int] = None,
     write_timeout: Optional[int] = None,
     connect_timeout: int = 10,
-    cursorclass: Optional[Type["pymysql.cursors.Cursor"]] = None,
+    cursorclass: Optional[Type["Cursor"]] = None,
 ) -> "pymysql.connections.Connection[Any]":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
@@ -180,7 +181,7 @@ def connect(
 @overload
 def read_sql_query(
     sql: str,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection[Cursor]",
     index_col: Optional[Union[str, List[str]]] = ...,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
     chunksize: None = ...,
@@ -194,7 +195,7 @@ def read_sql_query(
 @overload
 def read_sql_query(
     sql: str,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection[Cursor]",
     *,
     index_col: Optional[Union[str, List[str]]] = ...,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
@@ -209,7 +210,7 @@ def read_sql_query(
 @overload
 def read_sql_query(
     sql: str,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection[Cursor]",
     *,
     index_col: Optional[Union[str, List[str]]] = ...,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
@@ -224,7 +225,7 @@ def read_sql_query(
 @_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_query(
     sql: str,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection[Cursor]",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
@@ -291,7 +292,7 @@ def read_sql_query(
 @overload
 def read_sql_table(
     table: str,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection[Cursor]",
     schema: Optional[str] = ...,
     index_col: Optional[Union[str, List[str]]] = ...,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
@@ -306,7 +307,7 @@ def read_sql_table(
 @overload
 def read_sql_table(
     table: str,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection[Cursor]",
     *,
     schema: Optional[str] = ...,
     index_col: Optional[Union[str, List[str]]] = ...,
@@ -322,7 +323,7 @@ def read_sql_table(
 @overload
 def read_sql_table(
     table: str,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection[Cursor]",
     *,
     schema: Optional[str] = ...,
     index_col: Optional[Union[str, List[str]]] = ...,
@@ -338,7 +339,7 @@ def read_sql_table(
 @_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_table(
     table: str,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection[Cursor]",
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
@@ -411,7 +412,7 @@ def read_sql_table(
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection[Cursor]",
     table: str,
     schema: str,
     mode: str = "append",
@@ -420,7 +421,7 @@ def to_sql(
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
     chunksize: int = 200,
-    cursorclass: Optional[Type["pymysql.cursors.Cursor"]] = None,
+    cursorclass: Optional[Type["Cursor"]] = None,
 ) -> None:
     """Write records stored in a DataFrame into MySQL.
 
