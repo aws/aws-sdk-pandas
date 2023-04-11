@@ -65,9 +65,9 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
     """Apply data types cast to a Pandas DataFrames."""
     if len(df.index) > 0:
         for col in parse_dates:
-            try:
+            if pd.api.types.is_datetime64_any_dtype(df[col]):
                 df[col] = df[col].dt.date.replace(to_replace={pd.NaT: None})
-            except AttributeError:
+            else:
                 df[col] = (
                     df[col].replace(to_replace={pd.NaT: None}).apply(lambda x: date.fromisoformat(x) if x else None)
                 )
