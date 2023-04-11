@@ -38,7 +38,7 @@ class Engine:
     _engine: Optional[EngineEnum] = None
     _initialized_engine: Optional[EngineEnum] = None
     _registry: Dict[EngineLiteral, Dict[str, Callable[..., Any]]] = defaultdict(dict)
-    _lock: threading.Lock = threading.RLock()
+    _lock: threading.RLock = threading.RLock()
 
     @classmethod
     def get_installed(cls) -> EngineEnum:
@@ -143,7 +143,7 @@ class MemoryFormat:
     """Memory format configuration class."""
 
     _enum: Optional[MemoryFormatEnum] = None
-    _lock: threading.Lock = threading.RLock()
+    _lock: threading.RLock = threading.RLock()
 
     @classmethod
     def get_installed(cls) -> MemoryFormatEnum:
