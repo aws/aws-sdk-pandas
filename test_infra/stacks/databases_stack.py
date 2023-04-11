@@ -187,6 +187,22 @@ class DatabasesStack(Stack):  # type: ignore
                         )
                     ]
                 ),
+                "LakeFormation": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=[
+                                "lakeformation:GetDataAccess",
+                                "lakeformation:GrantPermissions",
+                                "lakeformation:GetWorkUnits",
+                                "lakeformation:StartQueryPlanning",
+                                "lakeformation:GetWorkUnitResults",
+                                "lakeformation:GetQueryState",
+                            ],
+                            resources=["*"],
+                        )
+                    ]
+                ),
                 "Glue": iam.PolicyDocument(
                     statements=[
                         iam.PolicyStatement(

@@ -195,6 +195,10 @@ Deploy the `base` and `databases` CDK stacks. This step could take 15 minutes to
 ./scripts/deploy-stack.sh databases
 ```
 
+*OPTIONAL*: Deploy the `lakeformation` CDK stack (if you need to test against the AWS Lake Formation Service). You must ensure Lake Formation is enabled in the account.
+
+``./scripts/deploy-stack.sh lakeformation``
+
 *OPTIONAL*: Deploy the `opensearch` CDK stack (if you need to test against the Amazon OpenSearch Service). This step could take 15 minutes to complete.
 
 ``./scripts/deploy-stack.sh opensearch``
@@ -224,7 +228,7 @@ To run all database MySQL tests (Using 8 parallel processes):
 
 ``pytest -n 8 tests/unit/test_mysql.py``
 
-To run all tests for all python versions (assuming Amazon QuickSight is activated and the optional stack deployed):
+To run all tests for all python versions (assuming Amazon QuickSight/Lake Formation are activated and the optional stacks deployed):
 
 ``./test.sh``
 
