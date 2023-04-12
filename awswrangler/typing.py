@@ -10,6 +10,10 @@ BucketingInfoTuple = Tuple[List[str], int]
 class GlueTableSettings(TypedDict):
     """Typed dictionary defining the settings for the Glue table."""
 
+    table_type: NotRequired[Literal["EXTERNAL_TABLE", "GOVERNED"]]
+    """The type of the Glue Table. Set to EXTERNAL_TABLE if None."""
+    transaction_id: NotRequired[str]
+    """The ID of the transaction when writing to a Governed Table."""
     description: NotRequired[str]
     """Glue/Athena catalog: Table description"""
     parameters: NotRequired[Dict[str, str]]

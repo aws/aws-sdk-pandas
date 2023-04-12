@@ -41,6 +41,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "athena_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "cloudwatch_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "lakeformation_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
@@ -53,6 +54,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "redshift_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "timestream_query_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
@@ -345,6 +347,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="cloudwatch_query_wait_polling_delay", value=value)
 
     @property
+    def lakeformation_query_wait_polling_delay(self) -> float:
+        """Property lakeformation_query_wait_polling_delay."""
+        return cast(float, self["lakeformation_query_wait_polling_delay"])
+
+    @lakeformation_query_wait_polling_delay.setter
+    def lakeformation_query_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="lakeformation_query_wait_polling_delay", value=value)
+
+    @property
     def s3_block_size(self) -> int:
         """Property s3_block_size."""
         return cast(int, self["s3_block_size"])
@@ -442,6 +453,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @emr_endpoint_url.setter
     def emr_endpoint_url(self, value: Optional[str]) -> None:
         self._set_config_value(key="emr_endpoint_url", value=value)
+
+    @property
+    def lakeformation_endpoint_url(self) -> Optional[str]:
+        """Property lakeformation_endpoint_url."""
+        return cast(Optional[str], self["lakeformation_endpoint_url"])
+
+    @lakeformation_endpoint_url.setter
+    def lakeformation_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="lakeformation_endpoint_url", value=value)
 
     @property
     def dynamodb_endpoint_url(self) -> Optional[str]:
