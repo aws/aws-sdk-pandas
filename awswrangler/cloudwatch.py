@@ -29,8 +29,8 @@ def _validate_args(
 def start_query(
     query: str,
     log_group_names: List[str],
-    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
-    end_time: datetime.datetime = datetime.datetime.utcnow(),
+    start_time: Optional[datetime.datetime] = None,
+    end_time: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -68,10 +68,17 @@ def start_query(
 
     """
     _logger.debug("log_group_names: %s", log_group_names)
+
+    start_time = (
+        start_time if start_time else datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc)
+    )
+    end_time = end_time if end_time else datetime.datetime.utcnow()
+
     start_timestamp: int = int(1000 * start_time.timestamp())
     end_timestamp: int = int(1000 * end_time.timestamp())
     _logger.debug("start_timestamp: %s", start_timestamp)
     _logger.debug("end_timestamp: %s", end_timestamp)
+
     _validate_args(start_timestamp=start_timestamp, end_timestamp=end_timestamp)
     args: Dict[str, Any] = {
         "logGroupNames": log_group_names,
@@ -139,8 +146,8 @@ def wait_query(
 def run_query(
     query: str,
     log_group_names: List[str],
-    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
-    end_time: datetime.datetime = datetime.datetime.utcnow(),
+    start_time: Optional[datetime.datetime] = None,
+    end_time: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[List[Dict[str, str]]]:
@@ -192,8 +199,8 @@ def run_query(
 def read_logs(
     query: str,
     log_group_names: List[str],
-    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
-    end_time: datetime.datetime = datetime.datetime.utcnow(),
+    start_time: Optional[datetime.datetime] = None,
+    end_time: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:

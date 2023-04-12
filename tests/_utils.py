@@ -100,7 +100,7 @@ def dt(x: str) -> date:
     return datetime.strptime(x, "%Y-%m-%d").date()
 
 
-def get_df() -> pd.DataFrame:
+def get_df(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -129,10 +129,12 @@ def get_df() -> pd.DataFrame:
     df["string"] = df["string"].astype("string")
     df["category"] = df["category"].astype("category")
 
+    if governed:
+        df = df.drop(["iint8", "binary"], axis=1)  # tinyint & binary currently not supported
     return df
 
 
-def get_df_list() -> pd.DataFrame:
+def get_df_list(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -164,10 +166,12 @@ def get_df_list() -> pd.DataFrame:
     df["string"] = df["string"].astype("string")
     df["category"] = df["category"].astype("category")
 
+    if governed:
+        df = df.drop(["iint8", "binary"], axis=1)  # tinyint & binary currently not supported
     return df
 
 
-def get_df_cast() -> pd.DataFrame:
+def get_df_cast(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [None, None, None],
@@ -188,7 +192,8 @@ def get_df_cast() -> pd.DataFrame:
             "par1": ["a", "b", "b"],
         }
     )
-
+    if governed:
+        df = (df.drop(["iint8", "binary"], axis=1),)  # tinyint & binary currently not supported
     return df
 
 
@@ -359,7 +364,7 @@ def ensure_data_types_category(df: pd.DataFrame) -> None:
     assert str(df["par1"].dtype) == "category"
 
 
-def ensure_data_types_csv(df: pd.DataFrame) -> None:
+def ensure_data_types_csv(df: pd.DataFrame, governed: bool = False) -> None:
     if "__index_level_0__" in df:
         assert str(df["__index_level_0__"].dtype).startswith("Int")
     assert str(df["id"].dtype).startswith("Int")
@@ -371,6 +376,8 @@ def ensure_data_types_csv(df: pd.DataFrame) -> None:
         assert str(df["float"].dtype).startswith("float")
     if "int" in df:
         assert str(df["int"].dtype).startswith("Int")
+    if governed:
+        assert str(df["date"].dtype).startswith("datetime")
     else:
         assert str(df["date"].dtype) == "object"
     assert str(df["timestamp"].dtype).startswith("datetime")

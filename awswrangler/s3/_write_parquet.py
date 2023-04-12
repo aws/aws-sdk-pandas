@@ -12,7 +12,7 @@ import pyarrow as pa
 import pyarrow.lib
 import pyarrow.parquet
 
-from awswrangler import _data_types, _utils, catalog, exceptions, typing
+from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation, typing
 from awswrangler._arrow import _df_to_table
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
@@ -538,6 +538,30 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         }
     }
 
+    Writing dataset to Glue governed table
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_parquet(
+    ...     df=pd.DataFrame({
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B'],
+    ...         'col3': [None, None, None]
+    ...     }),
+    ...     dataset=True,
+    ...     mode='append',
+    ...     database='default',  # Athena/Glue database
+    ...     table='my_table',  # Athena/Glue table
+    ...     glue_table_settings=wr.typing.GlueTableSettings(
+    ...         table_type="GOVERNED",
+    ...         transaction_id="xxx",
+    ...     ),
+    ... )
+    {
+        'paths': ['s3://.../x.parquet'],
+        'partitions_values: {}
+    }
+
     Writing dataset casting empty column data type
 
     >>> import awswrangler as wr
@@ -565,6 +589,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         glue_table_settings if glue_table_settings else {},
     )
 
+    table_type = glue_table_settings.get("table_type")
+    transaction_id = glue_table_settings.get("transaction_id")
     description = glue_table_settings.get("description")
     parameters = glue_table_settings.get("parameters")
     columns_comments = glue_table_settings.get("columns_comments")
@@ -595,6 +621,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
+    commit_trans: bool = False
+    if transaction_id:
+        table_type = "GOVERNED"
 
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
@@ -623,9 +652,13 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             database=database,
             table=table,
             boto3_session=boto3_session,
+            transaction_id=transaction_id,
             catalog_id=catalog_id,
         )
-        catalog_path = catalog_table_input["StorageDescriptor"]["Location"] if catalog_table_input else None
+        catalog_path: Optional[str] = None
+        if catalog_table_input:
+            table_type = catalog_table_input["TableType"]
+            catalog_path = catalog_table_input["StorageDescriptor"]["Location"]
         if path is None:
             if catalog_path:
                 path = catalog_path
@@ -638,6 +671,13 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 raise exceptions.InvalidArgumentValue(
                     f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
                 )
+        if (table_type == "GOVERNED") and (not transaction_id):
+            _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
+            transaction_id = lakeformation.start_transaction(
+                read_only=False,
+                boto3_session=boto3_session,
+            )
+            commit_trans = True
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
@@ -677,6 +717,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 "table": table,
                 "path": path,
                 "columns_types": columns_types,
+                "table_type": table_type,
                 "partitions_types": partitions_types,
                 "bucketing_info": bucketing_info,
                 "compression": compression,
@@ -685,11 +726,22 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 "columns_comments": columns_comments,
                 "boto3_session": boto3_session,
                 "mode": mode,
+                "transaction_id": transaction_id,
                 "catalog_versioning": catalog_versioning,
                 "athena_partition_projection_settings": athena_partition_projection_settings,
                 "catalog_id": catalog_id,
                 "catalog_table_input": catalog_table_input,
             }
+
+            if (catalog_table_input is None) and (table_type == "GOVERNED"):
+                catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
+                create_table_args["catalog_table_input"] = catalog._get_table_input(  # pylint: disable=protected-access
+                    database=database,
+                    table=table,
+                    boto3_session=boto3_session,
+                    transaction_id=transaction_id,
+                    catalog_id=catalog_id,
+                )
 
         paths, partitions_values = _to_dataset(
             func=_to_parquet,
@@ -700,10 +752,16 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             index=index,
             compression=compression,
             compression_ext=compression_ext,
+            catalog_id=catalog_id,
+            database=database,
+            table=table,
+            table_type=table_type,
+            transaction_id=transaction_id,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             cpus=cpus,
             use_threads=use_threads,
             partition_cols=partition_cols,
+            partitions_types=partitions_types,
             bucketing_info=bucketing_info,
             dtype=dtype,
             mode=mode,
@@ -715,7 +773,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         if database and table:
             try:
                 catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
-                if partitions_values and (regular_partitions is True):
+                if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     catalog.add_parquet_partitions(
                         database=database,
                         table=table,
@@ -725,6 +783,11 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                         boto3_session=boto3_session,
                         catalog_id=catalog_id,
                         columns_types=columns_types,
+                    )
+                if commit_trans:
+                    lakeformation.commit_transaction(
+                        transaction_id=transaction_id,  # type: ignore[arg-type]
+                        boto3_session=boto3_session,
                     )
             except Exception:
                 _logger.debug("Catalog write failed, cleaning up S3 objects (len(paths): %s).", len(paths))

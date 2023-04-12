@@ -172,6 +172,7 @@ def test_athena_cache_configuration_dict(wr: ModuleType) -> None:
     os.environ,
     {
         "WR_ATHENA_QUERY_WAIT_POLLING_DELAY": "0.1",
+        "WR_LAKEFORMATION_QUERY_WAIT_POLLING_DELAY": "0.15",
         "WR_CLOUDWATCH_QUERY_WAIT_POLLING_DELAY": "0.05",
     },
 )
@@ -179,6 +180,7 @@ def test_wait_time_configuration(wr: ModuleType) -> None:
     wr.config.reset()
 
     assert wr.config.athena_query_wait_polling_delay == 0.1
+    assert wr.config.lakeformation_query_wait_polling_delay == 0.15
     assert wr.config.cloudwatch_query_wait_polling_delay == 0.05
 
 
