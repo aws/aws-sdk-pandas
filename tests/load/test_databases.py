@@ -134,7 +134,7 @@ def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_dat
     assert df.shape == df_out.shape
 
 
-@pytest.mark.parametrize("benchmark_time", [60])
+@pytest.mark.parametrize("benchmark_time", [80])
 def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glue_database: str, request) -> None:
     df = wr.s3.read_parquet(path="s3://amazon-reviews-pds/parquet/product_category=Home/", dataset=True)
 

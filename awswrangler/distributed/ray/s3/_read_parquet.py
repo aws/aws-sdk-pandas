@@ -3,12 +3,14 @@ from typing import TYPE_CHECKING, Dict, Optional, Union
 import pyarrow as pa
 from pyarrow.fs import _resolve_filesystem_and_path
 
+from awswrangler import _utils
 from awswrangler.s3._read_parquet import _pyarrow_parquet_file_wrapper
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 
+@_utils.retry(ex=OSError)
 def _read_parquet_metadata_file_distributed(
     s3_client: Optional["S3Client"],
     path: str,
