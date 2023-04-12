@@ -4,7 +4,7 @@ import logging
 import math
 import uuid
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast
 
 import boto3
 import pandas as pd
@@ -241,7 +241,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     partition_cols: Optional[List[str]] = None,
     bucketing_info: Optional[BucketingInfoTuple] = None,
     concurrent_partitioning: bool = False,
-    mode: Optional[str] = None,
+    mode: Optional[Literal["append", "overwrite", "overwrite_partitions"]] = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
     database: Optional[str] = None,
@@ -821,7 +821,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
     compression: Optional[str] = None,
-    mode: str = "overwrite",
+    mode: Literal["append", "overwrite"] = "overwrite",
     catalog_versioning: bool = False,
     regular_partitions: bool = True,
     athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,

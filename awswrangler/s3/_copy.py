@@ -2,7 +2,7 @@
 
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple, Union
 
 import boto3
 from boto3.s3.transfer import TransferConfig
@@ -73,7 +73,7 @@ def _copy(
 def merge_datasets(
     source_path: str,
     target_path: str,
-    mode: str = "append",
+    mode: Literal["append", "overwrite", "overwrite_partitions"] = "append",
     ignore_empty: bool = False,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,

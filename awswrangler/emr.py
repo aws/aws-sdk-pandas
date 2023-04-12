@@ -3,13 +3,16 @@
 
 import logging
 import pprint
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Union, cast
 
 import boto3
 
 from awswrangler import _utils, exceptions, sts
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+_ActionOnFailureLiteral = Literal["TERMINATE_JOB_FLOW", "TERMINATE_CLUSTER", "CANCEL_AND_WAIT", "CONTINUE"]
 
 
 def _get_ecr_credentials_refresh_content(region: str) -> str:
@@ -815,7 +818,7 @@ def submit_step(
     cluster_id: str,
     command: str,
     name: str = "my-step",
-    action_on_failure: str = "CONTINUE",
+    action_on_failure: _ActionOnFailureLiteral = "CONTINUE",
     script: bool = False,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -865,7 +868,7 @@ def submit_step(
 def build_step(
     command: str,
     name: str = "my-step",
-    action_on_failure: str = "CONTINUE",
+    action_on_failure: _ActionOnFailureLiteral = "CONTINUE",
     script: bool = False,
     region: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -951,7 +954,10 @@ def get_step_state(cluster_id: str, step_id: str, boto3_session: Optional[boto3.
 
 
 def submit_ecr_credentials_refresh(
-    cluster_id: str, path: str, action_on_failure: str = "CONTINUE", boto3_session: Optional[boto3.Session] = None
+    cluster_id: str,
+    path: str,
+    action_on_failure: _ActionOnFailureLiteral = "CONTINUE",
+    boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     """Update internal ECR credentials.
 
@@ -999,10 +1005,10 @@ def submit_ecr_credentials_refresh(
 def build_spark_step(
     path: str,
     args: Optional[List[str]] = None,
-    deploy_mode: str = "cluster",
+    deploy_mode: Literal["cluster", "client"] = "cluster",
     docker_image: Optional[str] = None,
     name: str = "my-step",
-    action_on_failure: str = "CONTINUE",
+    action_on_failure: _ActionOnFailureLiteral = "CONTINUE",
     region: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
@@ -1074,10 +1080,10 @@ def submit_spark_step(
     cluster_id: str,
     path: str,
     args: Optional[List[str]] = None,
-    deploy_mode: str = "cluster",
+    deploy_mode: Literal["cluster", "client"] = "cluster",
     docker_image: Optional[str] = None,
     name: str = "my-step",
-    action_on_failure: str = "CONTINUE",
+    action_on_failure: _ActionOnFailureLiteral = "CONTINUE",
     region: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
