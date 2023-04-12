@@ -1,4 +1,7 @@
+import calendar
 import logging
+import time
+from typing import Optional
 
 import boto3
 import pytest
@@ -14,7 +17,9 @@ logger.setLevel(logging.DEBUG)
 pytestmark = pytest.mark.distributed
 
 
-def test_create_table(path: str, glue_database: str, glue_table: str) -> None:
+@pytest.mark.parametrize("table_type", ["EXTERNAL_TABLE", "GOVERNED"])
+def test_create_table(path: str, glue_database: str, glue_table: str, table_type: Optional[str]) -> None:
+    transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" else None
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is False
     wr.catalog.create_csv_table(
         database=glue_database,
@@ -22,11 +27,29 @@ def test_create_table(path: str, glue_database: str, glue_table: str) -> None:
         path=path,
         columns_types={"col0": "int", "col1": "double"},
         partitions_types={"y": "int", "m": "int"},
+        table_type=table_type,
+        transaction_id=transaction_id,
     )
+    if transaction_id:
+        wr.lakeformation.commit_transaction(transaction_id)
+        query_as_of_time = calendar.timegm(time.gmtime())
+        df = wr.catalog.table(database=glue_database, table=glue_table, query_as_of_time=query_as_of_time)
+        assert df.shape == (4, 4)
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is True
 
 
-def test_catalog(path: str, glue_database: str, glue_table: str, account_id: str) -> None:
+@pytest.mark.parametrize(
+    ("table_type", "start_transaction"),
+    [
+        ("EXTERNAL_TABLE", False),
+        ("EXTERNAL_TABLE", True),
+        pytest.param("GOVERNED", False, marks=pytest.mark.xfail(reason="TransactionCommitInProgressException")),
+    ],
+)
+def test_catalog(
+    path: str, glue_database: str, glue_table: str, table_type: Optional[str], start_transaction: bool, account_id: str
+) -> None:
+    transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" else None
     wr.catalog.create_parquet_table(
         database=glue_database,
         table=glue_table,
@@ -37,7 +60,11 @@ def test_catalog(path: str, glue_database: str, glue_table: str, account_id: str
         description="Foo boo bar",
         parameters={"tag": "test"},
         columns_comments={"col0": "my int", "y": "year"},
+        table_type=table_type,
+        transaction_id=transaction_id,
     )
+    if transaction_id:
+        wr.lakeformation.commit_transaction(transaction_id=transaction_id)
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.catalog.create_parquet_table(
             database=glue_database,
@@ -45,11 +72,16 @@ def test_catalog(path: str, glue_database: str, glue_table: str, account_id: str
             path=path,
             columns_types={"col0": "string"},
             mode="append",
+            table_type=table_type,
         )
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is True
 
-    assert wr.catalog.get_table_location(database=glue_database, table=glue_table) == path
-    dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table)
+    # Cannot start a transaction before creating a table
+    transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" and start_transaction else None
+    assert (
+        wr.catalog.get_table_location(database=glue_database, table=glue_table, transaction_id=transaction_id) == path
+    )
+    dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table, transaction_id=transaction_id)
     assert dtypes["col0"] == "int"
     assert dtypes["col1"] == "double"
     assert dtypes["y"] == "int"
@@ -57,7 +89,12 @@ def test_catalog(path: str, glue_database: str, glue_table: str, account_id: str
     df_dbs = wr.catalog.databases()
     assert len(wr.catalog.databases(catalog_id=account_id)) == len(df_dbs)
     assert glue_database in df_dbs["Database"].to_list()
-    tables = list(wr.catalog.get_tables(database=glue_database))
+    tables = list(wr.catalog.get_tables(transaction_id=transaction_id))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == glue_table:
+            assert tbl["TableType"] == table_type
+    tables = list(wr.catalog.get_tables(database=glue_database, transaction_id=transaction_id))
     assert len(tables) > 0
     for tbl in tables:
         assert tbl["DatabaseName"] == glue_database
@@ -68,27 +105,41 @@ def test_catalog(path: str, glue_database: str, glue_table: str, account_id: str
         column_name="col2",
         column_type="int",
         column_comment="comment",
+        transaction_id=transaction_id,
     )
-    dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table)
+    dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table, transaction_id=transaction_id)
     assert len(dtypes) == 5
     assert dtypes["col2"] == "int"
     wr.catalog.delete_column(
-        database=glue_database,
-        table=glue_table,
-        column_name="col2",
+        database=glue_database, table=glue_table, column_name="col2", transaction_id=transaction_id
     )
-    dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table)
+    dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table, transaction_id=transaction_id)
     assert len(dtypes) == 4
 
     # prefix
-    tables = list(wr.catalog.get_tables(name_prefix=glue_table[:4], catalog_id=account_id))
+    tables = list(
+        wr.catalog.get_tables(name_prefix=glue_table[:4], catalog_id=account_id, transaction_id=transaction_id)
+    )
     assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == glue_table:
+            assert tbl["TableType"] == table_type
     # suffix
-    tables = list(wr.catalog.get_tables(name_suffix=glue_table[-4:], catalog_id=account_id))
+    tables = list(
+        wr.catalog.get_tables(name_suffix=glue_table[-4:], catalog_id=account_id, transaction_id=transaction_id)
+    )
     assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == glue_table:
+            assert tbl["TableType"] == table_type
     # name_contains
-    tables = list(wr.catalog.get_tables(name_contains=glue_table[4:-4], catalog_id=account_id))
+    tables = list(
+        wr.catalog.get_tables(name_contains=glue_table[4:-4], catalog_id=account_id, transaction_id=transaction_id)
+    )
     assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == glue_table:
+            assert tbl["TableType"] == table_type
     # prefix & suffix & name_contains
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         list(
@@ -97,37 +148,56 @@ def test_catalog(path: str, glue_database: str, glue_table: str, account_id: str
                 name_contains=glue_table[3],
                 name_suffix=glue_table[-1],
                 catalog_id=account_id,
+                transaction_id=transaction_id,
             )
         )
     # prefix & suffix
-    tables = list(wr.catalog.get_tables(name_prefix=glue_table[0], name_suffix=glue_table[-1], catalog_id=account_id))
+    tables = list(
+        wr.catalog.get_tables(
+            name_prefix=glue_table[0], name_suffix=glue_table[-1], catalog_id=account_id, transaction_id=transaction_id
+        )
+    )
     assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == glue_table:
+            assert tbl["TableType"] == table_type
 
+    # search (Not supported for Governed tables)
+    if table_type != "GOVERNED":
+        assert (
+            len(
+                wr.catalog.tables(
+                    database=glue_database,
+                    search_text="parquet",
+                    name_prefix=glue_table[0],
+                    name_contains=glue_table[3],
+                    name_suffix=glue_table[-1],
+                    catalog_id=account_id,
+                ).index
+            )
+            > 0
+        )
+        tables = list(wr.catalog.search_tables(text="parquet", catalog_id=account_id))
+        assert len(tables) > 0
+        for tbl in tables:
+            if tbl["Name"] == glue_table:
+                assert tbl["TableType"] == table_type
+
+    # DataFrames
+    assert len(wr.catalog.databases().index) > 0
+    assert len(wr.catalog.tables(transaction_id=transaction_id).index) > 0
+    assert len(wr.catalog.table(database=glue_database, table=glue_table, transaction_id=transaction_id).index) > 0
     assert (
         len(
-            wr.catalog.tables(
-                database=glue_database,
-                search_text="parquet",
-                name_prefix=glue_table[0],
-                name_contains=glue_table[3],
-                name_suffix=glue_table[-1],
-                catalog_id=account_id,
+            wr.catalog.table(
+                database=glue_database, table=glue_table, catalog_id=account_id, transaction_id=transaction_id
             ).index
         )
         > 0
     )
-    tables = list(wr.catalog.search_tables(text="parquet", catalog_id=account_id))
-    assert len(tables) > 0
-
-    # DataFrames
-    assert len(wr.catalog.databases().index) > 0
-    assert len(wr.catalog.table(database=glue_database, table=glue_table).index) > 0
-    assert len(wr.catalog.table(database=glue_database, table=glue_table, catalog_id=account_id).index) > 0
     with pytest.raises(wr.exceptions.InvalidTable):
         wr.catalog.overwrite_table_parameters(
-            {"foo": "boo"},
-            glue_database,
-            "fake_table",
+            {"foo": "boo"}, glue_database, "fake_table", transaction_id=transaction_id
         )
 
 
