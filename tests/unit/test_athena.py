@@ -10,6 +10,7 @@ import pytest
 from pandas import DataFrame as PandasDataFrame
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import (
     ensure_athena_ctas_table,
@@ -24,11 +25,6 @@ from .._utils import (
     is_ray_modin,
     pandas_equals,
 )
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -1379,3 +1375,30 @@ def test_read_sql_query_ctas_write_compression(path, glue_database, glue_table, 
 
         if compression:
             assert mock_create_ctas_table.call_args[1]["write_compression"] == compression
+
+
+def test_athena_date_recovery(path, glue_database, glue_table):
+    df = pd.DataFrame(
+        {
+            # Valid datetime64 values
+            "date1": [datetime.date(2020, 1, 3), datetime.date(2020, 1, 4), pd.NaT],
+            # Object column because of None
+            "date2": [datetime.date(2021, 1, 3), datetime.date(2021, 1, 4), None],
+            # Object column because dates are out of bounds for pandas datetime types
+            "date3": [datetime.date(3099, 1, 3), datetime.date(3099, 1, 4), datetime.date(4080, 1, 5)],
+        }
+    )
+    df["date1"] = df["date1"].astype("datetime64")
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+    )
+    df2 = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_table}",
+        database=glue_database,
+        ctas_approach=False,
+    )
+    assert pandas_equals(df, df2)

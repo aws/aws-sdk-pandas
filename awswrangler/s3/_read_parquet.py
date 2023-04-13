@@ -534,7 +534,7 @@ def read_parquet(
         must return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-data-wrangler.readthedocs.io/en/3.0.0rc3/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-data-wrangler.readthedocs.io/en/3.0.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     columns : List[str], optional
         List of columns to read from the file(s).
     validate_schema : bool, default False
@@ -635,7 +635,6 @@ def read_parquet(
         paths = _apply_partition_filter(path_root=path_root, paths=paths, filter_func=partition_filter)
     if len(paths) < 1:
         raise exceptions.NoFilesFound(f"No files Found on: {path}.")
-    _logger.debug("len(paths): %s", len(paths))
 
     version_ids = _check_version_id(paths=paths, version_id=version_id)
 
@@ -661,7 +660,7 @@ def read_parquet(
                 schema = pa.unify_schemas([schema, partition_schema])
         if columns:
             schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
-        _logger.debug("schema:\n%s", schema)
+        _logger.debug("Resolved pyarrow schema:\n%s", schema)
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
 
@@ -848,7 +847,7 @@ def read_parquet_table(
         must return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     columns : List[str], optional
         List of columns to read from the file(s).
     validate_schema : bool, default False

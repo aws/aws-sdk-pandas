@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Union
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
@@ -181,7 +181,7 @@ def put_df(
     ...     table_name='table'
     ... )
     """
-    _logger.debug("Inserting data frame into DynamoDB table")
+    _logger.debug("Inserting data frame into DynamoDB table: %s", table_name)
 
     concurrency = _utils.ensure_worker_or_thread_count(use_threads=use_threads)
     executor = _get_executor(use_threads=use_threads, ray_parallelism=concurrency)
@@ -204,6 +204,8 @@ def _put_items(
     items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]],
     table_name: str,
 ) -> None:
+    _logger.debug("Inserting %d items", len(items))
+
     dynamodb_table = get_table(table_name=table_name, boto3_session=boto3_session)
     _validate_items(items=items, dynamodb_table=dynamodb_table)
     with dynamodb_table.batch_writer() as writer:
@@ -251,7 +253,7 @@ def put_items(
     ...     table_name='table'
     ... )
     """
-    _logger.debug("Inserting items into DynamoDB table")
+    _logger.debug("Inserting items into DynamoDB table: %s", table_name)
 
     executor = _get_executor(use_threads=use_threads)
     batches = _utils.chunkify(  # type: ignore[misc]

@@ -8,13 +8,9 @@ import numpy as np
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import is_ray_modin
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -127,7 +123,9 @@ def test_chunked_scenario(timestream_database_and_table):
         ),
         shapes,
     ):
-        assert "QueryId" in df.attrs
+        if not is_ray_modin:
+            # Modin does not support attribute assignment
+            assert "QueryId" in df.attrs
         assert df.shape == shape
 
 

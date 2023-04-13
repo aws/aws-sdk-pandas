@@ -31,10 +31,10 @@ from typing import (
 import boto3
 import botocore.credentials
 import numpy as np
-import pandas as pd
 import pyarrow as pa
 from botocore.config import Config
 
+import awswrangler.pandas as pd
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
@@ -54,7 +54,6 @@ if TYPE_CHECKING:
     from mypy_boto3_logs.client import CloudWatchLogsClient
     from mypy_boto3_opensearch.client import OpenSearchServiceClient
     from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
-    from mypy_boto3_opensearchserverless.literals import ServiceName
     from mypy_boto3_quicksight.client import QuickSightClient
     from mypy_boto3_rds_data.client import RDSDataServiceClient
     from mypy_boto3_redshift.client import RedshiftClient
@@ -65,6 +64,28 @@ if TYPE_CHECKING:
     from mypy_boto3_timestream_query.client import TimestreamQueryClient
     from mypy_boto3_timestream_write.client import TimestreamWriteClient
     from typing_extensions import Literal
+
+    ServiceName = Literal[
+        "athena",
+        "dynamodb",
+        "ec2",
+        "emr",
+        "glue",
+        "kms",
+        "lakeformation",
+        "logs",
+        "opensearch",
+        "opensearchserverless",
+        "quicksight",
+        "rds-data",
+        "redshift-data",
+        "redshift",
+        "s3",
+        "secretsmanager",
+        "sts",
+        "timestream-query",
+        "timestream-write",
+    ]
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

@@ -119,7 +119,7 @@ class AthenaPartitionProjectionSettings(TypedDict):
     https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html
     """
 
-    projection_types: NotRequired[Dict[str, str]]
+    projection_types: NotRequired[Dict[str, Literal["enum", "integer", "date", "injected"]]]
     """
     Dictionary of partitions names and Athena projections types.
     Valid types: "enum", "integer", "date", "injected"

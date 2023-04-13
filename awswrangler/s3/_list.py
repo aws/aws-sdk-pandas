@@ -46,6 +46,7 @@ def _path2list(
             )
             for path in paths
         ]
+        _logger.debug("Listed %s paths", len(paths))
     elif isinstance(path, list):
         if last_modified_begin or last_modified_end:
             raise exceptions.InvalidArgumentCombination(

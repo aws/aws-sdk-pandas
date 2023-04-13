@@ -3,11 +3,11 @@
 import logging
 import pprint
 import uuid
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Union, cast
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.data_quality._get import get_ruleset
@@ -121,7 +121,7 @@ def create_ruleset(
 @apply_configs
 def update_ruleset(
     name: str,
-    mode: str = "overwrite",
+    mode: Literal["overwrite", "upsert"] = "overwrite",
     df_rules: Optional[pd.DataFrame] = None,
     dqdl_rules: Optional[str] = None,
     description: str = "",

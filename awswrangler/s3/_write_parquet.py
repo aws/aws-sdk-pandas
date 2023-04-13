@@ -4,7 +4,7 @@ import logging
 import math
 import uuid
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast
 
 import boto3
 import pandas as pd
@@ -241,7 +241,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     partition_cols: Optional[List[str]] = None,
     bucketing_info: Optional[BucketingInfoTuple] = None,
     concurrent_partitioning: bool = False,
-    mode: Optional[str] = None,
+    mode: Optional[Literal["append", "overwrite", "overwrite_partitions"]] = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
     database: Optional[str] = None,
@@ -322,18 +322,18 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/tutorials/004%20-%20Parquet%20Datasets.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0/tutorials/004%20-%20Parquet%20Datasets.html
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised. True by default.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -683,7 +683,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
     )
-    _logger.debug("schema: \n%s", schema)
+    _logger.debug("Resolved pyarrow schema: \n%s", schema)
 
     if dataset is False:
         paths = _to_parquet(
@@ -770,11 +770,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             schema=schema,
             max_rows_by_file=max_rows_by_file,
         )
-        if (database is not None) and (table is not None):
+        if database and table:
             try:
                 catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
-                    _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_parquet_partitions(
                         database=database,
                         table=table,
@@ -822,7 +821,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
     compression: Optional[str] = None,
-    mode: str = "overwrite",
+    mode: Literal["append", "overwrite"] = "overwrite",
     catalog_versioning: bool = False,
     regular_partitions: bool = True,
     athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
@@ -995,9 +994,9 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     )
-    _logger.debug("columns_types: %s", columns_types)
-    _logger.debug("partitions_types: %s", partitions_types)
-    _logger.debug("partitions_values: %s", partitions_values)
+    _logger.debug("Resolved columns_types: %s", columns_types)
+    _logger.debug("Resolved partitions_types: %s", partitions_types)
+    _logger.debug("Resolved partitions_values: %s", partitions_values)
     catalog.create_parquet_table(
         database=database,
         table=table,

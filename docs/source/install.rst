@@ -1,7 +1,7 @@
 Install
 =======
 
-**AWS SDK for pandas** runs on Python ``3.7``, ``3.8``, ``3.9`` and ``3.10``,
+**AWS SDK for pandas** runs on Python ``3.8``, ``3.9`` and ``3.10``,
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
@@ -28,11 +28,9 @@ At scale
 
 AWS SDK for pandas can also run your workflows at scale by leveraging `modin <https://modin.readthedocs.io/en/stable/>`_ and `ray <https://www.ray.io/>`_.
 
-    >>> pip install "awswrangler[modin,ray]==3.0.0rc3"
+    >>> pip install "awswrangler[modin,ray]==3.0.0"
 
 As a result existing scripts can run on significantly larger datasets with no code rewrite.
-
-.. note:: AWS SDK for pandas at scale is still in pre-release, meaning frequent breaking changes are possible.
 
 Optional dependencies
 ---------------------
@@ -63,6 +61,8 @@ Managed Layer
 ^^^^^^^^^^^^^^
 
 .. note:: There is a one week minimum delay between version release and layers being available in the AWS Lambda console.
+.. warning::
+    Lambda Functions using the layer with a memory size of less than 512MB may be insufficient for some workloads.
 
 AWS SDK for pandas is available as an AWS Lambda Managed layer in all AWS commercial regions.
 
@@ -74,7 +74,7 @@ It can be accessed in the AWS Lambda console directly:
 
 Or via its ARN: ``arn:aws:lambda:<region>:336392948345:layer:AWSSDKPandas-Python<python-version>:<layer-version>``.
 
-For example: ``arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python37:1``.
+For example: ``arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python38:1``.
 
 The full list of ARNs is available `here <layers.rst>`__.
 
@@ -109,9 +109,6 @@ This option provides the ability to use semantic versions (i.e. library version)
    * - App
      - ARN
      - Description
-   * - aws-sdk-pandas-layer-py3-7
-     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-7
-     - Layer for ``Python 3.7.x`` runtimes
    * - aws-sdk-pandas-layer-py3-8
      - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-8
      - Layer for ``Python 3.8.x`` runtimes
@@ -134,7 +131,7 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
           "awssdkpandas-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-8",
-            semantic_version="3.0.0rc3",  # Get the latest version from https://github.com/aws/aws-sdk-pandas/releases
+            semantic_version="2.20.0",  # Get the latest version from https://serverlessrepo.aws.amazon.com/applications
           ),
         )
 
@@ -166,6 +163,16 @@ the *Python library path* field.
 
 `Official Glue Python Shell Reference <https://docs.aws.amazon.com/glue/latest/dg/add-job-python.html#create-python-extra-library>`_
 
+AWS Glue for Ray Jobs
+----------------------
+
+Go to your Glue for Ray job and create a new *Job parameters* key/value:
+
+* Key: ``--pip-install``
+* Value: ``awswrangler[modin]``
+
+`Official Glue for Ray Reference <https://docs.aws.amazon.com/glue/latest/dg/author-job-ray-python-libraries.html>`_
+
 AWS Glue PySpark Jobs
 ---------------------
 
@@ -174,13 +181,11 @@ AWS Glue PySpark Jobs
 Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 * Key: ``--additional-python-modules``
-* Value: ``pyarrow==2,awswrangler``
+* Value: ``pyarrow==7,awswrangler``
 
 To install a specific version, set the value for the above Job parameter as follows:
 
-* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==3.0.0rc3``
-
-.. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why an installation of pyarrow 2 is required.
+* Value: ``pyarrow==7,pandas==1.5.3,awswrangler==3.0.0``
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 
@@ -197,7 +202,7 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-For example: ``s3://aws-data-wrangler-public-artifacts/releases/3.0.0rc3/awswrangler-layer-3.0.0rc3-py3.8.zip``
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/3.0.0/awswrangler-layer-3.0.0-py3.8.zip``
 
 Amazon SageMaker Notebook
 -------------------------
@@ -284,12 +289,7 @@ Despite not being a distributed library, AWS SDK for pandas could be used to com
         #!/usr/bin/env bash
         set -ex
 
-        sudo pip install pyarrow==2 awswrangler
-
-.. note:: Make sure to freeze the library version in the bootstrap for production
-          environments (e.g. awswrangler==3.0.0rc3)
-
-.. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why an installation of pyarrow 2 is required.
+        sudo pip install awswrangler
 
 From Source
 -----------

@@ -1,7 +1,7 @@
 """AWS Glue Catalog Module."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
 
 import boto3
 
@@ -679,7 +679,7 @@ def create_parquet_table(
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
-    mode: str = "overwrite",
+    mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     transaction_id: Optional[str] = None,
     athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
@@ -840,7 +840,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
-    mode: str = "overwrite",
+    mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     sep: str = ",",
@@ -888,7 +888,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     mode : str
-        'overwrite' to recreate any possible axisting table or 'append' to keep any possible axisting table.
+        'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
@@ -1033,7 +1033,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
-    mode: str = "overwrite",
+    mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     serde_library: Optional[str] = None,
@@ -1074,7 +1074,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     mode : str
-        'overwrite' to recreate any possible axisting table or 'append' to keep any possible axisting table.
+        'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool

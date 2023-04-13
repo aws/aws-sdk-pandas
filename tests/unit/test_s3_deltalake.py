@@ -1,10 +1,10 @@
 from typing import Any, Dict, Optional
 
 import boto3
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 
 @pytest.mark.parametrize("s3_additional_kwargs", [None, {"ServerSideEncryption": "AES256"}])

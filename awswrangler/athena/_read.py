@@ -5,6 +5,7 @@ import csv
 import logging
 import sys
 import uuid
+from datetime import date
 from typing import Any, Dict, Iterator, List, Literal, Optional, Union, cast, overload
 
 import boto3
@@ -38,7 +39,9 @@ def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Sessio
     bucket_name, key_path = _utils.parse_path(path)
     client_s3 = _utils.client(service_name="s3", session=boto3_session)
     body: bytes = client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read()
-    return [x for x in body.decode("utf-8").split("\n") if x != ""]
+    paths = [x for x in body.decode("utf-8").split("\n") if x != ""]
+    _logger.debug("Read %d paths from manifest file in: %s", len(paths), path)
+    return paths
 
 
 def _fix_csv_types_generator(
@@ -62,7 +65,12 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
     """Apply data types cast to a Pandas DataFrames."""
     if len(df.index) > 0:
         for col in parse_dates:
-            df[col] = df[col].dt.date.replace(to_replace={pd.NaT: None})
+            if pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = df[col].dt.date.replace(to_replace={pd.NaT: None})
+            else:
+                df[col] = (
+                    df[col].replace(to_replace={pd.NaT: None}).apply(lambda x: date.fromisoformat(x) if x else None)
+                )
         for col in binaries:
             df[col] = df[col].str.encode(encoding="utf-8")
     return df
@@ -95,37 +103,32 @@ def _fetch_parquet_result(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     chunked: Union[bool, int] = False if chunksize is None else chunksize
-    _logger.debug("chunked: %s", chunked)
+    _logger.debug("Chunked: %s", chunked)
     if query_metadata.manifest_location is None:
         return _empty_dataframe_response(bool(chunked), query_metadata)
     manifest_path: str = query_metadata.manifest_location
     metadata_path: str = manifest_path.replace("-manifest.csv", ".metadata")
-    _logger.debug("manifest_path: %s", manifest_path)
-    _logger.debug("metadata_path: %s", metadata_path)
+    _logger.debug("Manifest path: %s", manifest_path)
+    _logger.debug("Metadata path: %s", metadata_path)
     paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=boto3_session)
     if not paths:
         if not temp_table_fqn:
             raise exceptions.EmptyDataFrame("Query would return untyped, empty dataframe.")
-
         database, temp_table_name = map(lambda x: x.replace('"', ""), temp_table_fqn.split("."))
         dtype_dict = catalog.get_table_types(database=database, table=temp_table_name, boto3_session=boto3_session)
         if dtype_dict is None:
             raise exceptions.ResourceDoesNotExist(f"Temp table {temp_table_fqn} not found.")
-
         df = pd.DataFrame(columns=list(dtype_dict.keys()))
         df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
-
         if chunked:
             return (df,)
-
         return df
-
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
         if categories:
             pyarrow_additional_kwargs["categories"] = categories
-
+    _logger.debug("Reading Parquet result from %d paths", len(paths))
     ret = s3.read_parquet(
         path=paths,
         use_threads=use_threads,
@@ -139,7 +142,6 @@ def _fetch_parquet_result(
     else:
         ret = _add_query_metadata_generator(dfs=ret, query_metadata=query_metadata)
     paths_delete: List[str] = paths + [manifest_path, metadata_path]
-    _logger.debug("type(ret): %s", type(ret))
     if chunked is False:
         if keep_files is False:
             s3.delete_objects(
@@ -169,12 +171,12 @@ def _fetch_csv_result(
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
-    _logger.debug("_chunksize: %s", _chunksize)
+    _logger.debug("Chunksize: %s", _chunksize)
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".csv") is False:
         chunked = _chunksize is not None
         return _empty_dataframe_response(chunked, query_metadata)
     path: str = query_metadata.output_location
-    _logger.debug("Start CSV reading from %s", path)
+    _logger.debug("Reading CSV result from %s", path)
     ret = s3.read_csv(
         path=[path],
         dtype=query_metadata.dtype,
@@ -189,7 +191,6 @@ def _fetch_csv_result(
         boto3_session=boto3_session,
     )
     _logger.debug("Start type casting...")
-    _logger.debug(type(ret))
     if _chunksize is None:
         df = _fix_csv_types(df=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
@@ -298,7 +299,7 @@ def _resolve_query_without_cache_ctas(
     )
     fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
     ctas_query_metadata = cast(_QueryMetadata, ctas_query_info["ctas_query_metadata"])
-    _logger.debug("ctas_query_metadata: %s", ctas_query_metadata)
+    _logger.debug("CTAS query metadata: %s", ctas_query_metadata)
     return _fetch_parquet_result(
         query_metadata=ctas_query_metadata,
         keep_files=keep_files,
@@ -381,7 +382,7 @@ def _resolve_query_without_cache_regular(
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
     s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
-    _logger.debug("sql: %s", sql)
+    _logger.debug("Executing sql: %s", sql)
     query_id: str = _start_query_execution(
         sql=sql,
         wg_config=wg_config,
@@ -393,7 +394,7 @@ def _resolve_query_without_cache_regular(
         kms_key=kms_key,
         boto3_session=boto3_session,
     )
-    _logger.debug("query_id: %s", query_id)
+    _logger.debug("Query id: %s", query_id)
     query_metadata: _QueryMetadata = _get_query_metadata(
         query_execution_id=query_id,
         boto3_session=boto3_session,
@@ -545,7 +546,7 @@ def _unload(
         unload_parameters += f"  , partitioned_by=ARRAY{partitioned_by}"
 
     sql = f"UNLOAD ({sql}) " f"TO '{path}' " f"WITH ({unload_parameters})"
-    _logger.debug("sql: %s", sql)
+    _logger.debug("Executing unload query: %s", sql)
     try:
         query_id: str = _start_query_execution(
             sql=sql,
@@ -709,8 +710,10 @@ def get_query_results(
         metadata_cache_manager=_cache_manager,
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
     )
+    _logger.debug("Query metadata:\n%s", query_metadata)
     client_athena = _utils.client(service_name="athena", session=boto3_session)
     query_info = client_athena.get_query_execution(QueryExecutionId=query_execution_id)["QueryExecution"]
+    _logger.debug("Query info:\n%s", query_info)
     statement_type: Optional[str] = query_info.get("StatementType")
     if (statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE")) or (
         statement_type == "DML" and query_info["Query"].startswith("UNLOAD")
@@ -907,11 +910,11 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -975,7 +978,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -1141,7 +1144,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         max_cache_query_inspections=max_cache_query_inspections,
         max_remote_cache_entries=max_remote_cache_entries,
     )
-    _logger.debug("cache_info:\n%s", cache_info)
+    _logger.debug("Cache info:\n%s", cache_info)
     if cache_info.has_valid_cache is True:
         _logger.debug("Valid cache found. Retrieving...")
         try:
@@ -1350,11 +1353,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -1418,7 +1421,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc3/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -1528,7 +1531,6 @@ def read_sql_table(
 
     """
     table = catalog.sanitize_table_name(table=table)
-
     return read_sql_query(
         sql=f'SELECT * FROM "{table}"',
         database=database,
@@ -1626,7 +1628,6 @@ def unload(
     """
     # Substitute query parameters
     sql = _process_sql_params(sql, params)
-
     return _unload(
         sql=sql,
         path=path,

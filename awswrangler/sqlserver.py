@@ -2,12 +2,24 @@
 """Amazon Microsoft SQL Server Module."""
 
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union, overload
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
@@ -397,7 +409,7 @@ def to_sql(
     con: "pyodbc.Connection",
     table: str,
     schema: str,
-    mode: str = "append",
+    mode: Literal["append", "overwrite"] = "append",
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,

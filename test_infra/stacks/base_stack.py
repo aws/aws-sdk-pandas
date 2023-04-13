@@ -76,6 +76,12 @@ class BaseStack(Stack):  # type: ignore
             ],
             versioned=True,
         )
+        lf.CfnResource(
+            self,
+            id="bucket-lf-registration",
+            resource_arn=self.bucket.bucket_arn,
+            use_service_linked_role=True,
+        )
         glue_data_quality_role = iam.Role(
             self,
             "aws-sdk-pandas-glue-data-quality-role",
@@ -101,20 +107,6 @@ class BaseStack(Stack):  # type: ignore
             id="aws_sdk_pandas_glue_database",
             database_name="aws_sdk_pandas",
             location_uri=f"s3://{self.bucket.bucket_name}",
-        )
-        lf.CfnPermissions(
-            self,
-            "GlueDataQualitytRoleLFPermissions",
-            data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
-                data_lake_principal_identifier=glue_data_quality_role.role_arn,
-            ),
-            resource=lf.CfnPermissions.ResourceProperty(
-                table_resource=lf.CfnPermissions.TableResourceProperty(
-                    database_name=glue_db.database_name,
-                    table_wildcard={},
-                )
-            ),
-            permissions=["SELECT", "ALTER", "DESCRIBE", "DROP", "DELETE", "INSERT"],
         )
         log_group = logs.LogGroup(
             self,

@@ -6,8 +6,8 @@ import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
 

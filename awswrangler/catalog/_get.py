@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union, ca
 
 import boto3
 import botocore.exceptions
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._utils import _catalog_id, _extract_dtypes_from_table_details, _transaction_id

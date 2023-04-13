@@ -8,16 +8,17 @@ from typing import Any, Dict, List
 import boto3
 import botocore
 import opensearchpy
-import pandas as pd
 import pytest  # type: ignore
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 from awswrangler.opensearch._utils import _is_serverless
 
 from .._utils import extract_cloudformation_outputs
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
+pytestmark = pytest.mark.distributed
 
 inspections_documents = [
     {
@@ -461,6 +462,11 @@ def test_index_csv_local(client):
     file_path = f"{tempfile.gettempdir()}/inspections.csv"
     index = f"test_index_csv_local_{_get_unique_suffix()}"
     try:
+        wr.opensearch.create_index(
+            client=client,
+            index=index,
+            mappings={"properties": {"business_phone_number": {"type": "text"}}},
+        )
         df = pd.DataFrame(inspections_documents)
         df.to_csv(file_path, index=False)
         response = wr.opensearch.index_csv(client, path=file_path, index=index)
@@ -473,6 +479,11 @@ def test_index_csv_s3(client, path):
     file_path = f"{tempfile.gettempdir()}/inspections.csv"
     index = f"test_index_csv_s3_{_get_unique_suffix()}"
     try:
+        wr.opensearch.create_index(
+            client=client,
+            index=index,
+            mappings={"properties": {"business_phone_number": {"type": "text"}}},
+        )
         df = pd.DataFrame(inspections_documents)
         df.to_csv(file_path, index=False)
         s3 = boto3.client("s3")
