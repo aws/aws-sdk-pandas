@@ -61,6 +61,8 @@ Managed Layer
 ^^^^^^^^^^^^^^
 
 .. note:: There is a one week minimum delay between version release and layers being available in the AWS Lambda console.
+.. warning::
+    Lambda Functions using the layer with a memory size of less than 512MB may be insufficient for some workloads.
 
 AWS SDK for pandas is available as an AWS Lambda Managed layer in all AWS commercial regions.
 

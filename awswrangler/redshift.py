@@ -4,7 +4,7 @@
 import json
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, overload
 
 import boto3
 import botocore
@@ -28,6 +28,11 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 _RS_DISTSTYLES: List[str] = ["AUTO", "EVEN", "ALL", "KEY"]
 _RS_SORTSTYLES: List[str] = ["COMPOUND", "INTERLEAVED"]
+
+_ToSqlModeLiteral = Literal["append", "overwrite", "upsert"]
+_ToSqlOverwriteModeLiteral = Literal["drop", "cascade", "truncate", "delete"]
+_ToSqlDistStyleLiteral = Literal["AUTO", "EVEN", "ALL", "KEY"]
+_ToSqlSortStyleLiteral = Literal["COMPOUND", "INTERLEAVED"]
 
 
 def _validate_connection(con: "redshift_connector.Connection") -> None:
@@ -914,13 +919,13 @@ def to_sql(  # pylint: disable=too-many-locals
     con: "redshift_connector.Connection",
     table: str,
     schema: str,
-    mode: str = "append",
-    overwrite_method: str = "drop",
+    mode: _ToSqlModeLiteral = "append",
+    overwrite_method: _ToSqlOverwriteModeLiteral = "drop",
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
-    diststyle: str = "AUTO",
+    diststyle: _ToSqlDistStyleLiteral = "AUTO",
     distkey: Optional[str] = None,
-    sortstyle: str = "COMPOUND",
+    sortstyle: _ToSqlSortStyleLiteral = "COMPOUND",
     sortkey: Optional[List[str]] = None,
     primary_keys: Optional[List[str]] = None,
     varchar_lengths_default: int = 256,
@@ -1089,7 +1094,7 @@ def unload_to_files(
     aws_secret_access_key: Optional[str] = None,
     aws_session_token: Optional[str] = None,
     region: Optional[str] = None,
-    unload_format: Optional[str] = None,
+    unload_format: Optional[Literal["CSV", "PARQUET"]] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
     manifest: bool = False,
@@ -1385,11 +1390,11 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     aws_secret_access_key: Optional[str] = None,
     aws_session_token: Optional[str] = None,
     parquet_infer_sampling: float = 1.0,
-    mode: str = "append",
-    overwrite_method: str = "drop",
-    diststyle: str = "AUTO",
+    mode: _ToSqlModeLiteral = "append",
+    overwrite_method: _ToSqlOverwriteModeLiteral = "drop",
+    diststyle: _ToSqlDistStyleLiteral = "AUTO",
     distkey: Optional[str] = None,
-    sortstyle: str = "COMPOUND",
+    sortstyle: _ToSqlSortStyleLiteral = "COMPOUND",
     sortkey: Optional[List[str]] = None,
     primary_keys: Optional[List[str]] = None,
     varchar_lengths_default: int = 256,
@@ -1613,11 +1618,11 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
     aws_session_token: Optional[str] = None,
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
-    mode: str = "append",
-    overwrite_method: str = "drop",
-    diststyle: str = "AUTO",
+    mode: _ToSqlModeLiteral = "append",
+    overwrite_method: _ToSqlOverwriteModeLiteral = "drop",
+    diststyle: _ToSqlDistStyleLiteral = "AUTO",
     distkey: Optional[str] = None,
-    sortstyle: str = "COMPOUND",
+    sortstyle: _ToSqlSortStyleLiteral = "COMPOUND",
     sortkey: Optional[List[str]] = None,
     primary_keys: Optional[List[str]] = None,
     varchar_lengths_default: int = 256,

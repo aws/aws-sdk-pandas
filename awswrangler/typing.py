@@ -1,6 +1,6 @@
 """Module with parameter types."""
 
-from typing import Dict, List, Tuple, TypedDict
+from typing import Dict, List, Literal, Tuple, TypedDict
 
 from typing_extensions import NotRequired, Required
 
@@ -10,6 +10,10 @@ BucketingInfoTuple = Tuple[List[str], int]
 class GlueTableSettings(TypedDict):
     """Typed dictionary defining the settings for the Glue table."""
 
+    table_type: NotRequired[Literal["EXTERNAL_TABLE", "GOVERNED"]]
+    """The type of the Glue Table. Set to EXTERNAL_TABLE if None."""
+    transaction_id: NotRequired[str]
+    """The ID of the transaction when writing to a Governed Table."""
     description: NotRequired[str]
     """Glue/Athena catalog: Table description"""
     parameters: NotRequired[Dict[str, str]]
@@ -115,7 +119,7 @@ class AthenaPartitionProjectionSettings(TypedDict):
     https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html
     """
 
-    projection_types: NotRequired[Dict[str, str]]
+    projection_types: NotRequired[Dict[str, Literal["enum", "integer", "date", "injected"]]]
     """
     Dictionary of partitions names and Athena projections types.
     Valid types: "enum", "integer", "date", "injected"

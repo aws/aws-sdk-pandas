@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Union, cast
 
 import boto3
 
@@ -202,7 +202,7 @@ def create_athena_dataset(
     sql_name: Optional[str] = None,
     data_source_name: Optional[str] = None,
     data_source_arn: Optional[str] = None,
-    import_mode: str = "DIRECT_QUERY",
+    import_mode: Literal["SPICE", "DIRECT_QUERY"] = "DIRECT_QUERY",
     allowed_to_use: Optional[List[str]] = None,
     allowed_to_manage: Optional[List[str]] = None,
     logical_table_alias: str = "LogicalTable",

@@ -3,7 +3,20 @@
 
 import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import boto3
 import pyarrow as pa
@@ -410,7 +423,7 @@ def to_sql(
     con: "oracledb.Connection",
     table: str,
     schema: str,
-    mode: str = "append",
+    mode: Literal["append", "overwrite"] = "append",
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,

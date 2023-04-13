@@ -2,7 +2,7 @@
 
 import logging
 from ssl import SSLContext
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast, overload
 
 import boto3
 import pyarrow as pa
@@ -398,6 +398,9 @@ def read_sql_table(
     )
 
 
+_ToSqlModeLiteral = Literal["append", "overwrite", "upsert"]
+
+
 @_utils.check_optional_dependency(pg8000, "pg8000")
 @apply_configs
 def to_sql(
@@ -405,7 +408,7 @@ def to_sql(
     con: "pg8000.Connection",
     table: str,
     schema: str,
-    mode: str = "append",
+    mode: _ToSqlModeLiteral = "append",
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
@@ -477,7 +480,7 @@ def to_sql(
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
-    mode = mode.strip().lower()
+    mode = cast(_ToSqlModeLiteral, mode.strip().lower())
     allowed_modes = ["append", "overwrite", "upsert"]
     _db_utils.validate_mode(mode=mode, allowed_modes=allowed_modes)
     if mode == "upsert" and not upsert_conflict_columns:
