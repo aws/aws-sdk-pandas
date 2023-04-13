@@ -177,13 +177,13 @@ def connect(
 
     connection_dsn = oracledb.makedsn(attrs.host, attrs.port, service_name=attrs.database)
     _logger.debug("DSN: %s", connection_dsn)
-    oracle_connection = oracledb.connect(
+    oracle_connection: "oracledb.Connection" = oracledb.connect(
         user=attrs.user,
         password=attrs.password,
         dsn=connection_dsn,
     )
     # oracledb.connect does not have a call_timeout attribute, it has to be set separatly
-    oracle_connection.call_timeout = call_timeout
+    oracle_connection.call_timeout = call_timeout if call_timeout is not None else 0
     return oracle_connection
 
 
