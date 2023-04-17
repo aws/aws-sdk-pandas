@@ -218,7 +218,6 @@ def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_c
     ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
 
 
-@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):
     wr.s3.to_parquet(
         df=get_df(),

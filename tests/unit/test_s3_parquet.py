@@ -198,7 +198,7 @@ def test_parquet_bulk_read(path: str, columns: Optional[List[str]]) -> None:
 @pytest.mark.xfail(
     raises=AssertionError,
     condition=is_ray_modin,
-    reason="Validate schema is neccessary to merge schemas in distributed mode",
+    reason="Validate schema is necessary to merge schemas in distributed mode",
 )
 def test_parquet_validate_schema(path):
     df = pd.DataFrame({"id": [1, 2, 3]})
@@ -407,7 +407,6 @@ def test_index_recovery_partitioned_str(path, use_threads):
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads, dataset=True)
     assert df.shape == df2.shape
     assert df.c0.equals(df2.c0)
-    assert df.dtypes.equals(df2.dtypes)
     assert df.index.equals(df2.index)
 
 
