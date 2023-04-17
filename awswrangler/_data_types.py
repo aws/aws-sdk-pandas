@@ -556,7 +556,7 @@ def pyarrow2pandas_defaults(use_threads: Union[bool, int], kwargs: Optional[Dict
         "use_threads": use_threads,
         "split_blocks": True,
         "self_destruct": True,
-        "ignore_metadata": True,
+        "ignore_metadata": False,
         "types_mapper": pyarrow2pandas_extension,
     }
     if kwargs:
