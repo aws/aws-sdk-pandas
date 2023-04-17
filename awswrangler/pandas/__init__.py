@@ -9,6 +9,7 @@ if TYPE_CHECKING or memory_format.get() == MemoryFormatEnum.PANDAS:
     # Explicit import because mypy doesn't support forward references to a star import
     from pandas import (  # noqa: F401
         DataFrame,
+        RangeIndex,
         Series,
         concat,
         isna,
@@ -25,6 +26,7 @@ elif memory_format.get() == MemoryFormatEnum.MODIN:
     # Explicit import because mypy doesn't support forward references to a star import
     from modin.pandas import (  # noqa: F401
         DataFrame,
+        RangeIndex,
         Series,
         concat,
         isna,
@@ -41,6 +43,7 @@ else:
 
 __all__ = [
     "DataFrame",
+    "RangeIndex",
     "Series",
     "concat",
     "isna",
