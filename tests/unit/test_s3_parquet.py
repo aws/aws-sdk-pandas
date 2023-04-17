@@ -360,7 +360,6 @@ def test_parquet_with_size(path, use_threads, max_rows_by_file):
     assert df.iint8.sum() == df2.iint8.sum()
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_and_timezone(path, use_threads):
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "par": ["a", "b"]}, index=["foo", "boo"])
@@ -370,7 +369,6 @@ def test_index_and_timezone(path, use_threads):
     assert df[["c0", "c1"]].equals(df2[["c0", "c1"]])
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.xfail(
     is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
 )
@@ -383,7 +381,6 @@ def test_index_recovery_simple_int(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.xfail(
     is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
 )
@@ -396,7 +393,6 @@ def test_index_recovery_simple_str(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_partitioned_str(path, use_threads):
     df = pd.DataFrame(
@@ -415,7 +411,6 @@ def test_index_recovery_partitioned_str(path, use_threads):
     assert df.index.equals(df2.index)
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.xfail(
     is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
 )
@@ -442,7 +437,6 @@ def test_range_index_recovery_pandas(path, use_threads, name):
     assert pandas_equals(df.reset_index(level=0), df2.reset_index(level=0))
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.xfail(
     is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
 )
@@ -457,7 +451,6 @@ def test_multi_index_recovery_simple(path, use_threads):
     assert df.reset_index().equals(df2.reset_index())
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.xfail(
     is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
 )
@@ -471,9 +464,6 @@ def test_multi_index_recovery_nameless(path, use_threads):
     assert df.reset_index().equals(df2.reset_index())
 
 
-@pytest.mark.xfail(
-    raises=wr.exceptions.InvalidArgumentCombination, reason="Named index not working when partitioning to a single file"
-)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
@@ -489,7 +479,6 @@ def test_index_columns(path, use_threads, name, pandas):
     assert df[["c0"]].equals(df2)
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])

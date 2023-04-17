@@ -12,7 +12,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet
 
-from awswrangler import _utils, exceptions
+from awswrangler import _arrow, exceptions
 from awswrangler._distributed import engine
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -700,7 +700,7 @@ def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd
             if desired_type != current_type:  # Needs conversion
                 _logger.debug("current_type: %s -> desired_type: %s", current_type, desired_type)
                 if mutability_ensured is False:
-                    df = _utils.ensure_df_is_mutable(df=df)
+                    df = _arrow.ensure_df_is_mutable(df=df)
                     mutability_ensured = True
                 _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type=desired_type)
     return df
