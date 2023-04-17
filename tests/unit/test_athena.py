@@ -22,7 +22,6 @@ from .._utils import (
     get_df_list,
     get_df_txt,
     get_time_str_with_random_suffix,
-    is_ray_modin,
     pandas_equals,
 )
 
