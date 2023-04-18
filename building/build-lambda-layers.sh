@@ -29,3 +29,11 @@ docker run \
   --rm \
   awswrangler-build-py39 \
   build-lambda-layer.sh "${VERSION}-py3.9${ARCH_SUFFIX}" "ninja-build"
+
+# Python 3.10
+docker run \
+  --volume "$DIR_NAME":/aws-sdk-pandas/ \
+  --workdir /aws-sdk-pandas/building/lambda \
+  --rm \
+  awswrangler-build-py310 \
+  build-lambda-layer.sh "${VERSION}-py3.10${ARCH_SUFFIX}" "ninja-build"
