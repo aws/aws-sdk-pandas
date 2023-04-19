@@ -85,6 +85,12 @@ class AthenaUNLOADSettings(TypedDict):
 class AthenaCacheSettings(TypedDict):
     """Typed dictionary defining the settings for using cached Athena results."""
 
+    client_request_token: NotRequired[str]
+    """
+    A unique case-sensitive string used to ensure the request to create the query is idempotent (executes only once).
+    If another StartQueryExecution request is received, the same response is returned and another query is not created.
+    If a parameter has changed, for example, the QueryString, an error is returned.
+    """
     max_cache_seconds: NotRequired[int]
     """
     awswrangler can look up in Athena's history if this table has been read before.

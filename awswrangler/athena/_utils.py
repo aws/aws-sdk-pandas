@@ -84,9 +84,13 @@ def _start_query_execution(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    client_request_token: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     args: Dict[str, Any] = {"QueryString": sql}
+
+    # Athena client request token
+    args["ClientRequestToken"] = client_request_token if client_request_token else str(uuid.uuid4())
 
     # s3_output
     args["ResultConfiguration"] = {

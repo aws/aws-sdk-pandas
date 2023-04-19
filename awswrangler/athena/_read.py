@@ -378,6 +378,7 @@ def _resolve_query_without_cache_regular(
     athena_query_wait_polling_delay: float,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: Optional[boto3.Session],
+    client_request_token: Optional[str] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
@@ -393,6 +394,7 @@ def _resolve_query_without_cache_regular(
         encryption=encryption,
         kms_key=kms_key,
         boto3_session=boto3_session,
+        client_request_token=client_request_token
     )
     _logger.debug("Query id: %s", query_id)
     query_metadata: _QueryMetadata = _get_query_metadata(
@@ -436,6 +438,7 @@ def _resolve_query_without_cache(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: Optional[boto3.Session],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    client_request_token: Optional[str] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """
     Execute a query in Athena and returns results as DataFrame, back to `read_sql_query`.
@@ -510,6 +513,7 @@ def _resolve_query_without_cache(
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
+        client_request_token=client_request_token
     )
 
 
@@ -1067,6 +1071,8 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
+        Another option is enabling the client_request_token, which creates an idempotent API request always returning the same result 
+        whithout submiting a new api call
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     athena_query_wait_polling_delay: float, default: 0.25 seconds
@@ -1129,38 +1135,40 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     max_cache_query_inspections = athena_cache_settings.get("max_cache_query_inspections", 50)
     max_remote_cache_entries = athena_cache_settings.get("max_remote_cache_entries", 50)
     max_local_cache_entries = athena_cache_settings.get("max_local_cache_entries", 100)
+    client_request_token = athena_cache_settings.get("client_request_token", None)
 
     # Substitute query parameters
     sql = _process_sql_params(sql, params)
 
-    max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
+    if not client_request_token:
+        max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
-    _cache_manager.max_cache_size = max_local_cache_entries
-    cache_info: _CacheInfo = _check_for_cached_results(
-        sql=sql,
-        boto3_session=boto3_session,
-        workgroup=workgroup,
-        max_cache_seconds=max_cache_seconds,
-        max_cache_query_inspections=max_cache_query_inspections,
-        max_remote_cache_entries=max_remote_cache_entries,
-    )
-    _logger.debug("Cache info:\n%s", cache_info)
-    if cache_info.has_valid_cache is True:
-        _logger.debug("Valid cache found. Retrieving...")
-        try:
-            return _resolve_query_with_cache(
-                cache_info=cache_info,
-                categories=categories,
-                chunksize=chunksize,
-                use_threads=use_threads,
-                session=boto3_session,
-                athena_query_wait_polling_delay=athena_query_wait_polling_delay,
-                s3_additional_kwargs=s3_additional_kwargs,
-                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            _logger.error(e)  # if there is anything wrong with the cache, just fallback to the usual path
-            _logger.debug("Corrupted cache. Continuing to execute query...")
+        _cache_manager.max_cache_size = max_local_cache_entries
+        cache_info: _CacheInfo = _check_for_cached_results(
+            sql=sql,
+            boto3_session=boto3_session,
+            workgroup=workgroup,
+            max_cache_seconds=max_cache_seconds,
+            max_cache_query_inspections=max_cache_query_inspections,
+            max_remote_cache_entries=max_remote_cache_entries,
+        )
+        _logger.debug("Cache info:\n%s", cache_info)
+        if cache_info.has_valid_cache is True:
+            _logger.debug("Valid cache found. Retrieving...")
+            try:
+                return _resolve_query_with_cache(
+                    cache_info=cache_info,
+                    categories=categories,
+                    chunksize=chunksize,
+                    use_threads=use_threads,
+                    session=boto3_session,
+                    athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+                    s3_additional_kwargs=s3_additional_kwargs,
+                    pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                _logger.error(e)  # if there is anything wrong with the cache, just fallback to the usual path
+                _logger.debug("Corrupted cache. Continuing to execute query...")
 
     ctas_parameters = ctas_parameters if ctas_parameters else {}
     ctas_database = ctas_parameters.get("database")
@@ -1191,6 +1199,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        client_request_token=client_request_token
     )
 
 
@@ -1502,12 +1511,14 @@ def read_sql_table(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     athena_cache_settings: typing.AthenaCacheSettings, optional
         Parameters of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
-        max_remote_cache_entries, and max_local_cache_entries.
+        max_remote_cache_entries, max_local_cache_entries and client_request_token
         AthenaCacheSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaCacheSettings or as a regular Python dict.
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
+        Another option is enabling the client_request_token, which creates an idempotent API request always returning the same result 
+        whithout submiting a new api call
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     s3_additional_kwargs : Optional[Dict[str, Any]]
