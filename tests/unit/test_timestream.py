@@ -578,3 +578,29 @@ def test_measure_name(timestream_database_and_table, record_type):
     )
     for measure_name in df["measure_name"].tolist():
         assert measure_name == "example"
+
+
+def test_batch_load(timestream_database_and_table, path, path2):
+    error_bucket, error_prefix = wr._utils.parse_path(path2)
+    df = pd.DataFrame(
+        {
+            "time": [round(time.time()) * 1_000] * 3,
+            "dim0": ["foo", "boo", "bar"],
+            "dim1": [1, 2, 3],
+            "measure": [1.0, 2.0, 3.0],
+            "measure_name": ["example"] * 3,
+        }
+    )
+
+    response = wr.timestream.batch_load(
+        df=df,
+        path=path,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        dimensions_cols=["dim0", "dim1"],
+        measure_cols=["measure"],
+        measure_name_col="measure_name",
+        report_s3_configuration={"BucketName": error_bucket, "ObjectKeyPrefix": error_prefix},
+    )
+    assert response["BatchLoadTaskDescription"]["ProgressReport"]["RecordIngestionFailures"] == 0
