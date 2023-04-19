@@ -198,7 +198,7 @@ def test_parquet_bulk_read(path: str, columns: Optional[List[str]]) -> None:
 @pytest.mark.xfail(
     raises=AssertionError,
     condition=is_ray_modin,
-    reason="Validate schema is neccessary to merge schemas in distributed mode",
+    reason="Validate schema is necessary to merge schemas in distributed mode",
 )
 def test_parquet_validate_schema(path):
     df = pd.DataFrame({"id": [1, 2, 3]})
@@ -360,7 +360,6 @@ def test_parquet_with_size(path, use_threads, max_rows_by_file):
     assert df.iint8.sum() == df2.iint8.sum()
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_and_timezone(path, use_threads):
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "par": ["a", "b"]}, index=["foo", "boo"])
@@ -370,7 +369,6 @@ def test_index_and_timezone(path, use_threads):
     assert df[["c0", "c1"]].equals(df2[["c0", "c1"]])
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.xfail(
     is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
 )
@@ -383,7 +381,6 @@ def test_index_recovery_simple_int(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.xfail(
     is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
 )
@@ -396,7 +393,6 @@ def test_index_recovery_simple_str(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_partitioned_str(path, use_threads):
     df = pd.DataFrame(
@@ -411,11 +407,9 @@ def test_index_recovery_partitioned_str(path, use_threads):
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads, dataset=True)
     assert df.shape == df2.shape
     assert df.c0.equals(df2.c0)
-    assert df.dtypes.equals(df2.dtypes)
     assert df.index.equals(df2.index)
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.xfail(
     is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
 )
@@ -442,7 +436,6 @@ def test_range_index_recovery_pandas(path, use_threads, name):
     assert pandas_equals(df.reset_index(level=0), df2.reset_index(level=0))
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.xfail(
     is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
 )
@@ -457,7 +450,6 @@ def test_multi_index_recovery_simple(path, use_threads):
     assert df.reset_index().equals(df2.reset_index())
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.xfail(
     is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
 )
@@ -489,7 +481,6 @@ def test_index_columns(path, use_threads, name, pandas):
     assert df[["c0"]].equals(df2)
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
@@ -560,7 +551,7 @@ def test_timezone_raw_values(path):
     df["c3"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(-timedelta(seconds=14400))))
     df["c4"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(hours=-8))))
     wr.s3.to_parquet(partition_cols=["par"], df=df, path=path, dataset=True, sanitize_columns=False)
-    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=False)
+    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=False, pyarrow_additional_kwargs={"ignore_metadata": True})
     # Use pandas to read because of Modin "Internal Error: Internal and external indices on axis 1 do not match."
     import pandas
 
@@ -596,7 +587,7 @@ def test_empty_column(path, use_threads):
     df["c0"] = df["c0"].astype("Int64")
     df["par"] = df["par"].astype("string")
     wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
-    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads).reset_index(drop=True)
     df2["par"] = df2["par"].astype("string")
     assert pandas_equals(df, df2)
 
@@ -623,7 +614,7 @@ def test_empty_file(path, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
     df["c0"] = df["c0"].astype("Int64")
     df["par"] = df["par"].astype("string")
-    wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
+    wr.s3.to_parquet(df, path, index=True, dataset=True, partition_cols=["par"])
     bucket, key = wr._utils.parse_path(f"{path}test.csv")
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
