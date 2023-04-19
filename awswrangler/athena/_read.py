@@ -394,7 +394,7 @@ def _resolve_query_without_cache_regular(
         encryption=encryption,
         kms_key=kms_key,
         boto3_session=boto3_session,
-        client_request_token=client_request_token
+        client_request_token=client_request_token,
     )
     _logger.debug("Query id: %s", query_id)
     query_metadata: _QueryMetadata = _get_query_metadata(
@@ -513,7 +513,7 @@ def _resolve_query_without_cache(
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
-        client_request_token=client_request_token
+        client_request_token=client_request_token,
     )
 
 
@@ -1071,7 +1071,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
-        Another option is enabling the client_request_token, which creates an idempotent API request always returning the same result 
+        Another option is enabling the client_request_token, which creates an idempotent API request always returning the same result
         whithout submiting a new api call
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
@@ -1199,7 +1199,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-        client_request_token=client_request_token
+        client_request_token=client_request_token,
     )
 
 
@@ -1517,7 +1517,7 @@ def read_sql_table(
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
-        Another option is enabling the client_request_token, which creates an idempotent API request always returning the same result 
+        Another option is enabling the client_request_token, which creates an idempotent API request always returning the same result
         whithout submiting a new api call
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
