@@ -20,7 +20,6 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 pytestmark = pytest.mark.distributed
 
 
-@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
     with pytest.raises(wr.exceptions.UndetectedType):
         wr.s3.to_parquet(
@@ -502,7 +501,7 @@ def test_read_parquet_filter_partitions(path, glue_table, glue_database, use_thr
 @pytest.mark.parametrize("use_threads", [True, False])
 def test_read_parquet_mutability(path, glue_table, glue_database, use_threads):
     sql = "SELECT timestamp '2012-08-08 01:00:00.000' AS c0"
-    df = wr._utils.ensure_df_is_mutable(wr.athena.read_sql_query(sql, "default", use_threads=use_threads))
+    df = wr._arrow.ensure_df_is_mutable(wr.athena.read_sql_query(sql, "default", use_threads=use_threads))
     df["c0"] = df["c0"] + pd.DateOffset(months=-2)
     assert df.c0[0].value == 1339117200000000000
 
@@ -520,7 +519,6 @@ def test_glue_number_of_versions_created(path, glue_table, glue_database):
     assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
 
 
-@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 def test_sanitize_index(path, glue_table, glue_database):
     df = pd.DataFrame({"id": [1, 2], "DATE": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]})
     df.set_index("DATE", inplace=True, verify_integrity=True)

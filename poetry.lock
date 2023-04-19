@@ -2741,14 +2741,14 @@ files = [
 
 [[package]]
 name = "modin"
-version = "0.19.0"
+version = "0.20.0"
 description = "Modin: Make your pandas code run faster by changing one line of code."
 category = "main"
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "modin-0.19.0-py3-none-any.whl", hash = "sha256:d9f35c2874665e6c1a4eb7ba57ffc0b8a545fa12c4c1350b6d94c3af6ebb4d9a"},
-    {file = "modin-0.19.0.tar.gz", hash = "sha256:c13858a31a040652b4fefcf4b600fc3073e7fbef870f071c5e48bb5e147b3503"},
+    {file = "modin-0.20.0-py3-none-any.whl", hash = "sha256:36b656029b20c78d29d177370bb7dba13afb6c0f57632c05b86a663045780c13"},
+    {file = "modin-0.20.0.tar.gz", hash = "sha256:d00d299ec0bfc00196c2127c363ef13c25bf256e58a5ff5ca1be4a6f9d94621c"},
 ]
 
 [package.dependencies]
@@ -6120,4 +6120,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "3be3e253975f974f68136a6d691830971da822950ada2561b014fcbed71874e0"
+content-hash = "5aa459dd7737ff3c0e2d206dc6982c1059927187f0b7b99d9d5813ae98ca94b2"
