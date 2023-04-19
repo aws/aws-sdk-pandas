@@ -1,5 +1,5 @@
 Architectural Decision Records
-=========
+==============================
 
 .. toctree::
    :maxdepth: 1
