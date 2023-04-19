@@ -4,6 +4,7 @@ import re
 import time
 from datetime import date, datetime
 from decimal import Decimal
+from packaging import version
 from timeit import default_timer as timer
 from types import TracebackType
 from typing import Any, Dict, Iterator, List, Optional, Type, Union
@@ -19,6 +20,7 @@ from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 from awswrangler._utils import try_it
 
 is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
+is_pandas_2_x = False
 
 if is_ray_modin:
     import modin.pandas as pd
@@ -26,6 +28,9 @@ if is_ray_modin:
     from modin.pandas import Series as ModinSeries
 else:
     import pandas as pd
+
+    if version.parse(pd.__version__) >= version.parse("2.0.0"):
+        is_pandas_2_x = True
 
 
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]

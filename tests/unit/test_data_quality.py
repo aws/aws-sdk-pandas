@@ -185,9 +185,14 @@ def test_update_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
         table=glue_table,
         df_rules=df_rules,
     )
-
-    df_rules = df_rules.append(
-        {"rule_type": "ColumnValues", "parameter": '"c2"', "expression": "in [0, 1, 2]"}, ignore_index=True
+    df_rules = pd.concat(
+        [
+            df_rules,
+            pd.DataFrame(
+                [{"rule_type": "ColumnValues", "parameter": '"c2"', "expression": "in [0, 1, 2]"}],
+            ),
+        ],
+        ignore_index=True,
     )
 
     wr.data_quality.update_ruleset(name=glue_ruleset, df_rules=df_rules)
