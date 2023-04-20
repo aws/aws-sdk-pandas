@@ -46,8 +46,8 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 if version.parse(_PANDAS_VERSION) >= version.parse("2.0.0"):
     _logger.warning(
-        "We have detected that you are using Pandas version 2.x. Please note awswrangler currently does not support "
-        "pyarrow-backed ArrowDtype DataFrames."
+        "Pandas version 2.x was detected. Please note awswrangler currently does not support pyarrow-backed ArrowDtype "
+        "DataFrames."
     )
 
 __all__ = [
