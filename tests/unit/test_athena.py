@@ -22,7 +22,6 @@ from .._utils import (
     get_df_list,
     get_df_txt,
     get_time_str_with_random_suffix,
-    is_ray_modin,
     pandas_equals,
 )
 
@@ -218,7 +217,6 @@ def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_c
     ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
 
 
-@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):
     wr.s3.to_parquet(
         df=get_df(),
@@ -1388,7 +1386,7 @@ def test_athena_date_recovery(path, glue_database, glue_table):
             "date3": [datetime.date(3099, 1, 3), datetime.date(3099, 1, 4), datetime.date(4080, 1, 5)],
         }
     )
-    df["date1"] = df["date1"].astype("datetime64")
+    df["date1"] = df["date1"].astype("datetime64[ns]")
     wr.s3.to_parquet(
         df=df,
         path=path,
