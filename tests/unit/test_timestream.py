@@ -294,6 +294,8 @@ def test_merge_dimensions(timestream_database_and_table, record_type):
 
 
 def test_exceptions():
+    database = table = "test"
+    time_col = "time"
     df = pd.DataFrame(
         {
             "time": [datetime.now(), datetime.now(), datetime.now()],
@@ -305,24 +307,24 @@ def test_exceptions():
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.timestream.write(
             df=df,
-            database="test",
-            table="test",
+            database=database,
+            table=table,
             common_attributes={"MeasureName": "test", "MeasureValueType": "Double"},
         )
 
     # Missing MeasureValueType
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.timestream.write(
-            df=df, database="test", table="test", time_col="time", common_attributes={"MeasureValue": "13.1"}
+            df=df, database=database, table=table, time_col=time_col, common_attributes={"MeasureValue": "13.1"}
         )
 
     # Missing MeasureName
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.timestream.write(
             df=df,
-            database="test",
-            table="test",
-            time_col="time",
+            database=database,
+            table=table,
+            time_col=time_col,
             common_attributes={"MeasureValue": "13.1", "MeasureValueType": "DOUBLE"},
         )
 
@@ -331,10 +333,25 @@ def test_exceptions():
         df["time"] = ["a"] * 3
         wr.timestream.write(
             df=df,
-            database="test",
-            table="test",
-            time_col="time",
+            database=database,
+            table=table,
+            time_col=time_col,
             common_attributes={"MeasureName": "test", "MeasureValue": "13.1", "MeasureValueType": "Double"},
+        )
+
+    # Invalid time unit
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.timestream.batch_load_from_files(
+            path="test",
+            database=database,
+            table=table,
+            time_col=time_col,
+            time_unit="PICOSECONDS",
+            dimensions_cols=["dim0", "dim1"],
+            measure_cols=["measure"],
+            measure_types=["DOUBLE"],
+            measure_name_col="measure_name",
+            report_s3_configuration={"BucketName": "test", "ObjectKeyPrefix": "test"},
         )
 
 
@@ -580,27 +597,63 @@ def test_measure_name(timestream_database_and_table, record_type):
         assert measure_name == "example"
 
 
-def test_batch_load(timestream_database_and_table, path, path2):
-    error_bucket, error_prefix = wr._utils.parse_path(path2)
+@pytest.mark.parametrize(
+    "time_unit",
+    [(1, "SECONDS"), (1_000, None), (1_000_000, "MICROSECONDS")],
+)
+@pytest.mark.parametrize("keep_files", [True, False])
+def test_batch_load(timestream_database_and_table, path, path2, time_unit, keep_files):
     df = pd.DataFrame(
         {
-            "time": [round(time.time()) * 1_000] * 3,
+            "time": [round(time.time()) * time_unit[0]] * 3,
             "dim0": ["foo", "boo", "bar"],
             "dim1": [1, 2, 3],
-            "measure": [1.0, 2.0, 3.0],
+            "measure0": ["a", "b", "c"],
+            "measure1": [1.0, 2.0, 3.0],
             "measure_name": ["example"] * 3,
+            "par": [0, 1, 2],
         }
     )
+    error_bucket, error_prefix = wr._utils.parse_path(path2)
+    kwargs = {
+        "path": path,
+        "database": timestream_database_and_table,
+        "table": timestream_database_and_table,
+        "time_col": "time",
+        "dimensions_cols": ["dim0", "dim1"],
+        "measure_cols": ["measure0", "measure1"],
+        "measure_name_col": "measure_name",
+        "time_unit": time_unit[1],
+        "report_s3_configuration": {"BucketName": error_bucket, "ObjectKeyPrefix": error_prefix},
+    }
 
-    response = wr.timestream.batch_load(
-        df=df,
-        path=path,
-        database=timestream_database_and_table,
-        table=timestream_database_and_table,
-        time_col="time",
-        dimensions_cols=["dim0", "dim1"],
-        measure_cols=["measure"],
-        measure_name_col="measure_name",
-        report_s3_configuration={"BucketName": error_bucket, "ObjectKeyPrefix": error_prefix},
-    )
+    response = wr.timestream.batch_load(**kwargs, df=df, keep_files=keep_files)
     assert response["BatchLoadTaskDescription"]["ProgressReport"]["RecordIngestionFailures"] == 0
+
+    if keep_files:
+        with pytest.raises(wr.exceptions.InvalidArgument):
+            wr.timestream.batch_load(**kwargs, df=df)
+
+        response = wr.timestream.batch_load_from_files(**kwargs, record_version=2, measure_types=["VARCHAR", "DOUBLE"])
+    else:
+        paths = wr.s3.to_csv(
+            df=df, path=path, partition_cols=["par"], index=False, dataset=True, mode="append", sep="|", quotechar="'"
+        )["paths"]
+        assert len(paths) == len(df.index)
+        response = wr.timestream.batch_load_from_files(
+            **kwargs,
+            record_version=2,
+            measure_types=["VARCHAR", "DOUBLE"],
+            data_source_csv_configuration={"ColumnSeparator": "|", "QuoteChar": "'"},
+            timestream_batch_load_wait_polling_delay=5,
+        )
+    assert response["BatchLoadTaskDescription"]["ProgressReport"]["RecordIngestionFailures"] == 0
+
+    df2 = wr.timestream.query(
+        f"""
+        SELECT
+            *
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        """,
+    )
+    assert df2.shape == (len(df.index), len(df.columns) - 1)

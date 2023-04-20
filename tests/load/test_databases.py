@@ -1,9 +1,9 @@
+import time
 from datetime import datetime
 from typing import Dict
 
+import modin.pandas as pd
 import pytest
-import ray
-from pyarrow import csv
 from redshift_connector import Connection
 
 import awswrangler as wr
@@ -12,57 +12,57 @@ from .._utils import ExecutionTimer
 
 
 @pytest.mark.parametrize("benchmark_time", [60])
-def test_timestream_write(benchmark_time: int, timestream_database_and_table: str, request) -> None:
+def test_timestream_write(
+    benchmark_time: int, timestream_database_and_table: str, df_timestream: pd.DataFrame, request
+) -> None:
     name = timestream_database_and_table
-    df = (
-        ray.data.read_csv(
-            "https://raw.githubusercontent.com/awslabs/amazon-timestream-tools/mainline/sample_apps/data/sample.csv",
-            **{
-                "read_options": csv.ReadOptions(
-                    column_names=[
-                        "ignore0",
-                        "region",
-                        "ignore1",
-                        "az",
-                        "ignore2",
-                        "hostname",
-                        "measure_kind",
-                        "measure",
-                        "ignore3",
-                        "ignore4",
-                        "ignore5",
-                    ]
-                )
-            },
-        )
-        .to_modin()
-        .loc[:, ["region", "az", "hostname", "measure_kind", "measure"]]
-    )
-
-    df["time"] = datetime.now()
-    df.reset_index(inplace=True, drop=False)
-    df_cpu = df[df.measure_kind == "cpu_utilization"]
-    df_memory = df[df.measure_kind == "memory_utilization"]
+    df_timestream["time"] = datetime.now()
+    df_timestream.reset_index(inplace=True, drop=False)
+    df_cpu = df_timestream[df_timestream.measure_kind == "cpu_utilization"]
+    df_memory = df_timestream[df_timestream.measure_kind == "memory_utilization"]
+    kwargs = {
+        "database": name,
+        "table": name,
+        "time_col": "time",
+        "measure_col": "measure",
+        "dimensions_cols": ["index", "region", "az", "hostname"],
+    }
 
     with ExecutionTimer(request) as timer:
-        rejected_records = wr.timestream.write(
-            df=df_cpu,
-            database=name,
-            table=name,
-            time_col="time",
-            measure_col="measure",
-            dimensions_cols=["index", "region", "az", "hostname"],
-        )
-        assert len(rejected_records) == 0
-        rejected_records = wr.timestream.write(
-            df=df_memory,
-            database=name,
-            table=name,
-            time_col="time",
-            measure_col="measure",
-            dimensions_cols=["index", "region", "az", "hostname"],
-        )
-        assert len(rejected_records) == 0
+        for df in [df_cpu, df_memory]:
+            rejected_records = wr.timestream.write(df=df, **kwargs)
+            assert len(rejected_records) == 0
+    assert timer.elapsed_time < benchmark_time
+
+    df = wr.timestream.query(f'SELECT COUNT(*) AS counter FROM "{name}"."{name}"')
+    assert df["counter"].iloc[0] == 126_000
+
+
+@pytest.mark.parametrize("benchmark_time", [60])
+def test_timestream_batch_load(
+    benchmark_time: int, timestream_database_and_table: str, df_timestream: pd.DataFrame, path: str, path2: str, request
+) -> None:
+    name = timestream_database_and_table
+    df_timestream["time"] = round(time.time()) * 1_000
+    df_timestream.reset_index(inplace=True, drop=False)
+    df_cpu = df_timestream[df_timestream.measure_kind == "cpu_utilization"]
+    df_memory = df_timestream[df_timestream.measure_kind == "memory_utilization"]
+    error_bucket, error_prefix = wr._utils.parse_path(path2)
+    kwargs = {
+        "path": path,
+        "database": name,
+        "table": name,
+        "time_col": "time",
+        "dimensions_cols": ["index", "region", "az", "hostname"],
+        "measure_cols": ["measure"],
+        "measure_name_col": "measure_kind",
+        "report_s3_configuration": {"BucketName": error_bucket, "ObjectKeyPrefix": error_prefix},
+    }
+
+    with ExecutionTimer(request) as timer:
+        for df in [df_cpu, df_memory]:
+            response = wr.timestream.batch_load(df=df, **kwargs)
+            assert response["BatchLoadTaskDescription"]["ProgressReport"]["RecordIngestionFailures"] == 0
     assert timer.elapsed_time < benchmark_time
 
     df = wr.timestream.query(f'SELECT COUNT(*) AS counter FROM "{name}"."{name}"')
