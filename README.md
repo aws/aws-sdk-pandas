@@ -103,7 +103,7 @@ The quickest way to get started is to use AWS Glue with Ray. Read our [docs](htt
 
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
 
-- [**What is AWS SDK for pandas?**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0/what.html)
+- [**What is AWS SDK for pandas?**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0/about.html)
 - [**Install**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0/install.html)
   - [PyPi (pip)](https://aws-sdk-pandas.readthedocs.io/en/3.0.0/install.html#pypi-pip)
   - [Conda](https://aws-sdk-pandas.readthedocs.io/en/3.0.0/install.html#conda)

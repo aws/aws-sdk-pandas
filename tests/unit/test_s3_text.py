@@ -27,9 +27,7 @@ pytestmark = pytest.mark.distributed
 def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_terminator, chunksize, use_threads):
     file_path = f"{path}0.csv"
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": strings})
-    wr.s3.to_csv(
-        df, file_path, index=False, encoding=encoding, line_terminator=line_terminator, use_threads=use_threads
-    )
+    wr.s3.to_csv(df, file_path, index=False, encoding=encoding, lineterminator=line_terminator, use_threads=use_threads)
     df2 = wr.s3.read_csv(
         file_path, encoding=encoding, lineterminator=line_terminator, use_threads=use_threads, chunksize=chunksize
     )
@@ -347,11 +345,11 @@ def test_csv_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threa
         assert desc.get("ServerSideEncryption") == "AES256"
 
 
-@pytest.mark.parametrize("line_terminator", ["\n", "\r", "\n\r"])
+@pytest.mark.parametrize("line_terminator", ["\n", "\r", "\r\n"])
 def test_csv_line_terminator(path, line_terminator):
     file_path = f"{path}0.csv"
     df = pd.DataFrame(data={"reading": ["col1", "col2"], "timestamp": [1601379427618, 1601379427625], "value": [1, 2]})
-    wr.s3.to_csv(df=df, path=file_path, index=False, line_terminator=line_terminator)
+    wr.s3.to_csv(df=df, path=file_path, index=False, lineterminator=line_terminator)
     df2 = wr.s3.read_csv(file_path)
     assert df.equals(df2)
 
