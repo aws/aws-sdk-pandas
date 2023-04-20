@@ -1,6 +1,5 @@
 from typing import Any, Dict, Optional
 
-import boto3
 import pytest
 
 import awswrangler as wr
@@ -11,7 +10,9 @@ import awswrangler.pandas as pd
 @pytest.mark.parametrize(
     "pyarrow_additional_kwargs", [{"safe": True, "deduplicate_objects": False, "types_mapper": None}]
 )
-def test_read_deltalake(path: str, s3_additional_kwargs: Optional[Dict[str, Any]], pyarrow_additional_kwargs: Dict[str, Any]) -> None:
+def test_read_deltalake(
+    path: str, s3_additional_kwargs: Optional[Dict[str, Any]], pyarrow_additional_kwargs: Dict[str, Any]
+) -> None:
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", None, "bar"], "c2": [3.0, 4.0, 5.0], "c3": [True, False, None]})
     wr.s3.to_deltalake(path=path, df=df, s3_additional_kwargs=s3_additional_kwargs)
 

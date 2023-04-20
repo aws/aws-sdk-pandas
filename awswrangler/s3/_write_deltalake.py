@@ -1,6 +1,6 @@
 """Amazon S3 Writer Delta Lake Module (PRIVATE)."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
 
 import boto3
 import pandas as pd
@@ -35,7 +35,7 @@ def to_deltalake(
     df: pd.DataFrame,
     path: Optional[str] = None,
     index: bool = False,
-    mode: Optional[str] = None,
+    mode: Literal["error", "append", "overwrite", "ignore"] = "append",
     dtype: Optional[Dict[str, str]] = None,
     partition_cols: Optional[List[str]] = None,
     overwrite_schema: bool = False,
@@ -44,12 +44,9 @@ def to_deltalake(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     s3_allow_unsafe_rename: bool = True,
 ) -> None:
-    mode = "append" if mode is None else mode
     dtype = dtype if dtype else {}
 
-    schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
-        df=df, index=index, ignore_cols=None, dtype=dtype
-    )
+    schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, index=index, ignore_cols=None, dtype=dtype)
     table: pa.Table = _df_to_table(df, schema, index, dtype)
 
     storage_options = _set_default_storage_options_kwargs(boto3_session, s3_additional_kwargs, s3_allow_unsafe_rename)
