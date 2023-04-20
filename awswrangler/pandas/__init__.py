@@ -1,5 +1,9 @@
 """Pandas "proxy" package."""
+import logging
 from typing import TYPE_CHECKING
+
+from packaging import version
+from pandas import __version__ as _PANDAS_VERSION
 
 from awswrangler._distributed import MemoryFormatEnum, memory_format
 
@@ -38,6 +42,13 @@ elif memory_format.get() == MemoryFormatEnum.MODIN:
 else:
     raise ImportError(f"Unknown memory format {memory_format}")
 
+_logger: logging.Logger = logging.getLogger(__name__)
+
+if version.parse(_PANDAS_VERSION) >= version.parse("2.0.0"):
+    _logger.warning(
+        "We have detected that you are using Pandas version 2.x. Please note awswrangler currently does not support "
+        "pyarrow-backed ArrowDtype DataFrames."
+    )
 
 __all__ = [
     "DataFrame",

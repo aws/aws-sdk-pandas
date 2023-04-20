@@ -4,13 +4,13 @@ import re
 import time
 from datetime import date, datetime
 from decimal import Decimal
-from packaging import version
 from timeit import default_timer as timer
 from types import TracebackType
 from typing import Any, Dict, Iterator, List, Optional, Type, Union
 
 import boto3
 import botocore.exceptions
+from packaging import version
 from pandas import DataFrame as PandasDataFrame
 from pandas import Series as PandasSeries
 from pytest import FixtureRequest
