@@ -728,17 +728,6 @@ def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
     return random_lst
 
 
-def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
-    """Ensure that all columns has the writeable flag True."""
-    for column in df.columns.to_list():
-        if hasattr(df[column].values, "flags") is True:
-            if df[column].values.flags.writeable is False:
-                s: pd.Series = df[column]
-                df[column] = None
-                df[column] = s
-    return df
-
-
 def check_duplicated_columns(df: pd.DataFrame) -> Any:
     """Raise an exception if there are duplicated columns names."""
     duplicated: List[str] = df.loc[:, df.columns.duplicated()].columns.to_list()
