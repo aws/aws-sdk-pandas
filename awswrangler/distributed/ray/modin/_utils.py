@@ -41,7 +41,7 @@ def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset
 def _to_modin(
     dataset: Union[ray.data.Dataset[Any], ray.data.Dataset[pd.DataFrame]],
     to_pandas_kwargs: Optional[Dict[str, Any]] = None,
-    ignore_index: bool = True,
+    ignore_index: Optional[bool] = True,
 ) -> modin_pd.DataFrame:
     index = modin_pd.RangeIndex(start=0, stop=dataset.count()) if ignore_index else None
     _to_pandas_kwargs = {} if to_pandas_kwargs is None else to_pandas_kwargs

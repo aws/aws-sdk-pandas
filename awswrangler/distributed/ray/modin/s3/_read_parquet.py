@@ -52,4 +52,8 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
         path_root=path_root,
         dataset_kwargs=dataset_kwargs,
     )
-    return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs, ignore_index=bool(path_root))
+    return _to_modin(
+        dataset=dataset,
+        to_pandas_kwargs=arrow_kwargs,
+        ignore_index=arrow_kwargs.get("ignore_metadata"),
+    )
