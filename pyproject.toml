@@ -103,7 +103,7 @@ pytest-rerunfailures = "^11.1"
 pytest-timeout = "^2.1.0"
 pytest-xdist = "^3.0.2"
 s3fs = "0.4.2"  # Must be pinned to 0.4.2
-tox = "^3.25.1"
+tox = "^4.4.12"
 
 # Docs
 bump2version = "^1.0.1"
