@@ -8,6 +8,7 @@ import pyarrow as pa
 
 from awswrangler import _data_types, _utils
 from awswrangler._arrow import _df_to_table
+from awswrangler.annotations import Experimental
 
 if TYPE_CHECKING:
     try:
@@ -31,6 +32,7 @@ def _set_default_storage_options_kwargs(
 
 
 @_utils.check_optional_dependency(deltalake, "deltalake")
+@Experimental
 def to_deltalake(
     df: pd.DataFrame,
     path: Optional[str] = None,
@@ -39,7 +41,6 @@ def to_deltalake(
     dtype: Optional[Dict[str, str]] = None,
     partition_cols: Optional[List[str]] = None,
     overwrite_schema: bool = False,
-    use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     s3_allow_unsafe_rename: bool = True,
