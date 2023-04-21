@@ -44,7 +44,9 @@ extensions = [
     "sphinx.ext.napoleon",
     "nbsphinx",
     "nbsphinx_link",
+    "myst_parser",
     "copy_tutorials",
+    "copy_adr",
     "IPython.sphinxext.ipython_console_highlighting",
 ]
 
