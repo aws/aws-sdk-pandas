@@ -1,3 +1,5 @@
+"""Amazon Textract module."""
+
 import logging
 from typing import List, Optional
 
@@ -27,7 +29,6 @@ def analyze_document_table(
         Return a list of pandas data frames, one df for every table found
         in the response
     """
-
     textract = _utils.client(service_name="textract", session=boto3_session)
     textract = boto3.client("textract")
 
