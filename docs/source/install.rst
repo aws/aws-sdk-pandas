@@ -115,6 +115,9 @@ This option provides the ability to use semantic versions (i.e. library version)
    * - aws-sdk-pandas-layer-py3-9
      - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-9
      - Layer for ``Python 3.9.x`` runtimes
+   * - aws-sdk-pandas-layer-py3-10
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-10
+     - Layer for ``Python 3.10.x`` runtimes
 
 Here is an example of how to create and use the AWS SDK for pandas Lambda layer in your CDK app:
 
@@ -131,7 +134,7 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
           "awssdkpandas-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-8",
-            semantic_version="2.20.0",  # Get the latest version from https://serverlessrepo.aws.amazon.com/applications
+            semantic_version="3.0.0",  # Get the latest version from https://serverlessrepo.aws.amazon.com/applications
           ),
         )
 
