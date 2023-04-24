@@ -1,8 +1,10 @@
-from awswrangler import _utils
+import logging
 from typing import List, Optional
+
 import boto3
 import pandas as pd
-import logging
+
+from awswrangler import _utils
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
