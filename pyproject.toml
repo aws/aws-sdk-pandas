@@ -94,7 +94,7 @@ flake8 = "^5.0.1"
 pydocstyle = "^6.1.1"
 
 # Test
-moto = "^4.0"
+moto = "^4.1"
 openpyxl = "^3.0"
 pyparsing = "^3.0.7"
 pytest = "^7.1.2"
