@@ -1,5 +1,5 @@
 from awswrangler import _utils
-from typing import List, Optional, Any
+from typing import List, Optional
 import boto3
 import pandas as pd
 import logging
