@@ -244,12 +244,13 @@ def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_thre
     wr.dynamodb.put_df(df=df, table_name=dynamodb_table, use_threads=use_threads)
 
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.dynamodb.read_items(table_name=dynamodb_table)
+        wr.dynamodb.read_items(table_name=dynamodb_table, use_threads=use_threads)
 
     with pytest.raises(wr.exceptions.InvalidArgumentType):
         wr.dynamodb.read_items(
             table_name=dynamodb_table,
             partition_values=[1],
+            use_threads=use_threads,
         )
 
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
@@ -257,21 +258,38 @@ def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_thre
             table_name=dynamodb_table,
             partition_values=[1, 2],
             sort_values=["a"],
+            use_threads=use_threads,
         )
 
     with pytest.raises((ClientError, AttributeError)):
-        wr.dynamodb.read_items(table_name=dynamodb_table, filter_expression="nonsense")
+        wr.dynamodb.read_items(table_name=dynamodb_table, filter_expression="nonsense", use_threads=use_threads)
 
     df2 = wr.dynamodb.read_items(
-        table_name=dynamodb_table, max_items_evaluated=5, pyarrow_additional_kwargs={"types_mapper": None}
+        table_name=dynamodb_table,
+        max_items_evaluated=5,
+        pyarrow_additional_kwargs={"types_mapper": None},
+        use_threads=use_threads,
     )
     assert df2.shape == df.shape
     assert df2.dtypes.to_list() == df.dtypes.to_list()
 
-    df3 = wr.dynamodb.read_items(table_name=dynamodb_table, partition_values=[2], sort_values=["b"])
+    df3 = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        partition_values=[2],
+        sort_values=["b"],
+        use_threads=use_threads,
+    )
     assert df3.shape == (1, len(df.columns))
 
-    assert wr.dynamodb.read_items(table_name=dynamodb_table, allow_full_scan=True, as_dataframe=False) == data
+    assert (
+        wr.dynamodb.read_items(
+            table_name=dynamodb_table,
+            allow_full_scan=True,
+            as_dataframe=False,
+            use_threads=use_threads,
+        )
+        == data
+    )
 
 
 @pytest.mark.parametrize(
