@@ -29,6 +29,7 @@ from awswrangler import (  # noqa
     secretsmanager,
     sqlserver,
     sts,
+    textract,
     timestream,
     typing,
 )
