@@ -1,6 +1,6 @@
 """Amazon Athena Module."""
 
-from awswrangler.athena._read import get_query_results, read_sql_query, read_sql_table, unload  # noqa
+from awswrangler.athena._read import get_query_results, read_sql_query, read_sql_table, start_query_execution, unload  # noqa
 from awswrangler.athena._utils import (  # noqa
     create_athena_bucket,
     create_ctas_table,
@@ -14,7 +14,6 @@ from awswrangler.athena._utils import (  # noqa
     list_query_executions,
     repair_table,
     show_create_table,
-    start_query_execution,
     stop_query_execution,
     wait_query,
 )
