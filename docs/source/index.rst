@@ -68,6 +68,7 @@ Read The Docs
    install
    scale
    tutorials
+   adr
    api
    Community Resources <https://github.com/aws/aws-sdk-pandas#community-resources>
    Logging <https://github.com/aws/aws-sdk-pandas#logging>
