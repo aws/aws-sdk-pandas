@@ -35,7 +35,7 @@ def _set_default_storage_options_kwargs(
 @Experimental
 def to_deltalake(
     df: pd.DataFrame,
-    path: Optional[str] = None,
+    path: str,
     index: bool = False,
     mode: Literal["error", "append", "overwrite", "ignore"] = "append",
     dtype: Optional[Dict[str, str]] = None,
@@ -45,6 +45,44 @@ def to_deltalake(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     s3_allow_unsafe_rename: bool = True,
 ) -> None:
+    """Write a DataFrame to S3 as a DeltaLake table.
+
+    This function requires the `deltalake package
+    <https://delta-io.github.io/delta-rs/python>`__.
+    See the `How to load a Delta table
+    <https://delta-io.github.io/delta-rs/python/usage.html#loading-a-delta-table>`__
+    guide for loading instructions.
+
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
+    path: str
+        S3 path for a directory where the DeltaLake table will be stored.
+    index: bool
+        True to store the DataFrame index in file, otherwise False to ignore it.
+    mode: str, optional
+        ``append`` (Default), ``overwrite``, ``ignore``, ``error``
+    dtype: dict[str, str], optional
+        Dictionary of columns names and Athena/Glue types to be casted.
+        Useful when you have columns with undetermined or mixed data types.
+        (e.g. ``{'col name':'bigint', 'col2 name': 'int'})``
+    partition_cols: list[str], optional
+        List of columns to partition the table by. Only required when creating a new table.
+    overwrite_schema: bool
+        If True, allows updating the schema of the table.
+    boto3_session: Optional[boto3.Session()]
+        Boto3 Session. If None, the default boto3 session is used.
+    s3_additional_kwargs: Optional[Dict[str, str]]
+        Forwarded to the Delta Table class for the storage options of the S3 backend.
+    s3_allow_unsafe_rename: bool
+        TODO
+
+    See Also
+    --------
+    deltalake.DeltaTable: Create a DeltaTable instance with the deltalake library.
+    deltalake.write_deltalake: Write to a DeltaLake table.
+    """
     dtype = dtype if dtype else {}
 
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, index=index, ignore_cols=None, dtype=dtype)
