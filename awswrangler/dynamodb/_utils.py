@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Mapping, Optional, 
 
 import boto3
 from boto3.dynamodb.conditions import ConditionExpressionBuilder
+from boto3.dynamodb.types import TypeSerializer
 from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
@@ -155,7 +156,7 @@ def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """
     names: Dict[str, Any] = {}
     values: Dict[str, Any] = {}
-    serializer = boto3.dynamodb.types.TypeSerializer()
+    serializer = TypeSerializer()
 
     if "FilterExpression" in kwargs and not isinstance(kwargs["FilterExpression"], str):
         builder = ConditionExpressionBuilder()
