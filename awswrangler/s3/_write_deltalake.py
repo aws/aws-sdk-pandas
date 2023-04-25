@@ -43,7 +43,7 @@ def to_deltalake(
     overwrite_schema: bool = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    s3_allow_unsafe_rename: bool = True,
+    s3_allow_unsafe_rename: bool = False,
 ) -> None:
     """Write a DataFrame to S3 as a DeltaLake table.
 
@@ -76,7 +76,20 @@ def to_deltalake(
     s3_additional_kwargs: Optional[Dict[str, str]]
         Forwarded to the Delta Table class for the storage options of the S3 backend.
     s3_allow_unsafe_rename: bool
-        TODO
+        Allows using the default S3 backend without support for concurrent writers.
+        Concurrent writing is currently not supported, so this option needs to be turned on explicitely.
+
+    Examples
+    --------
+    Writing a Pandas DataFrame into a DeltaLake table in S3.
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_deltalake(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/prefix/',
+    ...     s3_allow_unsafe_rename=True,
+    ... )
 
     See Also
     --------
