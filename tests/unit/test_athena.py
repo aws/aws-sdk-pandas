@@ -1400,3 +1400,34 @@ def test_athena_date_recovery(path, glue_database, glue_table):
         ctas_approach=False,
     )
     assert pandas_equals(df, df2)
+
+
+def test_athena_iceberg_to_sql(path, path2, glue_database, glue_table):
+    df = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
+
+    # Create Iceberg table
+    wr.athena.start_query_execution(
+        sql=(
+            f"CREATE TABLE {glue_table} (id int, name string) "
+            f"LOCATION '{path}' "
+            f"TBLPROPERTIES ( 'table_type' ='ICEBERG', 'format'='parquet' )"
+        ),
+        database=glue_database,
+        wait=True,
+    )
+
+    wr.athena.to_sql(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        path=path2,
+    )
+
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}"',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert df.equals(df_out)
