@@ -49,9 +49,6 @@ def to_deltalake(
 
     This function requires the `deltalake package
     <https://delta-io.github.io/delta-rs/python>`__.
-    See the `How to load a Delta table
-    <https://delta-io.github.io/delta-rs/python/usage.html#loading-a-delta-table>`__
-    guide for loading instructions.
 
     Parameters
     ----------
