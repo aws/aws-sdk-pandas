@@ -27,10 +27,10 @@ from awswrangler.athena._utils import (
     _start_query_execution,
     _WorkGroupConfig,
     create_ctas_table,
+    wait_query,
 )
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results
-from ._utils import wait_query
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

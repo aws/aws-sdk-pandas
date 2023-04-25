@@ -26,12 +26,11 @@ import boto3
 import botocore.exceptions
 import pandas as pd
 
-from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts, typing
+from awswrangler import _data_types, _utils, athena, catalog, exceptions, s3, sts, typing
 from awswrangler._config import apply_configs
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 
 from ._cache import _cache_manager, _LocalMetadataCacheManager
-from ._read import start_query_execution
 
 if TYPE_CHECKING:
     from mypy_boto3_glue.type_defs import ColumnTypeDef
@@ -446,7 +445,7 @@ def repair_table(
     query = f"MSCK REPAIR TABLE `{table}`;"
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
-    query_id = start_query_execution(
+    query_id = athena.start_query_execution(
         sql=query,
         database=database,
         data_source=data_source,
@@ -525,7 +524,7 @@ def describe_table(
     query = f"DESCRIBE `{table}`;"
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
-    query_id = start_query_execution(
+    query_id = athena.start_query_execution(
         sql=query,
         database=database,
         s3_output=s3_output,
@@ -826,7 +825,7 @@ def show_create_table(
     query = f"SHOW CREATE TABLE `{table}`;"
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
-    query_id = start_query_execution(
+    query_id = athena.start_query_execution(
         sql=query,
         database=database,
         s3_output=s3_output,
