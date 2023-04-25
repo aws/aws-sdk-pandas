@@ -345,6 +345,9 @@ def _read_items_scan(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame], _ItemsListType, Iterator[_ItemsListType]]:
     dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
 
+    kwargs = _serialize_kwargs(kwargs)
+    kwargs["TableName"] = table_name
+
     if chunked:
         scan_iterator = _read_scan_chunked(dynamodb_client, as_dataframe, kwargs)
         if as_dataframe:
@@ -355,9 +358,6 @@ def _read_items_scan(
     # Use Parallel Scan
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     total_segments = _utils.ensure_worker_or_thread_count(use_threads=use_threads)
-
-    kwargs = _serialize_kwargs(kwargs)
-    kwargs["TableName"] = table_name
     kwargs["TotalSegments"] = total_segments
 
     _logger.debug("Scanning DynamoDB table %s with %d segments", table_name, total_segments)

@@ -1,3 +1,4 @@
+import itertools
 import tempfile
 from datetime import datetime
 from decimal import Decimal
@@ -210,7 +211,8 @@ def test_dynamodb_put_from_file(
     ],
 )
 @pytest.mark.parametrize("use_threads", [False, True])
-def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
+@pytest.mark.parametrize("chunked", [False, True])
+def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_threads: bool, chunked: bool) -> None:
     data = [
         {
             "par0": Decimal("2"),
@@ -244,13 +246,14 @@ def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_thre
     wr.dynamodb.put_df(df=df, table_name=dynamodb_table, use_threads=use_threads)
 
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.dynamodb.read_items(table_name=dynamodb_table, use_threads=use_threads)
+        wr.dynamodb.read_items(table_name=dynamodb_table, use_threads=use_threads, chunked=chunked)
 
     with pytest.raises(wr.exceptions.InvalidArgumentType):
         wr.dynamodb.read_items(
             table_name=dynamodb_table,
             partition_values=[1],
             use_threads=use_threads,
+            chunked=chunked,
         )
 
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
@@ -259,17 +262,25 @@ def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_thre
             partition_values=[1, 2],
             sort_values=["a"],
             use_threads=use_threads,
+            chunked=chunked,
         )
 
     with pytest.raises((ClientError, AttributeError)):
-        wr.dynamodb.read_items(table_name=dynamodb_table, filter_expression="nonsense", use_threads=use_threads)
+        out = wr.dynamodb.read_items(
+            table_name=dynamodb_table, filter_expression="nonsense", use_threads=use_threads, chunked=chunked
+        )
+        if chunked:
+            next(out)
 
     df2 = wr.dynamodb.read_items(
         table_name=dynamodb_table,
         max_items_evaluated=5,
         pyarrow_additional_kwargs={"types_mapper": None},
         use_threads=use_threads,
+        chunked=chunked,
     )
+    if chunked:
+        df2 = pd.concat(df2)
     assert df2.shape == df.shape
     assert df2.dtypes.to_list() == df.dtypes.to_list()
 
@@ -278,18 +289,22 @@ def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_thre
         partition_values=[2],
         sort_values=["b"],
         use_threads=use_threads,
+        chunked=chunked,
     )
+    if chunked:
+        df3 = pd.concat(df3)
     assert df3.shape == (1, len(df.columns))
 
-    assert (
-        wr.dynamodb.read_items(
-            table_name=dynamodb_table,
-            allow_full_scan=True,
-            as_dataframe=False,
-            use_threads=use_threads,
-        )
-        == data
+    df4 = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        allow_full_scan=True,
+        as_dataframe=False,
+        use_threads=use_threads,
+        chunked=chunked,
     )
+    if chunked:
+        df4 = list(itertools.chain.from_iterable(df4))
+    assert df4 == data
 
 
 @pytest.mark.parametrize(
