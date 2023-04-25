@@ -426,8 +426,8 @@ def read_items(  # pylint: disable=too-many-branches
     available in Boto3 towards a DynamoDB table, abstracting it away while providing
     a single, unified entry point.
 
-    Under the hood, it wraps all the four available read actions: get_item, batch_get_item,
-    query and scan.
+    Under the hood, it wraps all the four available read actions: `get_item`, `batch_get_item`,
+    `query` and `scan`.
 
     Note
     ----
@@ -466,6 +466,8 @@ def read_items(  # pylint: disable=too-many-branches
         Limit the number of items evaluated in case of query or scan operations. Defaults to None (all matching items).
     as_dataframe : bool
         If True, return items as pd.DataFrame, otherwise as list/dict. Defaults to True.
+    chunked : bool
+        If `True` an iterable of DataFrames/lists is returned. False by default.
     use_threads : Union[bool, int]
         Used for Parallel Scan requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
@@ -487,8 +489,9 @@ def read_items(  # pylint: disable=too-many-branches
 
     Returns
     -------
-    Union[pd.DataFrame, List[Mapping[str, Any]]]
+    pd.DataFrame | list[dict[str, Any]] | Iterable[pd.DataFrame] | Iterable[list[dict[str, Any]]]
         A Data frame containing the retrieved items, or a dictionary of returned items.
+        Alternatively, the return type can be an iterable of either type when `chunked=True`.
 
     Examples
     --------
