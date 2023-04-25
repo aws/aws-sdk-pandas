@@ -190,7 +190,6 @@ def _read_scan_chunked(
 ) -> Union[Iterator[pa.Table], Iterator[_ItemsListType]]:
     # SEE: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan
     client_dynamodb = dynamodb_client if dynamodb_client else _utils.client(service_name="dynamodb")
-    _logger.debug("Scanning segment %d from DynamoDB table %s", segment, kwargs["TableName"])
 
     deserializer = boto3.dynamodb.types.TypeDeserializer()
     next_token = "init_token"  # Dummy token
@@ -315,6 +314,7 @@ def _read_items_scan(
     kwargs["TableName"] = table_name
 
     if chunked:
+        _logger.debug("Scanning DynamoDB table %s and returning results in an iterator", table_name)
         scan_iterator = _read_scan_chunked(dynamodb_client, as_dataframe, kwargs)
         if as_dataframe:
             return (_utils.table_refs_to_df([items], arrow_kwargs) for items in scan_iterator)
