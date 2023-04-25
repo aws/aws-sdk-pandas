@@ -357,7 +357,8 @@ def test_read_items_reserved(params: Dict[str, Any], dynamodb_table: str, use_th
     ],
 )
 @pytest.mark.parametrize("use_threads", [False, True])
-def test_read_items_index(params: Dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
+@pytest.mark.parametrize("chunked", [False, True])
+def test_read_items_index(params: Dict[str, Any], dynamodb_table: str, use_threads: bool, chunked: bool) -> None:
     df = pd.DataFrame(
         {
             "Author": ["John Grisham", "John Grisham", "James Patterson"],
@@ -376,12 +377,17 @@ def test_read_items_index(params: Dict[str, Any], dynamodb_table: str, use_threa
         table_name=dynamodb_table,
         key_condition_expression=Key("Category").eq("Suspense"),
         index_name="CategoryIndex",
+        chunked=chunked,
     )
+    if chunked:
+        df2 = pd.concat(df2)
     assert df2.shape == df.shape
 
     df3 = wr.dynamodb.read_items(
-        table_name=dynamodb_table, allow_full_scan=True, index_name="CategoryIndex", use_threads=1
+        table_name=dynamodb_table, allow_full_scan=True, index_name="CategoryIndex", use_threads=1, chunked=chunked
     )
+    if chunked:
+        df3 = pd.concat(df3)
     assert df3.shape == df.shape
 
 
