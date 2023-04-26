@@ -23,7 +23,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
-def to_sql(
+def insert_iceberg(
     df: pd.DataFrame,
     database: str,
     table: str,
@@ -37,7 +37,9 @@ def to_sql(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
-    Athena INSERT INTO ... SELECT. Creates temporary external table, writes staged files and inserts into Iceberg table.
+    Insert into Athena Iceberg table using INSERT INTO ... SELECT.
+
+    Creates temporary external table, writes staged files and inserts via INSERT INTO ... SELECT.
 
     Parameters
     ----------
@@ -88,6 +90,8 @@ def to_sql(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
+
+        # Insert into iceberg table
         query_id: str = _start_query_execution(
             sql=f'INSERT INTO "{database}"."{table}" SELECT * FROM "{database}"."{temp_table}"',
             workgroup=workgroup,

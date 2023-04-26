@@ -18,7 +18,7 @@ from awswrangler.athena._utils import (  # noqa
     stop_query_execution,
     wait_query,
 )
-from awswrangler.athena._write import to_sql
+from awswrangler.athena._write_iceberg import insert_iceberg
 
 __all__ = [
     "read_sql_query",
@@ -40,5 +40,5 @@ __all__ = [
     "stop_query_execution",
     "unload",
     "wait_query",
-    "to_sql",
+    "insert_iceberg",
 ]
