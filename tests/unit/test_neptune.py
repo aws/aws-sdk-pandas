@@ -38,6 +38,11 @@ def neptune_iam_enabled(cloudformation_outputs) -> int:
     return cloudformation_outputs["NeptuneIAMEnabled"]
 
 
+@pytest.fixture(scope="session")
+def neptune_load_iam_role_arn(cloudformation_outputs: Dict[str, Any]) -> str:
+    return cloudformation_outputs["NeptuneBulkLoadRole"]
+
+
 def test_connection_neptune_https(neptune_endpoint, neptune_port, neptune_iam_enabled):
     client = wr.neptune.connect(host=neptune_endpoint, port=neptune_port, iam_enabled=neptune_iam_enabled)
     resp = client.status()
@@ -195,6 +200,26 @@ def test_gremlin_write_different_cols(neptune_endpoint, neptune_port) -> Dict[st
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     res = wr.neptune.execute_gremlin(client, f"g.V('{id}').valueMap().with(WithOptions.tokens)")
+    saved_row = res.iloc[0]
+    assert saved_row["age"] == 55
+
+
+def test_gremlin_bulk_load(neptune_endpoint: str, neptune_port: int, neptune_load_iam_role_arn: str, path: str) -> None:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    id = uuid.uuid4()
+    wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{str(id)}')")
+
+    data = [_create_dummy_vertex(), _create_dummy_vertex()]
+    del data[1]["str"]
+    data[1]["int"] = np.nan
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_property_graph(client, df)
+    assert res
+
+    data = [{"~id": id, "age(single)": 50, "name": "foo"}, {"~id": id, "age(single)": 55}, {"~id": id, "name": "foo"}]
+    df = pd.DataFrame(data)
+    wr.neptune.bulk_load(client, df, path, None)
+    res = wr.neptune.to_property_graph(client, df)
     saved_row = res.iloc[0]
     assert saved_row["age"] == 55
 
