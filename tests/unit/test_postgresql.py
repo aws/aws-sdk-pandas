@@ -24,8 +24,12 @@ def postgresql_con():
     con.close()
 
 
-def test_connection():
+def test_glue_connection():
     wr.postgresql.connect("aws-sdk-pandas-postgresql", timeout=10).close()
+
+
+def test_glue_connection_ssm_credential_type():
+    wr.postgresql.connect("aws-sdk-pandas-postgresql-ssm", timeout=10).close()
 
 
 def test_read_sql_query_simple(databases_parameters):
