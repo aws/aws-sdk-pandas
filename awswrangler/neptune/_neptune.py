@@ -4,7 +4,7 @@
 import logging
 import re
 import time
-from typing import Any, Callable, Literal, Optional, TypeVar
+from typing import Any, Callable, Literal, TypeVar
 
 import awswrangler.neptune._gremlin_init as gremlin
 import awswrangler.pandas as pd

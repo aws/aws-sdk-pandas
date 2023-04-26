@@ -2,7 +2,7 @@
 """Amazon NeptuneClient Module."""
 
 import logging
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import boto3
 from botocore.auth import SigV4Auth
@@ -298,12 +298,17 @@ class NeptuneClient:
 
         _logger.debug(res)
         if res.ok:
-            return res.json()["payload"]["loadId"]
+            return cast(str, res.json()["payload"]["loadId"])
 
         raise exceptions.NeptuneLoadError(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
     def load_status(self, load_id: str) -> str:
-        urlStatus = f"https://{self.host}:{self.port}/loader/{load_id}"
-        reqStatus = self._prepare_request("GET", urlStatus, data="")
-        resStatus = self._http_session.send(reqStatus)
-        resStatus.json()["payload"]["overallStatus"]["status"]
+        url = f"https://{self.host}:{self.port}/loader/{load_id}"
+
+        req = self._prepare_request("GET", url, data="")
+        res = self._http_session.send(req)
+
+        if res.ok:
+            return cast(str, res.json()["payload"]["overallStatus"]["status"])
+
+        raise exceptions.NeptuneLoadError(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
