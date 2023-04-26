@@ -1405,22 +1405,12 @@ def test_athena_date_recovery(path, glue_database, glue_table):
 def test_athena_insert_iceberg(path, path2, glue_database, glue_table):
     df = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
 
-    # Create Iceberg table
-    wr.athena.start_query_execution(
-        sql=(
-            f"CREATE TABLE {glue_table} (id int, name string) "
-            f"LOCATION '{path}' "
-            f"TBLPROPERTIES ( 'table_type' ='ICEBERG', 'format'='parquet' )"
-        ),
-        database=glue_database,
-        wait=True,
-    )
-
     wr.athena.insert_iceberg(
         df=df,
         database=glue_database,
         table=glue_table,
-        path=path2,
+        table_location=path,
+        temp_path=path2,
     )
 
     df_out = wr.athena.read_sql_query(

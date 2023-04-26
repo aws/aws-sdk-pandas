@@ -19,6 +19,41 @@ from awswrangler.athena._utils import (
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _create_iceberg_table(
+    df: pd.DataFrame,
+    database: str,
+    table: str,
+    path: str,
+    wg_config: _WorkGroupConfig,
+    index: bool = False,
+    data_source: Optional[str] = None,
+    workgroup: Optional[str] = None,
+    encryption: Optional[str] = None,
+    kms_key: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    columns_types, _ = catalog.extract_athena_types(df=df, index=index)
+    cols_str: str = ", ".join([f"{k} {v}" for k, v in columns_types.items()])
+
+    create_sql: str = (
+        f"CREATE TABLE IF NOT EXISTS {table} ({cols_str}) "
+        f"LOCATION '{path}' "
+        f"TBLPROPERTIES ( 'table_type' ='ICEBERG', 'format'='parquet' )"
+    )
+
+    query_id: str = _start_query_execution(
+        sql=create_sql,
+        workgroup=workgroup,
+        wg_config=wg_config,
+        database=database,
+        data_source=data_source,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=boto3_session,
+    )
+    wait_query(query_id)
+
+
 @apply_configs
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
@@ -27,7 +62,9 @@ def insert_iceberg(
     df: pd.DataFrame,
     database: str,
     table: str,
-    path: str,
+    temp_path: Optional[str] = None,
+    index: bool = False,
+    table_location: Optional[str] = None,
     keep_files: bool = True,
     data_source: Optional[str] = None,
     workgroup: Optional[str] = None,
@@ -37,7 +74,7 @@ def insert_iceberg(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
-    Insert into Athena Iceberg table using INSERT INTO ... SELECT.
+    Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
 
     Creates temporary external table, writes staged files and inserts via INSERT INTO ... SELECT.
 
@@ -51,8 +88,12 @@ def insert_iceberg(
         (e.g. `database.table`).
     table : str
         AWS Glue/Athena table name.
-    path : str
-        Amazon S3 path for temporary results.
+    temp_path : str
+        Amazon S3 location to store temporary results. Workgroup config will be used if not provided.
+    index: bool
+        Should consider the DataFrame index as a column?.
+    table_location : str, optional
+        Amazon S3 location for the table. Will only be used to create a new table if it does not exist.
     keep_files : bool
         Whether staging files produced by Athena are retained. 'True' by default.
     data_source : str, optional
@@ -71,7 +112,7 @@ def insert_iceberg(
 
     Returns
     -------
-
+    None
     """
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
@@ -79,11 +120,32 @@ def insert_iceberg(
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     temp_table: str = f"temp_table_{uuid.uuid4().hex}"
 
+    if not temp_path and not wg_config.s3_output:
+        raise exceptions.InvalidArgumentCombination(
+            "Either path or workgroup path must be specified to store the temporary results."
+        )
+
     try:
+        # Create Iceberg table if it doesn't exist
+        if not catalog.does_table_exist(database=database, table=table, boto3_session=boto3_session):
+            _create_iceberg_table(
+                df=df,
+                database=database,
+                table=table,
+                path=table_location,  # type: ignore[arg-type]
+                wg_config=wg_config,
+                index=index,
+                data_source=data_source,
+                workgroup=workgroup,
+                encryption=encryption,
+                kms_key=kms_key,
+                boto3_session=boto3_session,
+            )
+
         # Create temporary external table, write the results
         s3.to_parquet(
             df=df,
-            path=path,
+            path=temp_path or wg_config.s3_output,
             dataset=True,
             database=database,
             table=temp_table,
@@ -113,7 +175,7 @@ def insert_iceberg(
 
         if keep_files is False:
             s3.delete_objects(
-                path=path,
+                path=temp_path or wg_config.s3_output,  # type: ignore[arg-type]
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
             )

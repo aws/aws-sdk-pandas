@@ -20,6 +20,7 @@ from awswrangler.athena._utils import (  # noqa
 )
 from awswrangler.athena._write_iceberg import insert_iceberg
 
+
 __all__ = [
     "read_sql_query",
     "read_sql_table",
