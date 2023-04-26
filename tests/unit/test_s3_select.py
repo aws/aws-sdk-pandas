@@ -1,6 +1,7 @@
 import logging
 
 import pytest
+import pyarrow as pa
 
 import awswrangler as wr
 import awswrangler.pandas as pd
@@ -210,3 +211,30 @@ def test_exceptions(path):
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         args.update({"compression": "gzip"})
         wr.s3.select_query(**args)
+
+
+def test_overflow_schema(path):
+    df = pd.DataFrame(
+        {
+            # The values below overflow pa.int64()
+            "c0": [9223372036854775807, 9223372036854775808, 9223372036854775809],
+            "c1": ["foo", "boo", "bar"],
+            "c2": [4.0, 5.0, 6.0],
+        }
+    )
+    schema = pa.schema([("c0", pa.uint64()), ("c1", pa.string()), ("c2", pa.float64())])
+    file_path = f"{path}test_parquet_file.snappy.parquet"
+    wr.s3.to_parquet(
+        df,
+        file_path,
+        compression="snappy",
+    )
+    df2 = wr.s3.select_query(
+        sql="select * from s3object",
+        path=file_path,
+        input_serialization="Parquet",
+        input_serialization_params={},
+        use_threads=False,
+        pyarrow_additional_kwargs={"types_mapper": None, "schema": schema},
+    )
+    assert df.equals(df2)
