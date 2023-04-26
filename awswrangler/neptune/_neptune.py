@@ -3,11 +3,12 @@
 
 import logging
 import re
-from typing import Any, Callable, TypeVar
+import time
+from typing import Any, Callable, Literal, Optional, TypeVar
 
 import awswrangler.neptune._gremlin_init as gremlin
 import awswrangler.pandas as pd
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, s3
 from awswrangler.neptune._client import NeptuneClient
 
 gremlin_python = _utils.import_optional_dependency("gremlin_python")
@@ -264,6 +265,37 @@ def to_rdf_graph(
             if res:
                 query = ""
     return client.write_sparql(query)
+
+
+BULK_LOAD_IN_PROGRESS_STATES = {"LOAD_IN_QUEUE", "LOAD_NOT_STARTED", "LOAD_IN_PROGRESS"}
+
+
+@_utils.check_optional_dependency(sparql, "SPARQLWrapper")
+def bulk_load(
+    client: NeptuneClient,
+    df: pd.DataFrame,
+    path: str,
+    iam_role: str,
+    neptune_load_wait_polling_delay: float = 1.0,
+    load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
+) -> None:
+    s3.to_csv(df, path)
+
+    load_id = client.load(
+        path,
+        iam_role,
+        parallelism=load_parallelism,
+    )
+
+    while True:
+        status = client.load_status(load_id)
+        if status == "LOAD_COMPLETED":
+            break
+
+        if status not in BULK_LOAD_IN_PROGRESS_STATES:
+            raise exceptions.NeptuneLoadError(f"Load {load_id} failed with {status}")
+
+        time.sleep(neptune_load_wait_polling_delay)
 
 
 def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:

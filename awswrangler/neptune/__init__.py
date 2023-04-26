@@ -1,6 +1,7 @@
 """Utilities Module for Amazon Neptune."""
 from awswrangler.neptune._gremlin_parser import GremlinParser
 from awswrangler.neptune._neptune import (
+    bulk_load,
     connect,
     execute_gremlin,
     execute_opencypher,
@@ -17,6 +18,7 @@ __all__ = [
     "to_property_graph",
     "to_rdf_graph",
     "connect",
+    "bulk_load",
     "GremlinParser",
     "flatten_nested_df",
 ]

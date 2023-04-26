@@ -135,3 +135,7 @@ class PolicyResourceConflict(Exception):
 
 class NotSupported(Exception):
     """NotSupported."""
+
+
+class NeptuneLoadError(Exception):
+    """NeptuneLoadError."""
