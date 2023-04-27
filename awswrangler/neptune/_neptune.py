@@ -4,7 +4,7 @@
 import logging
 import re
 import time
-from typing import Any, Callable, Literal, TypeVar
+from typing import Any, Callable, Literal, Optional, TypeVar
 
 import awswrangler.neptune._gremlin_init as gremlin
 import awswrangler.pandas as pd
@@ -273,9 +273,9 @@ BULK_LOAD_IN_PROGRESS_STATES = {"LOAD_IN_QUEUE", "LOAD_NOT_STARTED", "LOAD_IN_PR
 @_utils.check_optional_dependency(sparql, "SPARQLWrapper")
 def bulk_load(
     client: NeptuneClient,
-    df: pd.DataFrame,
     path: str,
     iam_role: str,
+    df: Optional[pd.DataFrame] = None,
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
     s3_write_mode: Literal["overwrite", "append"] = "append",
@@ -286,18 +286,23 @@ def bulk_load(
     The DataFrame will be written to S3 and then loaded to Neptune using the
     `Bulk Loader <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load.html>`_.
 
+    If no DataFrame is provided, then the contents of the S3 path will be loaded onto
+    Neptune.
+
     Parameters
     ----------
     client: NeptuneClient
         Instance of the neptune client to use
-    df: DataFrame
-        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
     path: str
-        S3 Path where the Pandas DataFrame will be written.
+        S3 Path that the Neptune Bulk Loader will load data from.
+        If a Pandas DataFrame is provided, it will be written to this location.
     iam_role: str
         The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
             For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
             see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
+    df: DataFrame, optional
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_ to write to Neptune.
+        If none is provided, the data which already exists in the S3 path will be loaded.
     neptune_load_wait_polling_delay: float
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
     load_parallelism: str
@@ -305,9 +310,11 @@ def bulk_load(
     s3_write_mode: str
         Specifies whether the Pandas DataFrame will ovewrite the contents of the S3 path, or merely append to it.
         The entire content of the S3 path will be loaded into Neptune regardless.
+        Only applicable when ``df`` is provided.
 
     """
-    s3.to_csv(df, path, dataset=True, mode=s3_write_mode, index=False)
+    if df is not None:
+        s3.to_csv(df, path, dataset=True, mode=s3_write_mode, index=False)
 
     load_id = client.load(
         path,

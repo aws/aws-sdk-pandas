@@ -211,7 +211,34 @@ def test_gremlin_bulk_load(neptune_endpoint: str, neptune_port: int, neptune_loa
     data = [_create_dummy_vertex(label) for _ in range(10)]
     input_df = pd.DataFrame(data)
 
-    wr.neptune.bulk_load(client, input_df, path, neptune_load_iam_role_arn, s3_write_mode="overwrite")
+    wr.neptune.bulk_load(
+        client=client,
+        df=input_df,
+        path=path,
+        iam_role=neptune_load_iam_role_arn,
+        s3_write_mode="overwrite",
+    )
+    res_df = wr.neptune.execute_gremlin(client, f"g.V().hasLabel('{label}').valueMap().with(WithOptions.tokens)")
+
+    assert res_df.shape == input_df.shape
+
+
+def test_gremlin_bulk_load_no_df(
+    neptune_endpoint: str, neptune_port: int, neptune_load_iam_role_arn: str, path: str
+) -> None:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+
+    label = f"foo_{uuid.uuid4()}"
+    data = [_create_dummy_vertex(label) for _ in range(10)]
+    input_df = pd.DataFrame(data)
+
+    wr.s3.to_csv(input_df, path, dataset=True, mode="overwrite", index=False)
+
+    wr.neptune.bulk_load(
+        client=client,
+        path=path,
+        iam_role=neptune_load_iam_role_arn,
+    )
     res_df = wr.neptune.execute_gremlin(client, f"g.V().hasLabel('{label}').valueMap().with(WithOptions.tokens)")
 
     assert res_df.shape == input_df.shape
