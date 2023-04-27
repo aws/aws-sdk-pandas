@@ -300,6 +300,8 @@ def bulk_load(
 
         time.sleep(neptune_load_wait_polling_delay)
 
+    _logger.debug("Neptune load %s has succeeded", load_id)
+
 
 def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:
     """Create a connection to a Neptune cluster.
