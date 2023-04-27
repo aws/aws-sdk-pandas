@@ -1,7 +1,7 @@
 import logging
 
-import pytest
 import pyarrow as pa
+import pytest
 
 import awswrangler as wr
 import awswrangler.pandas as pd
