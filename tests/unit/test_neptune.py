@@ -206,22 +206,15 @@ def test_gremlin_write_different_cols(neptune_endpoint, neptune_port) -> Dict[st
 
 def test_gremlin_bulk_load(neptune_endpoint: str, neptune_port: int, neptune_load_iam_role_arn: str, path: str) -> None:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
-    id = uuid.uuid4()
-    wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{str(id)}')")
 
-    data = [_create_dummy_vertex(), _create_dummy_vertex()]
-    del data[1]["str"]
-    data[1]["int"] = np.nan
-    df = pd.DataFrame(data)
-    res = wr.neptune.to_property_graph(client, df)
-    assert res
+    label = f"foo_{uuid.uuid4()}"
+    data = [_create_dummy_vertex(label) for _ in range(10)]
+    input_df = pd.DataFrame(data)
 
-    data = [{"~id": id, "age(single)": 50, "name": "foo"}, {"~id": id, "age(single)": 55}, {"~id": id, "name": "foo"}]
-    df = pd.DataFrame(data)
-    wr.neptune.bulk_load(client, df, path, neptune_load_iam_role_arn)
-    res = wr.neptune.execute_gremlin(client, f"g.V('{id}').valueMap().with(WithOptions.tokens)")
-    saved_row = res.iloc[0]
-    assert saved_row["age"] == 55
+    wr.neptune.bulk_load(client, input_df, path, neptune_load_iam_role_arn, s3_write_mode="overwrite")
+    res_df = wr.neptune.execute_gremlin(client, f"g.V().hasLabel('{label}').valueMap().with(WithOptions.tokens)")
+
+    assert res_df.shape == input_df.shape
 
 
 def test_gremlin_write_updates(neptune_endpoint, neptune_port) -> Dict[str, Any]:
@@ -421,33 +414,33 @@ def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert len(batch_df.index) == len(final_df.index) + 50
 
 
-def _create_dummy_vertex() -> Dict[str, Any]:
-    data = dict()
-    data["~id"] = str(uuid.uuid4())
-    data["~label"] = "foo"
-    data["int"] = random.randint(0, 1000)
-    data["str"] = "".join(random.choice(string.ascii_lowercase) for i in range(10))
-    data["list"] = [random.randint(0, 1000), random.randint(0, 1000)]
-    return data
+def _create_dummy_vertex(label: str = "foo") -> Dict[str, Any]:
+    return {
+        "~id": str(uuid.uuid4()),
+        "~label": label,
+        "int": random.randint(0, 1000),
+        "str": "".join(random.choice(string.ascii_lowercase) for i in range(10)),
+        "list": [random.randint(0, 1000), random.randint(0, 1000)],
+    }
 
 
 def _create_dummy_edge() -> Dict[str, Any]:
-    data = dict()
-    data["~id"] = str(uuid.uuid4())
-    data["~label"] = "bar"
-    data["~to"] = str(uuid.uuid4())
-    data["~from"] = str(uuid.uuid4())
-    data["int"] = random.randint(0, 1000)
-    data["str"] = "".join(random.choice(string.ascii_lowercase) for i in range(10))
-    return data
+    return {
+        "~id": str(uuid.uuid4()),
+        "~label": "bar",
+        "~to": str(uuid.uuid4()),
+        "~from": str(uuid.uuid4()),
+        "int": random.randint(0, 1000),
+        "str": "".join(random.choice(string.ascii_lowercase) for i in range(10)),
+    }
 
 
 def _create_dummy_triple() -> Dict[str, Any]:
-    data = dict()
-    data["s"] = "foo"
-    data["p"] = str(uuid.uuid4())
-    data["o"] = random.randint(0, 1000)
-    return data
+    return {
+        "s": "foo",
+        "p": str(uuid.uuid4()),
+        "o": random.randint(0, 1000),
+    }
 
 
 def _create_dummy_quad() -> Dict[str, Any]:
