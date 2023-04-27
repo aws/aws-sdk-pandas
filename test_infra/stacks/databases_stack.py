@@ -400,7 +400,7 @@ class DatabasesStack(Stack):  # type: ignore
             subnet=self.glue_connection_subnet,
             security_groups=[self.db_security_group],
         )
-        secrets.Secret(
+        secret = secrets.Secret(
             self,
             "aws-sdk-pandas-postgresql-secret",
             secret_name="aws-sdk-pandas/postgresql",
@@ -419,6 +419,19 @@ class DatabasesStack(Stack):  # type: ignore
                     }
                 ),
             ),
+        )
+        glue.Connection(
+            self,
+            "aws-sdk-pandas-postgresql-glue-connection-ssm",
+            description="Connect to Aurora (PostgreSQL).",
+            type=glue.ConnectionType.JDBC,
+            connection_name="aws-sdk-pandas-postgresql-ssm",
+            properties={
+                "JDBC_CONNECTION_URL": f"jdbc:postgresql://{aurora_pg.cluster_endpoint.hostname}:{port}/{database}",
+                "SECRET_ID": secret.secret_name,
+            },
+            subnet=self.glue_connection_subnet,
+            security_groups=[self.db_security_group],
         )
         CfnOutput(self, "PostgresqlAddress", value=aurora_pg.cluster_endpoint.hostname)
         CfnOutput(self, "PostgresqlPort", value=str(port))
