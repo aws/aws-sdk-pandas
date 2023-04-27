@@ -218,8 +218,8 @@ def test_gremlin_bulk_load(neptune_endpoint: str, neptune_port: int, neptune_loa
 
     data = [{"~id": id, "age(single)": 50, "name": "foo"}, {"~id": id, "age(single)": 55}, {"~id": id, "name": "foo"}]
     df = pd.DataFrame(data)
-    wr.neptune.bulk_load(client, df, path, None)
-    res = wr.neptune.to_property_graph(client, df)
+    wr.neptune.bulk_load(client, df, path, neptune_load_iam_role_arn)
+    res = wr.neptune.execute_gremlin(client, f"g.V('{id}').valueMap().with(WithOptions.tokens)")
     saved_row = res.iloc[0]
     assert saved_row["age"] == 55
 
