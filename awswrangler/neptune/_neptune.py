@@ -290,7 +290,7 @@ def bulk_load(
     while True:
         status_response = client.load_status(load_id)
 
-        status = status_response["overallStatus"]["status"]
+        status: str = status_response["payload"]["overallStatus"]["status"]
         if status == "LOAD_COMPLETED":
             break
 

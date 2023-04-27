@@ -309,6 +309,6 @@ class NeptuneClient:
         res = self._http_session.send(req)
 
         if res.ok:
-            return res.json()["payload"]
+            return res.json()
 
         raise exceptions.NeptuneLoadError(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
