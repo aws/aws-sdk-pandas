@@ -294,6 +294,7 @@ Amazon Neptune
     flatten_nested_df
     to_property_graph
     to_rdf_graph
+    bulk_load
 
 DynamoDB
 --------
