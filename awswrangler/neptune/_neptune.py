@@ -280,7 +280,7 @@ def bulk_load(
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
     s3_write_mode: Literal["overwrite", "append"] = "append",
 ) -> None:
-    s3.to_csv(df, path, dataset=True, mode=s3_write_mode)
+    s3.to_csv(df, path, dataset=True, mode=s3_write_mode, index=False)
 
     load_id = client.load(
         path,
