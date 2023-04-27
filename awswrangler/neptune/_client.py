@@ -302,13 +302,13 @@ class NeptuneClient:
 
         raise exceptions.NeptuneLoadError(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
-    def load_status(self, load_id: str) -> str:
+    def load_status(self, load_id: str) -> Any:
         url = f"https://{self.host}:{self.port}/loader/{load_id}"
 
         req = self._prepare_request("GET", url, data="")
         res = self._http_session.send(req)
 
         if res.ok:
-            return cast(str, res.json()["payload"]["overallStatus"]["status"])
+            return res.json()["payload"]
 
         raise exceptions.NeptuneLoadError(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")

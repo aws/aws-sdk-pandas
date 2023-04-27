@@ -288,12 +288,14 @@ def bulk_load(
     )
 
     while True:
-        status = client.load_status(load_id)
+        status_response = client.load_status(load_id)
+
+        status = status_response["overallStatus"]["status"]
         if status == "LOAD_COMPLETED":
             break
 
         if status not in BULK_LOAD_IN_PROGRESS_STATES:
-            raise exceptions.NeptuneLoadError(f"Load {load_id} failed with {status}")
+            raise exceptions.NeptuneLoadError(f"Load {load_id} failed with {status}: {status_response}")
 
         time.sleep(neptune_load_wait_polling_delay)
 
