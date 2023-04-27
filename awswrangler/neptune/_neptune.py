@@ -278,8 +278,9 @@ def bulk_load(
     iam_role: str,
     neptune_load_wait_polling_delay: float = 1.0,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
+    s3_write_mode: Literal["overwrite", "append"] = "append",
 ) -> None:
-    s3.to_csv(df, path, dataset=True)
+    s3.to_csv(df, path, dataset=True, mode=s3_write_mode)
 
     load_id = client.load(
         path,
