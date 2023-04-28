@@ -72,7 +72,7 @@ Read The Docs
    api
    Community Resources <https://github.com/aws/aws-sdk-pandas#community-resources>
    Logging <https://github.com/aws/aws-sdk-pandas#logging>
-   Who uses AWS SDK for pandas? <https://github.com/aws/aws-sdk-pandas#who-uses-aws-sdk-pandas>
+   Who uses AWS SDK for pandas? <https://github.com/aws/aws-sdk-pandas#who-uses-aws-sdk-for-pandas>
    License <https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE.txt>
    Contributing <https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING.md>
 

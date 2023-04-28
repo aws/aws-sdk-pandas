@@ -61,10 +61,20 @@ def _get_connection_attributes_from_catalog(
                 )
         ssl_context = ssl.create_default_context(cadata=ssl_cadata)
 
+    if "SECRET_ID" in details:
+        secret_value: Dict[str, Any] = secretsmanager.get_secret_json(
+            name=details["SECRET_ID"], boto3_session=boto3_session
+        )
+        username = secret_value["username"]
+        password = secret_value["password"]
+    else:
+        username = details["USERNAME"]
+        password = details["PASSWORD"]
+
     return ConnectionAttributes(
         kind=details["JDBC_CONNECTION_URL"].split(":")[1].lower(),
-        user=details["USERNAME"],
-        password=details["PASSWORD"],
+        user=username,
+        password=password,
         host=details["JDBC_CONNECTION_URL"].split(":")[-2].replace("/", "").replace("@", ""),
         port=int(port),
         database=dbname if dbname is not None else database,
