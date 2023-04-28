@@ -321,6 +321,19 @@ def bulk_load(
     s3_additional_kwargs: Dict[str, str], optional
         Forwarded to botocore requests.
         e.g. ``s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}``
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> client = wr.neptune.connect("MY_NEPTUNE_ENDPOINT", 8182)
+    >>> frame = pd.DataFrame([{"~id": "0", "~labels": ["version"], "~properties": {"type": "version"}}])
+    >>> wr.neptune.bulk_load(
+    ...     client=client,
+    ...     df=frame,
+    ...     path="s3://my-bucket/stage-files/",
+    ...     iam_role="arn:aws:iam::XXX:role/XXX"
+    ... )
     """
     path = path[:-1] if path.endswith("*") else path
     path = path if path.endswith("/") else f"{path}/"
@@ -379,6 +392,16 @@ def bulk_load_from_files(
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
     load_parallelism: str
         Specifies the number of threads used by Neptune's bulk load process.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> client = wr.neptune.connect("MY_NEPTUNE_ENDPOINT", 8182)
+    >>> wr.neptune.bulk_load_from_files(
+    ...     client=client,
+    ...     path="s3://my-bucket/stage-files/",
+    ...     iam_role="arn:aws:iam::XXX:role/XXX"
+    ... )
     """
     load_id = client.load(
         path,

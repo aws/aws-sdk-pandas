@@ -295,6 +295,7 @@ Amazon Neptune
     to_property_graph
     to_rdf_graph
     bulk_load
+    bulk_load_from_files
 
 DynamoDB
 --------
