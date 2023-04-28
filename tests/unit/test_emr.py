@@ -64,6 +64,8 @@ def test_cluster(bucket, cloudformation_outputs, emr_security_configuration):
     step_state = wr.emr.get_step_state(cluster_id=cluster_id, step_id=step_id)
     assert step_state == "PENDING"
     wr.emr.terminate_cluster(cluster_id=cluster_id)
+    while "TERMINATED" not in wr.emr.get_cluster_state(cluster_id=cluster_id):
+        time.sleep(10)
     wr.s3.delete_objects(f"s3://{bucket}/emr-logs/")
 
 

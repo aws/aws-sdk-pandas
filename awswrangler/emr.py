@@ -398,6 +398,9 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
             }
         args["Instances"]["InstanceFleets"].append(fleet_task)
 
+    if pars["security_configuration"]:
+        args["SecurityConfiguration"] = pars["security_configuration"]
+
     # Tags
     if pars["tags"] is not None:
         args["Tags"] = [{"Key": k, "Value": v} for k, v in pars["tags"].items()]
