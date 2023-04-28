@@ -403,6 +403,7 @@ def bulk_load_from_files(
     ...     iam_role="arn:aws:iam::XXX:role/XXX"
     ... )
     """
+    _logger.debug("Starting Neptune Bulk Load from %s", path)
     load_id = client.load(
         path,
         iam_role,
@@ -422,7 +423,7 @@ def bulk_load_from_files(
 
         time.sleep(neptune_load_wait_polling_delay)
 
-    _logger.debug("Neptune load %s has succeeded", load_id)
+    _logger.debug("Neptune load %s has succeeded in loading data from %s", load_id, path)
 
 
 def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:
