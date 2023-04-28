@@ -41,6 +41,7 @@ def _select_object_content(
     s3_client: Optional["S3Client"],
     args: Dict[str, Any],
     scan_range: Optional[Tuple[int, int]] = None,
+    schema: Optional[pa.Schema] = None,
 ) -> pa.Table:
     client_s3: "S3Client" = s3_client if s3_client else _utils.client(service_name="s3")
     if scan_range:
@@ -79,7 +80,7 @@ def _select_object_content(
             f"S3 Select request for path {args['Key']} is incomplete as End Event was not received"
         )
 
-    return _utils.list_to_arrow_table(mapping=payload_records)
+    return _utils.list_to_arrow_table(mapping=payload_records, schema=schema)
 
 
 @engine.dispatch_on_engine
@@ -89,6 +90,7 @@ def _select_query(
     sql: str,
     input_serialization: str,
     input_serialization_params: Dict[str, Union[bool, str]],
+    schema: Optional[pa.Schema] = None,
     compression: Optional[str] = None,
     scan_range_chunk_size: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -134,7 +136,13 @@ def _select_query(
         # and JSON objects (in LINES mode only)
         scan_ranges = [None]  # type: ignore[assignment]
 
-    return executor.map(_select_object_content, s3_client, itertools.repeat(args), scan_ranges)
+    return executor.map(
+        _select_object_content,
+        s3_client,
+        itertools.repeat(args),
+        scan_ranges,
+        itertools.repeat(schema),
+    )
 
 
 @_utils.validate_distributed_kwargs(
@@ -282,6 +290,9 @@ def select_query(
         "boto3_session": boto3_session,
         "s3_additional_kwargs": s3_additional_kwargs,
     }
+
+    if pyarrow_additional_kwargs and "schema" in pyarrow_additional_kwargs:
+        select_kwargs["schema"] = pyarrow_additional_kwargs.pop("schema")
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)

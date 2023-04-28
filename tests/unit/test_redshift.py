@@ -3,7 +3,7 @@ import logging
 import random
 import string
 from decimal import Decimal
-from typing import Any, Dict, Iterator, List, Optional, Type
+from typing import Any, Dict, Iterator, List, Optional, Type, Union
 
 import boto3
 import numpy as np
@@ -948,8 +948,13 @@ def test_copy_from_files_manifest(
     assert df2["counter"].iloc[0] == 3
 
 
+@pytest.mark.parametrize("path_ignore_suffix", [".csv", [".csv"]])
 def test_copy_from_files_ignore(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: Dict[str, Any],
+    path_ignore_suffix: Union[str, List[str]],
 ) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
@@ -957,7 +962,7 @@ def test_copy_from_files_ignore(
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
     wr.redshift.copy_from_files(
         path=path,
-        path_ignore_suffix=".csv",
+        path_ignore_suffix=path_ignore_suffix,
         con=redshift_con,
         table=redshift_table,
         schema="public",
