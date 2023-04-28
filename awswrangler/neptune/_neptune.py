@@ -304,8 +304,8 @@ def bulk_load(
         S3 Path that the Neptune Bulk Loader will load data from.
     iam_role: str
         The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
-            For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
-            see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
+        For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
+        see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
     neptune_load_wait_polling_delay: float
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
     load_parallelism: str
@@ -386,8 +386,8 @@ def bulk_load_from_files(
         S3 Path that the Neptune Bulk Loader will load data from.
     iam_role: str
         The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
-            For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
-            see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
+        For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
+        see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
     neptune_load_wait_polling_delay: float
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
     load_parallelism: str
