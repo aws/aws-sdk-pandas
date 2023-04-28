@@ -46,13 +46,13 @@ Amazon S3
     list_objects
     merge_datasets
     read_csv
-    read_deltalake
     read_excel
     read_fwf
     read_json
     read_parquet
     read_parquet_metadata
     read_parquet_table
+    read_deltalake
     select_query
     size_objects
     store_parquet_metadata
@@ -60,6 +60,7 @@ Amazon S3
     to_excel
     to_json
     to_parquet
+    to_deltalake
     upload
     wait_objects_exist
     wait_objects_not_exist
