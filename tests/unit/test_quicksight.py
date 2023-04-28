@@ -82,7 +82,7 @@ def test_quicksight(path, quicksight_datasource, quicksight_dataset, glue_databa
 
 def test_quicksight_delete_all_datasources_filter():
     wr.quicksight.delete_all_data_sources(regex_filter="test.*")
-    resource_name = "test-delete"
+    resource_name = f"test-delete-{uuid.uuid4()}"
     wr.quicksight.create_athena_data_source(
         name=resource_name, allowed_to_manage=[wr.sts.get_current_identity_name()], tags={"Env": "aws-sdk-pandas"}
     )
