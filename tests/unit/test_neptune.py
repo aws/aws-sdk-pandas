@@ -247,7 +247,7 @@ def test_gremlin_bulk_load_error_when_files_present(
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
     df = pd.DataFrame([_create_dummy_vertex() for _ in range(10)])
-    wr.s3.to_csv(df, path, database=True, index=False)
+    wr.s3.to_csv(df, path, dataset=True, index=False)
 
     # The received path is not empty
     with pytest.raises(wr.exceptions.InvalidArgument):
