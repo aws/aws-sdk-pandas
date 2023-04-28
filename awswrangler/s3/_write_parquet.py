@@ -811,7 +811,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
     table: str,
     catalog_id: Optional[str] = None,
     path_suffix: Optional[str] = None,
-    path_ignore_suffix: Optional[str] = None,
+    path_ignore_suffix: Union[str, List[str], None] = None,
     ignore_empty: bool = True,
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,

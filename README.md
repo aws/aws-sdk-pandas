@@ -38,7 +38,7 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 - [Getting Help](#getting-help)
 - [Community Resources](#community-resources)
 - [Logging](#logging)
-- [Who uses AWS SDK for pandas?](#who-uses-aws-sdk-pandas)
+- [Who uses AWS SDK for pandas?](#who-uses-aws-sdk-for-pandas)
 
 ## Quick Start
 
