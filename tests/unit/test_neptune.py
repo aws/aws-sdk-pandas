@@ -204,7 +204,16 @@ def test_gremlin_write_different_cols(neptune_endpoint, neptune_port) -> Dict[st
     assert saved_row["age"] == 55
 
 
-def test_gremlin_bulk_load(neptune_endpoint: str, neptune_port: int, neptune_load_iam_role_arn: str, path: str) -> None:
+@pytest.mark.parametrize("use_threads", [False, True])
+@pytest.mark.parametrize("keep_files", [False, True])
+def test_gremlin_bulk_load(
+    neptune_endpoint: str,
+    neptune_port: int,
+    neptune_load_iam_role_arn: str,
+    path: str,
+    use_threads: bool,
+    keep_files: bool,
+) -> None:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
     label = f"foo_{uuid.uuid4()}"
@@ -216,14 +225,41 @@ def test_gremlin_bulk_load(neptune_endpoint: str, neptune_port: int, neptune_loa
         df=input_df,
         path=path,
         iam_role=neptune_load_iam_role_arn,
-        s3_write_mode="overwrite",
+        use_threads=use_threads,
+        keep_files=keep_files,
     )
     res_df = wr.neptune.execute_gremlin(client, f"g.V().hasLabel('{label}').valueMap().with(WithOptions.tokens)")
 
     assert res_df.shape == input_df.shape
 
+    if keep_files:
+        assert len(wr.s3.list_objects(path)) > 0
+    else:
+        assert len(wr.s3.list_objects(path)) == 0
 
-def test_gremlin_bulk_load_no_df(
+
+def test_gremlin_bulk_load_error_when_files_present(
+    neptune_endpoint: str,
+    neptune_port: int,
+    neptune_load_iam_role_arn: str,
+    path: str,
+) -> None:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+
+    df = pd.DataFrame([_create_dummy_vertex() for _ in range(10)])
+    wr.s3.to_csv(df, path, database=True, index=False)
+
+    # The received path is not empty
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        wr.neptune.bulk_load(
+            client=client,
+            df=df,
+            path=path,
+            iam_role=neptune_load_iam_role_arn,
+        )
+
+
+def test_gremlin_bulk_load_from_files(
     neptune_endpoint: str, neptune_port: int, neptune_load_iam_role_arn: str, path: str
 ) -> None:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
@@ -232,9 +268,9 @@ def test_gremlin_bulk_load_no_df(
     data = [_create_dummy_vertex(label) for _ in range(10)]
     input_df = pd.DataFrame(data)
 
-    wr.s3.to_csv(input_df, path, dataset=True, mode="overwrite", index=False)
+    wr.s3.to_csv(input_df, path, dataset=True, index=False)
 
-    wr.neptune.bulk_load(
+    wr.neptune.bulk_load_from_files(
         client=client,
         path=path,
         iam_role=neptune_load_iam_role_arn,

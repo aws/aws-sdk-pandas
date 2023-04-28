@@ -4,7 +4,9 @@
 import logging
 import re
 import time
-from typing import Any, Callable, Literal, Optional, TypeVar
+from typing import Any, Callable, Dict, Literal, Optional, TypeVar, Union
+
+import boto3
 
 import awswrangler.neptune._gremlin_init as gremlin
 import awswrangler.pandas as pd
@@ -270,15 +272,21 @@ def to_rdf_graph(
 BULK_LOAD_IN_PROGRESS_STATES = {"LOAD_IN_QUEUE", "LOAD_NOT_STARTED", "LOAD_IN_PROGRESS"}
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
 @_utils.check_optional_dependency(sparql, "SPARQLWrapper")
 def bulk_load(
     client: NeptuneClient,
+    df: pd.DataFrame,
     path: str,
     iam_role: str,
-    df: Optional[pd.DataFrame] = None,
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
-    s3_write_mode: Literal["overwrite", "append"] = "append",
+    keep_files: bool = False,
+    use_threads: Union[bool, int] = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> None:
     """
     Write records into Amazon Neptune using the Neptune Bulk Loader.
@@ -286,8 +294,76 @@ def bulk_load(
     The DataFrame will be written to S3 and then loaded to Neptune using the
     `Bulk Loader <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load.html>`_.
 
-    If no DataFrame is provided, then the contents of the S3 path will be loaded onto
-    Neptune.
+    Parameters
+    ----------
+    client: NeptuneClient
+        Instance of the neptune client to use
+    df: DataFrame, optional
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_ to write to Neptune.
+    path: str
+        S3 Path that the Neptune Bulk Loader will load data from.
+    iam_role: str
+        The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
+            For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
+            see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
+    neptune_load_wait_polling_delay: float
+        Interval in seconds for how often the function will check if the Neptune bulk load has completed.
+    load_parallelism: str
+        Specifies the number of threads used by Neptune's bulk load process.
+    keep_files: bool
+        Whether to keep stage files or delete them. False by default.
+    use_threads: bool | int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
+    boto3_session: boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs: Dict[str, str], optional
+        Forwarded to botocore requests.
+        e.g. ``s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}``
+    """
+    path = path[:-1] if path.endswith("*") else path
+    path = path if path.endswith("/") else f"{path}/"
+    if s3.list_objects(path=path, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs):
+        raise exceptions.InvalidArgument(
+            f"The received S3 path ({path}) is not empty. "
+            "Please, provide a different path or use wr.s3.delete_objects() to clean up the current one."
+        )
+
+    try:
+        s3.to_csv(df, path, use_threads=use_threads, dataset=True, index=False)
+
+        bulk_load_from_files(
+            client=client,
+            path=path,
+            iam_role=iam_role,
+            neptune_load_wait_polling_delay=neptune_load_wait_polling_delay,
+            load_parallelism=load_parallelism,
+        )
+    finally:
+        if keep_files is False:
+            _logger.debug("Deleting objects in S3 path: %s", path)
+            s3.delete_objects(
+                path=path,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
+
+
+@_utils.check_optional_dependency(sparql, "SPARQLWrapper")
+def bulk_load_from_files(
+    client: NeptuneClient,
+    path: str,
+    iam_role: str,
+    neptune_load_wait_polling_delay: float = 0.25,
+    load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
+) -> None:
+    """
+    Load CSV files from S3 into Amazon Neptune using the Neptune Bulk Loader.
+
+    For more information about the Bulk Loader see
+    `here <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load.html>`_.
 
     Parameters
     ----------
@@ -295,27 +371,15 @@ def bulk_load(
         Instance of the neptune client to use
     path: str
         S3 Path that the Neptune Bulk Loader will load data from.
-        If a Pandas DataFrame is provided, it will be written to this location.
     iam_role: str
         The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
             For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
             see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
-    df: DataFrame, optional
-        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_ to write to Neptune.
-        If none is provided, the data which already exists in the S3 path will be loaded.
     neptune_load_wait_polling_delay: float
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
     load_parallelism: str
         Specifies the number of threads used by Neptune's bulk load process.
-    s3_write_mode: str
-        Specifies whether the Pandas DataFrame will ovewrite the contents of the S3 path, or merely append to it.
-        The entire content of the S3 path will be loaded into Neptune regardless.
-        Only applicable when ``df`` is provided.
-
     """
-    if df is not None:
-        s3.to_csv(df, path, dataset=True, mode=s3_write_mode, index=False)
-
     load_id = client.load(
         path,
         iam_role,
