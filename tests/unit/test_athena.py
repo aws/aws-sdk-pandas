@@ -1404,6 +1404,8 @@ def test_athena_date_recovery(path, glue_database, glue_table):
 
 def test_athena_insert_iceberg(path, path2, glue_database, glue_table):
     df = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
+    df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
+    df["name"] = df["name"].astype("string")
 
     wr.athena.insert_iceberg(
         df=df,
@@ -1414,7 +1416,7 @@ def test_athena_insert_iceberg(path, path2, glue_database, glue_table):
     )
 
     df_out = wr.athena.read_sql_query(
-        sql=f'SELECT * FROM "{glue_table}"',
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
         database=glue_database,
         ctas_approach=False,
         unload_approach=False,
