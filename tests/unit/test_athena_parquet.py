@@ -616,7 +616,7 @@ def test_date_cast(path, glue_table, glue_database):
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, dtype={"c0": "date"})
     df2 = wr.s3.read_parquet(path=path)
     assert pandas_equals(df_expected, df2)
-    df3 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
+    df3 = wr.athena.read_sql_table(database=glue_database, table=glue_table, ctas_approach=False)
     assert pandas_equals(df_expected, df3)
 
 
