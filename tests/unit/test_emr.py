@@ -129,6 +129,8 @@ def test_cluster_single_node(bucket, cloudformation_outputs, emr_security_config
         steps.append(wr.emr.build_step(name=cmd, command=cmd))
     wr.emr.submit_steps(cluster_id=cluster_id, steps=steps)
     wr.emr.terminate_cluster(cluster_id=cluster_id)
+    while "TERMINATED" not in wr.emr.get_cluster_state(cluster_id=cluster_id):
+        time.sleep(10)
     wr.s3.delete_objects(f"s3://{bucket}/emr-logs/")
 
 
@@ -169,3 +171,5 @@ def test_docker(bucket, cloudformation_outputs, emr_security_configuration):
     )
     wr.emr.submit_spark_step(cluster_id=cluster_id, path=f"s3://{bucket}/emr/test_docker.py")
     wr.emr.terminate_cluster(cluster_id=cluster_id)
+    while "TERMINATED" not in wr.emr.get_cluster_state(cluster_id=cluster_id):
+        time.sleep(10)
