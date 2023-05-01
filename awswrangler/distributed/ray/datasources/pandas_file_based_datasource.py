@@ -5,7 +5,6 @@ from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import pandas as pd
 import pyarrow
-from progressbar import ProgressBar
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor
 from ray.data.datasource.datasource import WriteResult
@@ -48,10 +47,6 @@ class TaskContext:
     # The index of task. Each task has a unique task index within the same
     # operator.
     task_idx: int
-
-    # The dictionary of sub progress bar to update. The key is name of sub progress
-    # bar. Note this is only used on driver side.
-    sub_progress_bar_dict: Optional[Dict[str, ProgressBar]] = None
 
 
 class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
