@@ -26,7 +26,7 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
     Used when writing single-block datasets into a user-provided S3 key.
     """
 
-    def _get_write_path_for_block(
+    def _get_write_path_for_block(  # type: ignore[override]
         self,
         base_path: str,
         *,
@@ -52,7 +52,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
-    def do_write(  # type: ignore[override]  # pylint: disable=arguments-differ
+    def do_write(  # pylint: disable=arguments-differ
         self,
         blocks: List[ObjectRef[pd.DataFrame]],
         metadata: List[BlockMetadata],
