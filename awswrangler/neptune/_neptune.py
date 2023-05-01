@@ -27,14 +27,14 @@ def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
 
     Parameters
     ----------
-    client : neptune.Client
+    client: neptune.Client
         instance of the neptune client to use
-    query : str
+    query: str
         The gremlin traversal to execute
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
+    pandas.DataFrame
         Results as Pandas DataFrame
 
     Examples
@@ -56,14 +56,14 @@ def execute_opencypher(client: NeptuneClient, query: str) -> pd.DataFrame:
 
     Parameters
     ----------
-    client : NeptuneClient
+    client: NeptuneClient
         instance of the neptune client to use
-    query : str
+    query: str
         The openCypher query to execute
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
+    pandas.DataFrame
         Results as Pandas DataFrame
 
     Examples
@@ -85,14 +85,14 @@ def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
 
     Parameters
     ----------
-    client : NeptuneClient
+    client: NeptuneClient
         instance of the neptune client to use
-    query : str
+    query: str
         The SPARQL traversal to execute
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
+    pandas.DataFrame
         Results as Pandas DataFrame
 
     Examples
@@ -138,9 +138,9 @@ def to_property_graph(
 
     Parameters
     ----------
-    client : NeptuneClient
+    client: NeptuneClient
         instance of the neptune client to use
-    df : pandas.DataFrame
+    df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     batch_size: int
         The number of rows to save at a time. Default 50
@@ -431,11 +431,11 @@ def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> N
 
     Parameters
     ----------
-    host : str
+    host: str
         The host endpoint to connect to
-    port : int
+    port: int
         The port endpoint to connect to
-    iam_enabled : bool, optional
+    iam_enabled: bool, optional
         True if IAM is enabled on the cluster. Defaults to False.
 
     Returns
@@ -553,15 +553,15 @@ def flatten_nested_df(
 
     Parameters
     ----------
-    df : pd.DataFrame
+    df: pd.DataFrame
         The input data frame
-    include_prefix : bool, optional
+    include_prefix: bool, optional
         If True, then it will prefix the new column name with the original column name.
         Defaults to True.
-    separator : str, optional
+    separator: str, optional
         The separator to use between field names when a dictionary is exploded.
         Defaults to "_".
-    recursive : bool, optional
+    recursive: bool, optional
         If True, then this will recurse the fields in the data frame. Defaults to True.
 
     Returns
