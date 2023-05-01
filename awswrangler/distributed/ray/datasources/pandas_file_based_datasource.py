@@ -1,9 +1,12 @@
 """Ray PandasFileBasedDatasource Module."""
+from dataclasses import dataclass
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import pandas as pd
 import pyarrow
+from progressbar import ProgressBar
+from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor, BlockMetadata
 from ray.data.datasource.datasource import WriteResult
 from ray.data.datasource.file_based_datasource import (
@@ -32,11 +35,24 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
         *,
         filesystem: Optional["pyarrow.fs.FileSystem"] = None,
         dataset_uuid: Optional[str] = None,
-        block: Optional[ObjectRef[Block[Any]]] = None,
+        block: Optional[Block] = None,
         block_index: Optional[int] = None,
         file_format: Optional[str] = None,
     ) -> str:
         return base_path
+    
+
+@dataclass
+class TaskContext:
+    """Describes the information of a task running block transform."""
+
+    # The index of task. Each task has a unique task index within the same
+    # operator.
+    task_idx: int
+
+    # The dictionary of sub progress bar to update. The key is name of sub progress
+    # bar. Note this is only used on driver side.
+    sub_progress_bar_dict: Optional[Dict[str, ProgressBar]] = None
 
 
 class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
@@ -51,11 +67,11 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
 
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
-
-    def do_write(  # pylint: disable=arguments-differ
+    
+    def write(
         self,
-        blocks: List[ObjectRef[pd.DataFrame]],
-        metadata: List[BlockMetadata],
+        blocks: Iterable[Block],
+        ctx: TaskContext,
         path: str,
         dataset_uuid: str,
         filesystem: Optional[pyarrow.fs.FileSystem] = None,
@@ -70,8 +86,8 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
         compression: Optional[str] = None,
         mode: str = "wb",
         **write_args: Any,
-    ) -> List[ObjectRef[WriteResult]]:
-        """Create and return write tasks for a file-based datasource."""
+    ) -> WriteResult:
+        """Write blocks for a file-based datasource."""
         _write_block_to_file = self._write_block
 
         if ray_remote_args is None:
@@ -103,25 +119,24 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
                     **write_args,
                 )
                 return write_path
-
-        write_block_fn = ray_remote(**ray_remote_args)(write_block)
-
+            
         file_suffix = self._get_file_suffix(self._FILE_EXTENSION, compression)
-        write_tasks = []
 
-        for block_idx, block in enumerate(blocks):
-            write_path = block_path_provider(
-                path,
-                filesystem=filesystem,
-                dataset_uuid=dataset_uuid,
-                block=block,
-                block_index=block_idx,
-                file_format=file_suffix,
-            )
-            write_task = write_block_fn(write_path, block)
-            write_tasks.append(write_task)
+        builder = DelegatingBlockBuilder()
+        for block in blocks:
+            builder.add_block(block)
+        block = builder.build()
 
-        return write_tasks
+        write_path = block_path_provider(
+            path,
+            filesystem=filesystem,
+            dataset_uuid=dataset_uuid,
+            block=block,
+            block_index=ctx.task_idx,
+            file_format=file_suffix,
+        )
+
+        return write_block(write_path, block)
 
     def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
         return f"{file_format}{_COMPRESSION_2_EXT.get(compression)}"
