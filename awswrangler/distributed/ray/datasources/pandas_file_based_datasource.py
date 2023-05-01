@@ -1,13 +1,13 @@
 """Ray PandasFileBasedDatasource Module."""
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import pandas as pd
 import pyarrow
 from progressbar import ProgressBar
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
-from ray.data.block import Block, BlockAccessor, BlockMetadata
+from ray.data.block import Block, BlockAccessor
 from ray.data.datasource.datasource import WriteResult
 from ray.data.datasource.file_based_datasource import (
     BlockWritePathProvider,
@@ -16,7 +16,6 @@ from ray.data.datasource.file_based_datasource import (
 )
 from ray.types import ObjectRef
 
-from awswrangler.distributed.ray import ray_remote
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 
@@ -29,18 +28,18 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
     Used when writing single-block datasets into a user-provided S3 key.
     """
 
-    def _get_write_path_for_block(  # type: ignore[override]
+    def _get_write_path_for_block(
         self,
         base_path: str,
         *,
         filesystem: Optional["pyarrow.fs.FileSystem"] = None,
         dataset_uuid: Optional[str] = None,
-        block: Optional[Block] = None,
+        block: Optional[Block[Any]] = None,
         block_index: Optional[int] = None,
         file_format: Optional[str] = None,
     ) -> str:
         return base_path
-    
+
 
 @dataclass
 class TaskContext:
@@ -67,10 +66,10 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
 
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
-    
-    def write(
+
+    def write(  # type: ignore[override]
         self,
-        blocks: Iterable[Block],
+        blocks: Iterable[Block[Any]],
         ctx: TaskContext,
         path: str,
         dataset_uuid: str,
@@ -119,10 +118,10 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
                     **write_args,
                 )
                 return write_path
-            
+
         file_suffix = self._get_file_suffix(self._FILE_EXTENSION, compression)
 
-        builder = DelegatingBlockBuilder()
+        builder = DelegatingBlockBuilder()  # type: ignore[no-untyped-call,var-annotated]
         for block in blocks:
             builder.add_block(block)
         block = builder.build()
