@@ -11,6 +11,7 @@ import boto3
 import awswrangler.neptune._gremlin_init as gremlin
 import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions, s3
+from awswrangler._config import apply_configs
 from awswrangler.neptune._client import NeptuneClient
 
 gremlin_python = _utils.import_optional_dependency("gremlin_python")
@@ -275,6 +276,7 @@ BULK_LOAD_IN_PROGRESS_STATES = {"LOAD_IN_QUEUE", "LOAD_NOT_STARTED", "LOAD_IN_PR
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
+@apply_configs
 @_utils.check_optional_dependency(sparql, "SPARQLWrapper")
 def bulk_load(
     client: NeptuneClient,
@@ -364,6 +366,7 @@ def bulk_load(
             )
 
 
+@apply_configs
 @_utils.check_optional_dependency(sparql, "SPARQLWrapper")
 def bulk_load_from_files(
     client: NeptuneClient,
