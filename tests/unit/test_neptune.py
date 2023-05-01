@@ -315,8 +315,9 @@ def test_gremlin_write_updates(neptune_endpoint, neptune_port) -> Dict[str, Any]
 def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     wr.neptune.execute_gremlin(client, "g.addV('foo')")
+
     initial_cnt_df = wr.neptune.execute_gremlin(client, "g.V().hasLabel('foo').count()")
-    data = [_create_dummy_vertex(), _create_dummy_vertex(), _create_dummy_vertex()]
+    data = [_create_dummy_vertex() for _ in range(3)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
@@ -333,10 +334,7 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     assert final_cnt_df.iloc[0][0] == initial_cnt_df.iloc[0][0] + 3
 
     # check to make sure batch addition of vertices works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_vertex())
-
+    data = [_create_dummy_vertex() for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
@@ -380,7 +378,7 @@ def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
     initial_cnt_df = wr.neptune.execute_gremlin(client, "g.E().hasLabel('bar').count()")
 
-    data = [_create_dummy_edge(), _create_dummy_edge(), _create_dummy_edge()]
+    data = [_create_dummy_edge() for _ in range(3)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
@@ -399,10 +397,7 @@ def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert final_cnt_df.iloc[0][0] == initial_cnt_df.iloc[0][0] + 3
 
     # check to make sure batch addition of edges works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_edge())
-
+    data = [_create_dummy_edge() for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
@@ -428,52 +423,52 @@ def test_sparql_write_different_cols(neptune_endpoint, neptune_port) -> Dict[str
 
 
 def test_sparql_write_triples(neptune_endpoint, neptune_port) -> Dict[str, Any]:
-    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
-    initial_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    label = f"foo_{uuid.uuid4()}"
+    sparkql_query = f"SELECT ?p ?o WHERE {{ <{label}> ?p ?o .}}"
 
-    data = [_create_dummy_triple(), _create_dummy_triple(), _create_dummy_triple()]
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    initial_df = wr.neptune.execute_sparql(client, sparkql_query)
+
+    data = [_create_dummy_triple(s=label) for _ in range(3)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_rdf_graph(client, df)
     assert res
 
-    final_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    final_df = wr.neptune.execute_sparql(client, sparkql_query)
     assert len(final_df.index) == len(initial_df.index) + 3
 
     # check to make sure batch addition of edges works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_triple())
-
+    data = [_create_dummy_triple(s=label) for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_rdf_graph(client, df)
     assert res
 
-    batch_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    batch_df = wr.neptune.execute_sparql(client, sparkql_query)
     assert len(batch_df.index) == len(final_df.index) + 50
 
 
 def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
-    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
-    initial_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o FROM <bar> WHERE { <foo> ?p ?o .}")
+    label = f"foo_{uuid.uuid4()}"
+    sparkql_query = f"SELECT ?p ?o FROM <bar> WHERE {{ <{label}> ?p ?o .}}"
 
-    data = [_create_dummy_quad(), _create_dummy_quad(), _create_dummy_quad()]
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    initial_df = wr.neptune.execute_sparql(client, sparkql_query)
+
+    data = [_create_dummy_quad(s=label) for _ in range(3)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_rdf_graph(client, df)
     assert res
 
-    final_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o  FROM <bar> WHERE { <foo> ?p ?o .}")
+    final_df = wr.neptune.execute_sparql(client, sparkql_query)
     assert len(final_df.index) == len(initial_df.index) + 3
 
     # check to make sure batch addition of edges works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_quad())
-
+    data = [_create_dummy_quad(s=label) for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_rdf_graph(client, df)
     assert res
 
-    batch_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o FROM <bar> WHERE { <foo> ?p ?o .}")
+    batch_df = wr.neptune.execute_sparql(client, sparkql_query)
     assert len(batch_df.index) == len(final_df.index) + 50
 
 
@@ -498,15 +493,16 @@ def _create_dummy_edge() -> Dict[str, Any]:
     }
 
 
-def _create_dummy_triple() -> Dict[str, Any]:
+def _create_dummy_triple(s: str = "foo") -> Dict[str, Any]:
     return {
-        "s": "foo",
+        "s": s,
         "p": str(uuid.uuid4()),
         "o": random.randint(0, 1000),
     }
 
 
-def _create_dummy_quad() -> Dict[str, Any]:
-    data = _create_dummy_triple()
-    data["g"] = "bar"
-    return data
+def _create_dummy_quad(s: str = "foo") -> Dict[str, Any]:
+    return {
+        **_create_dummy_triple(s=s),
+        "g": "bar",
+    }
