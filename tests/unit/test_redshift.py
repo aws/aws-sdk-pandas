@@ -593,20 +593,20 @@ def test_spectrum_decimal_cast(
     # Athena
     df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert df2.shape == (2, 5)
-    df2 = df2.drop(df2[df2.c0 == 2].index)
-    assert df2.c1[0] == Decimal((0, (1, 0, 0, 0, 0, 0), -5))
-    assert df2.c2[0] == Decimal((0, (2, 2, 2, 2, 2, 2), -5))
-    assert df2.c3[0] == Decimal((0, (3, 3, 3, 3, 3, 3), -5))
+    df2 = df2[df2.c0 != 2]
+    assert df2.c1[0] == Decimal("1.00000")
+    assert df2.c2[0] == Decimal("2.22222")
+    assert df2.c3[0] == Decimal("3.33333")
     assert df2.c4[0] is None
 
     # Redshift Spectrum
     with wr.redshift.connect(connection="aws-sdk-pandas-redshift") as con:
         df2 = wr.redshift.read_sql_table(table=glue_table, schema=redshift_external_schema, con=con)
     assert df2.shape == (2, 5)
-    df2 = df2.drop(df2[df2.c0 == 2].index)
-    assert df2.c1[0] == Decimal((0, (1, 0, 0, 0, 0, 0), -5))
-    assert df2.c2[0] == Decimal((0, (2, 2, 2, 2, 2, 2), -5))
-    assert df2.c3[0] == Decimal((0, (3, 3, 3, 3, 3, 3), -5))
+    df2 = df2[df2.c0 != 2]
+    assert df2.c1[0] == Decimal("1.00000")
+    assert df2.c2[0] == Decimal("2.22222")
+    assert df2.c3[0] == Decimal("3.33333")
     assert df2.c4[0] is None
 
     # Redshift Spectrum Unload
@@ -618,10 +618,10 @@ def test_spectrum_decimal_cast(
             path=path2,
         )
     assert df2.shape == (2, 5)
-    df2 = df2.drop(df2[df2.c0 == 2].index)
-    assert df2.c1[0] == Decimal((0, (1, 0, 0, 0, 0, 0), -5))
-    assert df2.c2[0] == Decimal((0, (2, 2, 2, 2, 2, 2), -5))
-    assert df2.c3[0] == Decimal((0, (3, 3, 3, 3, 3, 3), -5))
+    df2 = df2[df2.c0 != 2]
+    assert df2.c1[0] == Decimal("1.00000")
+    assert df2.c2[0] == Decimal("2.22222")
+    assert df2.c3[0] == Decimal("3.33333")
     assert df2.c4[0] is None
 
 
