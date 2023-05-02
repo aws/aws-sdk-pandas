@@ -4,7 +4,7 @@ import itertools
 import logging
 import math
 from datetime import date, datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import boto3
 import numpy as np
@@ -620,6 +620,24 @@ def test_empty_file(path, use_threads):
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
     assert pandas_equals(df, df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False, 2])
+def test_ignore_files(path: str, use_threads: Union[bool, int]) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
+
+    wr.s3.to_parquet(df, f"{path}data.parquet", index=False)
+    wr.s3.to_parquet(df, f"{path}data.parquet2", index=False)
+    wr.s3.to_parquet(df, f"{path}data.parquet3", index=False)
+
+    df2 = wr.s3.read_parquet(
+        path,
+        use_threads=use_threads,
+        path_ignore_suffix=[".parquet2", ".parquet3"],
+        dataset=True,
+    )
+
+    assert df.shape == df2.shape
 
 
 @pytest.mark.xfail(

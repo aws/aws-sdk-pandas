@@ -6,6 +6,7 @@ dependencies:
   - ipykernel
   - pip
   - pip:
+    - myst_parser
     - nbsphinx
     - nbsphinx-link
     - sphinx
