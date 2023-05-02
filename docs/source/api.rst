@@ -322,11 +322,16 @@ Amazon Timestream
 .. autosummary::
     :toctree: stubs
 
+    batch_load
+    batch_load_from_files
     create_database
     create_table
     delete_database
     delete_table
+    list_databases
+    list_tables
     query
+    wait_batch_load_task
     write
 
 Amazon EMR
