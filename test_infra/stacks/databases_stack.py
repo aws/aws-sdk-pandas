@@ -702,6 +702,15 @@ class DatabasesStack(Stack):  # type: ignore
         CfnOutput(self, "OracleSchema", value=schema)
 
     def _setup_neptune(self, iam_enabled: bool = False, port: int = 8182) -> None:
+        bulk_load_role = iam.Role(
+            self,
+            "aws-sdk-pandas-neptune-bulk-load-role",
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3ReadOnlyAccess"),
+            ],
+            assumed_by=iam.ServicePrincipal("rds.amazonaws.com"),
+        )
+
         cluster = neptune.DatabaseCluster(
             self,
             "aws-sdk-pandas-neptune-cluster",
@@ -711,9 +720,11 @@ class DatabasesStack(Stack):  # type: ignore
             vpc=self.vpc,
             subnet_group=self.rds_subnet_group,
             security_groups=[self.db_security_group],
+            associated_roles=[bulk_load_role],
         )
 
         CfnOutput(self, "NeptuneClusterEndpoint", value=cluster.cluster_endpoint.hostname)
         CfnOutput(self, "NeptuneReaderEndpoint", value=cluster.cluster_read_endpoint.hostname)
         CfnOutput(self, "NeptunePort", value=str(port))
         CfnOutput(self, "NeptuneIAMEnabled", value=str(iam_enabled))
+        CfnOutput(self, "NeptuneBulkLoadRole", value=bulk_load_role.role_arn)
