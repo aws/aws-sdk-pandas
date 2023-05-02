@@ -133,6 +133,7 @@ Amazon Athena
     repair_table
     start_query_execution
     stop_query_execution
+    to_iceberg
     unload
     wait_query
 

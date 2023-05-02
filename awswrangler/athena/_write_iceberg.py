@@ -32,6 +32,9 @@ def _create_iceberg_table(
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
+    if not path:
+        raise exceptions.InvalidArgumentValue("Must specify table location to create the table.")
+
     columns_types, _ = catalog.extract_athena_types(df=df, index=index)
     cols_str: str = ", ".join([f"{k} {v}" for k, v in columns_types.items()])
 
@@ -113,6 +116,32 @@ def to_iceberg(
     Returns
     -------
     None
+
+    Examples
+    --------
+    Insert into an existing Iceberg table
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.athena.to_iceberg(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     database='my_database',
+    ...     table='my_table',
+    ...     temp_path='s3://bucket/temp/',
+    ... )
+
+    Create Iceberg table and insert data (table doesn't exist, requires table_location)
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.athena.to_iceberg(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     database='my_database',
+    ...     table='my_table2',
+    ...     table_location='s3://bucket/my_table2/',
+    ...     temp_path='s3://bucket/temp/',
+    ... )
+
     """
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
