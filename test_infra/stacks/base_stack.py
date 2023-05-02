@@ -21,6 +21,11 @@ class BaseStack(Stack):  # type: ignore
             cidr="11.19.224.0/19",
             enable_dns_hostnames=True,
             enable_dns_support=True,
+            gateway_endpoints={
+                "S3": {
+                    "service": ec2.GatewayVpcEndpointAwsService.S3,
+                },
+            },
         )
         Tags.of(self.vpc).add("Name", "aws-sdk-pandas")
 
