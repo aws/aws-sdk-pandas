@@ -46,13 +46,13 @@ Amazon S3
     list_objects
     merge_datasets
     read_csv
-    read_deltalake
     read_excel
     read_fwf
     read_json
     read_parquet
     read_parquet_metadata
     read_parquet_table
+    read_deltalake
     select_query
     size_objects
     store_parquet_metadata
@@ -60,6 +60,7 @@ Amazon S3
     to_excel
     to_json
     to_parquet
+    to_deltalake
     upload
     wait_objects_exist
     wait_objects_not_exist
@@ -132,6 +133,7 @@ Amazon Athena
     repair_table
     start_query_execution
     stop_query_execution
+    to_iceberg
     unload
     wait_query
 
@@ -294,6 +296,8 @@ Amazon Neptune
     flatten_nested_df
     to_property_graph
     to_rdf_graph
+    bulk_load
+    bulk_load_from_files
 
 DynamoDB
 --------
@@ -321,11 +325,16 @@ Amazon Timestream
 .. autosummary::
     :toctree: stubs
 
+    batch_load
+    batch_load_from_files
     create_database
     create_table
     delete_database
     delete_table
+    list_databases
+    list_tables
     query
+    wait_batch_load_task
     write
 
 Amazon EMR

@@ -167,7 +167,7 @@ def _validate_schemas_from_files(
 def _read_parquet_metadata(
     path: Union[str, List[str]],
     path_suffix: Optional[str],
-    path_ignore_suffix: Optional[str],
+    path_ignore_suffix: Union[str, List[str], None],
     ignore_empty: bool,
     ignore_null: bool,
     dtype: Optional[Dict[str, str]],
@@ -778,7 +778,7 @@ def read_parquet_metadata(
     dataset: bool = False,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     path_suffix: Optional[str] = None,
-    path_ignore_suffix: Optional[str] = None,
+    path_ignore_suffix: Union[str, List[str], None] = None,
     ignore_empty: bool = True,
     ignore_null: bool = False,
     dtype: Optional[Dict[str, str]] = None,

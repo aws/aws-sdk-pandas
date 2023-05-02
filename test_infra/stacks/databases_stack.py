@@ -400,7 +400,7 @@ class DatabasesStack(Stack):  # type: ignore
             subnet=self.glue_connection_subnet,
             security_groups=[self.db_security_group],
         )
-        secrets.Secret(
+        secret = secrets.Secret(
             self,
             "aws-sdk-pandas-postgresql-secret",
             secret_name="aws-sdk-pandas/postgresql",
@@ -419,6 +419,19 @@ class DatabasesStack(Stack):  # type: ignore
                     }
                 ),
             ),
+        )
+        glue.Connection(
+            self,
+            "aws-sdk-pandas-postgresql-glue-connection-ssm",
+            description="Connect to Aurora (PostgreSQL).",
+            type=glue.ConnectionType.JDBC,
+            connection_name="aws-sdk-pandas-postgresql-ssm",
+            properties={
+                "JDBC_CONNECTION_URL": f"jdbc:postgresql://{aurora_pg.cluster_endpoint.hostname}:{port}/{database}",
+                "SECRET_ID": secret.secret_name,
+            },
+            subnet=self.glue_connection_subnet,
+            security_groups=[self.db_security_group],
         )
         CfnOutput(self, "PostgresqlAddress", value=aurora_pg.cluster_endpoint.hostname)
         CfnOutput(self, "PostgresqlPort", value=str(port))
@@ -689,6 +702,15 @@ class DatabasesStack(Stack):  # type: ignore
         CfnOutput(self, "OracleSchema", value=schema)
 
     def _setup_neptune(self, iam_enabled: bool = False, port: int = 8182) -> None:
+        bulk_load_role = iam.Role(
+            self,
+            "aws-sdk-pandas-neptune-bulk-load-role",
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3ReadOnlyAccess"),
+            ],
+            assumed_by=iam.ServicePrincipal("rds.amazonaws.com"),
+        )
+
         cluster = neptune.DatabaseCluster(
             self,
             "aws-sdk-pandas-neptune-cluster",
@@ -698,9 +720,11 @@ class DatabasesStack(Stack):  # type: ignore
             vpc=self.vpc,
             subnet_group=self.rds_subnet_group,
             security_groups=[self.db_security_group],
+            associated_roles=[bulk_load_role],
         )
 
         CfnOutput(self, "NeptuneClusterEndpoint", value=cluster.cluster_endpoint.hostname)
         CfnOutput(self, "NeptuneReaderEndpoint", value=cluster.cluster_read_endpoint.hostname)
         CfnOutput(self, "NeptunePort", value=str(port))
         CfnOutput(self, "NeptuneIAMEnabled", value=str(iam_enabled))
+        CfnOutput(self, "NeptuneBulkLoadRole", value=bulk_load_role.role_arn)

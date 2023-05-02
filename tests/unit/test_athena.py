@@ -491,7 +491,7 @@ def test_athena_time_zone(glue_database):
     df = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=False)
     assert len(df.index) == 1
     assert len(df.columns) == 2
-    assert df["type"][0] == "timestamp with time zone"
+    assert df["type"][0] == "timestamp(3) with time zone"
     assert df["value"][0].year == datetime.datetime.utcnow().year
 
 
@@ -1311,17 +1311,18 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
     assert query == create_query_partition
 
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-    query: str = "\n".join(
+    create_view: str = "\n".join(
         [
             f"""CREATE OR REPLACE VIEW "{glue_table}" AS """,
             (
                 "SELECT CAST(ROW (1, ROW (2, ROW (3, '4'))) AS "
-                "row(field0 bigint,field1 row(field2 bigint,field3 row(field4 bigint,field5 varchar)))) col0\n\n"
+                "ROW(field0 bigint, field1 ROW(field2 bigint, field3 ROW(field4 bigint, field5 varchar)))) col0\n\n"
             ),
         ]
     )
-    wr.athena.start_query_execution(sql=query, database=glue_database, wait=True)
-    assert query == wr.athena.generate_create_query(database=glue_database, table=glue_table)
+    wr.athena.start_query_execution(sql=create_view, database=glue_database, wait=True)
+    query: str = wr.athena.generate_create_query(database=glue_database, table=glue_table)
+    assert query == create_view
 
 
 def test_get_query_execution(workgroup0, workgroup1):
@@ -1400,3 +1401,26 @@ def test_athena_date_recovery(path, glue_database, glue_table):
         ctas_approach=False,
     )
     assert pandas_equals(df, df2)
+
+
+def test_athena_to_iceberg(path, path2, glue_database, glue_table):
+    df = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
+    df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
+    df["name"] = df["name"].astype("string")
+
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+    )
+
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert df.equals(df_out)
