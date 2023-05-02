@@ -1,8 +1,38 @@
 import modin.pandas as pd
 import pytest
 import ray
+from pyarrow import csv
 
 import awswrangler as wr
+
+
+@pytest.fixture(scope="function")
+def df_timestream() -> pd.DataFrame:
+    # Data frame with 126_000 rows
+    return (
+        ray.data.read_csv(
+            "https://raw.githubusercontent.com/awslabs/amazon-timestream-tools/mainline/sample_apps/data/sample.csv",
+            **{
+                "read_options": csv.ReadOptions(
+                    column_names=[
+                        "ignore0",
+                        "region",
+                        "ignore1",
+                        "az",
+                        "ignore2",
+                        "hostname",
+                        "measure_kind",
+                        "measure",
+                        "ignore3",
+                        "ignore4",
+                        "ignore5",
+                    ]
+                )
+            },
+        )
+        .to_modin()
+        .loc[:, ["region", "az", "hostname", "measure_kind", "measure"]]
+    )
 
 
 @pytest.fixture(scope="function")

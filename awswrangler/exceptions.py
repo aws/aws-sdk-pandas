@@ -137,5 +137,9 @@ class NotSupported(Exception):
     """NotSupported."""
 
 
+class TimestreamLoadError(Exception):
+    """TimestreamLoadError exception."""
+
+
 class NeptuneLoadError(Exception):
     """NeptuneLoadError."""
