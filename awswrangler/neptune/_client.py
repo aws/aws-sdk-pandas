@@ -2,7 +2,7 @@
 """Amazon NeptuneClient Module."""
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import boto3
 from botocore.auth import SigV4Auth
@@ -279,3 +279,73 @@ class NeptuneClient:
         req = self._prepare_request("GET", url, data="")
         res = self._http_session.send(req)
         return res.json()
+
+    def load(self, s3_path: str, role_arn: str, parallelism: str = "HIGH", format: str = "csv") -> str:
+        """
+        Start the Neptune Loader command for loading CSV data from external files on S3 into a Neptune DB cluster.
+
+        Parameters
+        ----------
+        s3_path: str
+            Amazon S3 URI that identifies a single file, multiple files, a folder, or multiple folders.
+            Neptune loads every data file in any folder that is specified.
+        role_arn: str
+            The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
+            For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
+            see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
+        parallelism: str
+            Specifies the number of threads used by the bulk load process.
+        format: str
+            The format of the data. For more information about data formats for the Neptune Loader command,
+            see `Using the Amazon Neptune Bulk Loader to Ingest Data <https://docs.aws.amazon.com/neptune/latest/userguide/load-api-reference-load.html#:~:text=The%20format%20of%20the%20data.%20For%20more%20information%20about%20data%20formats%20for%20the%20Neptune%20Loader%20command%2C%20see%20Using%20the%20Amazon%20Neptune%20Bulk%20Loader%20to%20Ingest%20Data.>`_.
+
+        Returns
+        -------
+        str
+            ID of the load job
+        """
+        data = {
+            "source": s3_path,
+            "format": format,
+            "iamRoleArn": role_arn,
+            "mode": "AUTO",
+            "region": self.region,
+            "failOnError": "TRUE",
+            "parallelism": parallelism,
+        }
+
+        url = f"https://{self.host}:{self.port}/loader"
+
+        req = self._prepare_request("POST", url, data=data)
+        res = self._http_session.send(req)
+
+        _logger.debug(res)
+        if res.ok:
+            return cast(str, res.json()["payload"]["loadId"])
+
+        raise exceptions.NeptuneLoadError(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
+
+    def load_status(self, load_id: str) -> Any:
+        """
+        Return the status of the load job to the Neptune cluster.
+
+        Parameters
+        ----------
+        load_id: str
+            ID of the load job
+
+        Returns
+        -------
+        dict[str, Any]
+            The result of the call to the status API for the load job.
+            See `Neptune Loader Get-Status Responses <https://docs.aws.amazon.com/neptune/latest/userguide/load-api-reference-status-response.html>_`
+        """
+        url = f"https://{self.host}:{self.port}/loader/{load_id}"
+
+        req = self._prepare_request("GET", url, data="")
+        res = self._http_session.send(req)
+
+        if res.ok:
+            return res.json()
+
+        raise exceptions.NeptuneLoadError(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")

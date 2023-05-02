@@ -2,6 +2,7 @@
 
 import itertools
 import logging
+import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Union, cast, overload
 
@@ -9,14 +10,20 @@ import boto3
 from botocore.config import Config
 
 import awswrangler.pandas as pd
-from awswrangler import _data_types, _utils, exceptions
+from awswrangler import _data_types, _utils, exceptions, s3
+from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
+from awswrangler.typing import TimestreamBatchLoadReportS3Configuration
 
 if TYPE_CHECKING:
     from mypy_boto3_timestream_query.type_defs import PaginatorConfigTypeDef, QueryResponseTypeDef, RowTypeDef
     from mypy_boto3_timestream_write.client import TimestreamWriteClient
+
+_BATCH_LOAD_FINAL_STATES: List[str] = ["SUCCEEDED", "FAILED", "PROGRESS_STOPPED", "PENDING_RESUME"]
+_BATCH_LOAD_WAIT_POLLING_DELAY: float = 2  # SECONDS
+_TIME_UNITS = ["MILLISECONDS", "SECONDS", "MICROSECONDS", "NANOSECONDS"]
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -450,6 +457,308 @@ def write(
         )
     )
     return list(itertools.chain(*ray_get(errors)))
+
+
+@apply_configs
+def wait_batch_load_task(
+    task_id: str,
+    timestream_batch_load_wait_polling_delay: float = _BATCH_LOAD_WAIT_POLLING_DELAY,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, Any]:
+    """
+    Wait for the Timestream batch load task to complete.
+
+    Parameters
+    ----------
+    task_id : str
+        The ID of the batch load task.
+    timestream_batch_load_wait_polling_delay : float, optional
+        Time to wait between two polling attempts.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session is used if None.
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with the describe_batch_load_task response.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> res = wr.timestream.wait_batch_load_task(task_id='task-id')
+
+    Raises
+    ------
+    exceptions.TimestreamLoadError
+        Error message raised by failed task.
+    """
+    timestream_client = _utils.client(service_name="timestream-write", session=boto3_session)
+
+    response = timestream_client.describe_batch_load_task(TaskId=task_id)
+    status = response["BatchLoadTaskDescription"]["TaskStatus"]
+    while status not in _BATCH_LOAD_FINAL_STATES:
+        time.sleep(timestream_batch_load_wait_polling_delay)
+        response = timestream_client.describe_batch_load_task(TaskId=task_id)
+        status = response["BatchLoadTaskDescription"]["TaskStatus"]
+    _logger.debug("Task status: %s", status)
+    if status != "SUCCEEDED":
+        _logger.debug("Task response: %s", response)
+        raise exceptions.TimestreamLoadError(response.get("ErrorMessage"))
+    return response  # type: ignore[return-value]
+
+
+@apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
+def batch_load(
+    df: pd.DataFrame,
+    path: str,
+    database: str,
+    table: str,
+    time_col: str,
+    dimensions_cols: List[str],
+    measure_cols: List[str],
+    measure_name_col: str,
+    report_s3_configuration: TimestreamBatchLoadReportS3Configuration,
+    time_unit: Optional[str] = None,
+    record_version: int = 1,
+    timestream_batch_load_wait_polling_delay: float = _BATCH_LOAD_WAIT_POLLING_DELAY,
+    keep_files: bool = False,
+    use_threads: Union[bool, int] = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    """Batch load a Pandas DataFrame into a Amazon Timestream table.
+
+    Note
+    ----
+    The supplied column names (time, dimension, measure) MUST match those in the Timestream table.
+
+    Note
+    ----
+    Only ``MultiMeasureMappings`` is supported.
+    See https://docs.aws.amazon.com/timestream/latest/developerguide/batch-load-data-model-mappings.html
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Pandas DataFrame.
+    path : str
+        S3 prefix to write the data.
+    database : str
+        Amazon Timestream database name.
+    table : str
+        Amazon Timestream table name.
+    time_col : str
+        Column name with the time data. It must be a long data type that represents the time since the Unix epoch.
+    dimensions_cols : List[str]
+        List of column names with the dimensions data.
+    measure_cols : List[str]
+        List of column names with the measure data.
+    measure_name_col : str
+        Column name with the measure name.
+    report_s3_configuration : TimestreamBatchLoadReportS3Configuration
+        Dictionary of the configuration for the S3 bucket where the error report is stored.
+        https://docs.aws.amazon.com/timestream/latest/developerguide/API_ReportS3Configuration.html
+        Example: {"BucketName": 'error-report-bucket-name'}
+    time_unit : str, optional
+        Time unit for the time column. MILLISECONDS by default.
+    record_version : int, optional
+        Record version.
+    timestream_batch_load_wait_polling_delay : float, optional
+        Time to wait between two polling attempts.
+    keep_files : bool, optional
+        Whether to keep the files after the operation.
+    use_threads : Union[bool, int], optional
+        True to enable concurrent requests, False to disable multiple threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session is used if None.
+    s3_additional_kwargs : Optional[Dict[str, str]]
+        Forwarded to S3 botocore requests.
+
+    Returns
+    -------
+    Dict[str, Any]
+        A dictionary of the batch load task response.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+
+    >>> response = wr.timestream.batch_load(
+    >>>     df=df,
+    >>>     path='s3://bucket/path/',
+    >>>     database='sample_db',
+    >>>     table='sample_table',
+    >>>     time_col='time',
+    >>>     dimensions_cols=['region', 'location'],
+    >>>     measure_cols=['memory_utilization', 'cpu_utilization'],
+    >>>     report_s3_configuration={'BucketName': 'error-report-bucket-name'},
+    >>> )
+    """
+    path = path if path.endswith("/") else f"{path}/"
+    if s3.list_objects(path=path, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs):
+        raise exceptions.InvalidArgument(
+            f"The received S3 path ({path}) is not empty. "
+            "Please, provide a different path or use wr.s3.delete_objects() to clean up the current one."
+        )
+    columns = [time_col, *dimensions_cols, *measure_cols, measure_name_col]
+
+    try:
+        s3.to_csv(
+            df=df.loc[:, columns],
+            path=path,
+            index=False,
+            dataset=True,
+            mode="append",
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
+        measure_types: List[str] = _data_types.timestream_type_from_pandas(df.loc[:, measure_cols])
+        return batch_load_from_files(
+            path=path,
+            database=database,
+            table=table,
+            time_col=time_col,
+            dimensions_cols=dimensions_cols,
+            measure_cols=measure_cols,
+            measure_types=measure_types,
+            report_s3_configuration=report_s3_configuration,
+            time_unit=time_unit,
+            measure_name_col=measure_name_col,
+            record_version=record_version,
+            timestream_batch_load_wait_polling_delay=timestream_batch_load_wait_polling_delay,
+            boto3_session=boto3_session,
+        )
+    finally:
+        if not keep_files:
+            _logger.debug("Deleting objects in S3 path: %s", path)
+            s3.delete_objects(
+                path=path,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
+
+
+@apply_configs
+def batch_load_from_files(
+    path: str,
+    database: str,
+    table: str,
+    time_col: str,
+    dimensions_cols: List[str],
+    measure_cols: List[str],
+    measure_types: List[str],
+    measure_name_col: str,
+    report_s3_configuration: TimestreamBatchLoadReportS3Configuration,
+    time_unit: Optional[str] = None,
+    record_version: int = 1,
+    data_source_csv_configuration: Optional[Dict[str, Union[str, bool]]] = None,
+    timestream_batch_load_wait_polling_delay: float = _BATCH_LOAD_WAIT_POLLING_DELAY,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, Any]:
+    """Batch load files from S3 into a Amazon Timestream table.
+
+    Note
+    ----
+    The supplied column names (time, dimension, measure) MUST match those in the Timestream table.
+
+    Note
+    ----
+    Only ``MultiMeasureMappings`` is supported.
+    See https://docs.aws.amazon.com/timestream/latest/developerguide/batch-load-data-model-mappings.html
+
+    Parameters
+    ----------
+    path : str
+        S3 prefix to write the data.
+    database : str
+        Amazon Timestream database name.
+    table : str
+        Amazon Timestream table name.
+    time_col : str
+        Column name with the time data. It must be a long data type that represents the time since the Unix epoch.
+    dimensions_cols : List[str]
+        List of column names with the dimensions data.
+    measure_cols : List[str]
+        List of column names with the measure data.
+    measure_name_col : str
+        Column name with the measure name.
+    report_s3_configuration : TimestreamBatchLoadReportS3Configuration
+        Dictionary of the configuration for the S3 bucket where the error report is stored.
+        https://docs.aws.amazon.com/timestream/latest/developerguide/API_ReportS3Configuration.html
+        Example: {"BucketName": 'error-report-bucket-name'}
+    time_unit : str, optional
+        Time unit for the time column. MILLISECONDS by default.
+    record_version : int, optional
+        Record version.
+    data_source_csv_configuration : Dict[str, Union[str, bool]], optional
+        Dictionary of the data source CSV configuration.
+        https://docs.aws.amazon.com/timestream/latest/developerguide/API_CsvConfiguration.html
+    timestream_batch_load_wait_polling_delay : float, optional
+        Time to wait between two polling attempts.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session is used if None.
+
+    Returns
+    -------
+    Dict[str, Any]
+        A dictionary of the batch load task response.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+
+    >>> response = wr.timestream.batch_load_from_files(
+    >>>     path='s3://bucket/path/',
+    >>>     database='sample_db',
+    >>>     table='sample_table',
+    >>>     time_col='time',
+    >>>     dimensions_cols=['region', 'location'],
+    >>>     measure_cols=['memory_utilization', 'cpu_utilization'],
+    >>>     report_s3_configuration={'BucketName': 'error-report-bucket-name'},
+    >>> )
+    """
+    timestream_client = _utils.client(service_name="timestream-write", session=boto3_session)
+    bucket, prefix = _utils.parse_path(path=path)
+    time_unit = time_unit if time_unit else "MILLISECONDS"
+    if time_unit not in _TIME_UNITS:
+        raise exceptions.InvalidArgument(f"Invalid time unit: {time_unit}. Must be one of {_TIME_UNITS}.")
+
+    kwargs: Dict[str, Any] = {
+        "TargetDatabaseName": database,
+        "TargetTableName": table,
+        "DataModelConfiguration": {
+            "DataModel": {
+                "TimeColumn": time_col,
+                "TimeUnit": time_unit,
+                "DimensionMappings": [{"SourceColumn": c} for c in dimensions_cols],
+                "MeasureNameColumn": measure_name_col,
+                "MultiMeasureMappings": {
+                    "MultiMeasureAttributeMappings": [
+                        {"SourceColumn": c, "MeasureValueType": t} for c, t in zip(measure_cols, measure_types)
+                    ],
+                },
+            }
+        },
+        "DataSourceConfiguration": {
+            "DataSourceS3Configuration": {"BucketName": bucket, "ObjectKeyPrefix": prefix},
+            "DataFormat": "CSV",
+            "CsvConfiguration": data_source_csv_configuration if data_source_csv_configuration else {},
+        },
+        "ReportConfiguration": {"ReportS3Configuration": report_s3_configuration},
+        "RecordVersion": record_version,
+    }
+
+    task_id = timestream_client.create_batch_load_task(**kwargs)["TaskId"]
+    return wait_batch_load_task(
+        task_id=task_id,
+        timestream_batch_load_wait_polling_delay=timestream_batch_load_wait_polling_delay,
+        boto3_session=boto3_session,
+    )
 
 
 @overload
