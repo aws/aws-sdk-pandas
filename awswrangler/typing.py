@@ -165,6 +165,31 @@ class AthenaPartitionProjectionSettings(TypedDict):
     """
 
 
+class TimestreamBatchLoadReportS3Configuration(TypedDict):
+    """
+    Report configuration for a batch load task. This contains details about where error reports are stored.
+
+    https://docs.aws.amazon.com/timestream/latest/developerguide/API_ReportS3Configuration.html
+    """
+
+    BucketName: Required[str]
+    """
+    The name of the bucket where the error reports are stored.
+    """
+    ObjectKeyPrefix: NotRequired[str]
+    """
+    Optional S3 prefix for the error reports.
+    """
+    Encryption: NotRequired[Literal["SSE_S3", "SSE_KMS"]]
+    """
+    Optional encryption type for the error reports. SSE_S3 by default.
+    """
+    KmsKeyId: NotRequired[str]
+    """
+    Optional KMS key ID for the error reports.
+    """
+
+
 class RaySettings(TypedDict):
     """Typed dictionary defining the settings for distributing calls using Ray."""
 

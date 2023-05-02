@@ -133,6 +133,7 @@ Amazon Athena
     repair_table
     start_query_execution
     stop_query_execution
+    to_iceberg
     unload
     wait_query
 
@@ -295,6 +296,8 @@ Amazon Neptune
     flatten_nested_df
     to_property_graph
     to_rdf_graph
+    bulk_load
+    bulk_load_from_files
 
 DynamoDB
 --------
@@ -322,11 +325,16 @@ Amazon Timestream
 .. autosummary::
     :toctree: stubs
 
+    batch_load
+    batch_load_from_files
     create_database
     create_table
     delete_database
     delete_table
+    list_databases
+    list_tables
     query
+    wait_batch_load_task
     write
 
 Amazon EMR
