@@ -58,7 +58,7 @@ def _create_iceberg_table(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
-def insert_iceberg(
+def to_iceberg(
     df: pd.DataFrame,
     database: str,
     table: str,

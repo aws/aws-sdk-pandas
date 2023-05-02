@@ -1403,12 +1403,12 @@ def test_athena_date_recovery(path, glue_database, glue_table):
     assert pandas_equals(df, df2)
 
 
-def test_athena_insert_iceberg(path, path2, glue_database, glue_table):
+def test_athena_to_iceberg(path, path2, glue_database, glue_table):
     df = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
     df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
     df["name"] = df["name"].astype("string")
 
-    wr.athena.insert_iceberg(
+    wr.athena.to_iceberg(
         df=df,
         database=glue_database,
         table=glue_table,
