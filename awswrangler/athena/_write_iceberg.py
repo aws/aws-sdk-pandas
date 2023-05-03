@@ -9,11 +9,11 @@ import pandas as pd
 
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
+from awswrangler.athena._executions import wait_query
 from awswrangler.athena._utils import (
     _get_workgroup_config,
     _start_query_execution,
     _WorkGroupConfig,
-    wait_query,
 )
 
 _logger: logging.Logger = logging.getLogger(__name__)
