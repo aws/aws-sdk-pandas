@@ -364,6 +364,7 @@ def test_parquet_with_size(path, use_threads, max_rows_by_file):
 def test_index_and_timezone(path, use_threads):
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "par": ["a", "b"]}, index=["foo", "boo"])
     df["c1"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
+    df.index = df.index.astype("string")
     wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, partition_cols=["par"])
     df2 = wr.s3.read_parquet(path, use_threads=use_threads, dataset=True)
     assert_pandas_equals(df[["c0", "c1"]], df2[["c0", "c1"]])
@@ -387,6 +388,7 @@ def test_index_recovery_simple_int(path, use_threads):
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_simple_str(path, use_threads):
     df = pd.DataFrame({"c0": [0, 1, 2, 3, 4]}, index=["a", "b", "c", "d", "e"], dtype="Int64")
+    df.index = df.index.astype("string")
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
     assert len(paths) == 5
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
@@ -442,7 +444,11 @@ def test_range_index_recovery_pandas(path, use_threads, name):
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_multi_index_recovery_simple(path, use_threads):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"], "c2": [True, False, True], "c3": [0, 1, 2]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["c1"] = df["c1"].astype("string")
+    df["c2"] = df["c2"].astype("boolean")
     df["c3"] = df["c3"].astype("Int64")
+
     df = df.set_index(["c0", "c1", "c2"])
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
     assert len(paths) == 3
