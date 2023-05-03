@@ -11,6 +11,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
+from pandas.util.testing import assert_frame_equal
 
 import awswrangler as wr
 import awswrangler.pandas as pd
@@ -366,7 +367,7 @@ def test_index_and_timezone(path, use_threads):
     df["c1"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
     wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, partition_cols=["par"])
     df2 = wr.s3.read_parquet(path, use_threads=use_threads, dataset=True)
-    assert df[["c0", "c1"]].equals(df2[["c0", "c1"]])
+    assert assert_frame_equal(df[["c0", "c1"]], df2[["c0", "c1"]])
 
 
 @pytest.mark.xfail(
@@ -378,7 +379,7 @@ def test_index_recovery_simple_int(path, use_threads):
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=300)["paths"]
     assert len(paths) == 4
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
-    assert df.equals(df2)
+    assert assert_frame_equal(df, df2)
 
 
 @pytest.mark.xfail(
@@ -390,7 +391,7 @@ def test_index_recovery_simple_str(path, use_threads):
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
     assert len(paths) == 5
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
-    assert df.equals(df2)
+    assert assert_frame_equal(df, df2)
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
@@ -419,7 +420,7 @@ def test_range_index_recovery_simple(path, use_threads):
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=3)["paths"]
     assert len(paths) == 2
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
-    assert df.reset_index(level=0).equals(df2.reset_index(level=0))
+    assert assert_frame_equal(df.reset_index(level=0), df2.reset_index(level=0))
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
@@ -447,7 +448,7 @@ def test_multi_index_recovery_simple(path, use_threads):
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
     assert len(paths) == 3
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
-    assert df.reset_index().equals(df2.reset_index())
+    assert_frame_equal(df.reset_index(), df2.reset_index())
 
 
 @pytest.mark.xfail(
@@ -460,7 +461,7 @@ def test_multi_index_recovery_nameless(path, use_threads):
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
     assert len(paths) == 3
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
-    assert df.reset_index().equals(df2.reset_index())
+    assert_frame_equal(df.reset_index(), df2.reset_index())
 
 
 @pytest.mark.xfail(
@@ -478,7 +479,7 @@ def test_index_columns(path, use_threads, name, pandas):
     else:
         wr.s3.to_parquet(df, path_file, index=True)
     df2 = wr.s3.read_parquet(path_file, columns=["c0"], use_threads=use_threads)
-    assert df[["c0"]].equals(df2)
+    assert_frame_equal(df[["c0"]], df2)
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
@@ -531,7 +532,7 @@ def test_timezone_file(path, use_threads):
     df["c0"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
     df.to_parquet(file_path)
     df2 = wr.s3.read_parquet(path, use_threads=use_threads)
-    assert df.equals(df2)
+    assert_frame_equal(df, df2)
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
@@ -541,7 +542,7 @@ def test_timezone_file_columns(path, use_threads):
     df["c0"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
     df.to_parquet(file_path)
     df2 = wr.s3.read_parquet(path, columns=["c1"], use_threads=use_threads)
-    assert df[["c1"]].equals(df2)
+    assert_frame_equal(df[["c1"]], df2)
 
 
 def test_timezone_raw_values(path):
@@ -606,7 +607,7 @@ def test_parquet_compression(path, compression) -> None:
     path_file = f"{path}0.parquet"
     wr.s3.to_parquet(df=df, path=path_file, compression=compression)
     df2 = wr.s3.read_parquet([path_file])
-    assert df.equals(df2)
+    assert_frame_equal(df, df2)
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
@@ -686,7 +687,7 @@ def test_read_parquet_versioned(path) -> None:
         wr.s3.to_parquet(df=df, path=path_file)
         version_id = wr.s3.describe_objects(path=path_file)[path_file]["VersionId"]
         df_temp = wr.s3.read_parquet(path_file, version_id=version_id)
-        assert df_temp.equals(df)
+        assert_frame_equal(df_temp, df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
 

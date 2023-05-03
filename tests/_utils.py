@@ -13,6 +13,7 @@ import botocore.exceptions
 from packaging import version
 from pandas import DataFrame as PandasDataFrame
 from pandas import Series as PandasSeries
+from pandas.util.testing import assert_frame_equal
 from pytest import FixtureRequest
 
 import awswrangler as wr
@@ -517,4 +518,4 @@ def pandas_equals(df1: pd.DataFrame, df2: pd.DataFrame) -> bool:
     Check data frames for equality converting them to pandas first
     """
     df1, df2 = to_pandas(df1), to_pandas(df2)
-    return df1.equals(df2)
+    return assert_frame_equal(df1, df2)
