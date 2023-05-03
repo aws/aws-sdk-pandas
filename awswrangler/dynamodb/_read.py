@@ -10,13 +10,11 @@ from typing import (
     Dict,
     Iterator,
     List,
-    Literal,
     Optional,
     Sequence,
     TypeVar,
     Union,
     cast,
-    overload,
 )
 
 import boto3
@@ -38,41 +36,12 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+_ItemsListType = List[Dict[str, Any]]
+
+
 def _read_chunked(iterator: Iterator[Dict[str, Any]]) -> Iterator[pd.DataFrame]:
     for item in iterator:
         yield pd.DataFrame(item)
-
-
-@overload
-def read_partiql_query(
-    query: str,
-    parameters: Optional[List[Any]] = ...,
-    chunked: Literal[False] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-) -> pd.DataFrame:
-    ...
-
-
-@overload
-def read_partiql_query(
-    query: str,
-    *,
-    parameters: Optional[List[Any]] = ...,
-    chunked: Literal[True],
-    boto3_session: Optional[boto3.Session] = ...,
-) -> Iterator[pd.DataFrame]:
-    ...
-
-
-@overload
-def read_partiql_query(
-    query: str,
-    *,
-    parameters: Optional[List[Any]] = ...,
-    chunked: bool,
-    boto3_session: Optional[boto3.Session] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ...
 
 
 def read_partiql_query(
@@ -144,7 +113,8 @@ def _get_invalid_kwarg(msg: str) -> Optional[str]:
 
 
 # SEE: https://stackoverflow.com/a/72295070
-CustomCallable = TypeVar("CustomCallable", bound=Callable[[Any], List[Dict[str, Any]]])
+# CustomCallable = TypeVar("CustomCallable", bound=Callable[[Any], Union[_ItemsListType, Iterator[_ItemsListType]]])
+CustomCallable = TypeVar("CustomCallable", bound=Callable[..., Any])
 
 
 def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
@@ -155,7 +125,7 @@ def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
     """
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> List[Dict[str, Any]]:
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
         except ClientError as e:
@@ -181,13 +151,10 @@ def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
 
 
 def _convert_items(
-    items: List[Dict[str, Any]],
-    use_scan: bool,
+    items: _ItemsListType,
     as_dataframe: bool,
     arrow_kwargs: Dict[str, Any],
-) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
-    if use_scan:
-        return _utils.table_refs_to_df(items, arrow_kwargs) if as_dataframe else list(itertools.chain(*ray_get(items)))
+) -> Union[pd.DataFrame, _ItemsListType]:
     return (
         _utils.table_refs_to_df(
             [
@@ -206,6 +173,47 @@ def _convert_items(
     )
 
 
+def _convert_items_chunked(
+    items_iterator: Iterator[_ItemsListType],
+    as_dataframe: bool,
+    arrow_kwargs: Dict[str, Any],
+) -> Union[Iterator[pd.DataFrame], Iterator[_ItemsListType]]:
+    for items in items_iterator:
+        yield _convert_items(items, as_dataframe, arrow_kwargs)
+
+
+def _read_scan_chunked(
+    dynamodb_client: Optional["DynamoDBClient"],
+    as_dataframe: bool,
+    kwargs: Dict[str, Any],
+    segment: Optional[int] = None,
+) -> Union[Iterator[pa.Table], Iterator[_ItemsListType]]:
+    # SEE: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan
+    client_dynamodb = dynamodb_client if dynamodb_client else _utils.client(service_name="dynamodb")
+
+    deserializer = boto3.dynamodb.types.TypeDeserializer()
+    next_token = "init_token"  # Dummy token
+
+    kwargs = dict(kwargs)
+    if segment is not None:
+        kwargs["Segment"] = segment
+
+    while next_token:
+        response = _handle_reserved_keyword_error(client_dynamodb.scan)(**kwargs)
+        # Unlike a resource, the DynamoDB client returns serialized results, so they must be deserialized
+        # Additionally, the DynamoDB "Binary" type is converted to a native Python data type
+        # SEE: https://boto3.amazonaws.com/v1/documentation/api/latest/_modules/boto3/dynamodb/types.html
+        items = [
+            {k: v["B"] if list(v.keys())[0] == "B" else deserializer.deserialize(v) for k, v in d.items()}
+            for d in response.get("Items", [])
+        ]
+        yield _utils.list_to_arrow_table(mapping=items) if as_dataframe else items
+
+        next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
+        if next_token:
+            kwargs["ExclusiveStartKey"] = next_token
+
+
 @engine.dispatch_on_engine
 @_utils.retry(
     ex=ClientError,
@@ -216,53 +224,47 @@ def _read_scan(
     as_dataframe: bool,
     kwargs: Dict[str, Any],
     segment: int,
-) -> Union[pa.Table, List[Dict[str, Any]]]:
-    # SEE: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan
-    client_dynamodb = dynamodb_client if dynamodb_client else _utils.client(service_name="dynamodb")
-    _logger.debug("Scanning segment %d from DynamoDB table %s", segment, kwargs["TableName"])
+) -> Union[pa.Table, _ItemsListType]:
+    items_iterator: Iterator[_ItemsListType] = _read_scan_chunked(dynamodb_client, False, kwargs, segment)
 
-    deserializer = boto3.dynamodb.types.TypeDeserializer()
-    next_token = "init_token"  # Dummy token
-    items: List[Dict[str, Any]] = []
+    items = list(itertools.chain.from_iterable(items_iterator))
 
-    while next_token:
-        response = _handle_reserved_keyword_error(client_dynamodb.scan)(**kwargs, Segment=segment)  # type: ignore[type-var]
-        # Unlike a resource, the DynamoDB client returns serialized results, so they must be deserialized
-        # Additionally, the DynamoDB "Binary" type is converted to a native Python data type
-        # SEE: https://boto3.amazonaws.com/v1/documentation/api/latest/_modules/boto3/dynamodb/types.html
-        items.extend(
-            [
-                {k: v["B"] if list(v.keys())[0] == "B" else deserializer.deserialize(v) for k, v in d.items()}
-                for d in response.get("Items", [])
-            ]
-        )
-        next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
-        if next_token:
-            kwargs["ExclusiveStartKey"] = next_token
     return _utils.list_to_arrow_table(mapping=items) if as_dataframe else items
 
 
-@_handle_reserved_keyword_error
-def _read_query(table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any) -> List[Dict[str, Any]]:
+def _read_query_chunked(
+    table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
+) -> Iterator[_ItemsListType]:
     table = get_table(table_name=table_name, boto3_session=boto3_session)
     response = table.query(**kwargs)
-    items = response.get("Items", [])
+    yield response.get("Items", [])
 
     # Handle pagination
     while "LastEvaluatedKey" in response:
         kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
         response = table.query(**kwargs)
-        items.extend(response.get("Items", []))
-    return items
+        yield response.get("Items", [])
 
 
 @_handle_reserved_keyword_error
-def _read_batch_items(
+def _read_query(
+    table_name: str, chunked: bool, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
+) -> Union[_ItemsListType, Iterator[_ItemsListType]]:
+    items_iterator = _read_query_chunked(table_name, boto3_session, **kwargs)
+
+    if chunked:
+        return items_iterator
+    else:
+        return list(itertools.chain.from_iterable(items_iterator))
+
+
+def _read_batch_items_chunked(
     table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
-) -> List[Dict[str, Any]]:
+) -> Iterator[_ItemsListType]:
     resource = _utils.resource(service_name="dynamodb", session=boto3_session)
+
     response = resource.batch_get_item(RequestItems={table_name: kwargs})  # type: ignore[dict-item]
-    items = response.get("Responses", {table_name: []}).get(table_name, [])
+    yield response.get("Responses", {table_name: []}).get(table_name, [])  # type: ignore[arg-type]
 
     # SEE: handle possible unprocessed keys. As suggested in Boto3 docs,
     # this approach should involve exponential backoff, but this should be
@@ -270,15 +272,74 @@ def _read_batch_items(
     # [here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html)
     while response["UnprocessedKeys"]:
         kwargs["Keys"] = response["UnprocessedKeys"][table_name]["Keys"]
+
         response = resource.batch_get_item(RequestItems={table_name: kwargs})  # type: ignore[dict-item]
-        items.extend(response.get("Responses", {table_name: []}).get(table_name, []))
-    return items
+        yield response.get("Responses", {table_name: []}).get(table_name, [])  # type: ignore[arg-type]
 
 
 @_handle_reserved_keyword_error
-def _read_item(table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any) -> List[Dict[str, Any]]:
+def _read_batch_items(
+    table_name: str, chunked: bool, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
+) -> Union[_ItemsListType, Iterator[_ItemsListType]]:
+    items_iterator = _read_batch_items_chunked(table_name, boto3_session, **kwargs)
+
+    if chunked:
+        return items_iterator
+    else:
+        return list(itertools.chain.from_iterable(items_iterator))
+
+
+@_handle_reserved_keyword_error
+def _read_item(
+    table_name: str, chunked: bool = False, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
+) -> Union[_ItemsListType, Iterator[_ItemsListType]]:
     table = get_table(table_name=table_name, boto3_session=boto3_session)
-    return [table.get_item(**kwargs).get("Item", {})]
+    item_list: _ItemsListType = [table.get_item(**kwargs).get("Item", {})]
+
+    return [item_list] if chunked else item_list
+
+
+def _read_items_scan(
+    table_name: str,
+    as_dataframe: bool,
+    arrow_kwargs: Dict[str, Any],
+    use_threads: Union[bool, int],
+    chunked: bool,
+    boto3_session: Optional[boto3.Session] = None,
+    **kwargs: Any,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame], _ItemsListType, Iterator[_ItemsListType]]:
+    dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
+
+    kwargs = _serialize_kwargs(kwargs)
+    kwargs["TableName"] = table_name
+
+    if chunked:
+        _logger.debug("Scanning DynamoDB table %s and returning results in an iterator", table_name)
+        scan_iterator = _read_scan_chunked(dynamodb_client, as_dataframe, kwargs)
+        if as_dataframe:
+            return (_utils.table_refs_to_df([items], arrow_kwargs) for items in scan_iterator)
+
+        return scan_iterator
+
+    # Use Parallel Scan
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
+    total_segments = _utils.ensure_worker_or_thread_count(use_threads=use_threads)
+    kwargs["TotalSegments"] = total_segments
+
+    _logger.debug("Scanning DynamoDB table %s with %d segments", table_name, total_segments)
+
+    items = executor.map(
+        _read_scan,
+        dynamodb_client,
+        itertools.repeat(as_dataframe),
+        itertools.repeat(kwargs),
+        range(total_segments),
+    )
+
+    if as_dataframe:
+        return _utils.table_refs_to_df(items, arrow_kwargs)
+
+    return list(itertools.chain(*ray_get(items)))
 
 
 def _read_items(
@@ -286,9 +347,10 @@ def _read_items(
     as_dataframe: bool,
     arrow_kwargs: Dict[str, Any],
     use_threads: Union[bool, int],
+    chunked: bool,
     boto3_session: Optional[boto3.Session] = None,
     **kwargs: Any,
-) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame], _ItemsListType, Iterator[_ItemsListType]]:
     # Extract 'Keys' and 'IndexName' from provided kwargs: if needed, will be reinserted later on
     keys = kwargs.pop("Keys", None)
     index = kwargs.pop("IndexName", None)
@@ -297,114 +359,43 @@ def _read_items(
     use_get_item = (keys is not None) and (len(keys) == 1)
     use_batch_get_item = (keys is not None) and (len(keys) > 1)
     use_query = (keys is None) and ("KeyConditionExpression" in kwargs)
-    use_scan = (keys is None) and ("KeyConditionExpression" not in kwargs)
 
     # Single Item
     if use_get_item:
         kwargs["Key"] = keys[0]
-        items = _read_item(table_name, boto3_session, **kwargs)
+        items = _read_item(table_name, chunked, boto3_session, **kwargs)
 
     # Batch of Items
     elif use_batch_get_item:
         kwargs["Keys"] = keys
-        items = _read_batch_items(table_name, boto3_session, **kwargs)
+        items = _read_batch_items(table_name, chunked, boto3_session, **kwargs)
 
-    elif use_query or use_scan:
+    else:
         if index:
             kwargs["IndexName"] = index
 
         if use_query:
             # Query
             _logger.debug("Query DynamoDB table %s", table_name)
-            items = _read_query(table_name, boto3_session, **kwargs)
+            items = _read_query(table_name, chunked, boto3_session, **kwargs)
         else:
-            # Last resort use Parallel Scan
-            executor: _BaseExecutor = _get_executor(use_threads=use_threads)
-            dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
-            total_segments = _utils.ensure_worker_or_thread_count(use_threads=use_threads)
-
-            kwargs = _serialize_kwargs(kwargs)
-            kwargs["TableName"] = table_name
-            kwargs["TotalSegments"] = total_segments
-
-            _logger.debug("Scanning DynamoDB table %s with %d segments", table_name, total_segments)
-
-            items = executor.map(
-                _read_scan,
-                dynamodb_client,
-                itertools.repeat(as_dataframe),
-                itertools.repeat(kwargs),
-                range(total_segments),
+            # Last resort use Scan
+            return _read_items_scan(
+                table_name=table_name,
+                as_dataframe=as_dataframe,
+                arrow_kwargs=arrow_kwargs,
+                use_threads=use_threads,
+                chunked=chunked,
+                boto3_session=boto3_session,
+                **kwargs,
             )
-    return _convert_items(items=items, use_scan=use_scan, as_dataframe=as_dataframe, arrow_kwargs=arrow_kwargs)
 
-
-@overload
-def read_items(
-    table_name: str,
-    index_name: Optional[str] = ...,
-    partition_values: Optional[Sequence[Any]] = ...,
-    sort_values: Optional[Sequence[Any]] = ...,
-    filter_expression: Optional[Union[ConditionBase, str]] = ...,
-    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
-    expression_attribute_names: Optional[Dict[str, str]] = ...,
-    expression_attribute_values: Optional[Dict[str, Any]] = ...,
-    consistent: bool = ...,
-    columns: Optional[Sequence[str]] = ...,
-    allow_full_scan: bool = ...,
-    max_items_evaluated: Optional[int] = ...,
-    as_dataframe: Literal[True] = ...,
-    use_threads: Union[bool, int] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> pd.DataFrame:
-    ...
-
-
-@overload
-def read_items(
-    table_name: str,
-    *,
-    index_name: Optional[str] = ...,
-    partition_values: Optional[Sequence[Any]] = ...,
-    sort_values: Optional[Sequence[Any]] = ...,
-    filter_expression: Optional[Union[ConditionBase, str]] = ...,
-    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
-    expression_attribute_names: Optional[Dict[str, str]] = ...,
-    expression_attribute_values: Optional[Dict[str, Any]] = ...,
-    consistent: bool = ...,
-    columns: Optional[Sequence[str]] = ...,
-    allow_full_scan: bool = ...,
-    max_items_evaluated: Optional[int] = ...,
-    as_dataframe: Literal[False],
-    use_threads: Union[bool, int] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> List[Dict[str, Any]]:
-    ...
-
-
-@overload
-def read_items(
-    table_name: str,
-    *,
-    index_name: Optional[str] = ...,
-    partition_values: Optional[Sequence[Any]] = ...,
-    sort_values: Optional[Sequence[Any]] = ...,
-    filter_expression: Optional[Union[ConditionBase, str]] = ...,
-    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
-    expression_attribute_names: Optional[Dict[str, str]] = ...,
-    expression_attribute_values: Optional[Dict[str, Any]] = ...,
-    consistent: bool = ...,
-    columns: Optional[Sequence[str]] = ...,
-    allow_full_scan: bool = ...,
-    max_items_evaluated: Optional[int] = ...,
-    as_dataframe: bool,
-    use_threads: Union[bool, int] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
-    ...
+    if chunked:
+        return _convert_items_chunked(
+            items_iterator=cast(Iterator[_ItemsListType], items), as_dataframe=as_dataframe, arrow_kwargs=arrow_kwargs
+        )
+    else:
+        return _convert_items(items=cast(_ItemsListType, items), as_dataframe=as_dataframe, arrow_kwargs=arrow_kwargs)
 
 
 @_utils.validate_distributed_kwargs(
@@ -424,18 +415,19 @@ def read_items(  # pylint: disable=too-many-branches
     allow_full_scan: bool = False,
     max_items_evaluated: Optional[int] = None,
     as_dataframe: bool = True,
+    chunked: bool = False,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame], _ItemsListType, Iterator[_ItemsListType]]:
     """Read items from given DynamoDB table.
 
     This function aims to gracefully handle (some of) the complexity of read actions
     available in Boto3 towards a DynamoDB table, abstracting it away while providing
     a single, unified entry point.
 
-    Under the hood, it wraps all the four available read actions: get_item, batch_get_item,
-    query and scan.
+    Under the hood, it wraps all the four available read actions: `get_item`, `batch_get_item`,
+    `query` and `scan`.
 
     Note
     ----
@@ -474,6 +466,8 @@ def read_items(  # pylint: disable=too-many-branches
         Limit the number of items evaluated in case of query or scan operations. Defaults to None (all matching items).
     as_dataframe : bool
         If True, return items as pd.DataFrame, otherwise as list/dict. Defaults to True.
+    chunked : bool
+        If `True` an iterable of DataFrames/lists is returned. False by default.
     use_threads : Union[bool, int]
         Used for Parallel Scan requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
@@ -495,8 +489,9 @@ def read_items(  # pylint: disable=too-many-branches
 
     Returns
     -------
-    Union[pd.DataFrame, List[Mapping[str, Any]]]
+    pd.DataFrame | list[dict[str, Any]] | Iterable[pd.DataFrame] | Iterable[list[dict[str, Any]]]
         A Data frame containing the retrieved items, or a dictionary of returned items.
+        Alternatively, the return type can be an iterable of either type when `chunked=True`.
 
     Examples
     --------
@@ -633,6 +628,7 @@ def read_items(  # pylint: disable=too-many-branches
             arrow_kwargs=arrow_kwargs,
             use_threads=use_threads,
             boto3_session=boto3_session,
+            chunked=chunked,
             **kwargs,
         )
     # Raise otherwise
