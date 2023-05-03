@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from awswrangler._utils import ensure_cpu_count, get_even_chunks_sizes, get_emr_integer_version
+from awswrangler._utils import ensure_cpu_count, get_emr_integer_version, get_even_chunks_sizes
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

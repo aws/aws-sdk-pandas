@@ -6,8 +6,8 @@ import itertools
 import logging
 import math
 import os
-import re
 import random
+import re
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
 from functools import partial, wraps
@@ -901,13 +901,15 @@ def list_to_arrow_table(
 
 
 def get_emr_integer_version(emr_version: str, default: int = 670) -> int:
-    """
-    Parse emr release string and return its corresponding integer value
-    Args:
+    """Parse emr release string and return its corresponding integer value.
+
+    Parameters
+    ----------
         emr_version: emr release string
         default: The default emr version return if no match
 
-    Returns:
+    Returns
+    -------
         An integer value representing the emr version
     """
     matches = re.findall(r"(\d.\d.\d)", emr_version)
