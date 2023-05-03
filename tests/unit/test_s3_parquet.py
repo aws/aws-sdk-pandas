@@ -496,6 +496,8 @@ def test_range_index_columns(path, use_threads, name, pandas, drop):
         pytest.skip("Skip due to Modin data frame index not saved as a named column")
     df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64", index=pd.RangeIndex(start=5, stop=7, step=1))
     df.index.name = name
+    df.index = df.index.astype("Int64")
+
     path_file = f"{path}0.parquet"
     if pandas:
         # Convert to pandas because modin.to_parquet() does not preserve index name
@@ -503,6 +505,7 @@ def test_range_index_columns(path, use_threads, name, pandas, drop):
         df.to_parquet(path_file, index=True)
     else:
         wr.s3.to_parquet(df, path_file, index=True)
+
     name = "__index_level_0__" if name is None else name
     columns = ["c0"] if drop else [name, "c0"]
     df2 = wr.s3.read_parquet(path_file, columns=columns, use_threads=use_threads)
