@@ -376,6 +376,7 @@ def test_index_and_timezone(path, use_threads):
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_simple_int(path, use_threads):
     df = pd.DataFrame({"c0": np.arange(10, 1_010, 1)}, dtype="Int64")
+    df.index = df.index.astype("Int64")
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=300)["paths"]
     assert len(paths) == 4
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
@@ -400,6 +401,7 @@ def test_index_recovery_partitioned_str(path, use_threads):
     df = pd.DataFrame(
         {"c0": [0, 1, 2, 3, 4], "par": ["foo", "boo", "bar", "foo", "boo"]}, index=["a", "b", "c", "d", "e"]
     )
+    df.index = df.index.astype("string")
     df["c0"] = df["c0"].astype("Int64")
     df["par"] = df["c0"].astype("category")
     paths = wr.s3.to_parquet(
@@ -418,6 +420,7 @@ def test_index_recovery_partitioned_str(path, use_threads):
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_range_index_recovery_simple(path, use_threads):
     df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
+    df.index = df.index.astype("Int64")
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=3)["paths"]
     assert len(paths) == 2
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
@@ -462,7 +465,7 @@ def test_multi_index_recovery_simple(path, use_threads):
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_multi_index_recovery_nameless(path, use_threads):
     df = pd.DataFrame({"c0": np.arange(10, 13, 1)}, dtype="Int64")
-    df = df.set_index([[1, 2, 3], [1, 2, 3]])
+    df = df.set_index([pd.Index([1, 2, 3], dtype="Int64"), pd.Index([1, 2, 3], dtype="Int64")])
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
     assert len(paths) == 3
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
@@ -470,7 +473,9 @@ def test_multi_index_recovery_nameless(path, use_threads):
 
 
 @pytest.mark.xfail(
-    raises=wr.exceptions.InvalidArgumentCombination, reason="Named index not working when partitioning to a single file"
+    raises=wr.exceptions.InvalidArgumentCombination,
+    reason="Named index not working when partitioning to a single file",
+    condition=is_ray_modin,
 )
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
@@ -621,6 +626,7 @@ def test_parquet_compression(path, compression) -> None:
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_empty_file(path, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
+    df.index = df.index.astype("Int64")
     df["c0"] = df["c0"].astype("Int64")
     df["par"] = df["par"].astype("string")
     wr.s3.to_parquet(df, path, index=True, dataset=True, partition_cols=["par"])
