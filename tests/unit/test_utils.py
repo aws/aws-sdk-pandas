@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from awswrangler._utils import ensure_cpu_count, get_emr_integer_version, get_even_chunks_sizes
+from awswrangler._utils import ensure_cpu_count, get_even_chunks_sizes
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -33,8 +33,3 @@ def test_get_even_chunks_sizes(total_size, chunk_size, upper_bound, result):
 @pytest.mark.parametrize("use_threads,result", [(True, os.cpu_count()), (False, 1), (-1, 1), (1, 1), (5, 5)])
 def test_ensure_cpu_count(use_threads, result):
     assert ensure_cpu_count(use_threads=use_threads) == result
-
-
-@pytest.mark.parametrize("version, result", [("emr-6.8.0", 680), ("emr-6.0", 670), ("emr-8", 670), ("Emr-98", 670)])
-def test_get_emr_integer_version(version, result):
-    assert get_emr_integer_version(version) == result

@@ -3,6 +3,7 @@
 
 import logging
 import pprint
+import re
 from typing import Any, Dict, List, Literal, Optional, Union, cast
 
 import boto3
@@ -78,6 +79,28 @@ def _get_default_logging_path(
     else:
         _region = cast(str, region)
     return f"s3://aws-logs-{_account_id}-{_region}/elasticmapreduce/"
+
+
+def _get_emr_classification_lib(emr_version: str) -> str:
+    """Parse emr release string.
+
+    Parse emr release string and return its corresponding Classification
+    configuration string. i.e. log4j or log4j2.
+
+    Parameters
+    ----------
+        emr_version: emr release string
+
+    Returns
+    -------
+        A string mentioning the appropriate classification lib based on the emr release.
+    """
+    matches = re.findall(r"(\d.\d.\d)", emr_version)
+    number = 670
+    if matches:
+        number = int(matches[0].replace(".", ""))
+
+    return "spark-log4j2" if number > 670 else "spark-log4j"
 
 
 def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-many-branches,too-many-statements
@@ -160,9 +183,7 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
     args["Configurations"] = (
         [
             {
-                "Classification": "spark-log4j2"
-                if _utils.get_emr_integer_version(pars["emr_release"]) > 670
-                else "spark-log4j",
+                "Classification": _get_emr_classification_lib(pars["emr_release"]),
                 "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"},
             }
         ]
