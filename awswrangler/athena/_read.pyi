@@ -288,53 +288,6 @@ def read_sql_table(
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
-@overload
-def start_query_execution(
-    sql: str,
-    database: Optional[str] = ...,
-    s3_output: Optional[str] = ...,
-    workgroup: Optional[str] = ...,
-    encryption: Optional[str] = ...,
-    kms_key: Optional[str] = ...,
-    params: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
-    athena_query_wait_polling_delay: float = ...,
-    data_source: Optional[str] = ...,
-    wait: Literal[False] = ...,
-) -> str: ...
-@overload
-def start_query_execution(
-    sql: str,
-    *,
-    database: Optional[str] = ...,
-    s3_output: Optional[str] = ...,
-    workgroup: Optional[str] = ...,
-    encryption: Optional[str] = ...,
-    kms_key: Optional[str] = ...,
-    params: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
-    athena_query_wait_polling_delay: float = ...,
-    data_source: Optional[str] = ...,
-    wait: Literal[True],
-) -> Dict[str, Any]: ...
-@overload
-def start_query_execution(
-    sql: str,
-    *,
-    database: Optional[str] = ...,
-    s3_output: Optional[str] = ...,
-    workgroup: Optional[str] = ...,
-    encryption: Optional[str] = ...,
-    kms_key: Optional[str] = ...,
-    params: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
-    athena_query_wait_polling_delay: float = ...,
-    data_source: Optional[str] = ...,
-    wait: bool,
-) -> Union[str, Dict[str, Any]]: ...
 def unload(
     sql: str,
     path: str,
