@@ -38,7 +38,7 @@ def _read_parquet(  # pylint: disable=W0613
 def _read_parquet_metadata(
     path: Union[str, List[str]],
     path_suffix: Optional[str],
-    path_ignore_suffix: Optional[str],
+    path_ignore_suffix: Union[str, List[str], None],
     ignore_empty: bool,
     ignore_null: bool,
     dtype: Optional[Dict[str, str]],
@@ -55,7 +55,7 @@ def read_parquet_metadata(
     dataset: bool = ...,
     version_id: Optional[Union[str, Dict[str, str]]] = ...,
     path_suffix: Optional[str] = ...,
-    path_ignore_suffix: Optional[str] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
     ignore_empty: bool = ...,
     ignore_null: bool = ...,
     dtype: Optional[Dict[str, str]] = ...,
