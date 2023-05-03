@@ -489,7 +489,7 @@ def test_index_columns(path, use_threads, name, pandas):
     else:
         wr.s3.to_parquet(df, path_file, index=True)
     df2 = wr.s3.read_parquet(path_file, columns=["c0"], use_threads=use_threads)
-    assert_pandas_equals(df[["c0"]], df2)
+    assert df[["c0"]].equals(df2)
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
