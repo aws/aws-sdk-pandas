@@ -36,6 +36,5 @@ def test_ensure_cpu_count(use_threads, result):
 
 
 @pytest.mark.parametrize("version, result", [("emr-6.8.0", 680), ("emr-6.0", 670), ("emr-8", 670), ("Emr-98", 670)])
-def test_get_emr_integer_version(version,
-                                 result):
+def test_get_emr_integer_version(version, result):
     assert get_emr_integer_version(version) == result

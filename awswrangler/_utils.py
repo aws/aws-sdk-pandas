@@ -900,9 +900,7 @@ def list_to_arrow_table(
     return pa.Table.from_arrays(arrays, schema=schema, metadata=metadata)
 
 
-def get_emr_integer_version(
-        emr_version: str,
-        default: int = 670) -> int:
+def get_emr_integer_version(emr_version: str, default: int = 670) -> int:
     """
     Parse emr release string and return its corresponding integer value
     Args:
@@ -912,7 +910,7 @@ def get_emr_integer_version(
     Returns:
         An integer value representing the emr version
     """
-    matches = re.findall(r'(\d.\d.\d)', emr_version)
+    matches = re.findall(r"(\d.\d.\d)", emr_version)
     if matches:
         return int(matches[0].replace(".", ""))
     return default

@@ -160,8 +160,9 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
     args["Configurations"] = (
         [
             {
-                "Classification": "spark-log4j2" if _utils.get_emr_integer_version(
-                    pars["emr_release"]) > 670 else "spark-log4j",
+                "Classification": "spark-log4j2"
+                if _utils.get_emr_integer_version(pars["emr_release"]) > 670
+                else "spark-log4j",
                 "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"},
             }
         ]
