@@ -167,3 +167,11 @@ def test_docker(bucket, cloudformation_outputs, emr_security_configuration):
     )
     wr.emr.submit_spark_step(cluster_id=cluster_id, path=f"s3://{bucket}/emr/test_docker.py")
     wr.emr.terminate_cluster(cluster_id=cluster_id)
+
+
+@pytest.mark.parametrize(
+    "version, result",
+    [("emr-6.8.0", "spark-log4j2"), ("emr-6.0", "spark-log4j"), ("emr-8", "spark-log4j"), ("Emr-98", "spark-log4j")],
+)
+def test_get_emr_integer_version(version, result):
+    assert wr.emr._get_emr_classification_lib(version) == result
