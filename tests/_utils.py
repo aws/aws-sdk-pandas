@@ -519,9 +519,9 @@ def pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.DataFrame, 
 def assert_pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.DataFrame, pd.Series]) -> None:
     df1, df2 = to_pandas(df1), to_pandas(df2)
 
-    if isinstance(df1, pd.DataFrame):
+    if isinstance(df1, PandasDataFrame):
         assert_frame_equal(df1, df2)
-    elif isinstance(df1, pd.Series):
+    elif isinstance(df1, PandasSeries):
         assert_series_equal(df1, df2)
     else:
         raise ValueError(f"Unsupported type {type(df1)}")
