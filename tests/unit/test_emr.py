@@ -8,6 +8,16 @@ import awswrangler as wr
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
+def emr_terminate_cluster_and_wait(cluster_id: str, timeout: int = 300, poll_interval: int = 10):
+    wr.emr.terminate_cluster(cluster_id=cluster_id)
+    for i in range(int(timeout / poll_interval)):
+        if "TERMINATED" not in wr.emr.get_cluster_state(cluster_id=cluster_id):
+            time.sleep(poll_interval)
+        else:
+            return
+    raise Exception(f"cluster: {cluster_id} failed to terminate")
+
+
 def test_cluster(bucket, cloudformation_outputs, emr_security_configuration):
     steps = []
     for cmd in ['echo "Hello"', "ls -la"]:
@@ -63,7 +73,7 @@ def test_cluster(bucket, cloudformation_outputs, emr_security_configuration):
     time.sleep(10)
     step_state = wr.emr.get_step_state(cluster_id=cluster_id, step_id=step_id)
     assert step_state == "PENDING"
-    wr.emr.terminate_cluster(cluster_id=cluster_id)
+    emr_terminate_cluster_and_wait(cluster_id=cluster_id)
     wr.s3.delete_objects(f"s3://{bucket}/emr-logs/")
 
 
@@ -126,7 +136,7 @@ def test_cluster_single_node(bucket, cloudformation_outputs, emr_security_config
     for cmd in ['echo "Hello"', "ls -la"]:
         steps.append(wr.emr.build_step(name=cmd, command=cmd))
     wr.emr.submit_steps(cluster_id=cluster_id, steps=steps)
-    wr.emr.terminate_cluster(cluster_id=cluster_id)
+    emr_terminate_cluster_and_wait(cluster_id=cluster_id)
     wr.s3.delete_objects(f"s3://{bucket}/emr-logs/")
 
 
@@ -166,4 +176,12 @@ def test_docker(bucket, cloudformation_outputs, emr_security_configuration):
         ],
     )
     wr.emr.submit_spark_step(cluster_id=cluster_id, path=f"s3://{bucket}/emr/test_docker.py")
-    wr.emr.terminate_cluster(cluster_id=cluster_id)
+    emr_terminate_cluster_and_wait(cluster_id=cluster_id)
+
+
+@pytest.mark.parametrize(
+    "version, result",
+    [("emr-6.8.0", "spark-log4j2"), ("emr-6.0", "spark-log4j"), ("emr-8", "spark-log4j"), ("Emr-98", "spark-log4j")],
+)
+def test_get_emr_integer_version(version, result):
+    assert wr.emr._get_emr_classification_lib(version) == result

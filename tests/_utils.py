@@ -13,6 +13,7 @@ import botocore.exceptions
 from packaging import version
 from pandas import DataFrame as PandasDataFrame
 from pandas import Series as PandasSeries
+from pandas.testing import assert_frame_equal, assert_series_equal
 from pytest import FixtureRequest
 
 import awswrangler as wr
@@ -31,7 +32,6 @@ else:
 
     if version.parse(pd.__version__) >= version.parse("2.0.0"):
         is_pandas_2_x = True
-
 
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
 
@@ -502,9 +502,7 @@ def create_workgroup(wkg_name, config):
 
 
 def to_pandas(df: Union[pd.DataFrame, pd.Series]) -> Union[PandasDataFrame, PandasSeries]:
-    """
-    Convert Modin data frames to pandas for comparison
-    """
+    """Convert Modin data frames to pandas for comparison."""
     if isinstance(df, (PandasDataFrame, PandasSeries)):
         return df
     elif wr.memory_format.get() == MemoryFormatEnum.MODIN and isinstance(df, (ModinDataFrame, ModinSeries)):
@@ -512,9 +510,18 @@ def to_pandas(df: Union[pd.DataFrame, pd.Series]) -> Union[PandasDataFrame, Pand
     raise ValueError("Unknown data frame type %s", type(df))
 
 
-def pandas_equals(df1: pd.DataFrame, df2: pd.DataFrame) -> bool:
-    """
-    Check data frames for equality converting them to pandas first
-    """
+def pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.DataFrame, pd.Series]) -> bool:
+    """Check data frames for equality converting them to pandas first."""
     df1, df2 = to_pandas(df1), to_pandas(df2)
     return df1.equals(df2)
+
+
+def assert_pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.DataFrame, pd.Series]) -> None:
+    df1, df2 = to_pandas(df1), to_pandas(df2)
+
+    if isinstance(df1, PandasDataFrame):
+        assert_frame_equal(df1, df2)
+    elif isinstance(df1, PandasSeries):
+        assert_series_equal(df1, df2)
+    else:
+        raise ValueError(f"Unsupported type {type(df1)}")

@@ -3,7 +3,7 @@ import datetime
 import itertools
 import logging
 import pprint
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Union
 
 import boto3
 import pandas as pd
@@ -141,72 +141,6 @@ def _read_text_format(
         version_ids=version_ids,
         pandas_kwargs=pandas_kwargs,
     )
-
-
-@overload
-def read_csv(
-    path: Union[str, List[str]],
-    *,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    ignore_empty: bool = ...,
-    use_threads: Union[bool, int] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    chunksize: None = ...,
-    dataset: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    ray_args: Optional[RaySettings] = ...,
-    **pandas_kwargs: Any,
-) -> pd.DataFrame:
-    ...
-
-
-@overload
-def read_csv(
-    path: Union[str, List[str]],
-    *,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    ignore_empty: bool = ...,
-    use_threads: Union[bool, int] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    chunksize: int,
-    dataset: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    ray_args: Optional[RaySettings] = ...,
-    **pandas_kwargs: Any,
-) -> Iterator[pd.DataFrame]:
-    ...
-
-
-@overload
-def read_csv(
-    path: Union[str, List[str]],
-    *,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    ignore_empty: bool = ...,
-    use_threads: Union[bool, int] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    chunksize: Optional[int],
-    dataset: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    ray_args: Optional[RaySettings] = ...,
-    **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ...
 
 
 @_utils.validate_distributed_kwargs(
@@ -365,71 +299,6 @@ def read_csv(
     )
 
 
-@overload
-def read_fwf(
-    path: Union[str, List[str]],
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    ignore_empty: bool = ...,
-    use_threads: Union[bool, int] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    chunksize: None = ...,
-    dataset: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    ray_args: Optional[RaySettings] = ...,
-    **pandas_kwargs: Any,
-) -> pd.DataFrame:
-    ...
-
-
-@overload
-def read_fwf(
-    path: Union[str, List[str]],
-    *,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    ignore_empty: bool = ...,
-    use_threads: Union[bool, int] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    chunksize: int,
-    dataset: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    ray_args: Optional[RaySettings] = ...,
-    **pandas_kwargs: Any,
-) -> Iterator[pd.DataFrame]:
-    ...
-
-
-@overload
-def read_fwf(
-    path: Union[str, List[str]],
-    *,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    ignore_empty: bool = ...,
-    use_threads: Union[bool, int] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    chunksize: Optional[int],
-    dataset: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    ray_args: Optional[RaySettings] = ...,
-    **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ...
-
-
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
@@ -584,74 +453,6 @@ def read_fwf(
         ray_args=ray_args,
         **pandas_kwargs,
     )
-
-
-@overload
-def read_json(
-    path: Union[str, List[str]],
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    ignore_empty: bool = ...,
-    orient: str = ...,
-    use_threads: Union[bool, int] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    chunksize: None = ...,
-    dataset: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    ray_args: Optional[RaySettings] = ...,
-    **pandas_kwargs: Any,
-) -> pd.DataFrame:
-    ...
-
-
-@overload
-def read_json(
-    path: Union[str, List[str]],
-    *,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    ignore_empty: bool = ...,
-    orient: str = ...,
-    use_threads: Union[bool, int] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    chunksize: int,
-    dataset: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    ray_args: Optional[RaySettings] = ...,
-    **pandas_kwargs: Any,
-) -> Iterator[pd.DataFrame]:
-    ...
-
-
-@overload
-def read_json(
-    path: Union[str, List[str]],
-    *,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    ignore_empty: bool = ...,
-    orient: str = ...,
-    use_threads: Union[bool, int] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    chunksize: Optional[int],
-    dataset: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    ray_args: Optional[RaySettings] = ...,
-    **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ...
 
 
 @_utils.validate_distributed_kwargs(

@@ -269,7 +269,7 @@ def test_athena_wait_delay_config(wr: "awswrangler", glue_database: str, polling
         polling_delay = wr.athena._utils._QUERY_WAIT_POLLING_DELAY
         wr.config.reset("athena_query_wait_polling_delay")
 
-    with patch("awswrangler.athena._utils.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
+    with patch("awswrangler.athena._executions.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
         wr.athena.read_sql_query("SELECT 1 as col0", database=glue_database)
 
         mock_wait_query.assert_called_once()
@@ -281,7 +281,7 @@ def test_athena_wait_delay_config_override(wr: "awswrangler", glue_database: str
     wr.config.athena_query_wait_polling_delay = 0.1
     polling_delay_argument = 0.15
 
-    with patch("awswrangler.athena._utils.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
+    with patch("awswrangler.athena._executions.wait_query", wraps=wr.athena.wait_query) as mock_wait_query:
         wr.athena.read_sql_query(
             "SELECT 1 as col0", database=glue_database, athena_query_wait_polling_delay=polling_delay_argument
         )
