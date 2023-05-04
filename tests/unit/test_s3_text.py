@@ -6,7 +6,7 @@ import pytest
 import awswrangler as wr
 import awswrangler.pandas as pd
 
-from .._utils import is_ray_modin
+from .._utils import is_pandas_2_x, is_ray_modin
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -491,3 +491,36 @@ def test_exceptions(path):
 
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_csv(df=df, dataset=True)
+
+
+@pytest.mark.parametrize(
+    "format,write_function,read_function",
+    [
+        ("csv", wr.s3.to_csv, wr.s3.read_csv),
+        ("json", wr.s3.to_json, wr.s3.read_json),
+        ("excel", wr.s3.to_excel, wr.s3.read_excel),
+    ],
+)
+@pytest.mark.skipif(condition=not is_pandas_2_x, reason="not pandas 2.x")
+def test_s3_text_pyarrow_dtype_backend_roundtrip(path, format, write_function, read_function):
+    s3_path = f"{path}test.{format}"
+
+    df = pd.DataFrame(
+        {
+            "col0": [1, None, 3],
+            "col1": [0.0, None, 2.2],
+            "col2": [True, None, False],
+            "col3": ["Washington", None, "Seattle"],
+        }
+    )
+    # Cast to pyarrow backend types
+    df = df.convert_dtypes(dtype_backend="pyarrow")
+
+    write_function(
+        df,
+        path=s3_path,
+        index=False,
+    )
+    df1 = read_function(s3_path, dtype_backend="pyarrow")
+
+    assert df.equals(df1)
