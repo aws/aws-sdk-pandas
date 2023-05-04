@@ -1,3 +1,4 @@
+"""Amazon Redshift Connect Module (PRIVATE)."""
 from typing import Any, Dict, List, Optional
 
 import boto3

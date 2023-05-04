@@ -1,3 +1,4 @@
+"""Amazon Redshift Write Module (PRIVATE)."""
 import logging
 from typing import Dict, List, Literal, Optional, Union
 

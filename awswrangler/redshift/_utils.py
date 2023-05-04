@@ -1,4 +1,5 @@
 # mypy: disable-error-code=name-defined
+"""Amazon Redshift Utils Module (PRIVATE)."""
 import json
 import logging
 import uuid

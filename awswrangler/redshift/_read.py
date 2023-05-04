@@ -1,3 +1,4 @@
+"""Amazon Redshift Read Module (PRIVATE)."""
 import logging
 from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union
 
