@@ -13,6 +13,7 @@ import botocore.exceptions
 from packaging import version
 from pandas import DataFrame as PandasDataFrame
 from pandas import Series as PandasSeries
+from pandas.testing import assert_frame_equal, assert_series_equal
 from pytest import FixtureRequest
 
 import awswrangler as wr
@@ -31,12 +32,6 @@ else:
 
     if version.parse(pd.__version__) >= version.parse("2.0.0"):
         is_pandas_2_x = True
-
-if is_pandas_2_x:
-    from pandas.testing import assert_frame_equal
-else:
-    from pandas.util.testing import assert_equal as assert_frame_equal
-
 
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
 
@@ -523,4 +518,10 @@ def pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.DataFrame, 
 
 def assert_pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.DataFrame, pd.Series]) -> None:
     df1, df2 = to_pandas(df1), to_pandas(df2)
-    assert_frame_equal(df1, df2)
+
+    if isinstance(df1, pd.DataFrame):
+        assert_frame_equal(df1, df2)
+    elif isinstance(df1, pd.Series):
+        assert_series_equal(df1, df2)
+    else:
+        raise ValueError(f"Unsupported type {type(df1)}")
