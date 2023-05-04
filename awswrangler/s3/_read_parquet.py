@@ -12,11 +12,9 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    Literal,
     Optional,
     Tuple,
     Union,
-    overload,
 )
 
 import boto3
@@ -348,109 +346,6 @@ def _read_parquet(  # pylint: disable=W0613
     return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
 
 
-@overload
-def read_parquet(
-    path: Union[str, List[str]],
-    path_root: Optional[str] = ...,
-    dataset: bool = ...,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    ignore_empty: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    columns: Optional[List[str]] = ...,
-    validate_schema: bool = ...,
-    coerce_int96_timestamp_unit: Optional[str] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    chunked: Literal[False] = ...,
-    use_threads: Union[bool, int] = ...,
-    ray_args: Optional[RayReadParquetSettings] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> pd.DataFrame:
-    ...
-
-
-@overload
-def read_parquet(
-    path: Union[str, List[str]],
-    *,
-    path_root: Optional[str] = ...,
-    dataset: bool = ...,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    ignore_empty: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    columns: Optional[List[str]] = ...,
-    validate_schema: bool = ...,
-    coerce_int96_timestamp_unit: Optional[str] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    chunked: Literal[True],
-    use_threads: Union[bool, int] = ...,
-    ray_args: Optional[RayReadParquetSettings] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> Iterator[pd.DataFrame]:
-    ...
-
-
-@overload
-def read_parquet(
-    path: Union[str, List[str]],
-    *,
-    path_root: Optional[str] = ...,
-    dataset: bool = ...,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    ignore_empty: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    columns: Optional[List[str]] = ...,
-    validate_schema: bool = ...,
-    coerce_int96_timestamp_unit: Optional[str] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    chunked: bool,
-    use_threads: Union[bool, int] = ...,
-    ray_args: Optional[RayReadParquetSettings] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ...
-
-
-@overload
-def read_parquet(
-    path: Union[str, List[str]],
-    *,
-    path_root: Optional[str] = ...,
-    dataset: bool = ...,
-    path_suffix: Union[str, List[str], None] = ...,
-    path_ignore_suffix: Union[str, List[str], None] = ...,
-    ignore_empty: bool = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    columns: Optional[List[str]] = ...,
-    validate_schema: bool = ...,
-    coerce_int96_timestamp_unit: Optional[str] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    version_id: Optional[Union[str, Dict[str, str]]] = ...,
-    chunked: int,
-    use_threads: Union[bool, int] = ...,
-    ray_args: Optional[RayReadParquetSettings] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> Iterator[pd.DataFrame]:
-    ...
-
-
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "version_id", "s3_additional_kwargs"],
 )
@@ -692,94 +587,6 @@ def read_parquet(
         version_ids=version_ids,
         bulk_read=bulk_read,
     )
-
-
-@overload
-def read_parquet_table(
-    table: str,
-    database: str,
-    *,
-    filename_suffix: Union[str, List[str], None] = ...,
-    filename_ignore_suffix: Union[str, List[str], None] = ...,
-    catalog_id: Optional[str] = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    columns: Optional[List[str]] = ...,
-    validate_schema: bool = ...,
-    coerce_int96_timestamp_unit: Optional[str] = ...,
-    chunked: Literal[False] = ...,
-    use_threads: Union[bool, int] = ...,
-    ray_args: Optional[RayReadParquetSettings] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> pd.DataFrame:
-    ...
-
-
-@overload
-def read_parquet_table(
-    table: str,
-    database: str,
-    *,
-    filename_suffix: Union[str, List[str], None] = ...,
-    filename_ignore_suffix: Union[str, List[str], None] = ...,
-    catalog_id: Optional[str] = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    columns: Optional[List[str]] = ...,
-    validate_schema: bool = ...,
-    coerce_int96_timestamp_unit: Optional[str] = ...,
-    chunked: Literal[True],
-    use_threads: Union[bool, int] = ...,
-    ray_args: Optional[RayReadParquetSettings] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> Iterator[pd.DataFrame]:
-    ...
-
-
-@overload
-def read_parquet_table(
-    table: str,
-    database: str,
-    *,
-    filename_suffix: Union[str, List[str], None] = ...,
-    filename_ignore_suffix: Union[str, List[str], None] = ...,
-    catalog_id: Optional[str] = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    columns: Optional[List[str]] = ...,
-    validate_schema: bool = ...,
-    coerce_int96_timestamp_unit: Optional[str] = ...,
-    chunked: bool,
-    use_threads: Union[bool, int] = ...,
-    ray_args: Optional[RayReadParquetSettings] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ...
-
-
-@overload
-def read_parquet_table(
-    table: str,
-    database: str,
-    *,
-    filename_suffix: Union[str, List[str], None] = ...,
-    filename_ignore_suffix: Union[str, List[str], None] = ...,
-    catalog_id: Optional[str] = ...,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
-    columns: Optional[List[str]] = ...,
-    validate_schema: bool = ...,
-    coerce_int96_timestamp_unit: Optional[str] = ...,
-    chunked: int,
-    use_threads: Union[bool, int] = ...,
-    ray_args: Optional[RayReadParquetSettings] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> Iterator[pd.DataFrame]:
-    ...
 
 
 @apply_configs
