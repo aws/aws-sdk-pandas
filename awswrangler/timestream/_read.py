@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union, cast
 
 import boto3
 import pandas as pd
@@ -111,36 +111,6 @@ def _paginate_query(
 
             yield _rows_to_df(rows, schema, df_metadata)
         rows = []
-
-
-@overload
-def query(
-    sql: str,
-    chunked: Literal[False] = ...,
-    pagination_config: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-) -> pd.DataFrame:
-    ...
-
-
-@overload
-def query(
-    sql: str,
-    chunked: Literal[True],
-    pagination_config: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-) -> Iterator[pd.DataFrame]:
-    ...
-
-
-@overload
-def query(
-    sql: str,
-    chunked: bool,
-    pagination_config: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ...
 
 
 def query(
