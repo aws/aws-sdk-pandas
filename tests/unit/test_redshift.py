@@ -904,6 +904,8 @@ def test_copy_from_files_extra_params(
 
 
 def test_get_paths_from_manifest(path: str) -> None:
+    from awswrangler.redshift._utils import _get_paths_from_manifest
+
     manifest_content = {
         "entries": [
             {"url": f"{path}test0.parquet", "mandatory": False},
@@ -915,9 +917,7 @@ def test_get_paths_from_manifest(path: str) -> None:
     boto3.client("s3").put_object(
         Body=bytes(json.dumps(manifest_content).encode("UTF-8")), Bucket=manifest_bucket, Key=manifest_key
     )
-    paths = wr.redshift._get_paths_from_manifest(
-        path=f"{path}manifest.json",
-    )
+    paths = _get_paths_from_manifest(path=f"{path}manifest.json")
 
     assert len(paths) == 3
 
