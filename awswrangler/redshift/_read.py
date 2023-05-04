@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union
 
 import boto3
 import pyarrow as pa
@@ -15,6 +15,7 @@ from ._utils import _make_s3_auth_string
 redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
 
 def _read_parquet_iterator(
     path: str,
@@ -39,49 +40,6 @@ def _read_parquet_iterator(
         s3.delete_objects(
             path=path, use_threads=use_threads, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
         )
-
-@overload
-def read_sql_query(
-    sql: str,
-    con: "redshift_connector.Connection",
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
-    safe: bool = ...,
-    timestamp_as_object: bool = ...,
-) -> pd.DataFrame:
-    ...
-
-
-@overload
-def read_sql_query(
-    sql: str,
-    con: "redshift_connector.Connection",
-    *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
-    safe: bool = ...,
-    timestamp_as_object: bool = ...,
-) -> Iterator[pd.DataFrame]:
-    ...
-
-
-@overload
-def read_sql_query(
-    sql: str,
-    con: "redshift_connector.Connection",
-    *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
-    safe: bool = ...,
-    timestamp_as_object: bool = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ...
 
 
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
@@ -154,54 +112,6 @@ def read_sql_query(
         safe=safe,
         timestamp_as_object=timestamp_as_object,
     )
-
-
-@overload
-def read_sql_table(
-    table: str,
-    con: "redshift_connector.Connection",
-    *,
-    schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
-    safe: bool = ...,
-    timestamp_as_object: bool = ...,
-) -> pd.DataFrame:
-    ...
-
-
-@overload
-def read_sql_table(
-    table: str,
-    con: "redshift_connector.Connection",
-    *,
-    schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
-    safe: bool = ...,
-    timestamp_as_object: bool = ...,
-) -> Iterator[pd.DataFrame]:
-    ...
-
-
-@overload
-def read_sql_table(
-    table: str,
-    con: "redshift_connector.Connection",
-    *,
-    schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
-    safe: bool = ...,
-    timestamp_as_object: bool = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ...
 
 
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
@@ -279,7 +189,6 @@ def read_sql_table(
         safe=safe,
         timestamp_as_object=timestamp_as_object,
     )
-
 
 
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
@@ -575,4 +484,3 @@ def unload(
         keep_files=keep_files,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
-

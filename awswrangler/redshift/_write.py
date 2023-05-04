@@ -22,7 +22,7 @@ _ToSqlSortStyleLiteral = Literal["COMPOUND", "INTERLEAVED"]
 
 
 def _copy(
-    cursor: "redshift_connector.Cursor",
+    cursor: "redshift_connector.Cursor",  # type: ignore[name-defined]
     path: str,
     table: str,
     serialize_to_json: bool,
@@ -65,7 +65,7 @@ def _copy(
 @apply_configs
 def to_sql(  # pylint: disable=too-many-locals
     df: pd.DataFrame,
-    con: "redshift_connector.Connection",
+    con: "redshift_connector.Connection",  # type: ignore[name-defined]
     table: str,
     schema: str,
     mode: _ToSqlModeLiteral = "append",
@@ -236,7 +236,7 @@ def to_sql(  # pylint: disable=too-many-locals
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     path: str,
-    con: "redshift_connector.Connection",
+    con: "redshift_connector.Connection",  # type: ignore[name-defined]
     table: str,
     schema: str,
     iam_role: Optional[str] = None,
@@ -463,7 +463,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
 def copy(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
     path: str,
-    con: "redshift_connector.Connection",
+    con: "redshift_connector.Connection",  # type: ignore[name-defined]
     table: str,
     schema: str,
     iam_role: Optional[str] = None,

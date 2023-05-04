@@ -1,3 +1,4 @@
+# mypy: disable-error-code=name-defined
 import json
 import logging
 import uuid
@@ -364,4 +365,3 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     if lock:
         _lock(cursor, [table], schema=schema)
     return table, schema
-
