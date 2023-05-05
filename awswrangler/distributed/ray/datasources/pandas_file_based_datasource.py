@@ -78,10 +78,20 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
         with earlier versions still attempting to call do_write().
         """
         write_tasks = []
-        _write = ray_remote()(self.write)
+        path: str = kwargs.pop("path")
+        dataset_uuid: str = kwargs.pop("dataset_uuid")
+        ray_remote_args: Dict[str, Any] = kwargs.pop("ray_remote_args") or {}
+
+        _write = ray_remote(**ray_remote_args)(self.write)
 
         for block_idx, block in enumerate(blocks):
-            write_task = _write([block], TaskContext(task_idx=block_idx), *args, **kwargs)
+            write_task = _write(
+                [block],
+                TaskContext(task_idx=block_idx),
+                path,
+                dataset_uuid,
+                **kwargs,
+            )
             write_tasks.append(write_task)
 
         return write_tasks
