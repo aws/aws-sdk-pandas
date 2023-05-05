@@ -29,7 +29,7 @@ from awswrangler.s3._wait import _wait_object_batch
 from awswrangler.s3._write_dataset import _to_buckets, _to_partitions
 from awswrangler.s3._write_parquet import _to_parquet
 from awswrangler.s3._write_text import _to_text
-from awswrangler.timestream import _write_batch, _write_df
+from awswrangler.timestream._write import _write_batch, _write_df
 
 
 def register_ray() -> None:
