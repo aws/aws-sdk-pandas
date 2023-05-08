@@ -96,7 +96,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
 
         return write_tasks
 
-    def write(
+    def write(  # type: ignore[override]
         self,
         blocks: Iterable[Union[Block[pd.DataFrame], ObjectRef[pd.DataFrame]]],
         ctx: TaskContext,
@@ -153,7 +153,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
             path,
             filesystem=filesystem,
             dataset_uuid=dataset_uuid,
-            block=block,  # type: ignore[arg-type]
+            block=block,
             block_index=ctx.task_idx,
             file_format=file_suffix,
         )
