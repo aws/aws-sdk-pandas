@@ -1,5 +1,5 @@
 At scale
----------
+=========
 
 AWS SDK for pandas supports `Ray <https://www.ray.io/>`_ and `Modin <https://modin.readthedocs.io/en/stable/>`_, enabling you to scale your pandas workflows from a single machine to a multi-node environment, with no code changes.
 
