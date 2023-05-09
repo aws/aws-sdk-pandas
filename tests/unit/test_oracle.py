@@ -38,20 +38,22 @@ def test_to_sql_simple(oracle_table: str, oracle_con: "oracledb.Connection") -> 
     wr.oracle.to_sql(df, oracle_con, oracle_table, "TEST", "overwrite", True)
 
 
-def test_to_sql_upsert(oracle_table: str, oracle_con: "oracledb.Connection") -> None:
+@pytest.mark.parametrize("first_to_sql_mode", ["append", "overwrite", "upsert"])
+def test_to_sql_upsert(oracle_table: str, oracle_con: "oracledb.Connection", first_to_sql_mode: str) -> None:
     schema = "TEST"
 
-    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"], "c2": [0] * 3})
     wr.oracle.to_sql(
         df=df,
         con=oracle_con,
         table=oracle_table,
         schema=schema,
-        mode="overwrite",
+        mode=first_to_sql_mode,
+        use_column_names=True,
         primary_keys=["c0"],
     )
 
-    df2 = pd.DataFrame({"c0": [2, 4], "c1": ["baz", "foo"]})
+    df2 = pd.DataFrame({"c0": [2, 4], "c1": ["baz", "foo"], "c2": [0] * 2})
     wr.oracle.to_sql(
         df=df2,
         con=oracle_con,
@@ -62,9 +64,10 @@ def test_to_sql_upsert(oracle_table: str, oracle_con: "oracledb.Connection") -> 
         primary_keys=["c0"],
     )
 
-    df_expected = pd.DataFrame({"c0": [1, 2, 3, 4], "c1": ["foo", "baz", "bar", "foo"]})
+    df_expected = pd.DataFrame({"c0": [1, 2, 3, 4], "c1": ["foo", "baz", "bar", "foo"], "c2": [0] * 4})
     df_expected["c0"] = df_expected["c0"].astype("Int64")
     df_expected["c1"] = df_expected["c1"].astype("string")
+    df_expected["c2"] = df_expected["c2"].astype("Int64")
 
     df_actual = wr.oracle.read_sql_table(table=oracle_table, con=oracle_con)
 
