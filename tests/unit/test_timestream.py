@@ -693,4 +693,4 @@ def test_time_unit_precision(timestream_database_and_table, time_unit):
         FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
         """,
     )
-    assert len(str(df_query["time"][0].timestamp()).split('.')[1]) == time_unit[1]
+    assert len(str(df_query["time"][0].timestamp()).split(".")[1]) == time_unit[1]
