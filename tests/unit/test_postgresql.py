@@ -220,7 +220,14 @@ def test_dfs_are_equal_for_different_chunksizes(postgresql_table, postgresql_con
     df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
     wr.postgresql.to_sql(df=df, con=postgresql_con, schema="public", table=postgresql_table, chunksize=chunksize)
 
-    df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
+    df2 = pd.concat(
+        list(
+            wr.postgresql.read_sql_table(
+                con=postgresql_con, schema="public", table=postgresql_table, chunksize=chunksize,
+            )
+        ),
+        ignore_index=True,
+    )
 
     df["c0"] = df["c0"].astype("Int64")
     df["c1"] = df["c1"].astype("string")

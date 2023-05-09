@@ -89,8 +89,6 @@ def _iterate_server_side_cursor(
         cursor_args = _db_utils._convert_params(f"DECLARE {sscursor_name} CURSOR FOR {sql}", params)
         cursor.execute(*cursor_args)
 
-        cols_names = _db_utils._get_cols_names(cursor.description)
-
         try:
             while True:
                 cursor.execute(f"FETCH FORWARD {chunksize} FROM {sscursor_name}")
@@ -101,7 +99,7 @@ def _iterate_server_side_cursor(
 
                 yield _db_utils._records2df(
                     records=records,
-                    cols_names=cols_names,
+                    cols_names=_db_utils._get_cols_names(cursor.description),
                     index=index_col,
                     safe=safe,
                     dtype=dtype,
