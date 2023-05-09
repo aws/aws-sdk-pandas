@@ -131,7 +131,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
 
     mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
     ds.write_datasource(
-        datasource=datasource,
+        datasource,
         path=file_path,
         block_path_provider=(
             UserProvidedKeyBlockWritePathProvider()
