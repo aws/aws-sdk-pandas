@@ -354,6 +354,17 @@ def test_exceptions():
             report_s3_configuration={"BucketName": "test", "ObjectKeyPrefix": "test"},
         )
 
+    # NANOSECONDS not supported with time_col
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.timestream.write(
+            df=df,
+            database=database,
+            table=table,
+            time_col=time_col,
+            time_unit="NANOSECONDS",
+            common_attributes={"MeasureName": "test", "MeasureValue": "13.1", "MeasureValueType": "Double"},
+        )
+
 
 def test_multimeasure_scenario(timestream_database_and_table):
     df = pd.DataFrame(
@@ -666,7 +677,7 @@ def test_batch_load(timestream_database_and_table, path, path2, time_unit, keep_
 def test_time_unit_precision(timestream_database_and_table, time_unit):
     df_write = pd.DataFrame(
         {
-            "time": [time.time() * pow(10, 9)] * 3,
+            "time": [datetime.now()] * 3,
             "dim0": ["foo", "boo", "bar"],
             "dim1": [1, 2, 3],
             "measure0": ["a", "b", "c"],

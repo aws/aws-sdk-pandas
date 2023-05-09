@@ -4,7 +4,7 @@ import itertools
 import logging
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union, cast
 
 import boto3
 from botocore.config import Config
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 _BATCH_LOAD_FINAL_STATES: List[str] = ["SUCCEEDED", "FAILED", "PROGRESS_STOPPED", "PENDING_RESUME"]
 _BATCH_LOAD_WAIT_POLLING_DELAY: float = 2  # SECONDS
-_TIME_UNITS = {
+_TIME_UNITS_MAPPING = {
     "SECONDS": (9, 0),
     "MILLISECONDS": (6, 3),
     "MICROSECONDS": (3, 6),
@@ -30,6 +30,8 @@ _TIME_UNITS = {
 }
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+_TimeUnitLiteral = Literal["MILLISECONDS", "SECONDS", "MICROSECONDS", "NANOSECONDS"]
 
 
 def _df2list(df: pd.DataFrame) -> List[List[Any]]:
@@ -44,22 +46,26 @@ def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     return parameters
 
 
-def _check_time_unit(time_unit: Optional[str]) -> str:
+def _check_time_unit(time_unit: _TimeUnitLiteral) -> str:
     time_unit = time_unit if time_unit else "MILLISECONDS"
-    if time_unit not in _TIME_UNITS.keys():
-        raise exceptions.InvalidArgumentValue(f"Invalid time unit: {time_unit}. Must be one of {_TIME_UNITS.keys()}.")
+    if time_unit not in _TIME_UNITS_MAPPING.keys():
+        raise exceptions.InvalidArgumentValue(
+            f"Invalid time unit: {time_unit}. Must be one of {_TIME_UNITS_MAPPING.keys()}."
+        )
     return time_unit
 
 
-def _format_timestamp(timestamp: Union[int, datetime], time_unit: str) -> str:
+def _format_timestamp(timestamp: Union[int, datetime], time_unit: _TimeUnitLiteral) -> str:
     if isinstance(timestamp, int):
-        return str(round(timestamp / pow(10, _TIME_UNITS[time_unit][0])))
+        return str(round(timestamp / pow(10, _TIME_UNITS_MAPPING[time_unit][0])))
     if isinstance(timestamp, datetime):
-        return str(round(timestamp.timestamp() * pow(10, _TIME_UNITS[time_unit][1])))
+        return str(round(timestamp.timestamp() * pow(10, _TIME_UNITS_MAPPING[time_unit][1])))
     raise exceptions.InvalidArgumentType("`time_col` must be of type timestamp.")
 
 
-def _format_measure(measure_name: str, measure_value: Any, measure_type: str, time_unit: str) -> Dict[str, str]:
+def _format_measure(
+    measure_name: str, measure_value: Any, measure_type: str, time_unit: _TimeUnitLiteral
+) -> Dict[str, str]:
     return {
         "Name": measure_name,
         "Value": _format_timestamp(measure_value, time_unit) if measure_type == "TIMESTAMP" else str(measure_value),
@@ -70,13 +76,16 @@ def _format_measure(measure_name: str, measure_value: Any, measure_type: str, ti
 def _sanitize_common_attributes(
     common_attributes: Optional[Dict[str, Any]],
     version: int,
-    time_unit: Optional[str],
+    time_unit: _TimeUnitLiteral,
     measure_name: Optional[str],
 ) -> Dict[str, Any]:
     common_attributes = {} if not common_attributes else common_attributes
     # Values in common_attributes take precedence
     common_attributes.setdefault("Version", version)
     common_attributes.setdefault("TimeUnit", _check_time_unit(common_attributes.get("TimeUnit", time_unit)))
+
+    if "Time" not in common_attributes and common_attributes["TimeUnit"] == "NANOSECONDS":
+        raise exceptions.InvalidArgumentValue("Python datetime objects do not support nanoseconds precision.")
 
     if "MeasureValue" in common_attributes and "MeasureValueType" not in common_attributes:
         raise exceptions.InvalidArgumentCombination(
@@ -217,7 +226,7 @@ def write(
     measure_col: Union[str, List[Optional[str]], None] = None,
     dimensions_cols: Optional[List[Optional[str]]] = None,
     version: int = 1,
-    time_unit: Optional[str] = None,
+    time_unit: _TimeUnitLiteral = "MILLISECONDS",
     use_threads: Union[bool, int] = True,
     measure_name: Optional[str] = None,
     common_attributes: Optional[Dict[str, Any]] = None,
@@ -236,6 +245,7 @@ def write(
     Note
     ----
     If ``time_col`` column is supplied, it must be of type timestamp. ``time_unit`` is set to MILLISECONDS by default.
+    NANOSECONDS is not supported as python datetime objects are limited to microseconds precision.
 
     Parameters
     ----------
@@ -254,8 +264,8 @@ def write(
     version : int
         Version number used for upserts.
         Documentation https://docs.aws.amazon.com/timestream/latest/developerguide/API_WriteRecords.html.
-    time_unit : Optional[str]
-        The granularity of the timestamp unit. MILLISECONDS by default.
+    time_unit : str, optional
+        Time unit for the time column. MILLISECONDS by default.
     use_threads : bool, int
         True to enable concurrent writing, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the number of threads.
@@ -435,7 +445,7 @@ def batch_load(
     measure_cols: List[str],
     measure_name_col: str,
     report_s3_configuration: TimestreamBatchLoadReportS3Configuration,
-    time_unit: Optional[str] = None,
+    time_unit: _TimeUnitLiteral = "MILLISECONDS",
     record_version: int = 1,
     timestream_batch_load_wait_polling_delay: float = _BATCH_LOAD_WAIT_POLLING_DELAY,
     keep_files: bool = False,
@@ -568,7 +578,7 @@ def batch_load_from_files(
     measure_types: List[str],
     measure_name_col: str,
     report_s3_configuration: TimestreamBatchLoadReportS3Configuration,
-    time_unit: Optional[str] = None,
+    time_unit: _TimeUnitLiteral = "MILLISECONDS",
     record_version: int = 1,
     data_source_csv_configuration: Optional[Dict[str, Union[str, bool]]] = None,
     timestream_batch_load_wait_polling_delay: float = _BATCH_LOAD_WAIT_POLLING_DELAY,
