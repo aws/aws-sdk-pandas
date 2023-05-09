@@ -185,7 +185,7 @@ def test_versioned(timestream_database_and_table):
 # This test covers every possible combination of common_attributes and data frame inputs
 @pytest.mark.parametrize("record_type", ["SCALAR", "MULTI"])
 @pytest.mark.parametrize(
-    "common_attributes_details",
+    "common_attributes,shape",
     [
         ({}, (4, 6)),
         ({"MeasureName": "cpu_util"}, (4, 6)),
@@ -225,8 +225,7 @@ def test_versioned(timestream_database_and_table):
         ),
     ],
 )
-def test_common_attributes(timestream_database_and_table, record_type, common_attributes_details):
-    common_attributes, num_cols = common_attributes_details
+def test_common_attributes(timestream_database_and_table, record_type, common_attributes, shape):
     df = pd.DataFrame({"dummy": ["a"] * 3})
 
     kwargs = {
@@ -258,7 +257,7 @@ def test_common_attributes(timestream_database_and_table, record_type, common_at
     assert len(rejected_records) == 0
 
     df = wr.timestream.query(f"""SELECT * FROM "{timestream_database_and_table}"."{timestream_database_and_table}" """)
-    assert df.shape == (3, num_cols[1] if record_type == "MULTI" else num_cols[0])
+    assert df.shape == (3, shape[1] if record_type == "MULTI" else shape[0])
 
 
 @pytest.mark.parametrize("record_type", ["SCALAR", "MULTI"])
@@ -352,6 +351,17 @@ def test_exceptions():
             measure_types=["DOUBLE"],
             measure_name_col="measure_name",
             report_s3_configuration={"BucketName": "test", "ObjectKeyPrefix": "test"},
+        )
+
+    # NANOSECONDS not supported with time_col
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.timestream.write(
+            df=df,
+            database=database,
+            table=table,
+            time_col=time_col,
+            time_unit="NANOSECONDS",
+            common_attributes={"MeasureName": "test", "MeasureValue": "13.1", "MeasureValueType": "Double"},
         )
 
 
@@ -657,3 +667,40 @@ def test_batch_load(timestream_database_and_table, path, path2, time_unit, keep_
         """,
     )
     assert df2.shape == (len(df.index), len(df.columns) - 1)
+
+
+@pytest.mark.parametrize(
+    "time_unit,precision",
+    [(None, 3), ("SECONDS", 1), ("MILLISECONDS", 3), ("MICROSECONDS", 6)],
+)
+def test_time_unit_precision(timestream_database_and_table, time_unit, precision):
+    df_write = pd.DataFrame(
+        {
+            "time": [datetime.now()] * 3,
+            "dim0": ["foo", "boo", "bar"],
+            "dim1": [1, 2, 3],
+            "measure0": ["a", "b", "c"],
+            "measure1": [1.0, 2.0, 3.0],
+        }
+    )
+
+    rejected_records = wr.timestream.write(
+        df=df_write,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        time_unit=time_unit,
+        measure_col=["measure0", "measure1"],
+        dimensions_cols=["dim0", "dim1"],
+        measure_name="example",
+    )
+    assert len(rejected_records) == 0
+
+    df_query = wr.timestream.query(
+        f"""
+        SELECT
+            *
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        """,
+    )
+    assert len(str(df_query["time"][0].timestamp()).split(".")[1]) == precision
