@@ -657,3 +657,40 @@ def test_batch_load(timestream_database_and_table, path, path2, time_unit, keep_
         """,
     )
     assert df2.shape == (len(df.index), len(df.columns) - 1)
+
+
+@pytest.mark.parametrize(
+    "time_unit",
+    [(None, 3), ("SECONDS", 1), ("MILLISECONDS", 3), ("MICROSECONDS", 6)],
+)
+def test_time_unit_precision(timestream_database_and_table, time_unit):
+    df_write = pd.DataFrame(
+        {
+            "time": [time.time() * pow(10, 9)] * 3,
+            "dim0": ["foo", "boo", "bar"],
+            "dim1": [1, 2, 3],
+            "measure0": ["a", "b", "c"],
+            "measure1": [1.0, 2.0, 3.0],
+        }
+    )
+
+    rejected_records = wr.timestream.write(
+        df=df_write,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        time_unit=time_unit[0],
+        measure_col=["measure0", "measure1"],
+        dimensions_cols=["dim0", "dim1"],
+        measure_name="example",
+    )
+    assert len(rejected_records) == 0
+
+    df_query = wr.timestream.query(
+        f"""
+        SELECT
+            *
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        """,
+    )
+    assert len(str(df_query["time"][0].timestamp()).split('.')[1]) == time_unit[1]

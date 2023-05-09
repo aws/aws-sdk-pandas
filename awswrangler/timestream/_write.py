@@ -22,7 +22,12 @@ if TYPE_CHECKING:
 
 _BATCH_LOAD_FINAL_STATES: List[str] = ["SUCCEEDED", "FAILED", "PROGRESS_STOPPED", "PENDING_RESUME"]
 _BATCH_LOAD_WAIT_POLLING_DELAY: float = 2  # SECONDS
-_TIME_UNITS = ["MILLISECONDS", "SECONDS", "MICROSECONDS", "NANOSECONDS"]
+_TIME_UNITS = {
+    "SECONDS": (9, 0),
+    "MILLISECONDS": (6, 3),
+    "MICROSECONDS": (3, 6),
+    "NANOSECONDS": (0, 9),
+}
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -39,18 +44,25 @@ def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     return parameters
 
 
-def _format_timestamp(timestamp: Union[int, datetime]) -> str:
+def _check_time_unit(time_unit: Optional[str]) -> str:
+    time_unit = time_unit if time_unit else "MILLISECONDS"
+    if time_unit not in _TIME_UNITS.keys():
+        raise exceptions.InvalidArgumentValue(f"Invalid time unit: {time_unit}. Must be one of {_TIME_UNITS.keys()}.")
+    return time_unit
+
+
+def _format_timestamp(timestamp: Union[int, datetime], time_unit: str) -> str:
     if isinstance(timestamp, int):
-        return str(round(timestamp / 1_000_000))
+        return str(round(timestamp / pow(10, _TIME_UNITS[time_unit][0])))
     if isinstance(timestamp, datetime):
-        return str(round(timestamp.timestamp() * 1_000))
+        return str(round(timestamp.timestamp() * pow(10, _TIME_UNITS[time_unit][1])))
     raise exceptions.InvalidArgumentType("`time_col` must be of type timestamp.")
 
 
-def _format_measure(measure_name: str, measure_value: Any, measure_type: str) -> Dict[str, str]:
+def _format_measure(measure_name: str, measure_value: Any, measure_type: str, time_unit: str) -> Dict[str, str]:
     return {
         "Name": measure_name,
-        "Value": _format_timestamp(measure_value) if measure_type == "TIMESTAMP" else str(measure_value),
+        "Value": _format_timestamp(measure_value, time_unit) if measure_type == "TIMESTAMP" else str(measure_value),
         "Type": measure_type,
     }
 
@@ -58,17 +70,13 @@ def _format_measure(measure_name: str, measure_value: Any, measure_type: str) ->
 def _sanitize_common_attributes(
     common_attributes: Optional[Dict[str, Any]],
     version: int,
+    time_unit: Optional[str],
     measure_name: Optional[str],
 ) -> Dict[str, Any]:
     common_attributes = {} if not common_attributes else common_attributes
     # Values in common_attributes take precedence
     common_attributes.setdefault("Version", version)
-
-    if "Time" not in common_attributes:
-        # TimeUnit is MILLISECONDS by default for Timestream writes
-        # But if a time_col is supplied (i.e. Time is not in common_attributes)
-        # then TimeUnit must be set to MILLISECONDS explicitly
-        common_attributes["TimeUnit"] = "MILLISECONDS"
+    common_attributes.setdefault("TimeUnit", _check_time_unit(common_attributes.get("TimeUnit", time_unit)))
 
     if "MeasureValue" in common_attributes and "MeasureValueType" not in common_attributes:
         raise exceptions.InvalidArgumentCombination(
@@ -108,11 +116,12 @@ def _write_batch(
     elif all(v is None for v in cols_names[:2]):
         # Time and Measures are supplied in common_attributes
         dimensions_cols_loc = 0
+    time_unit = common_attributes["TimeUnit"]
 
     for row in batch:
         record: Dict[str, Any] = {}
         if "Time" not in common_attributes:
-            record["Time"] = _format_timestamp(row[time_loc])
+            record["Time"] = _format_timestamp(row[time_loc], time_unit)
         if scalar and "MeasureValue" not in common_attributes:
             measure_value = row[measure_cols_loc]
             if pd.isnull(measure_value):
@@ -120,7 +129,7 @@ def _write_batch(
             record["MeasureValue"] = str(measure_value)
         elif not scalar and "MeasureValues" not in common_attributes:
             record["MeasureValues"] = [
-                _format_measure(measure_name, measure_value, measure_value_type)  # type: ignore[arg-type]
+                _format_measure(measure_name, measure_value, measure_value_type, time_unit)  # type: ignore[arg-type]
                 for measure_name, measure_value, measure_value_type in zip(
                     measure_cols, row[measure_cols_loc:dimensions_cols_loc], measure_types
                 )
@@ -208,6 +217,7 @@ def write(
     measure_col: Union[str, List[Optional[str]], None] = None,
     dimensions_cols: Optional[List[Optional[str]]] = None,
     version: int = 1,
+    time_unit: Optional[str] = None,
     use_threads: Union[bool, int] = True,
     measure_name: Optional[str] = None,
     common_attributes: Optional[Dict[str, Any]] = None,
@@ -225,7 +235,7 @@ def write(
 
     Note
     ----
-    If ``time_col`` column is supplied, it must be of type timestamp. ``TimeUnit`` is set to MILLISECONDS by default.
+    If ``time_col`` column is supplied, it must be of type timestamp. ``time_unit`` is set to MILLISECONDS by default.
 
     Parameters
     ----------
@@ -244,6 +254,8 @@ def write(
     version : int
         Version number used for upserts.
         Documentation https://docs.aws.amazon.com/timestream/latest/developerguide/API_WriteRecords.html.
+    time_unit : Optional[str]
+        The granularity of the timestamp unit. MILLISECONDS by default.
     use_threads : bool, int
         True to enable concurrent writing, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the number of threads.
@@ -310,7 +322,7 @@ def write(
     dimensions_cols = dimensions_cols if dimensions_cols else [dimensions_cols]  # type: ignore[list-item]
     cols_names: List[Optional[str]] = [time_col] + measure_cols + dimensions_cols
     measure_name = measure_name if measure_name else measure_cols[0]
-    common_attributes = _sanitize_common_attributes(common_attributes, version, measure_name)
+    common_attributes = _sanitize_common_attributes(common_attributes, version, time_unit, measure_name)
 
     _logger.debug(
         "Writing to Timestream table %s in database %s\ncommon_attributes: %s\n, cols_names: %s\n, measure_types: %s",
@@ -626,9 +638,6 @@ def batch_load_from_files(
     """
     timestream_client = _utils.client(service_name="timestream-write", session=boto3_session)
     bucket, prefix = _utils.parse_path(path=path)
-    time_unit = time_unit if time_unit else "MILLISECONDS"
-    if time_unit not in _TIME_UNITS:
-        raise exceptions.InvalidArgument(f"Invalid time unit: {time_unit}. Must be one of {_TIME_UNITS}.")
 
     kwargs: Dict[str, Any] = {
         "TargetDatabaseName": database,
@@ -636,7 +645,7 @@ def batch_load_from_files(
         "DataModelConfiguration": {
             "DataModel": {
                 "TimeColumn": time_col,
-                "TimeUnit": time_unit,
+                "TimeUnit": _check_time_unit(time_unit),
                 "DimensionMappings": [{"SourceColumn": c} for c in dimensions_cols],
                 "MeasureNameColumn": measure_name_col,
                 "MultiMeasureMappings": {
