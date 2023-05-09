@@ -442,9 +442,9 @@ def _generate_upsert_statement(
     primary_keys: Optional[List[str]],
 ) -> str:
     if use_column_names is False:
-        raise exceptions.InvalidArgumentCombination("`use_column_names` has to be True when `mode=\"upsert\"`")
+        raise exceptions.InvalidArgumentCombination('`use_column_names` has to be True when `mode="upsert"`')
     if not primary_keys:
-        raise exceptions.InvalidArgumentCombination("`primary_keys` need to be defined when `mode=\"upsert\"`")
+        raise exceptions.InvalidArgumentCombination('`primary_keys` need to be defined when `mode="upsert"`')
 
     non_primary_key_columns = [key for key in df.columns if key not in set(primary_keys)]
 
@@ -490,29 +490,31 @@ def to_sql(
 
     Parameters
     ----------
-    df : pandas.DataFrame
+    df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    con : oracledb.Connection
+    con: oracledb.Connection
         Use oracledb.connect() to use credentials directly or wr.oracle.connect() to fetch it from the Glue Catalog.
-    table : str
+    table: str
         Table name
-    schema : str
+    schema: str
         Schema name
-    mode : str
-        Append or overwrite.
-    index : bool
+    mode: str
+        Append, overwrite or upsert.
+    index: bool
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
     dtype: Dict[str, str], optional
         Dictionary of columns names and Oracle types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'TEXT', 'col2 name': 'FLOAT'})
-    varchar_lengths : Dict[str, int], optional
+    varchar_lengths: Dict[str, int], optional
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
     use_column_names: bool
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
+    primary_keys : List[str], optional
+        Primary keys.
     chunksize: int
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
 
