@@ -84,6 +84,13 @@ def _iterate_server_side_cursor(
     dtype: Optional[Dict[str, pa.DataType]],
     timestamp_as_object: bool,
 ) -> Iterator[pd.DataFrame]:
+    """
+    Iterate through the results using server-side cursor.
+
+    Note: Pg8000 is not fully DB API 2.0 - compliant with fetchmany() fetching all result set. Using server-side cursor
+    allows fetching only specific amount of results reducing memory impact. Ultimately we'd like pg8000 to add full
+    support for fetchmany() or add SSCursor implementation similar to MySQL and revise this implementation in the future.
+    """
     with con.cursor() as cursor:
         sscursor_name: str = f"c_{uuid.uuid4().hex}"
         cursor_args = _db_utils._convert_params(f"DECLARE {sscursor_name} CURSOR FOR {sql}", params)
