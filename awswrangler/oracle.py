@@ -79,6 +79,7 @@ def _create_table(
     index: bool,
     dtype: Optional[Dict[str, str]],
     varchar_lengths: Optional[Dict[str, int]],
+    primary_keys: Optional[List[str]],
 ) -> None:
     if mode == "overwrite":
         _drop_table(cursor=cursor, schema=schema, table=table)
@@ -93,8 +94,18 @@ def _create_table(
         converter_func=_data_types.pyarrow2oracle,
     )
     cols_str: str = "".join([f'"{k}" {v},\n' for k, v in oracle_types.items()])[:-2]
+
+    if primary_keys:
+        primary_keys_str = ", ".join([f'"{k}"' for k in primary_keys])
+    else:
+        primary_keys_str = None
+
     table_identifier = _get_table_identifier(schema, table)
-    sql = f"CREATE TABLE {table_identifier} (\n{cols_str})"
+    create_table_params: str = f"\n{cols_str}"
+    if primary_keys_str:
+        create_table_params += f",\nPRIMARY KEY ({primary_keys_str})"
+
+    sql = f"CREATE TABLE {table_identifier} ({create_table_params})"
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -409,6 +420,57 @@ def read_sql_table(
     )
 
 
+def _generate_insert_statement(
+    table_identifier: str,
+    df: pd.DataFrame,
+    use_column_names: bool,
+) -> str:
+    column_placeholders: str = f"({', '.join([':' + str(i + 1) for i in range(len(df.columns))])})"
+
+    if use_column_names:
+        insertion_columns = "(" + ", ".join('"' + column + '"' for column in df.columns) + ")"
+    else:
+        insertion_columns = ""
+
+    return f"INSERT INTO {table_identifier} {insertion_columns} VALUES {column_placeholders}"
+
+
+def _generate_upsert_statement(
+    table_identifier: str,
+    df: pd.DataFrame,
+    use_column_names: bool,
+    primary_keys: Optional[List[str]],
+) -> str:
+    if use_column_names is False:
+        raise exceptions.InvalidArgumentCombination("`use_column_names` has to be True when `mode=\"upsert\"`")
+    if not primary_keys:
+        raise exceptions.InvalidArgumentCombination("`primary_keys` need to be defined when `mode=\"upsert\"`")
+
+    non_primary_key_columns = [key for key in df.columns if key not in set(primary_keys)]
+
+    primary_keys_str = ", ".join([f'"{key}"' for key in primary_keys])
+    columns_str = ", ".join([f'"{key}"' for key in non_primary_key_columns])
+
+    column_placeholders: str = f"({', '.join([':' + str(i + 1) for i in range(len(df.columns))])})"
+
+    primary_key_condition_str = " AND ".join([f'"{key}" = :{i+1}' for i, key in enumerate(primary_keys)])
+    assignment_str = ", ".join(
+        [f'"{col}" = :{i + len(primary_keys) + 1}' for i, col in enumerate(non_primary_key_columns)]
+    )
+
+    return f"""
+    BEGIN
+        INSERT INTO {table_identifier} ({primary_keys_str}, {columns_str})
+            VALUES {column_placeholders};
+        EXCEPTION
+        WHEN dup_val_on_index THEN
+            UPDATE {table_identifier}
+            SET    {assignment_str}
+            WHERE  {primary_key_condition_str};
+    END;
+    """
+
+
 @_utils.check_optional_dependency(oracledb, "oracledb")
 @apply_configs
 def to_sql(
@@ -416,11 +478,12 @@ def to_sql(
     con: "oracledb.Connection",
     table: str,
     schema: str,
-    mode: Literal["append", "overwrite"] = "append",
+    mode: Literal["append", "overwrite", "upsert"] = "append",
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
+    primary_keys: Optional[List[str]] = None,
     chunksize: int = 200,
 ) -> None:
     """Write records stored in a DataFrame into Oracle Database.
@@ -487,23 +550,27 @@ def to_sql(
                 index=index,
                 dtype=dtype,
                 varchar_lengths=varchar_lengths,
+                primary_keys=primary_keys,
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
+
             column_placeholders: str = f"({', '.join([':' + str(i + 1) for i in range(len(df.columns))])})"
             table_identifier = _get_table_identifier(schema, table)
-            insertion_columns = ""
-            if use_column_names:
-                insertion_columns = "(" + ", ".join('"' + column + '"' for column in df.columns) + ")"
+
+            if mode == "upsert":
+                sql = _generate_upsert_statement(table_identifier, df, use_column_names, primary_keys)
+            else:
+                sql = _generate_insert_statement(table_identifier, df, use_column_names)
 
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
             for _, parameters in placeholder_parameter_pair_generator:
                 parameters = list(zip(*[iter(parameters)] * len(df.columns)))
-                sql: str = f"INSERT INTO {table_identifier} {insertion_columns} VALUES {column_placeholders}"
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, parameters)
+
             con.commit()
     except Exception as ex:
         con.rollback()
