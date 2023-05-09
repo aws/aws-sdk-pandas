@@ -223,7 +223,10 @@ def test_dfs_are_equal_for_different_chunksizes(postgresql_table, postgresql_con
     df2 = pd.concat(
         list(
             wr.postgresql.read_sql_table(
-                con=postgresql_con, schema="public", table=postgresql_table, chunksize=chunksize,
+                con=postgresql_con,
+                schema="public",
+                table=postgresql_table,
+                chunksize=chunksize,
             )
         ),
         ignore_index=True,
