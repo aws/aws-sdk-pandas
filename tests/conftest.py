@@ -337,25 +337,24 @@ def sqlserver_table():
 
 
 @pytest.fixture(scope="function")
-def oracle_table():
+def oracle_table() -> str:
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.oracle.connect("aws-sdk-pandas-oracle")
-    sql = f"""
+    with wr.oracle.connect("aws-sdk-pandas-oracle") as con:
+        sql = f"""
 BEGIN
-   EXECUTE IMMEDIATE 'DROP TABLE "TEST"."{name}"';
+    EXECUTE IMMEDIATE 'DROP TABLE "TEST"."{name}"';
 EXCEPTION
-   WHEN OTHERS THEN
-      IF SQLCODE != -942 THEN
-         RAISE;
-      END IF;
+    WHEN OTHERS THEN
+        IF SQLCODE != -942 THEN
+            RAISE;
+        END IF;
 END;
-"""
-    with con.cursor() as cursor:
-        cursor.execute(sql)
-    con.commit()
-    con.close()
+        """
+        with con.cursor() as cursor:
+            cursor.execute(sql)
+        con.commit()
 
 
 @pytest.fixture(scope="function")
