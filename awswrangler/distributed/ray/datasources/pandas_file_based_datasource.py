@@ -7,7 +7,7 @@ import pandas as pd
 import pyarrow
 import ray
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
-from ray.data.block import Block, BlockAccessor
+from ray.data.block import Block, BlockAccessor, BlockMetadata
 from ray.data.datasource.datasource import WriteResult
 from ray.data.datasource.file_based_datasource import (
     BlockWritePathProvider,
@@ -64,34 +64,73 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
-    def do_write(
+    def do_write(  # type: ignore[override]  # pylint: disable=arguments-differ
         self,
         blocks: List[ObjectRef[pd.DataFrame]],
-        *args: Any,
-        **kwargs: Any,
+        metadata: List[BlockMetadata],
+        path: str,
+        dataset_uuid: str,
+        filesystem: Optional[pyarrow.fs.FileSystem] = None,
+        try_create_dir: bool = True,
+        open_stream_args: Optional[Dict[str, Any]] = None,
+        block_path_provider: BlockWritePathProvider = DefaultBlockWritePathProvider(),
+        write_args_fn: Callable[[], Dict[str, Any]] = lambda: {},
+        _block_udf: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None,
+        ray_remote_args: Optional[Dict[str, Any]] = None,
+        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        compression: Optional[str] = None,
+        mode: str = "wb",
+        **write_args: Any,
     ) -> List[ObjectRef[WriteResult]]:
-        """Create and return write tasks for a file-based datasource.
+        """Create and return write tasks for a file-based datasource."""
+        _write_block_to_file = self._write_block
 
-        Note: In Ray 2.4+ write semantics has changed. datasource.do_write() was deprecated in favour of
-        datasource.write() that represents a single write task and enables it to be captured by execution
-        plan allowing query optimisation ("fuse" with other operations). The change is not backward-compatible
-        with earlier versions still attempting to call do_write().
-        """
+        if ray_remote_args is None:
+            ray_remote_args = {}
+
+        if pandas_kwargs is None:
+            pandas_kwargs = {}
+
+        if not compression:
+            compression = pandas_kwargs.get("compression")
+
+        def write_block(write_path: str, block: pd.DataFrame) -> str:
+            if _block_udf is not None:
+                block = _block_udf(block)
+
+            with open_s3_object(
+                path=write_path,
+                mode=mode,
+                use_threads=False,
+                s3_additional_kwargs=s3_additional_kwargs,
+                encoding=write_args.get("encoding"),
+                newline=write_args.get("newline"),
+            ) as f:
+                _write_block_to_file(
+                    f,
+                    BlockAccessor.for_block(block),
+                    pandas_kwargs=pandas_kwargs,
+                    compression=compression,
+                    **write_args,
+                )
+                return write_path
+
+        write_block_fn = ray_remote(**ray_remote_args)(write_block)
+
+        file_suffix = self._get_file_suffix(self._FILE_EXTENSION, compression)
         write_tasks = []
-        path: str = kwargs.pop("path")
-        dataset_uuid: str = kwargs.pop("dataset_uuid")
-        ray_remote_args: Dict[str, Any] = kwargs.pop("ray_remote_args") or {}
-
-        _write = ray_remote(**ray_remote_args)(self.write)
 
         for block_idx, block in enumerate(blocks):
-            write_task = _write(
-                [block],
-                TaskContext(task_idx=block_idx),
+            write_path = block_path_provider(
                 path,
-                dataset_uuid,
-                **kwargs,
+                filesystem=filesystem,
+                dataset_uuid=dataset_uuid,
+                block=block,
+                block_index=block_idx,
+                file_format=file_suffix,
             )
+            write_task = write_block_fn(write_path, block)
             write_tasks.append(write_task)
 
         return write_tasks
