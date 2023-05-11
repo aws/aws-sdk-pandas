@@ -83,7 +83,13 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
         mode: str = "wb",
         **write_args: Any,
     ) -> List[ObjectRef[WriteResult]]:
-        """Create and return write tasks for a file-based datasource."""
+        """Create and return write tasks for a file-based datasource.
+
+        Note: In Ray 2.4+ write semantics has changed. datasource.do_write() was deprecated in favour of
+        datasource.write() that represents a single write task and enables it to be captured by execution
+        plan allowing query optimisation ("fuse" with other operations). The change is not backward-compatible
+        with earlier versions still attempting to call do_write().
+        """
         _write_block_to_file = self._write_block
 
         if ray_remote_args is None:
