@@ -4,6 +4,7 @@ import logging
 from typing import Any, Dict, List, Optional, TypedDict
 
 import boto3
+from typing_extensions import NotRequired
 
 from awswrangler import _data_types, athena, catalog, exceptions
 from awswrangler.quicksight._get_list import list_data_sources
@@ -12,8 +13,8 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class _QuicksightPrincipalList(TypedDict):
-    users: List[str]
-    groups: List[str]
+    users: NotRequired[List[str]]
+    groups: NotRequired[List[str]]
 
 
 def extract_athena_table_columns(

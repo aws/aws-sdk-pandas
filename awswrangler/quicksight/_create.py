@@ -182,7 +182,7 @@ def _get_principal_names(principals: _AllowedType, type: Literal["users", "group
         else:
             return None
 
-    return principals[type]
+    return principals.get(type)
 
 
 def create_athena_data_source(
