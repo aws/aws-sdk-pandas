@@ -57,7 +57,7 @@ def test_modin_s3_write_parquet_simple(
     df_s: pd.DataFrame, path: str, benchmark_time: float, request: pytest.FixtureRequest
 ) -> None:
     with ExecutionTimer(request, data_paths=path) as timer:
-        df_s.to_parquet(path)
+        df_s.to_parquet(path[:-1])  # path[:-1] due to Modin not properly handling S3 prefixes
 
     assert timer.elapsed_time < benchmark_time
 
@@ -72,7 +72,9 @@ def test_modin_s3_write_parquet_dataset(
     request: pytest.FixtureRequest,
 ) -> None:
     with ExecutionTimer(request, data_paths=path) as timer:
-        df_s.to_parquet(path, partition_cols=partition_cols)
+        df_s.to_parquet(
+            path[:-1], partition_cols=partition_cols
+        )  # path[:-1] due to Modin not properly handling S3 prefixes
 
     assert timer.elapsed_time < benchmark_time
 
