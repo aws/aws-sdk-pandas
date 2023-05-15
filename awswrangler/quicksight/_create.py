@@ -61,15 +61,15 @@ _ALLOWED_ACTIONS: Dict[str, Dict[str, List[str]]] = {
 }
 
 
-def _groupnames_to_arns(group_names: Set[str], all_groups: List[GroupTypeDef]) -> List[str]:
+def _groupnames_to_arns(group_names: Set[str], all_groups: List["GroupTypeDef"]) -> List[str]:
     return [u["Arn"] for u in all_groups if u.get("GroupName") in group_names]
 
 
-def _usernames_to_arns(user_names: Set[str], all_users: List[UserTypeDef]) -> List[str]:
+def _usernames_to_arns(user_names: Set[str], all_users: List["UserTypeDef"]) -> List[str]:
     return [u["Arn"] for u in all_users if u.get("UserName") in user_names]
 
 
-_PrincipalTypeDef = TypeVar("_PrincipalTypeDef", UserTypeDef, GroupTypeDef)
+_PrincipalTypeDef = TypeVar("_PrincipalTypeDef", "UserTypeDef", "GroupTypeDef")
 
 
 def _generate_permissions_base(
