@@ -1,7 +1,7 @@
 """Internal (private) Amazon QuickSight Utilities Module."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 import boto3
 
@@ -9,6 +9,11 @@ from awswrangler import _data_types, athena, catalog, exceptions
 from awswrangler.quicksight._get_list import list_data_sources
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+class _QuicksightPrincipalList(TypedDict):
+    users: List[str]
+    groups: List[str]
 
 
 def extract_athena_table_columns(

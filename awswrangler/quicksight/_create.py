@@ -9,6 +9,7 @@ import boto3
 from awswrangler import _utils, exceptions, sts
 from awswrangler.quicksight._get_list import get_data_source_arn, get_dataset_id, list_groups, list_users
 from awswrangler.quicksight._utils import (
+    _QuicksightPrincipalList,
     extract_athena_query_columns,
     extract_athena_table_columns,
 )
@@ -168,13 +169,27 @@ def _generate_transformations(
     return trans
 
 
+_AllowedType = Optional[Union[List[str], _QuicksightPrincipalList]]
+
+
+def _get_principal_names(principals: _AllowedType, type: Literal["users", "groups"]) -> Optional[List[str]]:
+    if principals is None:
+        return None
+
+    if isinstance(principals, list):
+        if type == "users":
+            return principals
+        else:
+            return None
+
+    return principals[type]
+
+
 def create_athena_data_source(
     name: str,
     workgroup: str = "primary",
-    allowed_to_use: Optional[List[str]] = None,
-    allowed_groups_to_use: Optional[List[str]] = None,
-    allowed_to_manage: Optional[List[str]] = None,
-    allowed_groups_to_manage: Optional[List[str]] = None,
+    allowed_to_use: _AllowedType = None,
+    allowed_to_manage: _AllowedType = None,
     tags: Optional[Dict[str, str]] = None,
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -195,19 +210,19 @@ def create_athena_data_source(
         Athena workgroup.
     tags : Dict[str, str], optional
         Key/Value collection to put on the Cluster.
-        e.g. {"foo": "boo", "bar": "xoo"})
-    allowed_to_use: list[str], optional
-        List of usernames that will be allowed to see and use the data source.
-        e.g. ["john", "Mary"]
-    allowed_groups_to_use: list[str], optional
-        List of group names that will be allowed to see and use the data source.
-        e.g. ["service-team", "customers"]
-    allowed_to_manage: list[str], optional
-        List of usernames that will be allowed to see, use, update and delete the data source.
-        e.g. ["Mary"]
-    allowed_groups_to_manage: list[str], optional
-        List of group names that will be allowed to see, use, update and delete the data source.
-        e.g. ["service-team"]
+        e.g. ```{"foo": "boo", "bar": "xoo"})```
+    allowed_to_use: dict["users" | "groups", list[str]], optional
+        Dictionary containing usernames and groups that will be allowed to see and
+        use the data.
+        e.g. ```{"users": ["john", "Mary"], "groups": ["engineering", "customers"]}```
+        Alternatively, if a list of string is passed,
+        it will be interpreted as a list of usernames only.
+    allowed_to_manage: dict["users" | "groups", list[str]], optional
+        Dictionary containing usernames and groups that will be allowed to see, use,
+        update and delete the data source.
+        e.g. ```{"users": ["Mary"], "groups": ["engineering"]}```
+        Alternatively, if a list of string is passed,
+        it will be interpreted as a list of usernames only.
     account_id : str, optional
         If None, the account ID will be inferred from your boto3 session.
     boto3_session : boto3.Session(), optional
@@ -244,10 +259,10 @@ def create_athena_data_source(
         namespace=namespace,
         account_id=account_id,
         boto3_session=boto3_session,
-        allowed_users_to_use=allowed_to_use,
-        allowed_users_to_manage=allowed_to_manage,
-        allowed_groups_to_use=allowed_groups_to_use,
-        allowed_groups_to_manage=allowed_groups_to_manage,
+        allowed_users_to_use=_get_principal_names(allowed_to_use, "users"),
+        allowed_users_to_manage=_get_principal_names(allowed_to_manage, "users"),
+        allowed_groups_to_use=_get_principal_names(allowed_to_use, "groups"),
+        allowed_groups_to_manage=_get_principal_names(allowed_to_manage, "groups"),
     )
     if permissions:
         args["Permissions"] = permissions
@@ -266,10 +281,8 @@ def create_athena_dataset(
     data_source_name: Optional[str] = None,
     data_source_arn: Optional[str] = None,
     import_mode: Literal["SPICE", "DIRECT_QUERY"] = "DIRECT_QUERY",
-    allowed_to_use: Optional[List[str]] = None,
-    allowed_groups_to_use: Optional[List[str]] = None,
-    allowed_to_manage: Optional[List[str]] = None,
-    allowed_groups_to_manage: Optional[List[str]] = None,
+    allowed_to_use: _AllowedType = None,
+    allowed_to_manage: _AllowedType = None,
     logical_table_alias: str = "LogicalTable",
     rename_columns: Optional[Dict[str, str]] = None,
     cast_columns_types: Optional[Dict[str, str]] = None,
@@ -316,18 +329,18 @@ def create_athena_dataset(
     tags : Dict[str, str], optional
         Key/Value collection to put on the Cluster.
         e.g. {"foo": "boo", "bar": "xoo"}
-    allowed_to_use: list[str], optional
-        List of usernames that will be allowed to see and use the dataset.
-        e.g. ["john", "Mary"]
-    allowed_groups_to_use: list[str], optional
-        List of group names that will be allowed to see and use the dataset.
-        e.g. ["service-team", "customers"]
-    allowed_to_manage: list[str], optional
-        List of usernames that will be allowed to see, use, update and delete the dataset.
-        e.g. ["Mary"]
-    allowed_groups_to_manage: list[str], optional
-        List of group names that will be allowed to see, use, update and delete the dataset.
-        e.g. ["service-team"]
+    allowed_to_use: dict["users" | "groups", list[str]], optional
+        Dictionary containing usernames and groups that will be allowed to see and
+        use the data.
+        e.g. ```{"users": ["john", "Mary"], "groups": ["engineering", "customers"]}```
+        Alternatively, if a list of string is passed,
+        it will be interpreted as a list of usernames only.
+    allowed_to_manage: dict["users" | "groups", list[str]], optional
+        Dictionary containing usernames and groups that will be allowed to see, use,
+        update and delete the data source.
+        e.g. ```{"users": ["Mary"], "groups": ["engineering"]}```
+        Alternatively, if a list of string is passed,
+        it will be interpreted as a list of usernames only.
     logical_table_alias : str
         A display name for the logical table.
     rename_columns : Dict[str, str], optional
@@ -424,10 +437,10 @@ def create_athena_dataset(
         namespace=namespace,
         account_id=account_id,
         boto3_session=boto3_session,
-        allowed_users_to_use=allowed_to_use,
-        allowed_users_to_manage=allowed_to_manage,
-        allowed_groups_to_use=allowed_groups_to_use,
-        allowed_groups_to_manage=allowed_groups_to_manage,
+        allowed_users_to_use=_get_principal_names(allowed_to_use, "users"),
+        allowed_users_to_manage=_get_principal_names(allowed_to_manage, "users"),
+        allowed_groups_to_use=_get_principal_names(allowed_to_use, "groups"),
+        allowed_groups_to_manage=_get_principal_names(allowed_to_manage, "groups"),
     )
     if permissions:
         args["Permissions"] = permissions
