@@ -83,7 +83,7 @@ def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Se
     args = {} if database is None else {"DatabaseName": database}
     response = client.list_tables(**args)  # type: ignore[arg-type]
     tables: List[str] = [tbl["TableName"] for tbl in response["Tables"]]
-    while "nextToken" in response:
+    while "NextToken" in response:
         response = client.list_tables(**args, NextToken=response["NextToken"])  # type: ignore[arg-type]
         tables += [tbl["TableName"] for tbl in response["Tables"]]
 
