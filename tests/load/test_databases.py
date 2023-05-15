@@ -38,7 +38,6 @@ def test_timestream_write(
     assert df["counter"].iloc[0] == 126_000
 
 
-@pytest.mark.skip(reason="Temporary skip due to boto3 version mismatch on the cluster image")
 @pytest.mark.parametrize("benchmark_time", [90])
 def test_timestream_batch_load(
     benchmark_time: int, timestream_database_and_table: str, df_timestream: pd.DataFrame, path: str, path2: str, request
