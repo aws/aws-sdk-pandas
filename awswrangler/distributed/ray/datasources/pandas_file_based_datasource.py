@@ -1,9 +1,12 @@
 """Ray PandasFileBasedDatasource Module."""
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
 import pyarrow
+import ray
+from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor, BlockMetadata
 from ray.data.datasource.datasource import WriteResult
 from ray.data.datasource.file_based_datasource import (
@@ -13,7 +16,7 @@ from ray.data.datasource.file_based_datasource import (
 )
 from ray.types import ObjectRef
 
-from awswrangler.distributed.ray import ray_remote
+from awswrangler.distributed.ray import ray_get, ray_remote
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 
@@ -32,11 +35,20 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
         *,
         filesystem: Optional["pyarrow.fs.FileSystem"] = None,
         dataset_uuid: Optional[str] = None,
-        block: Optional[ObjectRef[Block[Any]]] = None,
+        block: Optional[Block[Any]] = None,
         block_index: Optional[int] = None,
         file_format: Optional[str] = None,
     ) -> str:
         return base_path
+
+
+@dataclass
+class TaskContext:
+    """Describes the information of a task running block transform."""
+
+    # The index of task. Each task has a unique task index within the same
+    # operator.
+    task_idx: int
 
 
 class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
@@ -52,7 +64,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
-    def do_write(  # type: ignore[override]  # pylint: disable=arguments-differ
+    def do_write(  # pylint: disable=arguments-differ
         self,
         blocks: List[ObjectRef[pd.DataFrame]],
         metadata: List[BlockMetadata],
@@ -71,7 +83,13 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
         mode: str = "wb",
         **write_args: Any,
     ) -> List[ObjectRef[WriteResult]]:
-        """Create and return write tasks for a file-based datasource."""
+        """Create and return write tasks for a file-based datasource.
+
+        Note: In Ray 2.4+ write semantics has changed. datasource.do_write() was deprecated in favour of
+        datasource.write() that represents a single write task and enables it to be captured by execution
+        plan allowing query optimisation ("fuse" with other operations). The change is not backward-compatible
+        with earlier versions still attempting to call do_write().
+        """
         _write_block_to_file = self._write_block
 
         if ray_remote_args is None:
@@ -122,6 +140,70 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
             write_tasks.append(write_task)
 
         return write_tasks
+
+    def write(  # type: ignore[override]
+        self,
+        blocks: Iterable[Union[Block[pd.DataFrame], ObjectRef[pd.DataFrame]]],
+        ctx: TaskContext,
+        path: str,
+        dataset_uuid: str,
+        filesystem: Optional[pyarrow.fs.FileSystem] = None,
+        block_path_provider: BlockWritePathProvider = DefaultBlockWritePathProvider(),
+        _block_udf: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None,
+        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        compression: Optional[str] = None,
+        mode: str = "wb",
+        **write_args: Any,
+    ) -> WriteResult:
+        """Write blocks for a file-based datasource."""
+        _write_block_to_file = self._write_block
+
+        if pandas_kwargs is None:
+            pandas_kwargs = {}
+
+        if not compression:
+            compression = pandas_kwargs.get("compression")
+
+        def write_block(write_path: str, block: pd.DataFrame) -> str:
+            if _block_udf is not None:
+                block = _block_udf(block)
+
+            with open_s3_object(
+                path=write_path,
+                mode=mode,
+                use_threads=False,
+                s3_additional_kwargs=s3_additional_kwargs,
+                encoding=write_args.get("encoding"),
+                newline=write_args.get("newline"),
+            ) as f:
+                _write_block_to_file(
+                    f,
+                    BlockAccessor.for_block(block),
+                    pandas_kwargs=pandas_kwargs,
+                    compression=compression,
+                    **write_args,
+                )
+                return write_path
+
+        file_suffix = self._get_file_suffix(self._FILE_EXTENSION, compression)
+
+        builder = DelegatingBlockBuilder()  # type: ignore[no-untyped-call,var-annotated]
+        for block in blocks:
+            # Dereference the block if ObjectRef is passed
+            builder.add_block(ray_get(block) if isinstance(block, ray.ObjectRef) else block)  # type: ignore[arg-type]
+        block = builder.build()
+
+        write_path = block_path_provider(
+            path,
+            filesystem=filesystem,
+            dataset_uuid=dataset_uuid,
+            block=block,
+            block_index=ctx.task_idx,
+            file_format=file_suffix,
+        )
+
+        return write_block(write_path, block)
 
     def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
         return f"{file_format}{_COMPRESSION_2_EXT.get(compression)}"

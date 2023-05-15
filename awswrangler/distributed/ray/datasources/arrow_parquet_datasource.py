@@ -255,8 +255,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         """Override the base class FileBasedDatasource.get_read_tasks().
 
         Required in order to leverage pyarrow's ParquetDataset abstraction,
-        which simplifies partitioning logic. We still use
-        FileBasedDatasource's write side (do_write), however.
+        which simplifies partitioning logic.
         """
         read_tasks = []
         block_udf, reader_args, columns, schema = (

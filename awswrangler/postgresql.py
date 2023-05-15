@@ -1,6 +1,7 @@
 """Amazon PostgreSQL Module."""
 
 import logging
+import uuid
 from ssl import SSLContext
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast, overload
 
@@ -76,6 +77,48 @@ def _create_table(
     sql = f'CREATE TABLE IF NOT EXISTS "{schema}"."{table}" (\n{cols_str})'
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
+
+
+def _iterate_server_side_cursor(
+    sql: str,
+    con: Any,
+    chunksize: int,
+    index_col: Optional[Union[str, List[str]]],
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]],
+    safe: bool,
+    dtype: Optional[Dict[str, pa.DataType]],
+    timestamp_as_object: bool,
+) -> Iterator[pd.DataFrame]:
+    """
+    Iterate through the results using server-side cursor.
+
+    Note: Pg8000 is not fully DB API 2.0 - compliant with fetchmany() fetching all result set. Using server-side cursor
+    allows fetching only specific amount of results reducing memory impact. Ultimately we'd like pg8000 to add full
+    support for fetchmany() or add SSCursor implementation similar to MySQL and revise this implementation in the future.
+    """
+    with con.cursor() as cursor:
+        sscursor_name: str = f"c_{uuid.uuid4().hex}"
+        cursor_args = _db_utils._convert_params(f"DECLARE {sscursor_name} CURSOR FOR {sql}", params)
+        cursor.execute(*cursor_args)
+
+        try:
+            while True:
+                cursor.execute(f"FETCH FORWARD {chunksize} FROM {sscursor_name}")
+                records = cursor.fetchall()
+
+                if not records:
+                    break
+
+                yield _db_utils._records2df(
+                    records=records,
+                    cols_names=_db_utils._get_cols_names(cursor.description),
+                    index=index_col,
+                    safe=safe,
+                    dtype=dtype,
+                    timestamp_as_object=timestamp_as_object,
+                )
+        finally:
+            cursor.execute(f"CLOSE {sscursor_name}")
 
 
 @_utils.check_optional_dependency(pg8000, "pg8000")
@@ -267,12 +310,23 @@ def read_sql_query(
 
     """
     _validate_connection(con=con)
+    if chunksize is not None:
+        return _iterate_server_side_cursor(
+            sql=sql,
+            con=con,
+            chunksize=chunksize,
+            index_col=index_col,
+            params=params,
+            safe=safe,
+            dtype=dtype,
+            timestamp_as_object=timestamp_as_object,
+        )
     return _db_utils.read_sql_query(
         sql=sql,
         con=con,
         index_col=index_col,
         params=params,
-        chunksize=chunksize,
+        chunksize=None,
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
