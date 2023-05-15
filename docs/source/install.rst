@@ -134,7 +134,7 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
           "awssdkpandas-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-8",
-            semantic_version="3.1.1",  # Get the latest version from https://serverlessrepo.aws.amazon.com/applications
+            semantic_version="3.0.0",  # Get the latest version from https://serverlessrepo.aws.amazon.com/applications
           ),
         )
 
@@ -205,7 +205,9 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-For example: ``s3://aws-data-wrangler-public-artifacts/releases/3.1.1/awswrangler-layer-3.1.1-py3.8.zip``
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/3.0.0/awswrangler-layer-3.0.0-py3.8.zip``
+
+You can check the bucket to find the latest version.
 
 Amazon SageMaker Notebook
 -------------------------
