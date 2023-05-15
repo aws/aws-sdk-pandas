@@ -40,6 +40,7 @@ Starting version 3.0, some ``awswrangler`` modules are optional and must be inst
     >>> pip install 'awswrangler[optional-module1, optional-module2]'
 
 The optional modules are:
+
 - redshift
 - mysql
 - postgres
