@@ -360,7 +360,6 @@ def test_parquet_with_size(path, use_threads, max_rows_by_file):
     assert df.iint8.sum() == df2.iint8.sum()
 
 
-@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_and_timezone(path, use_threads):
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "par": ["a", "b"]}, index=["foo", "boo"])
@@ -397,7 +396,6 @@ def test_index_recovery_simple_str(path, use_threads):
     assert_pandas_equals(df, df2)
 
 
-@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_partitioned_str(path, use_threads):
     df = pd.DataFrame(
@@ -625,11 +623,6 @@ def test_parquet_compression(path, compression) -> None:
     assert_pandas_equals(df, df2)
 
 
-@pytest.mark.xfail(
-    is_ray_modin,
-    raises=AssertionError,
-    reason="Dataframe indexes are not equal in distributed mode",
-)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_empty_file(path, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
