@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterator, Literal, Optional, Union, overload
+from typing import Any, Dict, Iterator, List, Literal, Optional, Union, overload
 
 import boto3
 import pandas as pd
@@ -24,3 +24,15 @@ def query(
     pagination_config: Optional[Dict[str, Any]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
+def unload_to_files(
+    sql: str,
+    path: str,
+    unload_format: Optional[Literal["CSV", "PARQUET"]] = ...,
+    compression: Optional[Literal["GZIP", "NONE"]] = ...,
+    partition_cols: Optional[List[str]] = ...,
+    encryption: Optional[Literal["SSE_KMS", "SSE_S3"]] = ...,
+    kms_key_id: Optional[str] = ...,
+    field_delimiter: Optional[str] = ...,
+    escaped_by: Optional[str] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> None: ...

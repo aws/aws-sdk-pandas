@@ -336,6 +336,7 @@ Amazon Timestream
     query
     wait_batch_load_task
     write
+    unload_to_files
 
 Amazon EMR
 ----------

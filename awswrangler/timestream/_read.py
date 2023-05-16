@@ -2,13 +2,14 @@
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Union, cast
 
 import boto3
 import pandas as pd
 from botocore.config import Config
 
 from awswrangler import _utils
+from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -155,3 +156,81 @@ def query(
         # Modin's concat() can not concatenate empty data frames
         return pd.concat(results, ignore_index=True)
     return pd.DataFrame()
+
+
+@apply_configs
+def unload_to_files(
+    sql: str,
+    path: str,
+    unload_format: Optional[Literal["CSV", "PARQUET"]] = None,
+    compression: Optional[Literal["GZIP", "NONE"]] = None,
+    partition_cols: Optional[List[str]] = None,
+    encryption: Optional[Literal["SSE_KMS", "SSE_S3"]] = None,
+    kms_key_id: Optional[str] = None,
+    field_delimiter: Optional[str] = ",",
+    escaped_by: Optional[str] = "\\",
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """
+    Unload query results to Amazon S3.
+
+    Parameters
+    ----------
+    sql : str
+        SQL query
+    path : str
+        S3 path to write stage files (e.g. s3://bucket_name/any_name/)
+    unload_format : str, optional
+        Format of the unloaded S3 objects from the query.
+        Valid values: "CSV", "PARQUET". Case sensitive. Defaults to "PARQUET"
+    compression : str, optional
+        Compression of the unloaded S3 objects from the query.
+        Valid values: "GZIP", "NONE". Defaults to "GZIP"
+    partition_cols : List[str], optional
+        Specifies the partition keys for the unload operation
+    encryption : str, optional
+        Encryption of the unloaded S3 objects from the query.
+        Valid values: "SSE_KMS", "SSE_S3". Defaults to "SSE_S3"
+    kms_key_id : str, optional
+        Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
+        used to encrypt data files on Amazon S3
+    field_delimiter : str, optional
+        A single ASCII character that is used to separate fields in the output file,
+        such as pipe character (|), a comma (,), or tab (/t). Only used with CSV format
+    escaped_by : str, optional
+        The character that should be treated as an escape character in the data file
+        written to S3 bucket. Only used with CSV format
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session is used if None
+
+    Returns
+    -------
+    None
+
+    """
+    timestream_client = _utils.client(service_name="timestream-query", session=boto3_session)
+
+    partitioned_by_str: str = (
+        f"""partitioned_by = ARRAY [{','.join([f"'{col}'" for col in partition_cols])}],\n"""
+        if partition_cols is not None
+        else ""
+    )
+    kms_key_id_str: str = f"kms_key = '{kms_key_id}',\n" if kms_key_id is not None else ""
+    field_delimiter_str: str = f"field_delimiter = '{field_delimiter}',\n" if unload_format == "CSV" else ""
+    escaped_by_str: str = f"escaped_by = '{escaped_by}',\n" if unload_format == "CSV" else ""
+
+    sql = (
+        f"UNLOAD ({sql})\n"
+        f"TO '{path}'\n"
+        f"WITH (\n"
+        f"{partitioned_by_str}"
+        f"format='{unload_format or 'PARQUET'}',\n"
+        f"compression='{compression or 'GZIP'}',\n"
+        f"{field_delimiter_str}"
+        f"{escaped_by_str}"
+        f"{kms_key_id_str}"
+        f"encryption='{encryption or 'SSE_S3'}'\n"
+        f")"
+    )
+
+    timestream_client.query(QueryString=sql)
