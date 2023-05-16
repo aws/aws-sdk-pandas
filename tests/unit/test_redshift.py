@@ -593,7 +593,7 @@ def test_spectrum_decimal_cast(
     # Athena
     df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert df2.shape == (2, 5)
-    df2 = df2[df2.c0 != 2]
+    df2 = df2[df2.c0 != 2].reset_index(drop=True)
     assert df2.c1[0] == Decimal("1.00000")
     assert df2.c2[0] == Decimal("2.22222")
     assert df2.c3[0] == Decimal("3.33333")
@@ -603,7 +603,7 @@ def test_spectrum_decimal_cast(
     with wr.redshift.connect(connection="aws-sdk-pandas-redshift") as con:
         df2 = wr.redshift.read_sql_table(table=glue_table, schema=redshift_external_schema, con=con)
     assert df2.shape == (2, 5)
-    df2 = df2[df2.c0 != 2]
+    df2 = df2[df2.c0 != 2].reset_index(drop=True)
     assert df2.c1[0] == Decimal("1.00000")
     assert df2.c2[0] == Decimal("2.22222")
     assert df2.c3[0] == Decimal("3.33333")
@@ -618,7 +618,7 @@ def test_spectrum_decimal_cast(
             path=path2,
         )
     assert df2.shape == (2, 5)
-    df2 = df2[df2.c0 != 2]
+    df2 = df2[df2.c0 != 2].reset_index(drop=True)
     assert df2.c1[0] == Decimal("1.00000")
     assert df2.c2[0] == Decimal("2.22222")
     assert df2.c3[0] == Decimal("3.33333")
