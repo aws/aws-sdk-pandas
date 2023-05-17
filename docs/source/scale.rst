@@ -25,8 +25,9 @@ To confirm that you are in distributed mode, run:
 which show that both Ray and Modin are enabled as an execution engine and memory format, respectively.
 You can switch back to non-distributed mode at any point (See `Switching modes <scale.rst#switching-modes>`__ below).
 
-Initialization of the Ray cluster is lazy and only triggered when the first distributed API is executed. 
-At that point, SDK for pandas looks for an environmental variable called ``WR_ADDRESS``. If found, it is used to send commands to a remote cluster.
+Initialization of the Ray cluster is lazy and only triggered when the first distributed API is executed.
+At that point, SDK for pandas looks for an environmental variable called ``WR_ADDRESS``.
+If found, it is used to send commands to a remote cluster.
 If not found, a local Ray runtime is initialized on your machine instead.
 
 In distributed mode, the same ``awswrangler`` APIs can now handle much larger datasets:
