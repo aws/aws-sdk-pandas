@@ -708,7 +708,7 @@ def test_time_unit_precision(timestream_database_and_table, time_unit, precision
 
 @pytest.mark.parametrize("format", [None, "CSV", "PARQUET"])
 @pytest.mark.parametrize("partition_cols", [None, ["dim0"], ["dim1", "dim0"]])
-def test_unload_to_files(timestream_database_and_table, path, format, partition_cols):
+def test_unload(timestream_database_and_table, path, format, partition_cols):
     df = pd.DataFrame(
         {
             "time": [datetime.now()] * 3,
@@ -730,7 +730,7 @@ def test_unload_to_files(timestream_database_and_table, path, format, partition_
     )
     assert len(rejected_records) == 0
 
-    wr.timestream.unload_to_files(
+    df_out = wr.timestream.unload(
         sql=f"""
         SELECT
             time, measure_f, measure_t, dim1, dim0
@@ -740,3 +740,5 @@ def test_unload_to_files(timestream_database_and_table, path, format, partition_
         unload_format=format,
         partition_cols=partition_cols,
     )
+
+    assert df.shape == df_out.shape

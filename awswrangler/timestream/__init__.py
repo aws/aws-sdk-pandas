@@ -4,7 +4,7 @@
 from awswrangler.timestream._create import create_database, create_table
 from awswrangler.timestream._delete import delete_database, delete_table
 from awswrangler.timestream._list import list_databases, list_tables
-from awswrangler.timestream._read import query, unload_to_files
+from awswrangler.timestream._read import query, unload, unload_to_files
 from awswrangler.timestream._write import (
     batch_load,
     batch_load_from_files,
@@ -25,4 +25,5 @@ __all__ = [
     "batch_load_from_files",
     "wait_batch_load_task",
     "unload_to_files",
+    "unload",
 ]

@@ -8,7 +8,7 @@ import boto3
 import pandas as pd
 from botocore.config import Config
 
-from awswrangler import _utils
+from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -158,6 +158,133 @@ def query(
     return pd.DataFrame()
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
+@apply_configs
+def unload(
+    sql: str,
+    path: str,
+    unload_format: Optional[Literal["CSV", "PARQUET"]] = None,
+    compression: Optional[Literal["GZIP", "NONE"]] = None,
+    partition_cols: Optional[List[str]] = None,
+    encryption: Optional[Literal["SSE_KMS", "SSE_S3"]] = None,
+    kms_key_id: Optional[str] = None,
+    field_delimiter: Optional[str] = ",",
+    escaped_by: Optional[str] = "\\",
+    chunked: Union[bool, int] = False,
+    keep_files: bool = False,
+    use_threads: Union[bool, int] = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """
+    Unload query results to Amazon S3 and read the results as Pandas Data Frame.
+
+    Parameters
+    ----------
+    sql : str
+        SQL query
+    path : str
+        S3 path to write stage files (e.g. s3://bucket_name/any_name/)
+    unload_format : str, optional
+        Format of the unloaded S3 objects from the query.
+        Valid values: "CSV", "PARQUET". Case sensitive. Defaults to "PARQUET"
+    compression : str, optional
+        Compression of the unloaded S3 objects from the query.
+        Valid values: "GZIP", "NONE". Defaults to "GZIP"
+    partition_cols : List[str], optional
+        Specifies the partition keys for the unload operation
+    encryption : str, optional
+        Encryption of the unloaded S3 objects from the query.
+        Valid values: "SSE_KMS", "SSE_S3". Defaults to "SSE_S3"
+    kms_key_id : str, optional
+        Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
+        used to encrypt data files on Amazon S3
+    field_delimiter : str, optional
+        A single ASCII character that is used to separate fields in the output file,
+        such as pipe character (|), a comma (,), or tab (/t). Only used with CSV format
+    escaped_by : str, optional
+        The character that should be treated as an escape character in the data file
+        written to S3 bucket. Only used with CSV format
+    chunked : Union[int, bool]
+        If passed will split the data in a Iterable of DataFrames (Memory friendly).
+        If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
+    keep_files : bool
+        Should keep stage files?
+    use_threads : bool, int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session is used if None
+    s3_additional_kwargs : Dict[str, str], optional
+        Forward to botocore requests.
+    pyarrow_additional_kwargs : Dict[str, Any], optional
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
+        Valid values include "split_blocks", "self_destruct", "ignore_metadata".
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
+
+    Returns
+    -------
+    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
+        Result as Pandas DataFrame(s).
+
+    """
+    path = path if path.endswith("/") else f"{path}/"
+
+    if unload_format not in [None, "CSV", "PARQUET"]:
+        raise exceptions.InvalidArgumentValue("<unload_format> argument must be 'CSV' or 'PARQUET'")
+
+    unload_to_files(
+        sql=sql,
+        path=path,
+        unload_format=unload_format,
+        compression=compression,
+        partition_cols=partition_cols,
+        encryption=encryption,
+        kms_key_id=kms_key_id,
+        field_delimiter=field_delimiter,
+        escaped_by=escaped_by,
+        boto3_session=boto3_session,
+    )
+    results_path = f"{path}results/"
+    if unload_format == "CSV":
+        df: Union[pd.DataFrame, Iterator[pd.DataFrame]] = s3.read_csv(
+            path=results_path,
+            header=None,
+            dataset=True,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
+    else:
+        df: Union[pd.DataFrame, Iterator[pd.DataFrame]] = s3.read_parquet(
+            path=results_path,
+            chunked=chunked,
+            dataset=True,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        )
+
+    if keep_files is False:
+        _logger.debug("Deleting objects in S3 path: %s", path)
+        s3.delete_objects(
+            path=path,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
+    return df
+
+
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 @apply_configs
 def unload_to_files(
     sql: str,
