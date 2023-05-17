@@ -28,7 +28,7 @@ At scale
 
 AWS SDK for pandas can also run your workflows at scale by leveraging `modin <https://modin.readthedocs.io/en/stable/>`_ and `ray <https://www.ray.io/>`_.
 
-    >>> pip install "awswrangler[modin,ray]==3.1.0"
+    >>> pip install "awswrangler[modin,ray]==3.1.1"
 
 As a result existing scripts can run on significantly larger datasets with no code rewrite.
 
@@ -40,6 +40,7 @@ Starting version 3.0, some ``awswrangler`` modules are optional and must be inst
     >>> pip install 'awswrangler[optional-module1, optional-module2]'
 
 The optional modules are:
+
 - redshift
 - mysql
 - postgres
@@ -134,7 +135,7 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
           "awssdkpandas-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-8",
-            semantic_version="3.1.0",  # Get the latest version from https://serverlessrepo.aws.amazon.com/applications
+            semantic_version="3.0.0",  # Get the latest version from https://serverlessrepo.aws.amazon.com/applications
           ),
         )
 
@@ -188,7 +189,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for the above Job parameter as follows:
 
-* Value: ``pyarrow==7,pandas==1.5.3,awswrangler==3.1.0``
+* Value: ``pyarrow==7,pandas==1.5.3,awswrangler==3.1.1``
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 
@@ -205,7 +206,9 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-For example: ``s3://aws-data-wrangler-public-artifacts/releases/3.1.0/awswrangler-layer-3.1.0-py3.8.zip``
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/3.0.0/awswrangler-layer-3.0.0-py3.8.zip``
+
+You can check the bucket to find the latest version.
 
 Amazon SageMaker Notebook
 -------------------------
