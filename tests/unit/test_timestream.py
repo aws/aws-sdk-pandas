@@ -704,3 +704,42 @@ def test_time_unit_precision(timestream_database_and_table, time_unit, precision
         """,
     )
     assert len(str(df_query["time"][0].timestamp()).split(".")[1]) == precision
+
+
+@pytest.mark.parametrize("format", [None, "CSV", "PARQUET"])
+@pytest.mark.parametrize("partition_cols", [None, ["dim0"], ["dim1", "dim0"]])
+def test_unload(timestream_database_and_table, path, format, partition_cols):
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now()] * 3,
+            "measure_f": [1.1, 1.2, 1.3],
+            "measure_t": [datetime.now(dt.timezone.utc)] * 3,
+            "dim0": ["foo", "boo", "bar"],
+            "dim1": [1, pd.NaT, 3],
+        }
+    )
+
+    rejected_records = wr.timestream.write(
+        df=df,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        measure_col=["measure_f", "measure_t"],
+        dimensions_cols=["dim0", "dim1"],
+        measure_name="example",
+    )
+    assert len(rejected_records) == 0
+
+    df_out = wr.timestream.unload(
+        sql=f"""
+        SELECT
+            time, measure_f, measure_t, dim1, dim0
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        """,
+        path=path,
+        unload_format=format,
+        partition_cols=partition_cols,
+    )
+
+    assert df.shape == df_out.shape
+    assert len(df.columns) == len(df_out.columns)
