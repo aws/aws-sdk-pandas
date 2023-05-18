@@ -259,9 +259,9 @@ def unload(
 
     >>> import awswrangler as wr
     >>> df = wr.timestream.unload(
-    ...     sql="SELECT time, measure2, dim1, dim2, measure1 FROM database.mytable",
+    ...     sql="SELECT time, measure, dim1, dim2 FROM database.mytable",
     ...     path="s3://bucket/extracted_parquet_files/",
-    ...     partition_cols=["measure1"],
+    ...     partition_cols=["dim2"],
     ... )
 
     Unload and read as CSV.
@@ -395,9 +395,9 @@ def unload_to_files(
 
     >>> import awswrangler as wr
     >>> wr.timestream.unload_to_files(
-    ...     sql="SELECT time, measure2, dim1, dim2, measure1 FROM database.mytable",
+    ...     sql="SELECT time, measure, dim1, dim2 FROM database.mytable",
     ...     path="s3://bucket/extracted_parquet_files/",
-    ...     partition_cols=["measure1"],
+    ...     partition_cols=["dim2"],
     ... )
 
     Unload and read as CSV.
