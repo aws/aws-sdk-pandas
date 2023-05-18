@@ -1,7 +1,7 @@
 """Redshift Data API Connector."""
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 import boto3
 
@@ -10,6 +10,7 @@ from awswrangler import _utils
 from awswrangler.data_api import _connector
 
 if TYPE_CHECKING:
+    from mypy_boto3_redshift_data.client import RedshiftDataAPIServiceClient
     from mypy_boto3_redshift_data.type_defs import ColumnMetadataTypeDef
 
 
@@ -143,7 +144,7 @@ class RedshiftDataApiWaiter:
         Maximum number of tries.
     """
 
-    def __init__(self, client: Any, sleep: float, backoff: float, retries: int) -> None:
+    def __init__(self, client: "RedshiftDataAPIServiceClient", sleep: float, backoff: float, retries: int) -> None:
         self.client = client
         self.wait_config = _connector.WaitConfig(sleep, backoff, retries)
         self.logger: logging.Logger = logging.getLogger(__name__)
@@ -166,7 +167,7 @@ class RedshiftDataApiWaiter:
         total_sleep: float = 0
         total_tries: int = 0
         while total_tries <= self.wait_config.retries:
-            response: Dict[str, Any] = self.client.describe_statement(Id=request_id)
+            response = self.client.describe_statement(Id=request_id)
             status: str = response["Status"]
             if status == "FINISHED":
                 return True
