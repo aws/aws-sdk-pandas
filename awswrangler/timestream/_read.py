@@ -193,6 +193,8 @@ def unload(
     """
     Unload query results to Amazon S3 and read the results as Pandas Data Frame.
 
+    https://docs.aws.amazon.com/timestream/latest/developerguide/export-unload.html
+
     Parameters
     ----------
     sql : str
@@ -242,6 +244,34 @@ def unload(
     -------
     Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Result as Pandas DataFrame(s).
+
+    Examples
+    --------
+    Unload and read as Parquet (default).
+
+    >>> import awswrangler as wr
+    >>> df = wr.timestream.unload(
+    ...     sql="SELECT time, measure, dimension FROM database.mytable",
+    ...     path="s3://bucket/extracted_parquet_files/",
+    ... )
+
+    Unload and read partitioned Parquet. Note: partition columns must be at the end of the table.
+
+    >>> import awswrangler as wr
+    >>> df = wr.timestream.unload(
+    ...     sql="SELECT time, measure2, dim1, dim2, measure1 FROM database.mytable",
+    ...     path="s3://bucket/extracted_parquet_files/",
+    ...     partition_cols=["measure1"],
+    ... )
+
+    Unload and read as CSV.
+
+    >>> import awswrangler as wr
+    >>> df = wr.timestream.unload(
+    ...     sql="SELECT time, measure, dimension FROM database.mytable",
+    ...     path="s3://bucket/extracted_parquet_files/",
+    ...     unload_format="CSV",
+    ... )
 
     """
     path = path if path.endswith("/") else f"{path}/"
@@ -316,6 +346,8 @@ def unload_to_files(
     """
     Unload query results to Amazon S3.
 
+    https://docs.aws.amazon.com/timestream/latest/developerguide/export-unload.html
+
     Parameters
     ----------
     sql : str
@@ -348,6 +380,34 @@ def unload_to_files(
     Returns
     -------
     None
+
+    Examples
+    --------
+    Unload and read as Parquet (default).
+
+    >>> import awswrangler as wr
+    >>> wr.timestream.unload_to_files(
+    ...     sql="SELECT time, measure, dimension FROM database.mytable",
+    ...     path="s3://bucket/extracted_parquet_files/",
+    ... )
+
+    Unload and read partitioned Parquet. Note: partition columns must be at the end of the table.
+
+    >>> import awswrangler as wr
+    >>> wr.timestream.unload_to_files(
+    ...     sql="SELECT time, measure2, dim1, dim2, measure1 FROM database.mytable",
+    ...     path="s3://bucket/extracted_parquet_files/",
+    ...     partition_cols=["measure1"],
+    ... )
+
+    Unload and read as CSV.
+
+    >>> import awswrangler as wr
+    >>> wr.timestream.unload_to_files(
+    ...     sql="SELECT time, measure, dimension FROM database.mytable",
+    ...     path="s3://bucket/extracted_parquet_files/",
+    ...     unload_format="CSV",
+    ... )
 
     """
     timestream_client = _utils.client(service_name="timestream-query", session=boto3_session)
