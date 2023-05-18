@@ -1,12 +1,12 @@
 """Redshift Data API Connector."""
 import logging
 import time
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import boto3
 
 import awswrangler.pandas as pd
-from awswrangler import _utils
+from awswrangler import _utils, exceptions
 from awswrangler.data_api import _connector
 
 if TYPE_CHECKING:
@@ -72,6 +72,18 @@ class RedshiftDataApi(_connector.DataApiConnector):
         """Close underlying endpoint connections."""
         self.client.close()
 
+    def begin_transaction(self, database: Optional[str] = None, schema: Optional[str] = None) -> str:
+        """Start an SQL transaction."""
+        raise NotImplementedError("Redshift Data API does not support transactions.")
+
+    def commit_transaction(self, transaction_id: str) -> str:
+        """Commit an SQL transaction."""
+        raise NotImplementedError("Redshift Data API does not support transactions.")
+
+    def rollback_transaction(self, transaction_id: str) -> str:
+        """Roll back an SQL transaction."""
+        raise NotImplementedError("Redshift Data API does not support transactions.")
+
     def _validate_redshift_target(self) -> None:
         if self.database == "":
             raise ValueError("`database` must be set for connection")
@@ -82,7 +94,18 @@ class RedshiftDataApi(_connector.DataApiConnector):
         if self.workgroup_name == "" and self.secret_arn == "" and self.db_user == "":
             raise ValueError("Either `secret_arn` or `db_user` must be set for authentication")
 
-    def _execute_statement(self, sql: str, database: Optional[str] = None) -> str:
+    def _execute_statement(
+        self,
+        sql: str,
+        database: Optional[str] = None,
+        transaction_id: Optional[str] = None,
+        parameters: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        if transaction_id:
+            exceptions.InvalidArgument("`transaction_id` not supported for Redshift Data API")
+        if parameters:
+            exceptions.InvalidArgument("`parameters` not supported for Redshift Data API")
+
         self._validate_redshift_target()
         self._validate_auth_method()
         credentials = {}
@@ -107,6 +130,15 @@ class RedshiftDataApi(_connector.DataApiConnector):
             **credentials,  # type: ignore[arg-type]
         )
         return response["Id"]
+
+    def _batch_execute_statement(
+        self,
+        sql: Union[str, List[str]],
+        database: Optional[str] = None,
+        transaction_id: Optional[str] = None,
+        parameter_sets: Optional[List[List[Dict[str, Any]]]] = None,
+    ) -> str:
+        raise NotImplementedError("Batch execute statement not support for Redshift Data API.")
 
     def _get_statement_result(self, request_id: str) -> pd.DataFrame:
         self.waiter.wait(request_id)

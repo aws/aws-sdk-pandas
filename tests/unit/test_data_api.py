@@ -119,19 +119,30 @@ def test_data_api_mysql_columnless_query(mysql_serverless_connector: "RdsDataApi
     assert_pandas_equals(dataframe, expected_dataframe)
 
 
-def test_data_api_mysql_basic_select(mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str) -> None:
+@pytest.mark.parametrize("use_column_names", [False, True])
+def test_data_api_mysql_basic_select(
+    mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str, use_column_names: bool
+) -> None:
+    database = "test"
+    frame = pd.DataFrame([[42, "test", None], [23, "foo", "bar"]], columns=["id", "name", "missing"])
+
     wr.data_api.rds.read_sql_query(
-        f"CREATE TABLE test.{mysql_serverless_table} (id INT, name VARCHAR(128), missing VARCHAR(256))",
+        f"CREATE TABLE {database}.{mysql_serverless_table} (id INT, name VARCHAR(128), missing VARCHAR(256))",
         con=mysql_serverless_connector,
     )
-    wr.data_api.rds.read_sql_query(
-        f"INSERT INTO test.{mysql_serverless_table} (id, name) VALUES (42, 'test')", con=mysql_serverless_connector
+
+    wr.data_api.rds.to_sql(
+        df=frame,
+        con=mysql_serverless_connector,
+        table=mysql_serverless_table,
+        database=database,
+        use_column_names=use_column_names,
     )
-    dataframe = wr.data_api.rds.read_sql_query(
+
+    out_frame = wr.data_api.rds.read_sql_query(
         f"SELECT * FROM test.{mysql_serverless_table}", con=mysql_serverless_connector
     )
-    expected_dataframe = pd.DataFrame([[42, "test", None]], columns=["id", "name", "missing"])
-    assert_pandas_equals(dataframe, expected_dataframe)
+    assert_pandas_equals(out_frame, frame)
 
 
 def test_data_api_mysql_empty_results_select(

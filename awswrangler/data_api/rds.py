@@ -2,17 +2,25 @@
 import logging
 import time
 import uuid
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 import boto3
 
 import awswrangler.pandas as pd
-from awswrangler import _utils
+from awswrangler import _utils, exceptions
 from awswrangler.data_api import _connector
 
 if TYPE_CHECKING:
     from mypy_boto3_rds_data.client import BotocoreClientError
-    from mypy_boto3_rds_data.type_defs import ExecuteStatementResponseTypeDef
+    from mypy_boto3_rds_data.type_defs import BatchExecuteStatementResponseTypeDef, ExecuteStatementResponseTypeDef
+
+
+_logger = logging.getLogger(__name__)
+
+
+_ExecuteStatementResponseType = TypeVar(
+    "_ExecuteStatementResponseType", "ExecuteStatementResponseTypeDef", "BatchExecuteStatementResponseTypeDef"
+)
 
 
 class RdsDataApi(_connector.DataApiConnector):
@@ -49,45 +57,72 @@ class RdsDataApi(_connector.DataApiConnector):
         super().__init__()
 
         self.client = _utils.client(service_name="rds-data", session=boto3_session)
-        self.logger = logging.getLogger(__name__)
 
         self.resource_arn = resource_arn
         self.database = database
         self.secret_arn = secret_arn
         self.wait_config = _connector.WaitConfig(sleep, backoff, retries)
-        self.results: Dict[str, "ExecuteStatementResponseTypeDef"] = {}
+        self.results: Dict[str, Union["ExecuteStatementResponseTypeDef", "BatchExecuteStatementResponseTypeDef"]] = {}
 
     def close(self) -> None:
         """Close underlying endpoint connections."""
         self.client.close()
 
-    def _execute_statement(self, sql: str, database: Optional[str] = None) -> str:
-        if database is None:
-            database = self.database
+    def begin_transaction(self, database: Optional[str] = None, schema: Optional[str] = None) -> str:
+        """Start an SQL transaction."""
+        kwargs = {}
+        if database:
+            kwargs["database"] = database
+        if schema:
+            kwargs["schema"] = schema
 
+        response = self.client.begin_transaction(
+            resourceArn=self.resource_arn,
+            secretArn=self.secret_arn,
+            **kwargs,
+        )
+        return response["transactionId"]
+
+    def commit_transaction(self, transaction_id: str) -> str:
+        """Commit an SQL transaction."""
+        response = self.client.commit_transaction(
+            resourceArn=self.resource_arn,
+            secretArn=self.secret_arn,
+            transactionId=transaction_id,
+        )
+        return response["transactionStatus"]
+
+    def rollback_transaction(self, transaction_id: str) -> str:
+        """Roll back an SQL transaction."""
+        response = self.client.rollback_transaction(
+            resourceArn=self.resource_arn,
+            secretArn=self.secret_arn,
+            transactionId=transaction_id,
+        )
+        return response["transactionStatus"]
+
+    def _execute_with_retry(
+        self,
+        sql: str,
+        function: Callable[[str], _ExecuteStatementResponseType],
+    ) -> str:
         sleep: float = self.wait_config.sleep
         total_tries: int = 0
         total_sleep: float = 0
-        response: Optional["ExecuteStatementResponseTypeDef"] = None
+        response: Optional[_ExecuteStatementResponseType] = None
         last_exception: Optional["BotocoreClientError"] = None
         while total_tries < self.wait_config.retries:
             try:
-                response = self.client.execute_statement(
-                    resourceArn=self.resource_arn,
-                    database=database,
-                    sql=sql,
-                    secretArn=self.secret_arn,
-                    includeResultMetadata=True,
-                )
-                self.logger.debug(
+                response = function(sql)
+                _logger.debug(
                     "Response received after %s tries and sleeping for a total of %s seconds", total_tries, total_sleep
                 )
                 break
             except self.client.exceptions.BadRequestException as exception:
                 last_exception = exception
                 total_sleep += sleep
-                self.logger.debug("BadRequestException occurred: %s", exception)
-                self.logger.debug(
+                _logger.debug("BadRequestException occurred: %s", exception)
+                _logger.debug(
                     "Cluster may be paused - sleeping for %s seconds for a total of %s before retrying",
                     sleep,
                     total_sleep,
@@ -97,16 +132,74 @@ class RdsDataApi(_connector.DataApiConnector):
                 sleep *= self.wait_config.backoff
 
         if response is None:
-            self.logger.exception("Maximum BadRequestException retries reached for query %s", sql)
+            _logger.exception("Maximum BadRequestException retries reached for query %s", sql)
             raise last_exception  # type: ignore[misc]
 
         request_id: str = uuid.uuid4().hex
         self.results[request_id] = response
         return request_id
 
+    def _execute_statement(
+        self,
+        sql: str,
+        database: Optional[str] = None,
+        transaction_id: Optional[str] = None,
+        parameters: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        if database is None:
+            database = self.database
+
+        additional_kwargs: Dict[str, Any] = {}
+        if transaction_id:
+            additional_kwargs["transactionId"] = transaction_id
+        if parameters:
+            additional_kwargs["parameters"] = parameters
+
+        def function(sql: str) -> "ExecuteStatementResponseTypeDef":
+            return self.client.execute_statement(
+                resourceArn=self.resource_arn,
+                database=database,  # type: ignore[arg-type]
+                sql=sql,
+                secretArn=self.secret_arn,
+                includeResultMetadata=True,
+                **additional_kwargs,
+            )
+
+        return self._execute_with_retry(sql=sql, function=function)
+
+    def _batch_execute_statement(
+        self,
+        sql: Union[str, List[str]],
+        database: Optional[str] = None,
+        transaction_id: Optional[str] = None,
+        parameter_sets: Optional[List[List[Dict[str, Any]]]] = None,
+    ) -> str:
+        if isinstance(sql, list):
+            raise exceptions.InvalidArgumentType("`sql` parameter cannot be list.")
+
+        if database is None:
+            database = self.database
+
+        additional_kwargs: Dict[str, Any] = {}
+        if transaction_id:
+            additional_kwargs["transactionId"] = transaction_id
+        if parameter_sets:
+            additional_kwargs["parameterSets"] = parameter_sets
+
+        def function(sql: str) -> "BatchExecuteStatementResponseTypeDef":
+            return self.client.batch_execute_statement(
+                resourceArn=self.resource_arn,
+                database=database,  # type: ignore[arg-type]
+                sql=sql,
+                secretArn=self.secret_arn,
+                **additional_kwargs,
+            )
+
+        return self._execute_with_retry(sql=sql, function=function)
+
     def _get_statement_result(self, request_id: str) -> pd.DataFrame:
         try:
-            result = self.results.pop(request_id)
+            result = cast("ExecuteStatementResponseTypeDef", self.results.pop(request_id))
         except KeyError as exception:
             raise KeyError(f"Request {request_id} not found in results {self.results}") from exception
 
@@ -168,3 +261,94 @@ def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) ->
     A Pandas DataFrame containing the query results.
     """
     return con.execute(sql, database=database)
+
+
+def _create_value_dict(value: Any) -> Dict[str, Any]:
+    if value is None:
+        return {"isNull": True}
+
+    if isinstance(value, bool):
+        return {"booleanValue": value}
+
+    if isinstance(value, int):
+        return {"longValue": value}
+
+    if isinstance(value, float):
+        return {"doubleValue": value}
+
+    if isinstance(value, str):
+        return {"stringValue": value}
+
+    raise exceptions.InvalidArgumentType(f"Value {value} not supported.")
+
+
+def _generate_parameters(columns: List[str], values: List[Any]) -> List[Dict[str, Any]]:
+    parameter_list = []
+
+    for col, value in zip(columns, values):
+        parameter = {
+            "name": col,
+            "value": _create_value_dict(value),
+        }
+
+        parameter_list.append(parameter)
+
+    return parameter_list
+
+
+def _generate_parameter_sets(df: pd.DataFrame) -> List[List[Dict[str, Any]]]:
+    parameter_sets = []
+
+    columns = df.columns.tolist()
+    for values in df.values.tolist():
+        parameter_sets.append(_generate_parameters(columns, values))
+
+    return parameter_sets
+
+
+def to_sql(
+    df: pd.DataFrame,
+    con: RdsDataApi,
+    table: str,
+    database: str,
+    index: bool = False,
+    use_column_names: bool = False,
+    chunksize: int = 200,
+) -> None:
+    """Insert data using an SQL query on a Data API connection."""
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+
+    transaction_id: Optional[str] = None
+    try:
+        transaction_id = con.begin_transaction(database=database)
+
+        if index:
+            df = df.reset_index(level=df.index.names)
+
+        if use_column_names:
+            insertion_columns = "(" + ", ".join([f"`{col}`" for col in df.columns]) + ")"
+        else:
+            insertion_columns = ""
+
+        placeholders = ", ".join([f":{col}" for col in df.columns])
+
+        sql = f"""INSERT INTO `{table}` {insertion_columns} VALUES ({placeholders})"""
+        parameter_sets = _generate_parameter_sets(df)
+
+        for parameter_sets_chunk in _utils.chunkify(parameter_sets, max_length=chunksize):
+            con.batch_execute(
+                sql=sql,
+                database=database,
+                transaction_id=transaction_id,
+                parameter_sets=parameter_sets_chunk,
+            )
+
+    except Exception as ex:
+        if transaction_id:
+            con.rollback_transaction(transaction_id=transaction_id)
+        _logger.error(ex)
+        raise
+
+    else:
+        con.commit_transaction(transaction_id=transaction_id)
