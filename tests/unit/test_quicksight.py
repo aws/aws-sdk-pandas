@@ -50,8 +50,8 @@ def test_quicksight(path, quicksight_datasource, quicksight_dataset, glue_databa
         sql=f"SELECT * FROM {glue_database}.{glue_table}",
         data_source_name=quicksight_datasource,
         import_mode="SPICE",
-        allowed_to_use=[wr.sts.get_current_identity_name()],
-        allowed_to_manage=[wr.sts.get_current_identity_name()],
+        allowed_to_use={"users": [wr.sts.get_current_identity_name()]},
+        allowed_to_manage={"users": [wr.sts.get_current_identity_name()]},
         rename_columns={"iint16": "new_col"},
         cast_columns_types={"new_col": "STRING"},
         tag_columns={"string": [{"ColumnGeographicRole": "CITY"}, {"ColumnDescription": {"Text": "some description"}}]},
@@ -84,7 +84,9 @@ def test_quicksight_delete_all_datasources_filter():
     wr.quicksight.delete_all_data_sources(regex_filter="test.*")
     resource_name = f"test-delete-{uuid.uuid4()}"
     wr.quicksight.create_athena_data_source(
-        name=resource_name, allowed_to_manage=[wr.sts.get_current_identity_name()], tags={"Env": "aws-sdk-pandas"}
+        name=resource_name,
+        allowed_to_manage={"users": [wr.sts.get_current_identity_name()]},
+        tags={"Env": "aws-sdk-pandas"},
     )
     wr.quicksight.delete_all_data_sources(regex_filter="test-no-delete")
 
@@ -104,15 +106,17 @@ def test_quicksight_delete_all_datasets(path, glue_database, glue_table):
 
     resource_name = f"test{str(uuid.uuid4())[:8]}"
     wr.quicksight.create_athena_data_source(
-        name=resource_name, allowed_to_manage=[wr.sts.get_current_identity_name()], tags={"Env": "aws-sdk-pandas"}
+        name=resource_name,
+        allowed_to_manage={"users": [wr.sts.get_current_identity_name()]},
+        tags={"Env": "aws-sdk-pandas"},
     )
     wr.quicksight.create_athena_dataset(
         name=f"{resource_name}-sql",
         sql=f"SELECT * FROM {glue_database}.{glue_table}",
         data_source_name=resource_name,
         import_mode="SPICE",
-        allowed_to_use=[wr.sts.get_current_identity_name()],
-        allowed_to_manage=[wr.sts.get_current_identity_name()],
+        allowed_to_use={"users": [wr.sts.get_current_identity_name()]},
+        allowed_to_manage={"users": [wr.sts.get_current_identity_name()]},
         rename_columns={"iint16": "new_col"},
         cast_columns_types={"new_col": "STRING"},
         tag_columns={"string": [{"ColumnGeographicRole": "CITY"}, {"ColumnDescription": {"Text": "some description"}}]},
