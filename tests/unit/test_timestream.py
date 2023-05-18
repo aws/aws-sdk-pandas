@@ -742,3 +742,4 @@ def test_unload(timestream_database_and_table, path, format, partition_cols):
     )
 
     assert df.shape == df_out.shape
+    assert len(df.columns) == len(df_out.columns)

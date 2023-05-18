@@ -1,5 +1,6 @@
 """Amazon Timestream Read Module."""
 
+import json
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Union, cast
@@ -112,6 +113,16 @@ def _paginate_query(
 
             yield _rows_to_df(rows, schema, df_metadata)
         rows = []
+
+
+def _get_column_names_from_metadata(unload_path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
+    metadata_path = s3.list_objects(path=unload_path, suffix="_metadata.json", boto3_session=boto3_session)[0]
+    bucket, key = _utils.parse_path(metadata_path)
+    metadata_content = json.loads(client_s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8"))
+    columns = [column["Name"] for column in metadata_content["ColumnInfo"]]
+    _logger.debug("Read %d columns from metadata file in: %s", len(columns), metadata_path)
+    return columns
 
 
 def query(
@@ -252,9 +263,13 @@ def unload(
     )
     results_path = f"{path}results/"
     if unload_format == "CSV":
+        column_names: List[str] = _get_column_names_from_metadata(path, boto3_session)
         df: Union[pd.DataFrame, Iterator[pd.DataFrame]] = s3.read_csv(
             path=results_path,
             header=None,
+            names=[column for column in column_names if column not in set(partition_cols)]
+            if partition_cols is not None
+            else column_names,
             dataset=True,
             use_threads=use_threads,
             boto3_session=boto3_session,
