@@ -26,7 +26,7 @@ which show that both Ray and Modin are enabled as an execution engine and memory
 You can switch back to non-distributed mode at any point (See `Switching modes <scale.rst#switching-modes>`__ below).
 
 Initialization of the Ray cluster is lazy and only triggered when the first distributed API is executed.
-At that point, SDK for pandas looks for an environmental variable called ``WR_ADDRESS``.
+At that point, SDK for pandas looks for an environment variable called ``WR_ADDRESS``.
 If found, it is used to send commands to a remote cluster.
 If not found, a local Ray runtime is initialized on your machine instead.
 Alternatively, you can trigger Ray initialization with:
@@ -155,7 +155,7 @@ The following commands showcase how to switch between distributed and non-distri
     wr.engine.set("ray")
     wr.memory_format.set("modin")
 
-Similarly, you can set the ``WR_ENGINE`` and ``WR_MEMORY_FORMAT`` environmental variables
+Similarly, you can set the ``WR_ENGINE`` and ``WR_MEMORY_FORMAT`` environment variables
 to the desired engine and memory format, respectively.
 
 Caveats
