@@ -68,6 +68,10 @@ class RedshiftDataApi(_connector.DataApiConnector):
         self.db_user = db_user
         self.waiter = RedshiftDataApiWaiter(self.client, sleep, backoff, retries)
 
+    def close(self) -> None:
+        """Close underlying endpoint connections."""
+        self.client.close()
+
     def _validate_redshift_target(self) -> None:
         if self.database == "":
             raise ValueError("`database` must be set for connection")

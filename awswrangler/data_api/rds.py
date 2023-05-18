@@ -57,6 +57,10 @@ class RdsDataApi(_connector.DataApiConnector):
         self.wait_config = _connector.WaitConfig(sleep, backoff, retries)
         self.results: Dict[str, "ExecuteStatementResponseTypeDef"] = {}
 
+    def close(self) -> None:
+        """Close underlying endpoint connections."""
+        self.client.close()
+
     def _execute_statement(self, sql: str, database: Optional[str] = None) -> str:
         if database is None:
             database = self.database

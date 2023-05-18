@@ -14,13 +14,15 @@ pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture
-def redshift_connector(databases_parameters: Dict[str, Any]) -> "RedshiftDataApi":
+def redshift_connector(databases_parameters: Dict[str, Any]) -> Iterator["RedshiftDataApi"]:
     cluster_id = databases_parameters["redshift"]["identifier"]
     database = databases_parameters["redshift"]["database"]
     secret_arn = databases_parameters["redshift"]["secret_arn"]
-    return wr.data_api.redshift.connect(
+    con = wr.data_api.redshift.connect(
         cluster_id=cluster_id, database=database, secret_arn=secret_arn, boto3_session=None
     )
+    with con:
+        yield con
 
 
 def create_rds_connector(rds_type: str, parameters: Dict[str, Any]) -> "RdsDataApi":
@@ -32,7 +34,9 @@ def create_rds_connector(rds_type: str, parameters: Dict[str, Any]) -> "RdsDataA
 
 @pytest.fixture
 def mysql_serverless_connector(databases_parameters: Dict[str, Any]) -> "RdsDataApi":
-    return create_rds_connector("mysql_serverless", databases_parameters)
+    con = create_rds_connector("mysql_serverless", databases_parameters)
+    with con:
+        yield con
 
 
 def test_connect_redshift_serverless_iam_role(databases_parameters: Dict[str, Any]) -> None:
@@ -61,7 +65,7 @@ def mysql_serverless_table(mysql_serverless_connector: "RdsDataApi") -> Iterator
     try:
         yield name
     finally:
-        wr.data_api.rds.read_sql_query(f"DROP TABLE IF EXISTS test.{name}", con=mysql_serverless_connector)
+        mysql_serverless_connector.execute(f"DROP TABLE IF EXISTS test.{name}")
 
 
 def test_data_api_redshift_columnless_query(redshift_connector: "RedshiftDataApi") -> None:
