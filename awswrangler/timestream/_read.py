@@ -292,39 +292,39 @@ def unload(
         boto3_session=boto3_session,
     )
     results_path = f"{path}results/"
-    if unload_format == "CSV":
-        column_names: List[str] = _get_column_names_from_metadata(path, boto3_session)
-        df: Union[pd.DataFrame, Iterator[pd.DataFrame]] = s3.read_csv(
-            path=results_path,
-            header=None,
-            names=[column for column in column_names if column not in set(partition_cols)]
-            if partition_cols is not None
-            else column_names,
-            dataset=True,
-            use_threads=use_threads,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-        )
-    else:
-        df: Union[pd.DataFrame, Iterator[pd.DataFrame]] = s3.read_parquet(
-            path=results_path,
-            chunked=chunked,
-            dataset=True,
-            use_threads=use_threads,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-        )
-
-    if keep_files is False:
-        _logger.debug("Deleting objects in S3 path: %s", path)
-        s3.delete_objects(
-            path=path,
-            use_threads=use_threads,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-        )
-    return df
+    try:
+        if unload_format == "CSV":
+            column_names: List[str] = _get_column_names_from_metadata(path, boto3_session)
+            return s3.read_csv(
+                path=results_path,
+                header=None,
+                names=[column for column in column_names if column not in set(partition_cols)]
+                if partition_cols is not None
+                else column_names,
+                dataset=True,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
+        else:
+            return s3.read_parquet(
+                path=results_path,
+                chunked=chunked,
+                dataset=True,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            )
+    finally:
+        if keep_files is False:
+            _logger.debug("Deleting objects in S3 path: %s", path)
+            s3.delete_objects(
+                path=path,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
 
 
 @_utils.validate_distributed_kwargs(
