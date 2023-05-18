@@ -1,13 +1,16 @@
 """Redshift Data API Connector."""
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import boto3
 
 import awswrangler.pandas as pd
 from awswrangler import _utils
 from awswrangler.data_api import _connector
+
+if TYPE_CHECKING:
+    from mypy_boto3_redshift_data.type_defs import ColumnMetadataTypeDef
 
 
 class RedshiftDataApi(_connector.DataApiConnector):
@@ -52,15 +55,17 @@ class RedshiftDataApi(_connector.DataApiConnector):
         retries: int = 15,
         boto3_session: Optional[boto3.Session] = None,
     ) -> None:
+        super().__init__()
+
+        self.client = _utils.client(service_name="redshift-data", session=boto3_session)
+        self.logger = logging.getLogger(__name__)
+
         self.cluster_id = cluster_id
         self.database = database
         self.workgroup_name = workgroup_name
         self.secret_arn = secret_arn
         self.db_user = db_user
-        self.client = _utils.client(service_name="redshift-data", session=boto3_session)
         self.waiter = RedshiftDataApiWaiter(self.client, sleep, backoff, retries)
-        logger: logging.Logger = logging.getLogger(__name__)
-        super().__init__(self.client, logger)
 
     def _validate_redshift_target(self) -> None:
         if self.database == "":
@@ -91,30 +96,29 @@ class RedshiftDataApi(_connector.DataApiConnector):
 
         self.logger.debug("Executing %s", sql)
         response = self.client.execute_statement(
-            **redshift_target,
+            **redshift_target,  # type: ignore[arg-type]
             Database=database,
             Sql=sql,
-            **credentials,
+            **credentials,  # type: ignore[arg-type]
         )
-        return str(response["Id"])
+        return response["Id"]
 
     def _get_statement_result(self, request_id: str) -> pd.DataFrame:
         self.waiter.wait(request_id)
-        response: Dict[str, Any]
-        response = self.client.describe_statement(Id=request_id)
-        if not response["HasResultSet"]:
+        describe_response = self.client.describe_statement(Id=request_id)
+        if not describe_response["HasResultSet"]:
             return pd.DataFrame()
 
         paginator = self.client.get_paginator("get_statement_result")
         response_iterator = paginator.paginate(Id=request_id)
 
         rows: List[List[Any]] = []
-        column_metadata: List[Dict[str, str]]
+        column_metadata: List["ColumnMetadataTypeDef"]
         for response in response_iterator:
             column_metadata = response["ColumnMetadata"]
             for record in response["Records"]:
                 row: List[Any] = [
-                    _connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
+                    _connector.DataApiConnector._get_column_value(column)  # type: ignore[arg-type]  # pylint: disable=protected-access
                     for column in record
                 ]
                 rows.append(row)

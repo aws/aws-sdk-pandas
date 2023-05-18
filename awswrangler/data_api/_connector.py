@@ -1,5 +1,4 @@
 """Data API Connector base class."""
-import logging
 from typing import Any, Dict, Optional
 
 import awswrangler.pandas as pd
@@ -7,10 +6,6 @@ import awswrangler.pandas as pd
 
 class DataApiConnector:
     """Base class for Data API (RDS, Redshift, etc.) connectors."""
-
-    def __init__(self, client: Any, logger: logging.Logger):
-        self.client = client
-        self.logger: logging.Logger = logger
 
     def execute(self, sql: str, database: Optional[str] = None) -> pd.DataFrame:
         """Execute SQL statement against a Data API Service.

@@ -2,13 +2,17 @@
 import logging
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import boto3
 
 import awswrangler.pandas as pd
 from awswrangler import _utils
 from awswrangler.data_api import _connector
+
+if TYPE_CHECKING:
+    from mypy_boto3_rds_data.client import BotocoreClientError
+    from mypy_boto3_rds_data.type_defs import ExecuteStatementResponseTypeDef
 
 
 class RdsDataApi(_connector.DataApiConnector):
@@ -42,14 +46,16 @@ class RdsDataApi(_connector.DataApiConnector):
         retries: int = 30,
         boto3_session: Optional[boto3.Session] = None,
     ) -> None:
+        super().__init__()
+
+        self.client = _utils.client(service_name="rds-data", session=boto3_session)
+        self.logger = logging.getLogger(__name__)
+
         self.resource_arn = resource_arn
         self.database = database
         self.secret_arn = secret_arn
         self.wait_config = _connector.WaitConfig(sleep, backoff, retries)
-        self.client = _utils.client(service_name="rds-data", session=boto3_session)
-        self.results: Dict[str, Dict[str, Any]] = {}
-        logger: logging.Logger = logging.getLogger(__name__)
-        super().__init__(self.client, logger)
+        self.results: Dict[str, "ExecuteStatementResponseTypeDef"] = {}
 
     def _execute_statement(self, sql: str, database: Optional[str] = None) -> str:
         if database is None:
@@ -58,8 +64,8 @@ class RdsDataApi(_connector.DataApiConnector):
         sleep: float = self.wait_config.sleep
         total_tries: int = 0
         total_sleep: float = 0
-        response: Optional[Dict[str, Any]] = None
-        last_exception: Optional[Exception] = None
+        response: Optional["ExecuteStatementResponseTypeDef"] = None
+        last_exception: Optional["BotocoreClientError"] = None
         while total_tries < self.wait_config.retries:
             try:
                 response = self.client.execute_statement(
@@ -106,7 +112,7 @@ class RdsDataApi(_connector.DataApiConnector):
         rows: List[List[Any]] = []
         for record in result["records"]:
             row: List[Any] = [
-                _connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
+                _connector.DataApiConnector._get_column_value(column)  # type: ignore[arg-type]  # pylint: disable=protected-access
                 for column in record
             ]
             rows.append(row)
