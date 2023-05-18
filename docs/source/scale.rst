@@ -131,6 +131,7 @@ This table lists the ``awswrangler`` APIs available in distributed mode (i.e. th
 | ``Timestream``    | ``batch_load``               |       ✅         |
 +-------------------+------------------------------+------------------+
 |                   | ``write``                    |       ✅         |
+|                   | ``unload`                    |       ✅         |
 +-------------------+------------------------------+------------------+
 
 Caveats
