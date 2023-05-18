@@ -25,6 +25,7 @@ API Reference
 * `Amazon Chime`_
 * `Typing`_
 * `Global Configurations`_
+* `Engine and Memory Format`_
 * `Distributed - Ray`_
 
 Amazon S3
@@ -479,6 +480,17 @@ Global Configurations
 
     reset
     to_pandas
+
+Engine and Memory Format
+-------------------------
+
+.. currentmodule:: awswrangler._distributed
+
+.. autosummary::
+    :toctree: stubs
+
+    Engine
+    MemoryFormat
 
 Distributed - Ray
 ---------------------

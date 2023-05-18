@@ -29,6 +29,9 @@ Initialization of the Ray cluster is lazy and only triggered when the first dist
 At that point, SDK for pandas looks for an environmental variable called ``WR_ADDRESS``.
 If found, it is used to send commands to a remote cluster.
 If not found, a local Ray runtime is initialized on your machine instead.
+Alternatively, you can trigger Ray initialization with:
+
+    >>> wr.engine.initialize()
 
 In distributed mode, the same ``awswrangler`` APIs can now handle much larger datasets:
 
@@ -149,6 +152,9 @@ The following commands showcase how to switch between distributed and non-distri
     # Switch to distributed
     wr.engine.set("ray")
     wr.memory_format.set("modin")
+
+Similarly, you can set the ``WR_ENGINE`` and ``WR_MEMORY_FORMAT`` environmental variables
+to the desired engine and memory format, respectively.
 
 Caveats
 --------
