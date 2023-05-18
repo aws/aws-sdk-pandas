@@ -132,7 +132,7 @@ class Engine:
                 from awswrangler.distributed.ray import initialize_ray
 
                 initialize_ray()
-            cls._initialized_engine = cls.get()
+            cls._initialized_engine = EngineEnum._member_map_[engine_name.upper()]  # type: ignore[assignment]
 
     @classmethod
     def is_initialized(cls, name: Optional[EngineLiteral] = None) -> bool:
