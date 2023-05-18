@@ -69,6 +69,7 @@ def list_directories(
 def list_objects(
     path: str,
     chunked: Literal[False],
+    suffix: Union[str, List[str], None] = ...,
     ignore_suffix: Union[str, List[str], None] = ...,
     last_modified_begin: Optional[datetime.datetime] = ...,
     last_modified_end: Optional[datetime.datetime] = ...,
@@ -79,6 +80,7 @@ def list_objects(
 @overload
 def list_objects(
     path: str,
+    suffix: Union[str, List[str], None] = ...,
     ignore_suffix: Union[str, List[str], None] = ...,
     last_modified_begin: Optional[datetime.datetime] = ...,
     last_modified_end: Optional[datetime.datetime] = ...,
@@ -90,6 +92,7 @@ def list_objects(
 def list_objects(
     path: str,
     chunked: Literal[True],
+    suffix: Union[str, List[str], None] = ...,
     ignore_suffix: Union[str, List[str], None] = ...,
     last_modified_begin: Optional[datetime.datetime] = ...,
     last_modified_end: Optional[datetime.datetime] = ...,
@@ -101,6 +104,7 @@ def list_objects(
 def list_objects(
     path: str,
     chunked: bool,
+    suffix: Union[str, List[str], None] = ...,
     ignore_suffix: Union[str, List[str], None] = ...,
     last_modified_begin: Optional[datetime.datetime] = ...,
     last_modified_end: Optional[datetime.datetime] = ...,
