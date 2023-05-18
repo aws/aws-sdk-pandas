@@ -39,7 +39,7 @@ FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 class Engine:
     """Execution engine configuration class."""
 
-    _engine: Optional[EngineEnum] = EngineEnum._member_map_[WR_ENGINE.upper()] if WR_ENGINE else None  # type: ignore[assignment]
+    _engine: Optional[EngineEnum] = EngineEnum[WR_ENGINE.upper()] if WR_ENGINE else None
     _initialized_engine: Optional[EngineEnum] = None
     _registry: Dict[EngineLiteral, Dict[str, Callable[..., Any]]] = defaultdict(dict)
     _lock: threading.RLock = threading.RLock()
@@ -77,9 +77,7 @@ class Engine:
     def set(cls, name: EngineLiteral) -> None:
         """Set the distribution engine."""
         with cls._lock:
-            cls._engine = EngineEnum._member_map_[  # type: ignore[assignment]  # pylint: disable=protected-access,no-member
-                name.upper()
-            ]
+            cls._engine = EngineEnum[name.upper()]
 
     @classmethod
     def dispatch_func(cls, source_func: FunctionType, value: Optional[EngineLiteral] = None) -> FunctionType:
@@ -132,7 +130,7 @@ class Engine:
                 from awswrangler.distributed.ray import initialize_ray
 
                 initialize_ray()
-            cls._initialized_engine = EngineEnum._member_map_[engine_name.upper()]  # type: ignore[assignment]
+            cls._initialized_engine = EngineEnum[engine_name.upper()]
 
     @classmethod
     def is_initialized(cls, name: Optional[EngineLiteral] = None) -> bool:
@@ -146,9 +144,7 @@ class Engine:
 class MemoryFormat:
     """Memory format configuration class."""
 
-    _enum: Optional[MemoryFormatEnum] = (
-        MemoryFormatEnum._member_map_[WR_MEMORY_FORMAT.upper()] if WR_MEMORY_FORMAT else None  # type: ignore[assignment]
-    )
+    _enum: Optional[MemoryFormatEnum] = MemoryFormatEnum[WR_MEMORY_FORMAT.upper()] if WR_MEMORY_FORMAT else None
     _lock: threading.RLock = threading.RLock()
 
     @classmethod
@@ -184,7 +180,7 @@ class MemoryFormat:
     def set(cls, name: EngineLiteral) -> None:
         """Set the memory format."""
         with cls._lock:
-            cls._enum = MemoryFormatEnum._member_map_[name.upper()]  # type: ignore[assignment]  # pylint: disable=protected-access,no-member
+            cls._enum = MemoryFormatEnum[name.upper()]
 
             _reload()
 
