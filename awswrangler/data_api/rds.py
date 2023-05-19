@@ -1,13 +1,16 @@
 """RDS Data API Connector."""
+import datetime as dt
 import logging
 import time
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, TypeVar, Union, cast
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union, cast
 
 import boto3
+from typing_extensions import Literal
 
 import awswrangler.pandas as pd
-from awswrangler import _utils, exceptions
+from awswrangler import _data_types, _databases, _utils, exceptions
 from awswrangler.data_api import _connector
 
 if TYPE_CHECKING:
@@ -207,10 +210,12 @@ class RdsDataApi(_connector.DataApiConnector):
             return pd.DataFrame()
 
         rows: List[List[Any]] = []
+        column_types = [col["typeName"] for col in result["columnMetadata"]]
+
         for record in result["records"]:
             row: List[Any] = [
-                _connector.DataApiConnector._get_column_value(column)  # type: ignore[arg-type]  # pylint: disable=protected-access
-                for column in record
+                _connector.DataApiConnector._get_column_value(column, col_type)  # type: ignore[arg-type]  # pylint: disable=protected-access
+                for column, col_type in zip(record, column_types)
             ]
             rows.append(row)
 
@@ -263,21 +268,78 @@ def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) ->
     return con.execute(sql, database=database)
 
 
-def _create_value_dict(value: Any) -> Dict[str, Any]:
-    if value is None:
-        return {"isNull": True}
+def _drop_table(con: RdsDataApi, table: str, database: str, transaction_id: str) -> None:
+    sql = f"DROP TABLE IF EXISTS `{table}`"
+    _logger.debug("Drop table query:\n%s", sql)
+    con.execute(sql, database=database, transaction_id=transaction_id)
+
+
+def _does_table_exist(con: RdsDataApi, table: str, database: str, transaction_id: str) -> bool:
+    res = con.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{table}'")
+    return not res.empty
+
+
+def _create_table(
+    df: pd.DataFrame,
+    con: RdsDataApi,
+    table: str,
+    database: str,
+    transaction_id: str,
+    mode: str,
+    index: bool,
+    dtype: Optional[Dict[str, str]],
+    varchar_lengths: Optional[Dict[str, int]],
+) -> None:
+    if mode == "overwrite":
+        _drop_table(con=con, table=table, database=database, transaction_id=transaction_id)
+    elif _does_table_exist(con=con, table=table, database=database, transaction_id=transaction_id):
+        return
+
+    mysql_types: Dict[str, str] = _data_types.database_types_from_pandas(
+        df=df,
+        index=index,
+        dtype=dtype,
+        varchar_lengths_default="TEXT",
+        varchar_lengths=varchar_lengths,
+        converter_func=_data_types.pyarrow2mysql,
+    )
+    cols_str: str = "".join([f"`{k}` {v},\n" for k, v in mysql_types.items()])[:-2]
+    sql = f"CREATE TABLE IF NOT EXISTS `{table}` (\n{cols_str})"
+
+    _logger.debug("Create table query:\n%s", sql)
+    con.execute(sql, database=database, transaction_id=transaction_id)
+
+
+def _create_value_dict(value: Any) -> Tuple[Dict[str, Any], Optional[str]]:
+    if value is None or pd.isnull(value):
+        return {"isNull": True}, None
 
     if isinstance(value, bool):
-        return {"booleanValue": value}
+        return {"booleanValue": value}, None
 
     if isinstance(value, int):
-        return {"longValue": value}
+        return {"longValue": value}, None
 
     if isinstance(value, float):
-        return {"doubleValue": value}
+        return {"doubleValue": value}, None
 
     if isinstance(value, str):
-        return {"stringValue": value}
+        return {"stringValue": value}, None
+
+    if isinstance(value, bytes):
+        return {"blobValue": value}, None
+
+    if isinstance(value, dt.datetime):
+        return {"stringValue": str(value)}, "TIMESTAMP"
+
+    if isinstance(value, dt.date):
+        return {"stringValue": str(value)}, "DATE"
+
+    if isinstance(value, dt.time):
+        return {"stringValue": str(value)}, "TIME"
+
+    if isinstance(value, Decimal):
+        return {"stringValue": str(value)}, "DECIMAL"
 
     raise exceptions.InvalidArgumentType(f"Value {value} not supported.")
 
@@ -286,10 +348,14 @@ def _generate_parameters(columns: List[str], values: List[Any]) -> List[Dict[str
     parameter_list = []
 
     for col, value in zip(columns, values):
+        value, type_hint = _create_value_dict(value)
+
         parameter = {
             "name": col,
-            "value": _create_value_dict(value),
+            "value": value,
         }
+        if type_hint:
+            parameter["typeHint"] = type_hint
 
         parameter_list.append(parameter)
 
@@ -311,7 +377,10 @@ def to_sql(
     con: RdsDataApi,
     table: str,
     database: str,
+    mode: Literal["append", "overwrite"] = "append",
     index: bool = False,
+    dtype: Optional[Dict[str, str]] = None,
+    varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
     chunksize: int = 200,
 ) -> None:
@@ -319,9 +388,23 @@ def to_sql(
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
+    _databases.validate_mode(mode=mode, allowed_modes=["append", "overwrite"])
+
     transaction_id: Optional[str] = None
     try:
         transaction_id = con.begin_transaction(database=database)
+
+        _create_table(
+            df=df,
+            con=con,
+            table=table,
+            database=database,
+            transaction_id=transaction_id,
+            mode=mode,
+            index=index,
+            dtype=dtype,
+            varchar_lengths=varchar_lengths,
+        )
 
         if index:
             df = df.reset_index(level=df.index.names)

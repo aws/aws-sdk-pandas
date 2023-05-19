@@ -1,6 +1,8 @@
 """Data API Connector base class."""
+import datetime as dt
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from decimal import Decimal
 from types import TracebackType
 from typing import Any, Dict, List, Optional, Type, Union
 
@@ -105,7 +107,7 @@ class DataApiConnector(ABC):
         pass
 
     @staticmethod
-    def _get_column_value(column_value: Dict[str, Any]) -> Any:
+    def _get_column_value(column_value: Dict[str, Any], col_type: Optional[str] = None) -> Any:
         """Return the first non-null key value for a given dictionary.
 
         The key names for a given record depend on the column type: stringValue, longValue, etc.
@@ -131,6 +133,20 @@ class DataApiConnector(ABC):
                     return None
                 if key == "arrayValue":
                     raise ValueError(f"arrayValue not supported yet - could not extract {column_value[key]}")
+
+                if key == "stringValue":
+                    if col_type == "DATETIME":
+                        return dt.datetime.strptime(column_value[key], "%Y-%m-%d %H:%M:%S")
+
+                    if col_type == "DATE":
+                        return dt.datetime.strptime(column_value[key], "%Y-%m-%d").date()
+
+                    if col_type == "TIME":
+                        return dt.datetime.strptime(column_value[key], "%H:%M:%S").time()
+
+                    if col_type == "DECIMAL":
+                        return Decimal(column_value[key])
+
                 return column_value[key]
         return None
 

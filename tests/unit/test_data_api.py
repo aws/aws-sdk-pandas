@@ -8,7 +8,7 @@ import awswrangler.pandas as pd
 from awswrangler.data_api.rds import RdsDataApi
 from awswrangler.data_api.redshift import RedshiftDataApi
 
-from .._utils import assert_pandas_equals, get_time_str_with_random_suffix
+from .._utils import assert_pandas_equals, get_df, get_time_str_with_random_suffix
 
 pytestmark = pytest.mark.distributed
 
@@ -126,11 +126,6 @@ def test_data_api_mysql_basic_select(
     database = "test"
     frame = pd.DataFrame([[42, "test", None], [23, "foo", "bar"]], columns=["id", "name", "missing"])
 
-    wr.data_api.rds.read_sql_query(
-        f"CREATE TABLE {database}.{mysql_serverless_table} (id INT, name VARCHAR(128), missing VARCHAR(256))",
-        con=mysql_serverless_connector,
-    )
-
     wr.data_api.rds.to_sql(
         df=frame,
         con=mysql_serverless_connector,
@@ -148,33 +143,75 @@ def test_data_api_mysql_basic_select(
 def test_data_api_mysql_empty_results_select(
     mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str
 ) -> None:
-    wr.data_api.rds.read_sql_query(
-        f"CREATE TABLE test.{mysql_serverless_table} (id INT, name VARCHAR(128))", con=mysql_serverless_connector
+    database = "test"
+    frame = pd.DataFrame([[42, "test"]], columns=["id", "name"])
+
+    wr.data_api.rds.to_sql(
+        df=frame,
+        con=mysql_serverless_connector,
+        table=mysql_serverless_table,
+        database=database,
     )
-    wr.data_api.rds.read_sql_query(
-        f"INSERT INTO test.{mysql_serverless_table} VALUES (42, 'test')", con=mysql_serverless_connector
-    )
-    dataframe = wr.data_api.rds.read_sql_query(
+
+    out_frame = wr.data_api.rds.read_sql_query(
         f"SELECT * FROM  test.{mysql_serverless_table} where id = 50", con=mysql_serverless_connector
     )
     expected_dataframe = pd.DataFrame([], columns=["id", "name"])
-    assert_pandas_equals(dataframe, expected_dataframe)
+    assert_pandas_equals(out_frame, expected_dataframe)
 
 
 def test_data_api_mysql_column_subset_select(
     mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str
 ) -> None:
-    wr.data_api.rds.read_sql_query(
-        f"CREATE TABLE test.{mysql_serverless_table} (id INT, name VARCHAR(128))", con=mysql_serverless_connector
+    database = "test"
+    frame = pd.DataFrame([[42, "test"]], columns=["id", "name"])
+
+    wr.data_api.rds.to_sql(
+        df=frame,
+        con=mysql_serverless_connector,
+        table=mysql_serverless_table,
+        database=database,
     )
-    wr.data_api.rds.read_sql_query(
-        f"INSERT INTO test.{mysql_serverless_table} VALUES (42, 'test')", con=mysql_serverless_connector
-    )
-    dataframe = wr.data_api.rds.read_sql_query(
+
+    out_frame = wr.data_api.rds.read_sql_query(
         f"SELECT name FROM test.{mysql_serverless_table}", con=mysql_serverless_connector
     )
     expected_dataframe = pd.DataFrame([["test"]], columns=["name"])
-    assert_pandas_equals(dataframe, expected_dataframe)
+    assert_pandas_equals(out_frame, expected_dataframe)
+
+
+@pytest.mark.parametrize("mode", ["overwrite", "append"])
+def test_data_api_mysql_to_sql_mode(
+    mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str, mode: str
+) -> None:
+    database = "test"
+    frame = get_df()
+    wr.data_api.rds.to_sql(
+        df=frame,
+        con=mysql_serverless_connector,
+        table=mysql_serverless_table,
+        database=database,
+    )
+
+    frame2 = get_df()
+    wr.data_api.rds.to_sql(
+        df=frame2,
+        con=mysql_serverless_connector,
+        table=mysql_serverless_table,
+        database=database,
+        mode=mode,
+    )
+
+    out_frame = wr.data_api.rds.read_sql_query(
+        f"SELECT * FROM test.{mysql_serverless_table}", con=mysql_serverless_connector
+    )
+
+    if mode == "overwrite":
+        expected_frame = frame2
+    else:
+        expected_frame = pd.concat([frame, frame2], axis=0).reset_index(drop=True)
+
+    assert_pandas_equals(out_frame.astype(expected_frame.dtypes), expected_frame)
 
 
 def test_data_api_exception(mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str) -> None:
