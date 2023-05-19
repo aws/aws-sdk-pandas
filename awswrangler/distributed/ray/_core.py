@@ -164,7 +164,7 @@ def initialize_ray(
             address = ray_address
 
         if address:
-            _logger.info("Connecting to a Ray cluster at: %s", address)
+            _logger.info("Connecting to a Ray instance at: %s", address)
             ray.init(
                 address=address,
                 include_dashboard=include_dashboard,
@@ -193,5 +193,5 @@ def initialize_ray(
                     "env_vars": {var: os.environ.get(var) for var in ray_runtime_env_vars if os.environ.get(var)}
                 },
             }
-            _logger.info("Starting a Ray cluster")
+            _logger.info("Initializing a Ray instance")
             ray.init(**ray_init_kwargs)
