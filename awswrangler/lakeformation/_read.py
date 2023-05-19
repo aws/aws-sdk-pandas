@@ -11,7 +11,7 @@ from awswrangler import _data_types, _utils, catalog
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
-from awswrangler._sql_formatter import _EngineType, _process_sql_params
+from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from awswrangler.lakeformation._utils import commit_transaction, start_transaction, wait_query
 
@@ -169,7 +169,7 @@ def read_sql_query(
     client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
     commit_trans: bool = False
 
-    sql = _process_sql_params(sql, params, engine=_EngineType.PARTIQL)
+    sql = _process_sql_params(sql, params, engine_type="presto")
 
     if not any([transaction_id, query_as_of_time]):
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
