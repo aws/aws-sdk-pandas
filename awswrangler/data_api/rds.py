@@ -210,7 +210,7 @@ class RdsDataApi(_connector.DataApiConnector):
             return pd.DataFrame()
 
         rows: List[List[Any]] = []
-        column_types = [col["typeName"] for col in result["columnMetadata"]]
+        column_types = [col.get("typeName") for col in result["columnMetadata"]]
 
         for record in result["records"]:
             row: List[Any] = [
@@ -384,7 +384,39 @@ def to_sql(
     use_column_names: bool = False,
     chunksize: int = 200,
 ) -> None:
-    """Insert data using an SQL query on a Data API connection."""
+    """
+    Insert data using an SQL query on a Data API connection.
+
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
+    con: RdsDataApi
+        A RdsDataApi connection instance
+    database: str
+        Database to run query on - defaults to the database specified by `con`.
+    table: str
+        Table name
+    mode: str
+        append, overwrite
+            append: Inserts new records into table.
+            overwrite: Drops table and recreates.
+    index: bool
+        True to store the DataFrame index as a column in the table,
+        otherwise False to ignore it.
+    dtype: Dict[str, str], optional
+        Dictionary of columns names and MySQL types to be casted.
+        Useful when you have columns with undetermined or mixed data types.
+        (e.g. {'col name': 'TEXT', 'col2 name': 'FLOAT'})
+    varchar_lengths : Dict[str, int], optional
+        Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
+    use_column_names: bool
+        If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
+        E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
+        inserted into the database columns `col1` and `col3`.
+    chunksize: int
+        Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
+    """
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
