@@ -1,18 +1,24 @@
 """Data API Connector base class."""
-import logging
-from typing import Any, Dict, Optional
+import datetime as dt
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from decimal import Decimal
+from types import TracebackType
+from typing import Any, Dict, List, Optional, Type, Union
 
 import awswrangler.pandas as pd
 
 
-class DataApiConnector:
+class DataApiConnector(ABC):
     """Base class for Data API (RDS, Redshift, etc.) connectors."""
 
-    def __init__(self, client: Any, logger: logging.Logger):
-        self.client = client
-        self.logger: logging.Logger = logger
-
-    def execute(self, sql: str, database: Optional[str] = None) -> pd.DataFrame:
+    def execute(
+        self,
+        sql: str,
+        database: Optional[str] = None,
+        transaction_id: Optional[str] = None,
+        parameters: Optional[List[Dict[str, Any]]] = None,
+    ) -> pd.DataFrame:
         """Execute SQL statement against a Data API Service.
 
         Parameters
@@ -24,17 +30,84 @@ class DataApiConnector:
         -------
         A Pandas DataFrame containing the execution results.
         """
-        request_id: str = self._execute_statement(sql, database=database)
+        request_id: str = self._execute_statement(
+            sql, database=database, transaction_id=transaction_id, parameters=parameters
+        )
         return self._get_statement_result(request_id)
 
-    def _execute_statement(self, sql: str, database: Optional[str] = None) -> str:
-        raise NotImplementedError()
+    def batch_execute(
+        self,
+        sql: Union[str, List[str]],
+        database: Optional[str] = None,
+        transaction_id: Optional[str] = None,
+        parameter_sets: Optional[List[List[Dict[str, Any]]]] = None,
+    ) -> None:
+        """Batch execute SQL statements against a Data API Service.
 
+        Parameters
+        ----------
+        sql: str
+            SQL statement to execute.
+        """
+        self._batch_execute_statement(
+            sql, database=database, transaction_id=transaction_id, parameter_sets=parameter_sets
+        )
+
+    def __enter__(self) -> "DataApiConnector":
+        return self
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close underlying endpoint connections."""
+        pass
+
+    def __exit__(
+        self,
+        exception_type: Optional[Type[BaseException]],
+        exception_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
+        self.close()
+        return None
+
+    @abstractmethod
+    def begin_transaction(self, database: Optional[str] = None, schema: Optional[str] = None) -> str:
+        pass
+
+    @abstractmethod
+    def commit_transaction(self, transaction_id: str) -> str:
+        pass
+
+    @abstractmethod
+    def rollback_transaction(self, transaction_id: str) -> str:
+        pass
+
+    @abstractmethod
+    def _execute_statement(
+        self,
+        sql: str,
+        database: Optional[str] = None,
+        transaction_id: Optional[str] = None,
+        parameters: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        pass
+
+    @abstractmethod
+    def _batch_execute_statement(
+        self,
+        sql: Union[str, List[str]],
+        database: Optional[str] = None,
+        transaction_id: Optional[str] = None,
+        parameter_sets: Optional[List[List[Dict[str, Any]]]] = None,
+    ) -> str:
+        pass
+
+    @abstractmethod
     def _get_statement_result(self, request_id: str) -> pd.DataFrame:
-        raise NotImplementedError()
+        pass
 
     @staticmethod
-    def _get_column_value(column_value: Dict[str, Any]) -> Any:
+    def _get_column_value(column_value: Dict[str, Any], col_type: Optional[str] = None) -> Any:
         """Return the first non-null key value for a given dictionary.
 
         The key names for a given record depend on the column type: stringValue, longValue, etc.
@@ -60,14 +133,28 @@ class DataApiConnector:
                     return None
                 if key == "arrayValue":
                     raise ValueError(f"arrayValue not supported yet - could not extract {column_value[key]}")
+
+                if key == "stringValue":
+                    if col_type == "DATETIME":
+                        return dt.datetime.strptime(column_value[key], "%Y-%m-%d %H:%M:%S")
+
+                    if col_type == "DATE":
+                        return dt.datetime.strptime(column_value[key], "%Y-%m-%d").date()
+
+                    if col_type == "TIME":
+                        return dt.datetime.strptime(column_value[key], "%H:%M:%S").time()
+
+                    if col_type == "DECIMAL":
+                        return Decimal(column_value[key])
+
                 return column_value[key]
         return None
 
 
+@dataclass
 class WaitConfig:
     """Holds standard wait configuration values."""
 
-    def __init__(self, sleep: float, backoff: float, retries: int) -> None:
-        self.sleep = sleep
-        self.backoff = backoff
-        self.retries = retries
+    sleep: float
+    backoff: float
+    retries: int
