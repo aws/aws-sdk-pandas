@@ -202,7 +202,7 @@ def read_sql_query(
 
 @apply_configs
 @_utils.validate_distributed_kwargs(
-    unsupported_kwargs=["boto3_session"],
+    unsupported_kwargs=["boto3_session", "dtype_backend"],
 )
 def read_sql_table(
     table: str,
@@ -210,6 +210,7 @@ def read_sql_table(
     transaction_id: Optional[str] = None,
     query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -287,6 +288,7 @@ def read_sql_table(
         transaction_id=transaction_id,
         query_as_of_time=query_as_of_time,
         catalog_id=catalog_id,
+        dtype_backend=dtype_backend,
         use_threads=use_threads,
         boto3_session=boto3_session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,

@@ -1,4 +1,5 @@
 import logging
+from typing import Any, Dict
 
 import pyarrow as pa
 import pytest
@@ -18,7 +19,7 @@ pytestmark = [
 
 def test_s3_read_parquet(path: str) -> None:
     df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
-    wr.s3.to_parquet(df=df, path=f"{path}.csv", index=False)
+    wr.s3.to_parquet(df=df, path=f"{path}.parquet", index=False)
 
     df.id = df.id.astype(pd.ArrowDtype(pa.int64()))
     df.val = df.val.astype(pd.ArrowDtype(pa.string()))
@@ -48,5 +49,75 @@ def test_s3_read_json(path: str) -> None:
     df.val = df.val.astype(pd.ArrowDtype(pa.string()))
 
     df2 = wr.s3.read_json(path=path, dtype_backend="pyarrow", orient="records", lines=True)
+
+    assert_pandas_equals(df, df2)
+
+
+def test_s3_select(path: str) -> None:
+    df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
+    wr.s3.to_parquet(df=df, path=f"{path}.parquet", index=False)
+
+    df.id = df.id.astype(pd.ArrowDtype(pa.int64()))
+    df.val = df.val.astype(pd.ArrowDtype(pa.string()))
+
+    df2 = wr.s3.select_query(
+        sql="select * from s3object",
+        path=path,
+        input_serialization="Parquet",
+        input_serialization_params={},
+        dtype_backend="pyarrow",
+    )
+
+    assert_pandas_equals(df, df2)
+
+
+def test_lakeformation_read_items(path, glue_database, glue_table):
+    df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
+    
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        table=glue_table,
+        database=glue_database,
+    )
+
+    df.id = df.id.astype(pd.ArrowDtype(pa.int64()))
+    df.val = df.val.astype(pd.ArrowDtype(pa.string()))
+
+    df2 = wr.lakeformation.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        dtype_backend="pyarrow",
+    )
+    assert_pandas_equals(df, df2)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "id", "KeyType": "HASH"}, {"AttributeName": "val", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "id", "AttributeType": "N"},
+                {"AttributeName": "val", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+def test_dynamodb_read_items(params: Dict[str, Any], dynamodb_table: str) -> None:
+    df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
+    wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
+
+    df2 = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        allow_full_scan=True,
+        dtype_backend="pyarrow",
+    )
+
+    df.id = df.id.astype(pd.ArrowDtype(pa.int64()))
+    df.val = df.val.astype(pd.ArrowDtype(pa.string()))
 
     assert_pandas_equals(df, df2)
