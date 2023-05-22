@@ -248,6 +248,7 @@ Data API RDS
     RdsDataApi
     connect
     read_sql_query
+    to_sql
 
 AWS Glue Data Quality
 ---------------------
