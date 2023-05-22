@@ -448,6 +448,12 @@ def read_parquet(
     version_id: Optional[Union[str, Dict[str, str]]]
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunked : Union[int, bool]
         If passed, the data is split into an iterable of DataFrames (Memory friendly).
         If `True` an iterable of DataFrames is returned without guarantee of chunksize.
@@ -667,6 +673,12 @@ def read_parquet_table(
     coerce_int96_timestamp_unit : str, optional
         Cast timestamps that are stored in INT96 format to a particular resolution (e.g. "ms").
         Setting to None is equivalent to "ns" and therefore INT96 timestamps are inferred as in nanoseconds.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunked : Union[int, bool]
         If passed, the data is split into an iterable of DataFrames (Memory friendly).
         If `True` an iterable of DataFrames is returned without guarantee of chunksize.

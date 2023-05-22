@@ -208,6 +208,12 @@ def select_query(
     last_modified_end : datetime, optional
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if none is provided.
     s3_additional_kwargs : Dict[str, Any], optional
