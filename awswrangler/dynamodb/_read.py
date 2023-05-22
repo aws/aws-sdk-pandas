@@ -22,6 +22,7 @@ import pyarrow as pa
 from boto3.dynamodb.conditions import ConditionBase
 from boto3.dynamodb.types import Binary
 from botocore.exceptions import ClientError
+from typing_extensions import Literal
 
 import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
@@ -399,7 +400,7 @@ def _read_items(
 
 
 @_utils.validate_distributed_kwargs(
-    unsupported_kwargs=["boto3_session"],
+    unsupported_kwargs=["boto3_session", "dtype_backend"],
 )
 def read_items(  # pylint: disable=too-many-branches
     table_name: str,
@@ -414,6 +415,7 @@ def read_items(  # pylint: disable=too-many-branches
     columns: Optional[Sequence[str]] = None,
     allow_full_scan: bool = False,
     max_items_evaluated: Optional[int] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     as_dataframe: bool = True,
     chunked: bool = False,
     use_threads: Union[bool, int] = True,
@@ -576,7 +578,9 @@ def read_items(  # pylint: disable=too-many-branches
     ... )
 
     """
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(
+        use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
+    )
 
     # Extract key schema
     table_key_schema = get_table(table_name=table_name, boto3_session=boto3_session).key_schema

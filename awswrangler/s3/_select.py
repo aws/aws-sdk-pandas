@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Un
 import boto3
 import pandas as pd
 import pyarrow as pa
+from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
@@ -161,6 +162,7 @@ def select_query(
     use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -294,7 +296,9 @@ def select_query(
     if pyarrow_additional_kwargs and "schema" in pyarrow_additional_kwargs:
         select_kwargs["schema"] = pyarrow_additional_kwargs.pop("schema")
 
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(
+        use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
+    )
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     tables = list(
         itertools.chain(*ray_get([_select_query(path=path, executor=executor, **select_kwargs) for path in paths]))

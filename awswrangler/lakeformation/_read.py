@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 import boto3
 import pandas as pd
 from pyarrow import NativeFile, RecordBatchStreamReader, Table
+from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, catalog
 from awswrangler._config import apply_configs
@@ -77,7 +78,7 @@ def _resolve_sql_query(
 
 @apply_configs
 @_utils.validate_distributed_kwargs(
-    unsupported_kwargs=["boto3_session"],
+    unsupported_kwargs=["boto3_session", "dtype_backend"],
 )
 def read_sql_query(
     sql: str,
@@ -85,6 +86,7 @@ def read_sql_query(
     transaction_id: Optional[str] = None,
     query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     params: Optional[Dict[str, Any]] = None,
@@ -184,7 +186,9 @@ def read_sql_query(
         QueryPlanningContext=args,  # type: ignore[arg-type]
     )
     query_id: str = result["QueryId"]
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(
+        use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
+    )
     df = _resolve_sql_query(
         query_id=query_id,
         use_threads=use_threads,

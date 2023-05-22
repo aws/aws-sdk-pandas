@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import boto3
+from typing_extensions import Literal
 
 import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils
@@ -34,6 +35,7 @@ def read_deltalake(
     partitions: Optional[List[Tuple[str, str, Any]]] = None,
     columns: Optional[List[str]] = None,
     without_files: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
@@ -81,7 +83,9 @@ def read_deltalake(
     --------
     deltalake.DeltaTable : Create a DeltaTable instance with the deltalake library.
     """
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(
+        use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
+    )
     storage_options = _set_default_storage_options_kwargs(boto3_session, s3_additional_kwargs)
     return (
         deltalake.DeltaTable(
