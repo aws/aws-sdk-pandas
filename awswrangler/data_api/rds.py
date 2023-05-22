@@ -401,18 +401,16 @@ def to_sql(
     table: str
         Table name
     mode: str
-        append, overwrite
-            append: Inserts new records into table.
-            overwrite: Drops table and recreates.
+        `append` (inserts new records into table), `overwrite` (drops table and recreates)
     index: bool
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
     dtype: Dict[str, str], optional
         Dictionary of columns names and MySQL types to be casted.
         Useful when you have columns with undetermined or mixed data types.
-        (e.g. {'col name': 'TEXT', 'col2 name': 'FLOAT'})
+        (e.g. ```{'col name': 'TEXT', 'col2 name': 'FLOAT'}```)
     varchar_lengths : Dict[str, int], optional
-        Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
+        Dict of VARCHAR length by columns. (e.g. ```{"col1": 10, "col5": 200}```).
     use_column_names: bool
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
