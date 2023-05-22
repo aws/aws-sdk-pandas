@@ -108,16 +108,18 @@ def test_lakeformation_read_items(path, glue_database, glue_table):
     ],
 )
 def test_dynamodb_read_items(params: Dict[str, Any], dynamodb_table: str) -> None:
-    df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
+    df = pd.DataFrame({"id": pa.array([1, 2, 3], type=pa.decimal128(1)), "val": ["foo", "boo", "bar"]})
+    df.id = df.id.astype(pd.ArrowDtype(pa.decimal128(1)))
+    df.val = df.val.astype(pd.ArrowDtype(pa.string()))
+
     wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
 
     df2 = wr.dynamodb.read_items(
         table_name=dynamodb_table,
         allow_full_scan=True,
         dtype_backend="pyarrow",
+        use_threads=False,
     )
-
-    df.id = df.id.astype(pd.ArrowDtype(pa.int64()))
-    df.val = df.val.astype(pd.ArrowDtype(pa.string()))
+    df2 = df2.sort_values(by="id", ascending=True).reset_index(drop=True)
 
     assert_pandas_equals(df, df2)
