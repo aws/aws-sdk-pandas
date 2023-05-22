@@ -465,6 +465,13 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
     return None
 
 
+def pyarrow2pyarrow_backed_pandas_extension(  # pylint: disable=too-many-branches,too-many-return-statements
+    dtype: pa.DataType,
+) -> Optional[pd.api.extensions.ExtensionDtype]:
+    """Pyarrow to Pandas PyArrow-backed data types conversion."""
+    return pd.ArrowDtype(dtype)
+
+
 @engine.dispatch_on_engine
 def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches,too-many-statements
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, index_left: bool = False
@@ -550,14 +557,18 @@ def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches,too-many-sta
     return columns_types
 
 
-def pyarrow2pandas_defaults(use_threads: Union[bool, int], kwargs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def pyarrow2pandas_defaults(
+    use_threads: Union[bool, int], kwargs: Optional[Dict[str, Any]] = None, dtype_backend: Optional[str] = None
+) -> Dict[str, Any]:
     """Return Pyarrow to Pandas default dictionary arguments."""
     default_kwargs = {
         "use_threads": use_threads,
         "split_blocks": True,
         "self_destruct": True,
         "ignore_metadata": False,
-        "types_mapper": pyarrow2pandas_extension,
+        "types_mapper": pyarrow2pyarrow_backed_pandas_extension
+        if dtype_backend == "pyarrow"
+        else pyarrow2pandas_extension,
     }
     if kwargs:
         default_kwargs.update(kwargs)

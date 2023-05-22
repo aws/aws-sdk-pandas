@@ -22,6 +22,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset
 import pyarrow.parquet
+from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _add_table_partitions, _table_to_df
@@ -363,6 +364,7 @@ def read_parquet(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     ray_args: Optional[RayReadParquetSettings] = None,
@@ -557,7 +559,9 @@ def read_parquet(
             schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
         _logger.debug("Resolved pyarrow schema:\n%s", schema)
 
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(
+        use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
+    )
 
     if chunked:
         return _read_parquet_chunked(
@@ -603,6 +607,7 @@ def read_parquet_table(
     columns: Optional[List[str]] = None,
     validate_schema: bool = True,
     coerce_int96_timestamp_unit: Optional[str] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     ray_args: Optional[RayReadParquetSettings] = None,
@@ -752,6 +757,7 @@ def read_parquet_table(
         columns=columns,
         validate_schema=validate_schema,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+        dtype_backend=dtype_backend,
         chunked=chunked,
         use_threads=use_threads,
         ray_args=ray_args,

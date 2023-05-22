@@ -16,16 +16,24 @@ pytestmark = [
 ]
 
 
-def get_arrow_backed_df() -> pd.DataFrame:
+def test_s3_read_parquet(path: str) -> None:
     df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
+    wr.s3.to_parquet(df=df, path=f"{path}.csv", index=False)
+
     df.id = df.id.astype(pd.ArrowDtype(pa.int64()))
     df.val = df.val.astype(pd.ArrowDtype(pa.string()))
-    return df
+
+    df2 = wr.s3.read_parquet(path=path, dtype_backend="pyarrow")
+
+    assert_pandas_equals(df, df2)
 
 
 def test_s3_read_csv(path: str) -> None:
-    df = get_arrow_backed_df()
+    df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
     wr.s3.to_csv(df=df, path=f"{path}.csv", index=False)
+
+    df.id = df.id.astype(pd.ArrowDtype(pa.int64()))
+    df.val = df.val.astype(pd.ArrowDtype(pa.string()))
 
     df2 = wr.s3.read_csv(path=path, dtype_backend="pyarrow")
 
@@ -33,9 +41,12 @@ def test_s3_read_csv(path: str) -> None:
 
 
 def test_s3_read_json(path: str) -> None:
-    df = get_arrow_backed_df()
+    df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
     wr.s3.to_json(df=df, path=f"{path}.json", orient="records", lines=True)
 
-    df2 = wr.s3.read_json(path=path, dtype_backend="pyarrow", orient="records", lines=True, use_threads=False)
+    df.id = df.id.astype(pd.ArrowDtype(pa.int64()))
+    df.val = df.val.astype(pd.ArrowDtype(pa.string()))
+
+    df2 = wr.s3.read_json(path=path, dtype_backend="pyarrow", orient="records", lines=True)
 
     assert_pandas_equals(df, df2)
