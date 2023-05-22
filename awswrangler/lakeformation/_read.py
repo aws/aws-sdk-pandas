@@ -169,7 +169,7 @@ def read_sql_query(
     client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
     commit_trans: bool = False
 
-    sql = _process_sql_params(sql, params, engine_type="presto")
+    sql = _process_sql_params(sql, params, engine_type="partiql")
 
     if not any([transaction_id, query_as_of_time]):
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
