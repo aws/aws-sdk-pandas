@@ -17,23 +17,12 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_read_details_mode(pandas_kwargs: Dict[str, Any]) -> str:
-    if pandas_kwargs.get("compression") is not None:
-        return "rb"
-
-    if pandas_kwargs.get("encoding_errors") == "ignore":
-        return "rb"
-
-    if pandas_kwargs.get("engine") == "pyarrow":
-        return "rb"
-
-    return "r"
-
-
 def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
-    mode: str = _get_read_details_mode(pandas_kwargs)
+    mode: str = (
+        "r" if pandas_kwargs.get("compression") is None and pandas_kwargs.get("encoding_errors") != "ignore" else "rb"
+    )
     encoding: Optional[str] = pandas_kwargs.get("encoding", "utf-8")
     newline: Optional[str] = pandas_kwargs.get("lineterminator", None)
     return mode, encoding, newline
