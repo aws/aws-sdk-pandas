@@ -301,7 +301,10 @@ def unload_to_files(
             boto3_session=boto3_session,
         )
 
-        sql = (
+        # Escape quotation marks in SQL
+        sql = sql.replace("'", "''")
+
+        unload_sql = (
             f"UNLOAD ('{sql}')\n"
             f"TO '{path}'\n"
             f"{auth_str}"
@@ -315,8 +318,8 @@ def unload_to_files(
             f"{max_file_size_str}"
             f"{manifest_str};"
         )
-        _logger.debug("Executing unload query:\n%s", sql)
-        cursor.execute(sql)
+        _logger.debug("Executing unload query:\n%s", unload_sql)
+        cursor.execute(unload_sql)
 
 
 @_utils.validate_distributed_kwargs(
