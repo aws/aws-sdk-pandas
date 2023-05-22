@@ -73,6 +73,9 @@ class RdsDataApi(_connector.DataApiConnector):
 
     def begin_transaction(self, database: Optional[str] = None, schema: Optional[str] = None) -> str:
         """Start an SQL transaction."""
+        if database is None:
+            database = self.database
+
         kwargs = {}
         if database:
             kwargs["database"] = database

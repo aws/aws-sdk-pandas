@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from mypy_boto3_redshift_data.type_defs import ColumnMetadataTypeDef
 
 
+_logger = logging.getLogger(__name__)
+
+
 class RedshiftDataApi(_connector.DataApiConnector):
     """Provides access to a Redshift cluster via the Data API.
 
@@ -59,7 +62,6 @@ class RedshiftDataApi(_connector.DataApiConnector):
         super().__init__()
 
         self.client = _utils.client(service_name="redshift-data", session=boto3_session)
-        self.logger = logging.getLogger(__name__)
 
         self.cluster_id = cluster_id
         self.database = database
@@ -122,7 +124,7 @@ class RedshiftDataApi(_connector.DataApiConnector):
         elif self.workgroup_name:
             redshift_target = {"WorkgroupName": self.workgroup_name}
 
-        self.logger.debug("Executing %s", sql)
+        _logger.debug("Executing %s", sql)
         response = self.client.execute_statement(
             **redshift_target,  # type: ignore[arg-type]
             Database=database,
@@ -183,7 +185,6 @@ class RedshiftDataApiWaiter:
     def __init__(self, client: "RedshiftDataAPIServiceClient", sleep: float, backoff: float, retries: int) -> None:
         self.client = client
         self.wait_config = _connector.WaitConfig(sleep, backoff, retries)
-        self.logger: logging.Logger = logging.getLogger(__name__)
 
     def wait(self, request_id: str) -> bool:
         """Wait for the `describe_statement` function of self.client to return a completed status.
@@ -212,7 +213,7 @@ class RedshiftDataApiWaiter:
                 raise RedshiftDataApiFailedException(
                     f"Request {request_id} failed with status {status} and error {error}"
                 )
-            self.logger.debug("Statement execution status %s - sleeping for %s seconds", status, sleep)
+            _logger.debug("Statement execution status %s - sleeping for %s seconds", status, sleep)
             time.sleep(sleep)
             sleep = sleep * self.wait_config.backoff
             total_tries += 1
