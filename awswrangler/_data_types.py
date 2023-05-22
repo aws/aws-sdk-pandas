@@ -472,6 +472,15 @@ def pyarrow2pyarrow_backed_pandas_extension(  # pylint: disable=too-many-branche
     return pd.ArrowDtype(dtype)
 
 
+def get_pyarrow2pandas_type_mapper(
+    dtype_backend: Optional[str] = None,
+) -> Callable[[pa.DataType], Optional[pd.api.extensions.ExtensionDtype]]:
+    if dtype_backend == "pyarrow":
+        return pyarrow2pyarrow_backed_pandas_extension
+
+    return pyarrow2pandas_extension
+
+
 @engine.dispatch_on_engine
 def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches,too-many-statements
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, index_left: bool = False
@@ -566,9 +575,7 @@ def pyarrow2pandas_defaults(
         "split_blocks": True,
         "self_destruct": True,
         "ignore_metadata": False,
-        "types_mapper": pyarrow2pyarrow_backed_pandas_extension
-        if dtype_backend == "pyarrow"
-        else pyarrow2pandas_extension,
+        "types_mapper": get_pyarrow2pandas_type_mapper(dtype_backend),
     }
     if kwargs:
         default_kwargs.update(kwargs)

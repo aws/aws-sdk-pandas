@@ -7,6 +7,7 @@ from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, T
 
 import boto3
 import pyarrow as pa
+from typing_extensions import Literal
 
 import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions, oracle, secretsmanager
@@ -153,6 +154,7 @@ def _records2df(
     safe: bool,
     dtype: Optional[Dict[str, pa.DataType]],
     timestamp_as_object: bool,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"],
 ) -> pd.DataFrame:
     arrays: List[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
@@ -183,7 +185,7 @@ def _records2df(
             self_destruct=True,
             integer_object_nulls=False,
             date_as_object=True,
-            types_mapper=_data_types.pyarrow2pandas_extension,
+            types_mapper=_data_types.get_pyarrow2pandas_type_mapper(dtype_backend=dtype_backend),
             safe=safe,
             timestamp_as_object=timestamp_as_object,
         )
@@ -207,6 +209,7 @@ def _iterate_results(
     safe: bool,
     dtype: Optional[Dict[str, pa.DataType]],
     timestamp_as_object: bool,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"],
 ) -> Iterator[pd.DataFrame]:
     with con.cursor() as cursor:
         cursor.execute(*cursor_args)
@@ -230,6 +233,7 @@ def _iterate_results(
                 safe=safe,
                 dtype=dtype,
                 timestamp_as_object=timestamp_as_object,
+                dtype_backend=dtype_backend,
             )
 
 
@@ -240,6 +244,7 @@ def _fetch_all_results(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "pyarrow",
 ) -> pd.DataFrame:
     with con.cursor() as cursor:
         cursor.execute(*cursor_args)
@@ -259,6 +264,7 @@ def _fetch_all_results(
             dtype=dtype,
             safe=safe,
             timestamp_as_object=timestamp_as_object,
+            dtype_backend=dtype_backend,
         )
 
 
@@ -272,6 +278,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
 ) -> pd.DataFrame:
     ...
 
@@ -287,6 +294,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
 ) -> Iterator[pd.DataFrame]:
     ...
 
@@ -302,6 +310,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ...
 
@@ -315,6 +324,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read SQL Query (generic)."""
     args = _convert_params(sql, params)
@@ -327,6 +337,7 @@ def read_sql_query(
                 dtype=dtype,
                 safe=safe,
                 timestamp_as_object=timestamp_as_object,
+                dtype_backend=dtype_backend,
             )
 
         return _iterate_results(
@@ -337,6 +348,7 @@ def read_sql_query(
             dtype=dtype,
             safe=safe,
             timestamp_as_object=timestamp_as_object,
+            dtype_backend=dtype_backend,
         )
     except Exception as ex:
         con.rollback()
