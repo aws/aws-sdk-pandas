@@ -348,7 +348,7 @@ def _read_parquet(  # pylint: disable=W0613
 
 
 @_utils.validate_distributed_kwargs(
-    unsupported_kwargs=["boto3_session", "version_id", "s3_additional_kwargs"],
+    unsupported_kwargs=["boto3_session", "version_id", "s3_additional_kwargs", "dtype_backend"],
 )
 def read_parquet(
     path: Union[str, List[str]],
@@ -595,7 +595,7 @@ def read_parquet(
 
 @apply_configs
 @_utils.validate_distributed_kwargs(
-    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs", "dtype_backend"],
 )
 def read_parquet_table(
     table: str,
