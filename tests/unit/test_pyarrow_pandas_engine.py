@@ -73,7 +73,7 @@ def test_s3_select(path: str) -> None:
 
 def test_lakeformation_read_items(path, glue_database, glue_table):
     df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
-    
+
     wr.s3.to_parquet(
         df=df,
         path=path,
