@@ -284,7 +284,7 @@ def read_csv(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', skip_blank_lines=True)"
         )
-    
+
     if dtype_backend != "numpy_nullable":
         pandas_kwargs["dtype_backend"] = dtype_backend
 

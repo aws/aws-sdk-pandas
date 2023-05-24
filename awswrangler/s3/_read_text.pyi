@@ -1,9 +1,9 @@
 import datetime
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Union, overload
-from typing_extensions import Literal
 
 import boto3
 import pandas as pd
+from typing_extensions import Literal
 
 from awswrangler.typing import RaySettings
 
