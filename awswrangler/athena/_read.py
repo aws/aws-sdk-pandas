@@ -640,6 +640,12 @@ def get_query_results(
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
@@ -903,6 +909,12 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
         `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -1211,6 +1223,12 @@ def read_sql_table(
         If reading cached data fails for any reason, execution falls back to the usual query run path.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
