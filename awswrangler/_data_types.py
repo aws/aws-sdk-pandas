@@ -342,33 +342,35 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+def athena2pandas(
+    dtype: str, dtype_backend: Optional[str] = None
+) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
     """Athena to Pandas data types conversion."""
     dtype = dtype.lower()
     if dtype == "tinyint":
-        return "Int8"
+        return "Int8" if dtype_backend != "pyarrow" else "int8[pyarrow]"
     if dtype == "smallint":
-        return "Int16"
+        return "Int16" if dtype_backend != "pyarrow" else "int16[pyarrow]"
     if dtype in ("int", "integer"):
-        return "Int32"
+        return "Int32" if dtype_backend != "pyarrow" else "int32[pyarrow]"
     if dtype == "bigint":
-        return "Int64"
+        return "Int64" if dtype_backend != "pyarrow" else "int64[pyarrow]"
     if dtype in ("float", "real"):
-        return "float32"
+        return "float32" if dtype_backend != "pyarrow" else "double[pyarrow]"
     if dtype == "double":
-        return "float64"
+        return "float64" if dtype_backend != "pyarrow" else "double[pyarrow]"
     if dtype == "boolean":
-        return "boolean"
+        return "boolean" if dtype_backend != "pyarrow" else "bool[pyarrow]"
     if (dtype == "string") or dtype.startswith("char") or dtype.startswith("varchar"):
-        return "string"
+        return "string" if dtype_backend != "pyarrow" else "string[pyarrow]"
     if dtype in ("timestamp", "timestamp with time zone"):
-        return "datetime64"
+        return "datetime64" if dtype_backend != "pyarrow" else "date64[pyarrow]"
     if dtype == "date":
-        return "date"
+        return "date" if dtype_backend != "pyarrow" else "date32[pyarrow]"
     if dtype.startswith("decimal"):
-        return "decimal"
+        return "decimal" if dtype_backend != "pyarrow" else "double[pyarrow]"
     if dtype in ("binary", "varbinary"):
-        return "bytes"
+        return "bytes" if dtype_backend != "pyarrow" else "binary[pyarrow]"
     if dtype in ("array", "row", "map"):
         return "object"
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
@@ -462,6 +464,10 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
         return pd.BooleanDtype()
     if pa.types.is_string(dtype):
         return pd.StringDtype()
+    if pa.types.is_float32(dtype):
+        return pd.Float32Dtype()
+    if pa.types.is_float64(dtype):
+        return pd.Float64Dtype()
     return None
 
 
@@ -703,7 +709,9 @@ def athena_types_from_pyarrow_schema(
     return columns_types, partitions_types
 
 
-def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd.DataFrame:
+def cast_pandas_with_athena_types(
+    df: pd.DataFrame, dtype: Dict[str, str], dtype_backend: Optional[str] = None
+) -> pd.DataFrame:
     """Cast columns in a Pandas DataFrame."""
     mutability_ensured: bool = False
     for col, athena_type in dtype.items():
@@ -713,7 +721,7 @@ def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd
             and (athena_type.startswith("struct") is False)
             and (athena_type.startswith("map") is False)
         ):
-            desired_type: str = athena2pandas(dtype=athena_type)
+            desired_type: str = athena2pandas(dtype=athena_type, dtype_backend=dtype_backend)
             current_type: str = _normalize_pandas_dtype_name(dtype=str(df[col].dtypes))
             if desired_type != current_type:  # Needs conversion
                 _logger.debug("current_type: %s -> desired_type: %s", current_type, desired_type)

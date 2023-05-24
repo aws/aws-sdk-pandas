@@ -7,7 +7,7 @@ import pytest
 import awswrangler as wr
 import awswrangler.pandas as pd
 
-from .._utils import assert_pandas_equals, is_pandas_2_x
+from .._utils import assert_pandas_equals, get_df_dtype_backend, is_pandas_2_x
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -91,6 +91,27 @@ def test_lakeformation_read_items(path, glue_database, glue_table):
         table=glue_table,
         database=glue_database,
         dtype_backend="pyarrow",
+    )
+    assert_pandas_equals(df, df2)
+
+
+@pytest.mark.parametrize("ctas_approach,unload_approach", [(False, False), (True, False), (False, True)])
+def test_athena_csv_dtype_backend(path, glue_table, glue_database, ctas_approach, unload_approach):
+    df = get_df_dtype_backend(dtype_backend="pyarrow")
+    wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        index=False,
+    )
+    df2 = wr.athena.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        dtype_backend="pyarrow",
+        ctas_approach=ctas_approach,
+        unload_approach=unload_approach,
     )
     assert_pandas_equals(df, df2)
 
