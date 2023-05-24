@@ -401,8 +401,10 @@ def test_to_csv_data_empty(moto_s3):
 
 def test_parquet(moto_s3):
     path = "s3://bucket/test.parquet"
+    print(get_df_list().dtypes)
     wr.s3.to_parquet(df=get_df_list(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
     df = wr.s3.read_parquet(path=path, dataset=True)
+    print(df.dtypes)
     ensure_data_types(df, has_list=True)
     assert df.shape == (3, 19)
 
