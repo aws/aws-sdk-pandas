@@ -71,7 +71,7 @@ def test_s3_select(path: str) -> None:
     assert_pandas_equals(df, df2)
 
 
-def test_lakeformation_read_items(path, glue_database, glue_table):
+def test_lakeformation_read_items(path: str, glue_database: str, glue_table: str) -> None:
     df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
 
     wr.s3.to_parquet(
@@ -96,7 +96,9 @@ def test_lakeformation_read_items(path, glue_database, glue_table):
 
 
 @pytest.mark.parametrize("ctas_approach,unload_approach", [(False, False), (True, False), (False, True)])
-def test_athena_csv_dtype_backend(path, glue_table, glue_database, ctas_approach, unload_approach):
+def test_athena_csv_dtype_backend(
+    path: str, path2: str, glue_table: str, glue_database: str, ctas_approach: bool, unload_approach: bool
+) -> None:
     df = get_df_dtype_backend(dtype_backend="pyarrow")
     wr.s3.to_csv(
         df=df,
@@ -112,7 +114,12 @@ def test_athena_csv_dtype_backend(path, glue_table, glue_database, ctas_approach
         dtype_backend="pyarrow",
         ctas_approach=ctas_approach,
         unload_approach=unload_approach,
+        s3_output=path2,
     )
+
+    if ctas_approach or unload_approach:
+        df2["string_nullable"].replace("", pa.NA, inplace=True)
+
     assert_pandas_equals(df, df2)
 
 

@@ -49,7 +49,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "suppress_warnings": _ConfigArg(dtype=bool, nullable=False, default=False, loaded=True),
-    "dtype_backend": _ConfigArg(dtype=str, nullable=False, default="numpy_nullable"),
+    "dtype_backend": _ConfigArg(dtype=str, nullable=True),
     # Endpoints URLs
     "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
@@ -414,12 +414,12 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="suppress_warnings", value=value)
 
     @property
-    def dtype_backend(self) -> Literal["numpy_nullable", "pyarrow"]:
+    def dtype_backend(self) -> Literal["numpy_nullable", "pyarrow", None]:
         """Property dtype_backend."""
-        return cast(Literal["numpy_nullable", "pyarrow"], self["dtype_backend"])
+        return cast(Literal["numpy_nullable", "pyarrow", None], self["dtype_backend"])
 
     @dtype_backend.setter
-    def dtype_backend(self, value: Literal["numpy_nullable", "pyarrow"]) -> None:
+    def dtype_backend(self, value: Literal["numpy_nullable", "pyarrow", None]) -> None:
         self._set_config_value(key="dtype_backend", value=value)
 
     @property

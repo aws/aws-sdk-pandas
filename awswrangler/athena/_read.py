@@ -413,6 +413,7 @@ def _resolve_query_without_cache_regular(
         categories=categories,
         metadata_cache_manager=_cache_manager,
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        dtype_backend=dtype_backend,
     )
     return _fetch_csv_result(
         query_metadata=query_metadata,
