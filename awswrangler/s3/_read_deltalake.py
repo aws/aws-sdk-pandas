@@ -7,6 +7,7 @@ from typing_extensions import Literal
 
 import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils
+from awswrangler._config import apply_configs
 
 if TYPE_CHECKING:
     try:
@@ -29,6 +30,7 @@ def _set_default_storage_options_kwargs(
 
 
 @_utils.check_optional_dependency(deltalake, "deltalake")
+@apply_configs
 def read_deltalake(
     path: Optional[str] = None,
     version: Optional[int] = None,
