@@ -1,5 +1,6 @@
 import datetime
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Union, overload
+from typing_extensions import Literal
 
 import boto3
 import pandas as pd
@@ -35,6 +36,7 @@ def read_csv(
     last_modified_end: Optional[datetime.datetime] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: None = ...,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
@@ -54,6 +56,7 @@ def read_csv(
     last_modified_end: Optional[datetime.datetime] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: int,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
@@ -73,6 +76,7 @@ def read_csv(
     last_modified_end: Optional[datetime.datetime] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: Optional[int],
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
@@ -92,6 +96,7 @@ def read_json(
     last_modified_end: Optional[datetime.datetime] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: None = ...,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
@@ -112,6 +117,7 @@ def read_json(
     last_modified_end: Optional[datetime.datetime] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: int,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
@@ -132,6 +138,7 @@ def read_json(
     last_modified_end: Optional[datetime.datetime] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: Optional[int],
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,

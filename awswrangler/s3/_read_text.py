@@ -284,7 +284,9 @@ def read_csv(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', skip_blank_lines=True)"
         )
-    pandas_kwargs["dtype_backend"] = dtype_backend
+    
+    if dtype_backend != "numpy_nullable":
+        pandas_kwargs["dtype_backend"] = dtype_backend
 
     s3_client = _utils.client(service_name="s3", session=boto3_session)
     ignore_index: bool = "index_col" not in pandas_kwargs
@@ -609,12 +611,16 @@ def read_json(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_json(path, lines=True, keep_default_dates=True)"
         )
+    if dtype_backend != "numpy_nullable":
+        pandas_kwargs["dtype_backend"] = dtype_backend
+
     s3_client = _utils.client(service_name="s3", session=boto3_session)
+
     if (dataset is True) and ("lines" not in pandas_kwargs):
         pandas_kwargs["lines"] = True
     pandas_kwargs["orient"] = orient
-    pandas_kwargs["dtype_backend"] = dtype_backend
     ignore_index: bool = orient not in ("split", "index", "columns")
+
     return _read_text_format(
         read_format="json",
         path=path,
