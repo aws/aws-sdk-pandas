@@ -366,9 +366,9 @@ def ensure_data_types(df: pd.DataFrame, has_list: bool = False) -> None:
     assert str(df["iint16"].dtype).startswith("Int")
     assert str(df["iint32"].dtype).startswith("Int")
     assert str(df["iint64"].dtype) == "Int64"
-    assert str(df["float"].dtype) == "Float32"
-    assert str(df["ddouble"].dtype) == "Float64"
-    assert str(df["decimal"].dtype) in ("object", "Float64")
+    assert str(df["float"].dtype).startswith("float")
+    assert str(df["ddouble"].dtype) == "float64"
+    assert str(df["decimal"].dtype) in ("object", "float64")
     if "string_object" in df.columns:
         assert str(df["string_object"].dtype) == "string"
     assert str(df["string"].dtype) == "string"
@@ -377,7 +377,7 @@ def ensure_data_types(df: pd.DataFrame, has_list: bool = False) -> None:
     assert str(df["bool"].dtype) in ("boolean", "Int64", "object")
     if "binary" in df.columns:
         assert str(df["binary"].dtype) == "object"
-    assert str(df["category"].dtype) == "Float64"
+    assert str(df["category"].dtype) == "float64"
     if has_list is True:
         assert str(df["list"].dtype) == "object"
         assert str(df["list_list"].dtype) == "object"
