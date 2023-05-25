@@ -22,6 +22,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset
 import pyarrow.parquet
+from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _add_table_partitions, _table_to_df
@@ -347,8 +348,9 @@ def _read_parquet(  # pylint: disable=W0613
 
 
 @_utils.validate_distributed_kwargs(
-    unsupported_kwargs=["boto3_session", "version_id", "s3_additional_kwargs"],
+    unsupported_kwargs=["boto3_session", "version_id", "s3_additional_kwargs", "dtype_backend"],
 )
+@apply_configs
 def read_parquet(
     path: Union[str, List[str]],
     path_root: Optional[str] = None,
@@ -363,6 +365,7 @@ def read_parquet(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     ray_args: Optional[RayReadParquetSettings] = None,
@@ -446,6 +449,12 @@ def read_parquet(
     version_id: Optional[Union[str, Dict[str, str]]]
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunked : Union[int, bool]
         If passed, the data is split into an iterable of DataFrames (Memory friendly).
         If `True` an iterable of DataFrames is returned without guarantee of chunksize.
@@ -557,7 +566,9 @@ def read_parquet(
             schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
         _logger.debug("Resolved pyarrow schema:\n%s", schema)
 
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(
+        use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
+    )
 
     if chunked:
         return _read_parquet_chunked(
@@ -589,10 +600,10 @@ def read_parquet(
     )
 
 
-@apply_configs
 @_utils.validate_distributed_kwargs(
-    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs", "dtype_backend"],
 )
+@apply_configs
 def read_parquet_table(
     table: str,
     database: str,
@@ -603,6 +614,7 @@ def read_parquet_table(
     columns: Optional[List[str]] = None,
     validate_schema: bool = True,
     coerce_int96_timestamp_unit: Optional[str] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     ray_args: Optional[RayReadParquetSettings] = None,
@@ -662,6 +674,12 @@ def read_parquet_table(
     coerce_int96_timestamp_unit : str, optional
         Cast timestamps that are stored in INT96 format to a particular resolution (e.g. "ms").
         Setting to None is equivalent to "ns" and therefore INT96 timestamps are inferred as in nanoseconds.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunked : Union[int, bool]
         If passed, the data is split into an iterable of DataFrames (Memory friendly).
         If `True` an iterable of DataFrames is returned without guarantee of chunksize.
@@ -752,6 +770,7 @@ def read_parquet_table(
         columns=columns,
         validate_schema=validate_schema,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+        dtype_backend=dtype_backend,
         chunked=chunked,
         use_threads=use_threads,
         ray_args=ray_args,

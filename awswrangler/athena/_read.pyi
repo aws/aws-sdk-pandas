@@ -12,6 +12,7 @@ def get_query_results(
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     categories: Optional[List[str]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: Union[None, Literal[False]] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -23,6 +24,7 @@ def get_query_results(
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     categories: Optional[List[str]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: Literal[True],
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -34,6 +36,7 @@ def get_query_results(
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     categories: Optional[List[str]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: bool,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
@@ -46,6 +49,7 @@ def get_query_results(
     boto3_session: Optional[boto3.Session] = ...,
     categories: Optional[List[str]] = ...,
     chunksize: int,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
@@ -70,6 +74,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments
     data_source: Optional[str] = ...,
     athena_query_wait_polling_delay: float = ...,
     params: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> pd.DataFrame: ...
@@ -95,6 +100,7 @@ def read_sql_query(
     data_source: Optional[str] = ...,
     athena_query_wait_polling_delay: float = ...,
     params: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
@@ -120,6 +126,7 @@ def read_sql_query(
     data_source: Optional[str] = ...,
     athena_query_wait_polling_delay: float = ...,
     params: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
@@ -145,6 +152,7 @@ def read_sql_query(
     data_source: Optional[str] = ...,
     athena_query_wait_polling_delay: float = ...,
     params: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
@@ -170,6 +178,7 @@ def read_sql_query(
     data_source: Optional[str] = ...,
     athena_query_wait_polling_delay: float = ...,
     params: Optional[Dict[str, Any]] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
@@ -193,6 +202,7 @@ def read_sql_table(
     boto3_session: Optional[boto3.Session] = ...,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> pd.DataFrame: ...
@@ -216,6 +226,7 @@ def read_sql_table(
     boto3_session: Optional[boto3.Session] = ...,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
@@ -239,6 +250,7 @@ def read_sql_table(
     boto3_session: Optional[boto3.Session] = ...,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
@@ -262,6 +274,7 @@ def read_sql_table(
     boto3_session: Optional[boto3.Session] = ...,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
@@ -285,6 +298,7 @@ def read_sql_table(
     boto3_session: Optional[boto3.Session] = ...,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
