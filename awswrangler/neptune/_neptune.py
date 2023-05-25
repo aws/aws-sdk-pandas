@@ -368,6 +368,7 @@ def bulk_load(
             client=client,
             path=path,
             iam_role=iam_role,
+            format="csv",
             neptune_load_wait_polling_delay=neptune_load_wait_polling_delay,
             load_parallelism=load_parallelism,
             parser_configuration=parser_configuration,
@@ -392,6 +393,7 @@ def bulk_load_from_files(
     client: NeptuneClient,
     path: str,
     iam_role: str,
+    format: Literal["csv", "opencypher", "ntriples", "nquads", "rdfxml", "turtle"] = "csv",
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
     parser_configuration: Optional[Dict[str, Any]] = None,
@@ -400,7 +402,7 @@ def bulk_load_from_files(
     dependencies: Optional[List[str]] = None,
 ) -> None:
     """
-    Load CSV files from S3 into Amazon Neptune using the Neptune Bulk Loader.
+    Load files from S3 into Amazon Neptune using the Neptune Bulk Loader.
 
     For more information about the Bulk Loader see
     `here <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load.html>`_.
@@ -415,6 +417,8 @@ def bulk_load_from_files(
         The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
         For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
         see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
+    format: str
+        The format of the data.
     neptune_load_wait_polling_delay: float
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
     load_parallelism: str
@@ -440,14 +444,15 @@ def bulk_load_from_files(
     >>> wr.neptune.bulk_load_from_files(
     ...     client=client,
     ...     path="s3://my-bucket/stage-files/",
-    ...     iam_role="arn:aws:iam::XXX:role/XXX"
+    ...     iam_role="arn:aws:iam::XXX:role/XXX",
+    ...     format="csv",
     ... )
     """
     _logger.debug("Starting Neptune Bulk Load from %s", path)
     load_id = client.load(
         path,
         iam_role,
-        format="csv",
+        format=format,
         parallelism=load_parallelism,
         parser_configuration=parser_configuration,
         update_single_cardinality_properties=update_single_cardinality_properties,
@@ -467,7 +472,7 @@ def bulk_load_from_files(
 
         time.sleep(neptune_load_wait_polling_delay)
 
-    _logger.debug("Neptune load %s has succeeded in loading data from %s", load_id, path)
+    _logger.debug("Neptune load %s has succeeded in loading %s data from %s", load_id, format, path)
 
 
 def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:
