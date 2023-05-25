@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Union, cast
 import boto3
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSPreparedRequest, AWSRequest
+from typing_extensions import Literal
 
 import awswrangler.neptune._gremlin_init as gremlin
 from awswrangler import _utils, exceptions
@@ -280,7 +281,18 @@ class NeptuneClient:
         res = self._http_session.send(req)
         return res.json()
 
-    def load(self, s3_path: str, role_arn: str, parallelism: str = "HIGH", format: str = "csv") -> str:
+    def load(
+        self,
+        s3_path: str,
+        role_arn: str,
+        parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
+        mode: Literal["RESUME", "NEW", "AUTO"] = "AUTO",
+        format: str = "csv",
+        parser_configuration: Optional[Dict[str, Any]] = None,
+        update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
+        queue_request: Literal["TRUE", "FALSE"] = "FALSE",
+        dependencies: Optional[List[str]] = None,
+    ) -> str:
         """
         Start the Neptune Loader command for loading CSV data from external files on S3 into a Neptune DB cluster.
 
@@ -295,24 +307,52 @@ class NeptuneClient:
             see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
         parallelism: str
             Specifies the number of threads used by the bulk load process.
+        mode: str
+            The load job mode.
+
+            In ```RESUME``` mode, the loader looks for a previous load from this source, and if it finds one, resumes that load job.
+            If no previous load job is found, the loader stops.
+
+            In ```NEW``` mode, the creates a new load request regardless of any previous loads.
+            You can use this mode to reload all the data from a source after dropping previously loaded data from your Neptune cluster, or to load new data available at the same source.
+
+            In ```AUTO``` mode, the loader looks for a previous load job from the same source, and if it finds one, resumes that job, just as in ```RESUME``` mode.
         format: str
             The format of the data. For more information about data formats for the Neptune Loader command,
             see `Using the Amazon Neptune Bulk Loader to Ingest Data <https://docs.aws.amazon.com/neptune/latest/userguide/load-api-reference-load.html#:~:text=The%20format%20of%20the%20data.%20For%20more%20information%20about%20data%20formats%20for%20the%20Neptune%20Loader%20command%2C%20see%20Using%20the%20Amazon%20Neptune%20Bulk%20Loader%20to%20Ingest%20Data.>`_.
+        parser_configuration: dict[str, Any], optional
+            An optional object with additional parser configuration values.
+            Each of the child parameters is also optional: ``namedGraphUri``, ``baseUri`` and ``allowEmptyStrings``.
+        update_single_cardinality_properties: str
+            An optional parameter that controls how the bulk loader
+            treats a new value for single-cardinality vertex or edge properties.
+        queue_request: str
+            An optional flag parameter that indicates whether the load request can be queued up or not.
+
+            If omitted or set to ``"FALSE"``, the load request will fail if another load job is already running.
+        dependencies: list[str], optional
+            An optional parameter that can make a queued load request contingent on the successful completion of one or more previous jobs in the queue.
 
         Returns
         -------
         str
             ID of the load job
         """
-        data = {
+        data: Dict[str, Any] = {
             "source": s3_path,
             "format": format,
             "iamRoleArn": role_arn,
-            "mode": "AUTO",
+            "mode": mode,
             "region": self.region,
             "failOnError": "TRUE",
             "parallelism": parallelism,
+            "updateSingleCardinalityProperties": update_single_cardinality_properties,
+            "queueRequest": queue_request,
         }
+        if parser_configuration:
+            data["parserConfiguration"] = parser_configuration
+        if dependencies:
+            data["dependencies"] = dependencies
 
         url = f"https://{self.host}:{self.port}/loader"
 

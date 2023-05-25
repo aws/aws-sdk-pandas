@@ -4,7 +4,7 @@
 import logging
 import re
 import time
-from typing import Any, Callable, Dict, Literal, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, TypeVar, Union
 
 import boto3
 
@@ -285,6 +285,10 @@ def bulk_load(
     iam_role: str,
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
+    parser_configuration: Optional[Dict[str, Any]] = None,
+    update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
+    queue_request: Literal["TRUE", "FALSE"] = "FALSE",
+    dependencies: Optional[List[str]] = None,
     keep_files: bool = False,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -312,6 +316,18 @@ def bulk_load(
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
     load_parallelism: str
         Specifies the number of threads used by Neptune's bulk load process.
+    parser_configuration: dict[str, Any], optional
+        An optional object with additional parser configuration values.
+        Each of the child parameters is also optional: ``namedGraphUri``, ``baseUri`` and ``allowEmptyStrings``.
+    update_single_cardinality_properties: str
+        An optional parameter that controls how the bulk loader
+        treats a new value for single-cardinality vertex or edge properties.
+    queue_request: str
+        An optional flag parameter that indicates whether the load request can be queued up or not.
+
+        If omitted or set to ``"FALSE"``, the load request will fail if another load job is already running.
+    dependencies: list[str], optional
+        An optional parameter that can make a queued load request contingent on the successful completion of one or more previous jobs in the queue.
     keep_files: bool
         Whether to keep stage files or delete them. False by default.
     use_threads: bool | int
@@ -354,6 +370,10 @@ def bulk_load(
             iam_role=iam_role,
             neptune_load_wait_polling_delay=neptune_load_wait_polling_delay,
             load_parallelism=load_parallelism,
+            parser_configuration=parser_configuration,
+            update_single_cardinality_properties=update_single_cardinality_properties,
+            queue_request=queue_request,
+            dependencies=dependencies,
         )
     finally:
         if keep_files is False:
@@ -374,6 +394,10 @@ def bulk_load_from_files(
     iam_role: str,
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
+    parser_configuration: Optional[Dict[str, Any]] = None,
+    update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
+    queue_request: Literal["TRUE", "FALSE"] = "FALSE",
+    dependencies: Optional[List[str]] = None,
 ) -> None:
     """
     Load CSV files from S3 into Amazon Neptune using the Neptune Bulk Loader.
@@ -395,6 +419,19 @@ def bulk_load_from_files(
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
     load_parallelism: str
         Specifies the number of threads used by Neptune's bulk load process.
+    parser_configuration: dict[str, Any], optional
+        An optional object with additional parser configuration values.
+        Each of the child parameters is also optional: ``namedGraphUri``, ``baseUri`` and ``allowEmptyStrings``.
+    update_single_cardinality_properties: str
+        An optional parameter that controls how the bulk loader
+        treats a new value for single-cardinality vertex or edge properties.
+    queue_request: str
+        An optional flag parameter that indicates whether the load request can be queued up or not.
+
+        If omitted or set to ``"FALSE"``, the load request will fail if another load job is already running.
+    dependencies: list[str], optional
+        An optional parameter that can make a queued load request contingent on the successful completion of one or more previous jobs in the queue.
+
 
     Examples
     --------
@@ -412,6 +449,10 @@ def bulk_load_from_files(
         iam_role,
         format="csv",
         parallelism=load_parallelism,
+        parser_configuration=parser_configuration,
+        update_single_cardinality_properties=update_single_cardinality_properties,
+        queue_request=queue_request,
+        dependencies=dependencies,
     )
 
     while True:
