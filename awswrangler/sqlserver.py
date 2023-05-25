@@ -183,6 +183,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
 ) -> pd.DataFrame:
     ...
 
@@ -198,6 +199,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
 ) -> Iterator[pd.DataFrame]:
     ...
 
@@ -213,6 +215,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ...
 
@@ -227,6 +230,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -252,6 +256,12 @@ def read_sql_query(
         Check for overflows or other unsafe data type conversions.
     timestamp_as_object : bool
         Cast non-nanosecond timestamps (np.datetime64) to objects.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
 
     Returns
     -------
@@ -280,6 +290,7 @@ def read_sql_query(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        dtype_backend=dtype_backend,
     )
 
 
@@ -294,6 +305,7 @@ def read_sql_table(
     dtype: Optional[Dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
 ) -> pd.DataFrame:
     ...
 
@@ -310,6 +322,7 @@ def read_sql_table(
     dtype: Optional[Dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
 ) -> Iterator[pd.DataFrame]:
     ...
 
@@ -326,6 +339,7 @@ def read_sql_table(
     dtype: Optional[Dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ...
 
@@ -341,6 +355,7 @@ def read_sql_table(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding the table.
 
@@ -369,6 +384,12 @@ def read_sql_table(
         Check for overflows or other unsafe data type conversions.
     timestamp_as_object : bool
         Cast non-nanosecond timestamps (np.datetime64) to objects.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
 
     Returns
     -------
@@ -399,6 +420,7 @@ def read_sql_table(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        dtype_backend=dtype_backend,
     )
 
 

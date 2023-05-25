@@ -8,6 +8,7 @@ import pyarrow as pa
 import awswrangler.pandas as pd
 from awswrangler import _databases as _db_utils
 from awswrangler import _utils, exceptions, s3
+from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
 
 from ._connect import _validate_connection
@@ -23,6 +24,7 @@ def _read_parquet_iterator(
     keep_files: bool,
     use_threads: Union[bool, int],
     chunked: Union[bool, int],
+    dtype_backend: Literal["numpy_nullable", "pyarrow"],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]],
@@ -32,6 +34,7 @@ def _read_parquet_iterator(
         chunked=chunked,
         dataset=False,
         use_threads=use_threads,
+        dtype_backend=dtype_backend,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
@@ -43,12 +46,14 @@ def _read_parquet_iterator(
         )
 
 
+@apply_configs
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def read_sql_query(
     sql: str,
     con: "redshift_connector.Connection",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
@@ -74,6 +79,12 @@ def read_sql_query(
         The syntax used to pass parameters is database driver dependent.
         Check your database driver documentation for which of the five syntax styles,
         described in PEP 249’s paramstyle, is supported.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunksize : int, optional
         If specified, return an iterator where chunksize is the number of rows to include in each chunk.
     dtype : Dict[str, pyarrow.DataType], optional
@@ -112,9 +123,11 @@ def read_sql_query(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        dtype_backend=dtype_backend,
     )
 
 
+@apply_configs
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def read_sql_table(
     table: str,
@@ -122,6 +135,7 @@ def read_sql_table(
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
@@ -150,6 +164,12 @@ def read_sql_table(
         The syntax used to pass parameters is database driver dependent.
         Check your database driver documentation for which of the five syntax styles,
         described in PEP 249's paramstyle, is supported.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunksize : int, optional
         If specified, return an iterator where chunksize is the number of rows to include in each chunk.
     dtype : Dict[str, pyarrow.DataType], optional
@@ -189,6 +209,7 @@ def read_sql_table(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        dtype_backend=dtype_backend,
     )
 
 
@@ -325,6 +346,7 @@ def unload_to_files(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
+@apply_configs
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def unload(
     sql: str,
@@ -337,6 +359,7 @@ def unload(
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
     use_threads: Union[bool, int] = True,
@@ -410,6 +433,12 @@ def unload(
         used to encrypt data files on Amazon S3.
     keep_files : bool
         Should keep stage files?
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunked : Union[int, bool]
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
@@ -466,6 +495,7 @@ def unload(
             chunked=chunked,
             dataset=False,
             use_threads=use_threads,
+            dtype_backend=dtype_backend,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
@@ -483,6 +513,7 @@ def unload(
         path=path,
         chunked=chunked,
         use_threads=use_threads,
+        dtype_backend=dtype_backend,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         keep_files=keep_files,

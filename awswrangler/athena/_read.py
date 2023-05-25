@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterator, List, Optional, Union, cast
 import boto3
 import botocore.exceptions
 import pandas as pd
+from typing_extensions import Literal
 
 from awswrangler import _utils, catalog, exceptions, s3, typing
 from awswrangler._config import apply_configs
@@ -100,6 +101,7 @@ def _fetch_parquet_result(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     temp_table_fqn: Optional[str] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     chunked: Union[bool, int] = False if chunksize is None else chunksize
@@ -119,7 +121,7 @@ def _fetch_parquet_result(
         if dtype_dict is None:
             raise exceptions.ResourceDoesNotExist(f"Temp table {temp_table_fqn} not found.")
         df = pd.DataFrame(columns=list(dtype_dict.keys()))
-        df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict)
+        df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict, dtype_backend=dtype_backend)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         if chunked:
             return (df,)
@@ -135,6 +137,7 @@ def _fetch_parquet_result(
         boto3_session=boto3_session,
         chunked=chunked,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        dtype_backend=dtype_backend,
     )
 
     if chunked is False:
@@ -169,6 +172,7 @@ def _fetch_csv_result(
     use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
     _logger.debug("Chunksize: %s", _chunksize)
@@ -189,6 +193,7 @@ def _fetch_csv_result(
         skip_blank_lines=False,
         use_threads=False,
         boto3_session=boto3_session,
+        dtype_backend=dtype_backend,
     )
     _logger.debug("Start type casting...")
     if _chunksize is None:
@@ -224,6 +229,7 @@ def _resolve_query_with_cache(
     session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Fetch cached data and return it as a pandas DataFrame (or list of DataFrames)."""
     _logger.debug("cache_info:\n%s", cache_info)
@@ -247,6 +253,7 @@ def _resolve_query_with_cache(
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            dtype_backend=dtype_backend,
         )
     if cache_info.file_format == "csv":
         return _fetch_csv_result(
@@ -280,6 +287,7 @@ def _resolve_query_without_cache_ctas(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: Optional[boto3.Session],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ctas_query_info: Dict[str, Union[str, _QueryMetadata]] = create_ctas_table(
         sql=sql,
@@ -310,6 +318,7 @@ def _resolve_query_without_cache_ctas(
         boto3_session=boto3_session,
         temp_table_fqn=fully_qualified_name,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        dtype_backend=dtype_backend,
     )
 
 
@@ -333,6 +342,7 @@ def _resolve_query_without_cache_unload(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: Optional[boto3.Session],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     query_metadata = _unload(
         sql=sql,
@@ -359,6 +369,7 @@ def _resolve_query_without_cache_unload(
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            dtype_backend=dtype_backend,
         )
     raise exceptions.InvalidArgumentValue("Only PARQUET file format is supported when unload_approach=True.")
 
@@ -378,6 +389,7 @@ def _resolve_query_without_cache_regular(
     athena_query_wait_polling_delay: float,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: Optional[boto3.Session],
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
@@ -401,6 +413,7 @@ def _resolve_query_without_cache_regular(
         categories=categories,
         metadata_cache_manager=_cache_manager,
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        dtype_backend=dtype_backend,
     )
     return _fetch_csv_result(
         query_metadata=query_metadata,
@@ -409,6 +422,7 @@ def _resolve_query_without_cache_regular(
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
+        dtype_backend=dtype_backend,
     )
 
 
@@ -436,6 +450,7 @@ def _resolve_query_without_cache(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: Optional[boto3.Session],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """
     Execute a query in Athena and returns results as DataFrame, back to `read_sql_query`.
@@ -468,6 +483,7 @@ def _resolve_query_without_cache(
                 s3_additional_kwargs=s3_additional_kwargs,
                 boto3_session=boto3_session,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+                dtype_backend=dtype_backend,
             )
         finally:
             catalog.delete_table_if_exists(database=ctas_database or database, table=name, boto3_session=boto3_session)
@@ -494,6 +510,7 @@ def _resolve_query_without_cache(
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            dtype_backend=dtype_backend,
         )
     return _resolve_query_without_cache_regular(
         sql=sql,
@@ -510,6 +527,7 @@ def _resolve_query_without_cache(
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
+        dtype_backend=dtype_backend,
     )
 
 
@@ -601,6 +619,7 @@ def get_query_results(
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     categories: Optional[List[str]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     chunksize: Optional[Union[int, bool]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -621,6 +640,12 @@ def get_query_results(
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
@@ -672,6 +697,7 @@ def get_query_results(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            dtype_backend=dtype_backend,
         )
     if statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
         return _fetch_csv_result(
@@ -681,6 +707,7 @@ def get_query_results(
             use_threads=use_threads,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
+            dtype_backend=dtype_backend,
         )
     raise exceptions.UndetectedType(f"""Unable to get results for: {query_info["Query"]}.""")
 
@@ -709,6 +736,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     data_source: Optional[str] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     params: Optional[Dict[str, Any]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -881,6 +909,12 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
         `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -963,6 +997,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
                 athena_query_wait_polling_delay=athena_query_wait_polling_delay,
                 s3_additional_kwargs=s3_additional_kwargs,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+                dtype_backend=dtype_backend,
             )
         except Exception as e:  # pylint: disable=broad-except
             _logger.error(e)  # if there is anything wrong with the cache, just fallback to the usual path
@@ -997,6 +1032,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        dtype_backend=dtype_backend,
     )
 
 
@@ -1022,6 +1058,7 @@ def read_sql_table(
     boto3_session: Optional[boto3.Session] = None,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
     data_source: Optional[str] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -1186,6 +1223,12 @@ def read_sql_table(
         If reading cached data fails for any reason, execution falls back to the usual query run path.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -1227,6 +1270,7 @@ def read_sql_table(
         data_source=data_source,
         s3_additional_kwargs=s3_additional_kwargs,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        dtype_backend=dtype_backend,
     )
 
 
