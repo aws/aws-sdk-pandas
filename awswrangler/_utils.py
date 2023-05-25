@@ -161,6 +161,11 @@ def validate_kwargs(
                 set([key for key, value in kwargs.items() if value is not None])
             )
 
+            # Allow kwargs that didn't modify the default value
+            passed_unsupported_kwargs = {
+                key for key in passed_unsupported_kwargs if kwargs[key] != signature.parameters[key].default
+            }
+
             if condition_fn() and len(passed_unsupported_kwargs) > 0:
                 raise exceptions.InvalidArgument(f"{message} `{', '.join(passed_unsupported_kwargs)}`.")
 

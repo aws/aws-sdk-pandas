@@ -24,6 +24,7 @@ from typing import (
 import boto3
 import botocore.exceptions
 import pandas as pd
+from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts, typing
 from awswrangler._config import apply_configs
@@ -207,6 +208,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     query_execution_payload: Optional[Dict[str, Any]] = None,
     metadata_cache_manager: Optional[_LocalMetadataCacheManager] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> _QueryMetadata:
     """Get query metadata."""
     if (query_execution_payload is not None) and (query_execution_payload["Status"]["State"] in _QUERY_FINAL_STATES):
@@ -232,7 +234,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     col_name: str
     col_type: str
     for col_name, col_type in cols_types.items():
-        pandas_type: str = _data_types.athena2pandas(dtype=col_type)
+        pandas_type: str = _data_types.athena2pandas(dtype=col_type, dtype_backend=dtype_backend)
         if (categories is not None) and (col_name in categories):
             dtype[col_name] = "category"
         elif pandas_type in ["datetime64", "date"]:

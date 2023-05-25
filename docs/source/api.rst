@@ -25,6 +25,7 @@ API Reference
 * `Amazon Chime`_
 * `Typing`_
 * `Global Configurations`_
+* `Engine and Memory Format`_
 * `Distributed - Ray`_
 
 Amazon S3
@@ -247,6 +248,7 @@ Data API RDS
     RdsDataApi
     connect
     read_sql_query
+    to_sql
 
 AWS Glue Data Quality
 ---------------------
@@ -336,6 +338,8 @@ Amazon Timestream
     query
     wait_batch_load_task
     write
+    unload_to_files
+    unload
 
 Amazon EMR
 ----------
@@ -479,6 +483,17 @@ Global Configurations
 
     reset
     to_pandas
+
+Engine and Memory Format
+-------------------------
+
+.. currentmodule:: awswrangler._distributed
+
+.. autosummary::
+    :toctree: stubs
+
+    Engine
+    MemoryFormat
 
 Distributed - Ray
 ---------------------

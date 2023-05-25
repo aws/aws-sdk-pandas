@@ -1332,3 +1332,26 @@ def test_to_sql_with_identity_column(redshift_table: str, redshift_con: redshift
     assert len(df_out) == len(df)
     assert df_out["id"].to_list() == list(range(1, len(df) + 1))
     assert df_out["foo"].to_list() == df["foo"].to_list()
+
+
+def test_unload_escape_quotation_marks(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
+    df = get_df().drop(["binary"], axis=1, inplace=False)
+    schema = "public"
+
+    wr.redshift.to_sql(
+        df=df,
+        con=redshift_con,
+        table=redshift_table,
+        schema=schema,
+        mode="overwrite",
+    )
+    df2 = wr.redshift.unload(
+        sql=f"SELECT * FROM public.{redshift_table} WHERE string = 'Seattle'",
+        con=redshift_con,
+        iam_role=databases_parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df2) == 1

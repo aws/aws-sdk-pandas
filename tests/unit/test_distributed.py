@@ -26,7 +26,7 @@ def wr() -> Iterator[ModuleType]:
     yield reload(awswrangler)
 
     # Reset for future tests
-    awswrangler.engine.initialize()
+    awswrangler.engine.register()
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
@@ -42,7 +42,7 @@ def test_engine_python(wr: "awswrangler") -> None:
     assert wr.engine.get_installed() == EngineEnum.RAY
     assert wr.engine.get() == EngineEnum.RAY
 
-    wr.engine.initialize(EngineEnum.PYTHON.value)
+    wr.engine.set(EngineEnum.PYTHON.value)
 
     assert wr.engine.get() == EngineEnum.PYTHON
 

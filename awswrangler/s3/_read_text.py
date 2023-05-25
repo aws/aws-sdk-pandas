@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional,
 
 import boto3
 import pandas as pd
+from typing_extensions import Literal
 
 from awswrangler import _utils, exceptions
 from awswrangler._distributed import engine
@@ -157,6 +158,7 @@ def read_csv(
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
@@ -214,6 +216,12 @@ def read_csv(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     dataset : bool
@@ -276,6 +284,10 @@ def read_csv(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', skip_blank_lines=True)"
         )
+
+    if dtype_backend != "numpy_nullable":
+        pandas_kwargs["dtype_backend"] = dtype_backend
+
     s3_client = _utils.client(service_name="s3", session=boto3_session)
     ignore_index: bool = "index_col" not in pandas_kwargs
     return _read_text_format(
@@ -470,6 +482,7 @@ def read_json(
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
@@ -529,6 +542,12 @@ def read_json(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     dataset: bool
@@ -592,11 +611,16 @@ def read_json(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_json(path, lines=True, keep_default_dates=True)"
         )
+    if dtype_backend != "numpy_nullable":
+        pandas_kwargs["dtype_backend"] = dtype_backend
+
     s3_client = _utils.client(service_name="s3", session=boto3_session)
+
     if (dataset is True) and ("lines" not in pandas_kwargs):
         pandas_kwargs["lines"] = True
     pandas_kwargs["orient"] = orient
     ignore_index: bool = orient not in ("split", "index", "columns")
+
     return _read_text_format(
         read_format="json",
         path=path,

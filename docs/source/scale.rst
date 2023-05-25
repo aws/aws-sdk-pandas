@@ -16,16 +16,22 @@ Once installed, you can use the library in your code as usual:
 
     >>> import awswrangler as wr
 
-At import, SDK for pandas looks for an environmental variable called ``WR_ADDRESS``.
-If found, it is used to send commands to a remote cluster.
-If not found, a local Ray runtime is initialized on your machine instead.
-
+At import, SDK for pandas checks if ``ray`` and ``modin`` are in the installation path and enables distributed mode.
 To confirm that you are in distributed mode, run:
 
     >>> print(f"Execution Engine: {wr.engine.get()}")
     >>> print(f"Memory Format: {wr.memory_format.get()}")
 
 which show that both Ray and Modin are enabled as an execution engine and memory format, respectively.
+You can switch back to non-distributed mode at any point (See `Switching modes <scale.rst#switching-modes>`__ below).
+
+Initialization of the Ray cluster is lazy and only triggered when the first distributed API is executed.
+At that point, SDK for pandas looks for an environment variable called ``WR_ADDRESS``.
+If found, it is used to send commands to a remote cluster.
+If not found, a local Ray runtime is initialized on your machine instead.
+Alternatively, you can trigger Ray initialization with:
+
+    >>> wr.engine.initialize()
 
 In distributed mode, the same ``awswrangler`` APIs can now handle much larger datasets:
 
@@ -33,7 +39,7 @@ In distributed mode, the same ``awswrangler`` APIs can now handle much larger da
 
     # Read Parquet data (1.2 Gb Parquet compressed)
     df = wr.s3.read_parquet(
-        path=f"s3://amazon-reviews-pds/parquet/product_category={category.title()}/",
+        path=f"s3://amazon-reviews-pds/parquet/product_category=Toys/",
     )
 
     # Drop the customer_id column
@@ -132,6 +138,25 @@ This table lists the ``awswrangler`` APIs available in distributed mode (i.e. th
 +-------------------+------------------------------+------------------+
 |                   | ``write``                    |       ✅         |
 +-------------------+------------------------------+------------------+
+|                   | ``unload``                   |       ✅         |
++-------------------+------------------------------+------------------+
+
+Switching modes
+----------------
+The following commands showcase how to switch between distributed and non-distributed modes:
+
+.. code-block:: python
+
+    # Switch to non-distributed
+    wr.engine.set("python")
+    wr.memory_format.set("pandas")
+
+    # Switch to distributed
+    wr.engine.set("ray")
+    wr.memory_format.set("modin")
+
+Similarly, you can set the ``WR_ENGINE`` and ``WR_MEMORY_FORMAT`` environment variables
+to the desired engine and memory format, respectively.
 
 Caveats
 --------
