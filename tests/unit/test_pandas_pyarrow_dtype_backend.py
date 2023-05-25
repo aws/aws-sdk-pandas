@@ -18,11 +18,8 @@ pytestmark = [
 
 
 def test_s3_read_parquet(path: str) -> None:
-    df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
+    df = get_df_dtype_backend(dtype_backend="pyarrow")
     wr.s3.to_parquet(df=df, path=f"{path}.parquet", index=False)
-
-    df.id = df.id.astype(pd.ArrowDtype(pa.int64()))
-    df.val = df.val.astype(pd.ArrowDtype(pa.string()))
 
     df2 = wr.s3.read_parquet(path=path, dtype_backend="pyarrow")
 
@@ -116,6 +113,9 @@ def test_athena_csv_dtype_backend(
         unload_approach=unload_approach,
         s3_output=path2,
     )
+
+    if not ctas_approach and not unload_approach:
+        df["string_nullable"] = df["string_nullable"].astype("string[pyarrow]")
 
     if ctas_approach or unload_approach:
         df2["string_nullable"].replace("", pa.NA, inplace=True)

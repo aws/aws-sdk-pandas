@@ -325,34 +325,34 @@ def get_df_quicksight() -> pd.DataFrame:
 def get_df_dtype_backend(dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable") -> pd.DataFrame:
     df = pd.DataFrame(
         {
-            # "int8_nullable": [1, None, 3],
-            # "int16_nullable": [1, None, 3],
-            # "int32_nullable": [1, None, 3],
+            "int8_nullable": [1, None, 3],
+            "int16_nullable": [1, None, 3],
+            "int32_nullable": [1, None, 3],
             "int64_nullable": [1, None, 3],
             "float_nullable": [0.0, None, 2.2],
-            "bool_nullable": [True, None, False],
+            # "bool_nullable": [True, None, False],
             "string_nullable": ["Washington", None, "Seattle"],
             # "date_nullable": [dt("2020-01-01"), None, dt("2020-01-02")],
             # "timestamp_nullable": [ts("2020-01-01 00:00:00.0"), None, ts("2020-01-02 00:00:01.0")],
         }
     )
     if dtype_backend == "numpy_nullable":
-        # df["int8_nullable"] = df["int8_nullable"].astype("Int8")
-        # df["int16_nullable"] = df["int16_nullable"].astype("Int16")
-        # df["int32_nullable"] = df["int32_nullable"].astype("Int32")
+        df["int8_nullable"] = df["int8_nullable"].astype("Int8")
+        df["int16_nullable"] = df["int16_nullable"].astype("Int16")
+        df["int32_nullable"] = df["int32_nullable"].astype("Int32")
         df["int64_nullable"] = df["int64_nullable"].astype("Int64")
         df["float_nullable"] = df["float_nullable"].astype("Float64")
-        df["bool_nullable"] = df["bool_nullable"].astype("boolean")
+        # df["bool_nullable"] = df["bool_nullable"].astype("boolean")
         # df["date_nullable"] = df["date_nullable"].astype("string[python]")
         df["string_nullable"] = df["string_nullable"].astype("string[python]")
     elif dtype_backend == "pyarrow":
-        # df["int8_nullable"] = df["int8_nullable"].astype(pd.ArrowDtype(pa.int8()))
-        # df["int16_nullable"] = df["int16_nullable"].astype(pd.ArrowDtype(pa.int16()))
-        # df["int32_nullable"] = df["int32_nullable"].astype(pd.ArrowDtype(pa.int32()))
+        df["int8_nullable"] = df["int8_nullable"].astype(pd.ArrowDtype(pa.int8()))
+        df["int16_nullable"] = df["int16_nullable"].astype(pd.ArrowDtype(pa.int16()))
+        df["int32_nullable"] = df["int32_nullable"].astype(pd.ArrowDtype(pa.int32()))
         df["int64_nullable"] = df["int64_nullable"].astype(pd.ArrowDtype(pa.int64()))
         df["float_nullable"] = df["float_nullable"].astype(pd.ArrowDtype(pa.float64()))
-        df["bool_nullable"] = df["bool_nullable"].astype(pd.ArrowDtype(pa.bool_()))
-        # df["date_nullable"] = df["date_nullable"].astype("string[pyarrow]")
+        # df["bool_nullable"] = df["bool_nullable"].astype(pd.ArrowDtype(pa.bool_()))
+        # df["date_nullable"] = df["date_nullable"].astype(pd.ArrowDtype(pa.string()))
         df["string_nullable"] = df["string_nullable"].astype(pd.ArrowDtype(pa.string()))
         # df["timestamp_nullable"] = df["timestamp_nullable"].astype("date64[ms][pyarrow]")
     else:
