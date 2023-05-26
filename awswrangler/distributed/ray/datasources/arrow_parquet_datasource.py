@@ -8,14 +8,12 @@ are documented in the comments and marked with (AWS SDK for pandas) prefix.
 # pylint: disable=redefined-outer-name,import-outside-toplevel,reimported
 
 import logging
-import time
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 
 import numpy as np
 
 # fs required to implicitly trigger S3 subsystem initialization
 import pyarrow.fs  # noqa: F401 pylint: disable=unused-import
-import ray
 from pyarrow.dataset import ParquetFileFragment
 from pyarrow.lib import Schema
 from ray import cloudpickle
@@ -210,9 +208,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             import ray
             from ray.util.scheduling_strategies import NodeAffinitySchedulingStrategy
 
-            self._local_scheduling = NodeAffinitySchedulingStrategy(
-                ray.get_runtime_context().get_node_id(), soft=False
-            )
+            self._local_scheduling = NodeAffinitySchedulingStrategy(ray.get_runtime_context().get_node_id(), soft=False)
 
         dataset_kwargs = reader_args.pop("dataset_kwargs", {})
         try:
@@ -244,12 +240,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             prefetch_remote_args = {}
             if self._local_scheduling:
                 prefetch_remote_args["scheduling_strategy"] = self._local_scheduling
-            self._metadata = (
-                    meta_provider.prefetch_file_metadata(
-                        pq_ds.pieces, **prefetch_remote_args
-                    )
-                    or []
-            )
+            self._metadata = meta_provider.prefetch_file_metadata(pq_ds.pieces, **prefetch_remote_args) or []
         except OSError as e:
             _handle_read_os_error(e, paths)
         self._pq_ds = pq_ds
@@ -338,7 +329,6 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             self._pq_ds.pieces[idx] for idx in np.linspace(0, num_files - 1, num_samples).astype(int).tolist()
         ]
 
-
         futures = []
         scheduling = self._local_scheduling or "SPREAD"
         sample_piece = ray_remote(scheduling_strategy=scheduling)(_sample_piece)
@@ -357,7 +347,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             )
         sample_bar = ProgressBar("Parquet Files Sample", len(futures))
         sample_ratios = sample_bar.fetch_until_complete(futures)
-        sample_bar.close()
+        sample_bar.close()  # type: ignore[no-untyped-call]
         ratio = np.mean(sample_ratios)
         _logger.debug(f"Estimated Parquet encoding ratio from sampling is {ratio}.")
         return max(ratio, PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND)  # type: ignore[no-any-return]
@@ -417,9 +407,9 @@ def _read_pieces(
 
 
 def _sample_piece(
-    reader_args,
-    columns,
-    schema,
+    reader_args: Any,
+    columns: Optional[List[str]],
+    schema: Optional[Union[type, "pyarrow.lib.Schema"]],
     file_piece: _SerializedPiece,
 ) -> float:
     # Sample the first rows batch from file piece `serialized_piece`.
@@ -428,9 +418,7 @@ def _sample_piece(
 
     # Only sample the first row group.
     piece = piece.subset(row_group_ids=[0])
-    batch_size = max(
-        min(piece.metadata.num_rows, PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS), 1
-    )
+    batch_size = max(min(piece.metadata.num_rows, PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS), 1)
     # Use the batch_size calculated above, and ignore the one specified by user if set.
     # This is to avoid sampling too few or too many rows.
     reader_args.pop("batch_size", None)
@@ -457,8 +445,5 @@ def _sample_piece(
             ratio = in_memory_size / file_size
         else:
             ratio = PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND
-    _logger.debug(
-        f"Estimated Parquet encoding ratio is {ratio} for piece {piece} "
-        f"with batch size {batch_size}."
-    )
+    _logger.debug(f"Estimated Parquet encoding ratio is {ratio} for piece {piece} " f"with batch size {batch_size}.")
     return ratio
