@@ -330,8 +330,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         ]
 
         futures = []
-        scheduling = self._local_scheduling or "SPREAD"
-        sample_piece = ray_remote(scheduling_strategy=scheduling)(_sample_piece)
+        sample_piece = ray_remote(scheduling_strategy=self._local_scheduling or "SPREAD")(_sample_piece)
         for sample in file_samples:
             # Sample the first rows batch in i-th file.
             # Use SPREAD scheduling strategy to avoid packing many sampling tasks on
