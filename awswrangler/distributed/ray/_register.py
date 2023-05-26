@@ -22,11 +22,15 @@ from awswrangler.s3._copy import _copy_objects
 from awswrangler.s3._delete import _delete_objects
 from awswrangler.s3._describe import _describe_object
 from awswrangler.s3._list import _list_objects_paginate
+
+# from awswrangler.s3._read_orc import _read_orc, _read_orc_metadata_file
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
 from awswrangler.s3._read_text import _read_text
 from awswrangler.s3._select import _select_object_content, _select_query
 from awswrangler.s3._wait import _wait_object_batch
 from awswrangler.s3._write_dataset import _to_buckets, _to_partitions
+
+# from awswrangler.s3._write_orc import _to_orc
 from awswrangler.s3._write_parquet import _to_parquet
 from awswrangler.s3._write_text import _to_text
 from awswrangler.timestream._write import _write_batch, _write_df
