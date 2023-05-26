@@ -50,7 +50,7 @@ class _LocalMetadataCacheManager:
                 if oldest_item:
                     items = list(
                         filter(
-                            lambda x: x["Status"]["SubmissionDateTime"] > oldest_item["Status"]["SubmissionDateTime"],
+                            lambda x: x["Status"]["SubmissionDateTime"] > oldest_item["Status"]["SubmissionDateTime"],  # type: ignore[arg-type]
                             items,
                         )
                     )
