@@ -268,6 +268,12 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         which simplifies partitioning logic.
         """
         read_tasks = []
+        block_udf, reader_args, columns, schema = (
+            self._block_udf,
+            self._reader_args,
+            self._columns,
+            self._schema,
+        )
         for pieces, metadata in zip(
             np.array_split(self._pq_ds.pieces, parallelism),
             np.array_split(self._metadata, parallelism),
@@ -284,12 +290,6 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             )
             if meta.size_bytes is not None:
                 meta.size_bytes = int(meta.size_bytes * self._encoding_ratio)
-            block_udf, reader_args, columns, schema = (
-                self._block_udf,
-                self._reader_args,
-                self._columns,
-                self._schema,
-            )
             read_tasks.append(
                 ReadTask(
                     lambda p=serialized_pieces: _read_pieces(  # type: ignore[misc]
