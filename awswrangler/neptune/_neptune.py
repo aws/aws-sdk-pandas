@@ -4,7 +4,7 @@
 import logging
 import re
 import time
-from typing import Any, Callable, Dict, Literal, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, TypeVar, Union
 
 import boto3
 
@@ -12,7 +12,7 @@ import awswrangler.neptune._gremlin_init as gremlin
 import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
-from awswrangler.neptune._client import NeptuneClient
+from awswrangler.neptune._client import BulkLoadParserConfiguration, NeptuneClient
 
 gremlin_python = _utils.import_optional_dependency("gremlin_python")
 opencypher = _utils.import_optional_dependency("requests")
@@ -285,6 +285,10 @@ def bulk_load(
     iam_role: str,
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
+    parser_configuration: Optional[BulkLoadParserConfiguration] = None,
+    update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
+    queue_request: Literal["TRUE", "FALSE"] = "FALSE",
+    dependencies: Optional[List[str]] = None,
     keep_files: bool = False,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -312,6 +316,18 @@ def bulk_load(
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
     load_parallelism: str
         Specifies the number of threads used by Neptune's bulk load process.
+    parser_configuration: dict[str, Any], optional
+        An optional object with additional parser configuration values.
+        Each of the child parameters is also optional: ``namedGraphUri``, ``baseUri`` and ``allowEmptyStrings``.
+    update_single_cardinality_properties: str
+        An optional parameter that controls how the bulk loader
+        treats a new value for single-cardinality vertex or edge properties.
+    queue_request: str
+        An optional flag parameter that indicates whether the load request can be queued up or not.
+
+        If omitted or set to ``"FALSE"``, the load request will fail if another load job is already running.
+    dependencies: list[str], optional
+        An optional parameter that can make a queued load request contingent on the successful completion of one or more previous jobs in the queue.
     keep_files: bool
         Whether to keep stage files or delete them. False by default.
     use_threads: bool | int
@@ -352,8 +368,13 @@ def bulk_load(
             client=client,
             path=path,
             iam_role=iam_role,
+            format="csv",
             neptune_load_wait_polling_delay=neptune_load_wait_polling_delay,
             load_parallelism=load_parallelism,
+            parser_configuration=parser_configuration,
+            update_single_cardinality_properties=update_single_cardinality_properties,
+            queue_request=queue_request,
+            dependencies=dependencies,
         )
     finally:
         if keep_files is False:
@@ -372,11 +393,16 @@ def bulk_load_from_files(
     client: NeptuneClient,
     path: str,
     iam_role: str,
+    format: Literal["csv", "opencypher", "ntriples", "nquads", "rdfxml", "turtle"] = "csv",
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
+    parser_configuration: Optional[BulkLoadParserConfiguration] = None,
+    update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
+    queue_request: Literal["TRUE", "FALSE"] = "FALSE",
+    dependencies: Optional[List[str]] = None,
 ) -> None:
     """
-    Load CSV files from S3 into Amazon Neptune using the Neptune Bulk Loader.
+    Load files from S3 into Amazon Neptune using the Neptune Bulk Loader.
 
     For more information about the Bulk Loader see
     `here <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load.html>`_.
@@ -391,10 +417,25 @@ def bulk_load_from_files(
         The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
         For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
         see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
+    format: str
+        The format of the data.
     neptune_load_wait_polling_delay: float
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
     load_parallelism: str
         Specifies the number of threads used by Neptune's bulk load process.
+    parser_configuration: dict[str, Any], optional
+        An optional object with additional parser configuration values.
+        Each of the child parameters is also optional: ``namedGraphUri``, ``baseUri`` and ``allowEmptyStrings``.
+    update_single_cardinality_properties: str
+        An optional parameter that controls how the bulk loader
+        treats a new value for single-cardinality vertex or edge properties.
+    queue_request: str
+        An optional flag parameter that indicates whether the load request can be queued up or not.
+
+        If omitted or set to ``"FALSE"``, the load request will fail if another load job is already running.
+    dependencies: list[str], optional
+        An optional parameter that can make a queued load request contingent on the successful completion of one or more previous jobs in the queue.
+
 
     Examples
     --------
@@ -403,15 +444,20 @@ def bulk_load_from_files(
     >>> wr.neptune.bulk_load_from_files(
     ...     client=client,
     ...     path="s3://my-bucket/stage-files/",
-    ...     iam_role="arn:aws:iam::XXX:role/XXX"
+    ...     iam_role="arn:aws:iam::XXX:role/XXX",
+    ...     format="csv",
     ... )
     """
     _logger.debug("Starting Neptune Bulk Load from %s", path)
     load_id = client.load(
         path,
         iam_role,
-        format="csv",
+        format=format,
         parallelism=load_parallelism,
+        parser_configuration=parser_configuration,
+        update_single_cardinality_properties=update_single_cardinality_properties,
+        queue_request=queue_request,
+        dependencies=dependencies,
     )
 
     while True:
@@ -426,7 +472,7 @@ def bulk_load_from_files(
 
         time.sleep(neptune_load_wait_polling_delay)
 
-    _logger.debug("Neptune load %s has succeeded in loading data from %s", load_id, path)
+    _logger.debug("Neptune load %s has succeeded in loading %s data from %s", load_id, format, path)
 
 
 def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:
