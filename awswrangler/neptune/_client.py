@@ -29,7 +29,7 @@ WS_PROTOCOL = "wss"
 
 
 class BulkLoadParserConfiguration(TypedDict):
-    """Additional parser configuration for the Neptune Bulk Loader."""
+    """Typed dictionary representing the additional parser configuration for the Neptune Bulk Loader."""
 
     namedGraphUri: NotRequired[str]
     """
