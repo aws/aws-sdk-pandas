@@ -13,6 +13,7 @@ import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler.neptune._client import NeptuneClient
+from awswrangler.neptune._utils import BulkLoadParserConfiguration
 
 gremlin_python = _utils.import_optional_dependency("gremlin_python")
 opencypher = _utils.import_optional_dependency("requests")
@@ -285,7 +286,7 @@ def bulk_load(
     iam_role: str,
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
-    parser_configuration: Optional[Dict[str, Any]] = None,
+    parser_configuration: Optional[BulkLoadParserConfiguration] = None,
     update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
     queue_request: Literal["TRUE", "FALSE"] = "FALSE",
     dependencies: Optional[List[str]] = None,
@@ -396,7 +397,7 @@ def bulk_load_from_files(
     format: Literal["csv", "opencypher", "ntriples", "nquads", "rdfxml", "turtle"] = "csv",
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
-    parser_configuration: Optional[Dict[str, Any]] = None,
+    parser_configuration: Optional[BulkLoadParserConfiguration] = None,
     update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
     queue_request: Literal["TRUE", "FALSE"] = "FALSE",
     dependencies: Optional[List[str]] = None,

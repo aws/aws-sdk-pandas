@@ -12,6 +12,7 @@ from typing_extensions import Literal
 import awswrangler.neptune._gremlin_init as gremlin
 from awswrangler import _utils, exceptions
 from awswrangler.neptune._gremlin_parser import GremlinParser
+from awswrangler.neptune._utils import BulkLoadParserConfiguration
 
 gremlin_python = _utils.import_optional_dependency("gremlin_python")
 opencypher = _utils.import_optional_dependency("requests")
@@ -288,7 +289,7 @@ class NeptuneClient:
         parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
         mode: Literal["RESUME", "NEW", "AUTO"] = "AUTO",
         format: str = "csv",
-        parser_configuration: Optional[Dict[str, Any]] = None,
+        parser_configuration: Optional[BulkLoadParserConfiguration] = None,
         update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
         queue_request: Literal["TRUE", "FALSE"] = "FALSE",
         dependencies: Optional[List[str]] = None,
