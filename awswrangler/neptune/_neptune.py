@@ -12,8 +12,7 @@ import awswrangler.neptune._gremlin_init as gremlin
 import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
-from awswrangler.neptune._client import NeptuneClient
-from awswrangler.neptune._utils import BulkLoadParserConfiguration
+from awswrangler.neptune._client import BulkLoadParserConfiguration, NeptuneClient
 
 gremlin_python = _utils.import_optional_dependency("gremlin_python")
 opencypher = _utils.import_optional_dependency("requests")

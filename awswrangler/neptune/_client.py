@@ -2,17 +2,16 @@
 """Amazon NeptuneClient Module."""
 
 import logging
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, TypedDict, Union, cast
 
 import boto3
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSPreparedRequest, AWSRequest
-from typing_extensions import Literal
+from typing_extensions import Literal, NotRequired
 
 import awswrangler.neptune._gremlin_init as gremlin
 from awswrangler import _utils, exceptions
 from awswrangler.neptune._gremlin_parser import GremlinParser
-from awswrangler.neptune._utils import BulkLoadParserConfiguration
 
 gremlin_python = _utils.import_optional_dependency("gremlin_python")
 opencypher = _utils.import_optional_dependency("requests")
@@ -27,6 +26,28 @@ DEFAULT_PORT = 8182
 NEPTUNE_SERVICE_NAME = "neptune-db"
 HTTP_PROTOCOL = "https"
 WS_PROTOCOL = "wss"
+
+
+class BulkLoadParserConfiguration(TypedDict):
+    """Additional parser configuration for the Neptune Bulk Loader."""
+
+    namedGraphUri: NotRequired[str]
+    """
+    The default graph for all RDF formats when no graph is specified
+    (for non-quads formats and NQUAD entries with no graph).
+    """
+    baseUri: NotRequired[str]
+    """The base URI for RDF/XML and Turtle formats."""
+    allowEmptyStrings: NotRequired[bool]
+    """
+    Gremlin users need to be able to pass empty string values("") as node
+    and edge properties when loading CSV data.
+    If ``allowEmptyStrings`` is set to ``false`` (the default),
+    such empty strings are treated as nulls and are not loaded.
+
+    If allowEmptyStrings is set to true, the loader treats empty strings
+    as valid property values and loads them accordingly.
+    """
 
 
 class NeptuneClient:

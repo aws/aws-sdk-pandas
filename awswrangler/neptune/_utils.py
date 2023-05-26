@@ -2,19 +2,16 @@
 
 import logging
 from enum import Enum
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import Any
 
 from gremlin_python.process.graph_traversal import GraphTraversalSource, __
 from gremlin_python.process.translator import Translator
 from gremlin_python.process.traversal import Cardinality, T
 from gremlin_python.structure.graph import Graph
-from typing_extensions import NotRequired
 
 import awswrangler.pandas as pd
 from awswrangler import exceptions
-
-if TYPE_CHECKING:
-    from awswrangler.neptune._client import NeptuneClient
+from awswrangler.neptune._client import NeptuneClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -25,28 +22,6 @@ class WriteDFType(Enum):
     VERTEX = 1
     EDGE = 2
     UPDATE = 3
-
-
-class BulkLoadParserConfiguration(TypedDict):
-    """Additional parser configuration for the Neptune Bulk Loader."""
-
-    namedGraphUri: NotRequired[str]
-    """
-    The default graph for all RDF formats when no graph is specified
-    (for non-quads formats and NQUAD entries with no graph).
-    """
-    baseUri: NotRequired[str]
-    """The base URI for RDF/XML and Turtle formats."""
-    allowEmptyStrings: NotRequired[bool]
-    """
-    Gremlin users need to be able to pass empty string values("") as node
-    and edge properties when loading CSV data.
-    If ``allowEmptyStrings`` is set to ``false`` (the default),
-    such empty strings are treated as nulls and are not loaded.
-
-    If allowEmptyStrings is set to true, the loader treats empty strings
-    as valid property values and loads them accordingly.
-    """
 
 
 def write_gremlin_df(client: "NeptuneClient", df: pd.DataFrame, mode: WriteDFType, batch_size: int) -> bool:
