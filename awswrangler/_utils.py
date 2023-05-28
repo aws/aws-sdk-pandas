@@ -336,6 +336,16 @@ def client(
 
 @overload
 def client(
+    service_name: 'Literal["emr-serverless"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "EMRServerless":
+    ...
+
+
+@overload
+def client(
     service_name: 'Literal["glue"]',
     session: Optional[boto3.Session] = None,
     botocore_config: Optional[Config] = None,
