@@ -287,7 +287,7 @@ def test_gremlin_bulk_load_from_files(
         client=client,
         path=path,
         iam_role=neptune_load_iam_role_arn,
-        parser_config=parser_config,
+        parser_configuration=parser_config,
     )
     res_df = wr.neptune.execute_gremlin(client, f"g.V().hasLabel('{label}').valueMap().with(WithOptions.tokens)")
 
