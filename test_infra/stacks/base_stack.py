@@ -107,6 +107,26 @@ class BaseStack(Stack):  # type: ignore
                 ),
             },
         )
+        emr_serverless_exec_role = iam.Role(
+            self,
+            "aws-sdk-pandas-emr-serverless-exec-role",
+            role_name="EMRServerlessExecutionRole",
+            assumed_by=iam.ServicePrincipal("emr-serverless.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
+            ],
+            inline_policies={
+                "GetDataAccess": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            actions=["lakeformation:GetDataAccess"],
+                            resources=["*"],
+                        ),
+                    ]
+                ),
+            },
+        )
         glue_db = glue.Database(
             self,
             id="aws_sdk_pandas_glue_database",
@@ -178,6 +198,7 @@ class BaseStack(Stack):  # type: ignore
         )
         CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
         CfnOutput(self, "GlueDataQualityRole", value=glue_data_quality_role.role_arn)
+        CfnOutput(self, "EMRServerlessExecutionRoleArn", value=emr_serverless_exec_role.role_arn)
         CfnOutput(self, "LogGroupName", value=log_group.log_group_name)
         CfnOutput(self, "LogStream", value=log_stream.log_stream_name)
 
