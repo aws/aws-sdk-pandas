@@ -145,7 +145,7 @@ extend_exclude = '''
 
 [tool.ruff]
 select = ["D", "E", "F", "I001", "I002", "PL", "W"]
-ignore = ["E501", "PLR2004", "PLR0913", "PLR0915"]
+ignore = ["E501", "PLR2004", "PLR0911", "PLR0912", "PLR0913", "PLR0915"]
 fixable = ["I001"]
 exclude = [
     ".eggs",

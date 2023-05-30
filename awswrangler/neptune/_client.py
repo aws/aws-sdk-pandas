@@ -1,6 +1,7 @@
 # mypy: disable-error-code=name-defined
 """Amazon NeptuneClient Module."""
 
+import json
 import logging
 from typing import Any, Dict, List, Optional, TypedDict, Union, cast
 
@@ -378,7 +379,12 @@ class NeptuneClient:
 
         url = f"https://{self.host}:{self.port}/loader"
 
-        req = self._prepare_request("POST", url, data=data)
+        req = self._prepare_request(
+            method="POST",
+            url=url,
+            data=json.dumps(data),
+            headers={"Content-Type": "application/json; charset=utf-8"},
+        )
         res = self._http_session.send(req)
 
         _logger.debug(res)

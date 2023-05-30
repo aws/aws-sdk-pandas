@@ -342,9 +342,7 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2pandas(
-    dtype: str, dtype_backend: Optional[str] = None
-) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+def athena2pandas(dtype: str, dtype_backend: Optional[str] = None) -> str:  # pylint: disable=too-many-return-statements
     """Athena to Pandas data types conversion."""
     dtype = dtype.lower()
     if dtype == "tinyint":
@@ -493,24 +491,24 @@ def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches,too-many-sta
     cols: List[str] = []
     cols_dtypes: Dict[str, Optional[pa.DataType]] = {}
     for name, dtype in df.dtypes.to_dict().items():
-        dtype = str(dtype)
+        dtype_str = str(dtype)
         if name in ignore_cols:
             cols_dtypes[name] = None
-        elif dtype == "Int8":
+        elif dtype_str == "Int8":
             cols_dtypes[name] = pa.int8()
-        elif dtype == "Int16":
+        elif dtype_str == "Int16":
             cols_dtypes[name] = pa.int16()
-        elif dtype == "Int32":
+        elif dtype_str == "Int32":
             cols_dtypes[name] = pa.int32()
-        elif dtype == "Int64":
+        elif dtype_str == "Int64":
             cols_dtypes[name] = pa.int64()
-        elif dtype == "float32":
+        elif dtype_str == "float32":
             cols_dtypes[name] = pa.float32()
-        elif dtype == "float64":
+        elif dtype_str == "float64":
             cols_dtypes[name] = pa.float64()
-        elif dtype == "string":
+        elif dtype_str == "string":
             cols_dtypes[name] = pa.string()
-        elif dtype == "boolean":
+        elif dtype_str == "boolean":
             cols_dtypes[name] = pa.bool_()
         else:
             cols.append(name)
