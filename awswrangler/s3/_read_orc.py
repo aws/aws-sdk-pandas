@@ -234,72 +234,16 @@ def _read_orc_file(
         s3_additional_kwargs=s3_additional_kwargs,
         s3_client=s3_client,
     ) as f:
-        pq_file: Optional[pyarrow.orc.ORCFile] = _pyarrow_orc_file_wrapper(
+        orc_file: Optional[pyarrow.orc.ORCFile] = _pyarrow_orc_file_wrapper(
             source=f,
         )
-        if pq_file is None:
-            raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
+        if orc_file is None:
+            raise exceptions.InvalidFile(f"Invalid ORC file: {path}")
         return _add_table_partitions(
-            table=pq_file.read(columns=columns),
+            table=orc_file.read(columns=columns),
             path=path,
             path_root=path_root,
         )
-
-
-def _read_orc_chunked(
-    s3_client: Optional["S3Client"],
-    paths: List[str],
-    path_root: Optional[str],
-    columns: Optional[List[str]],
-    chunked: Union[int, bool],
-    use_threads: Union[bool, int],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    arrow_kwargs: Dict[str, Any],
-    version_ids: Optional[Dict[str, str]] = None,
-) -> Iterator[pd.DataFrame]:
-    next_slice: Optional[pd.DataFrame] = None
-    batch_size = BATCH_READ_BLOCK_SIZE if chunked is True else chunked
-
-    for path in paths:
-        with open_s3_object(
-            path=path,
-            version_id=version_ids.get(path) if version_ids else None,
-            mode="rb",
-            use_threads=use_threads,
-            s3_client=s3_client,
-            s3_block_size=CHUNKED_READ_S3_BLOCK_SIZE,
-            s3_additional_kwargs=s3_additional_kwargs,
-        ) as f:
-            pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_orc_file_wrapper(
-                source=f,
-            )
-            if pq_file is None:
-                continue
-
-            use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
-            chunks = pq_file.iter_batches(
-                batch_size=batch_size, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False
-            )
-            table = _add_table_partitions(
-                table=pa.Table.from_batches(chunks),
-                path=path,
-                path_root=path_root,
-            )
-            df = _table_to_df(table=table, kwargs=arrow_kwargs)
-            if chunked is True:
-                yield df
-            else:
-                if next_slice is not None:
-                    df = pd.concat(objs=[next_slice, df], sort=False, copy=False)
-                while len(df.index) >= chunked:
-                    yield df.iloc[:chunked, :].copy()
-                    df = df.iloc[chunked:, :]
-                if df.empty:
-                    next_slice = None
-                else:
-                    next_slice = df
-    if next_slice is not None:
-        yield next_slice
 
 
 @engine.dispatch_on_engine
@@ -348,7 +292,6 @@ def read_orc(
     last_modified_end: Optional[datetime.datetime] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     ray_args: Optional[RayReadParquetSettings] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -365,22 +308,6 @@ def read_orc(
     [seq] (matches any character in seq), [!seq] (matches any character not in seq).
     If you want to use a path which includes Unix shell-style wildcard characters (`*, ?, []`),
     you can use `glob.escape(path)` before passing the argument to this function.
-
-    Note
-    ----
-    ``Batching`` (`chunked` argument) (Memory Friendly):
-
-    Used to return an Iterable of DataFrames instead of a regular DataFrame.
-
-    Two batching strategies are available:
-
-    - If **chunked=True**, depending on the size of the data, one or more data frames are returned per file in the path/dataset.
-      Unlike **chunked=INTEGER**, rows from different files are not mixed in the resulting data frames.
-
-    - If **chunked=INTEGER**, awswrangler iterates on the data by number of rows equal to the received INTEGER.
-
-    `P.S.` `chunked=True` is faster and uses less memory while `chunked=INTEGER` is more precise
-    in the number of rows.
 
     Note
     ----
@@ -437,11 +364,6 @@ def read_orc(
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunked : Union[int, bool]
-        If passed, the data is split into an iterable of DataFrames (Memory friendly).
-        If `True` an iterable of DataFrames is returned without guarantee of chunksize.
-        If an `INTEGER` is passed, an iterable of DataFrames is returned with maximum rows
-        equal to the received INTEGER.
     use_threads : Union[bool, int], default True
         True to enable concurrent requests, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the max number of threads.
@@ -459,8 +381,8 @@ def read_orc(
 
     Returns
     -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
-        Pandas DataFrame or a Generator in case of `chunked=True`.
+    pandas.DataFrame
+        Pandas DataFrame.
 
     Examples
     --------
@@ -473,23 +395,6 @@ def read_orc(
 
     >>> import awswrangler as wr
     >>> df = wr.s3.read_parquet(path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'])
-
-    Reading in chunks (Chunk by file)
-
-    >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'], chunked=True)
-    >>> for df in dfs:
-    >>>     print(df)  # Smaller Pandas DataFrame
-
-    Reading in chunks (Chunk by 1MM rows)
-
-    >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet(
-    ...     path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'],
-    ...     chunked=1_000_000
-    ... )
-    >>> for df in dfs:
-    >>>     print(df)  # 1MM Pandas DataFrame
 
     Reading Parquet Dataset with PUSH-DOWN filter over partitions
 
@@ -550,19 +455,6 @@ def read_orc(
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(
         use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
     )
-
-    if chunked:
-        return _read_orc_chunked(
-            s3_client=s3_client,
-            paths=paths,
-            path_root=path_root,
-            columns=columns,
-            chunked=chunked,
-            use_threads=use_threads,
-            s3_additional_kwargs=s3_additional_kwargs,
-            arrow_kwargs=arrow_kwargs,
-            version_ids=version_ids,
-        )
 
     return _read_orc(
         paths,

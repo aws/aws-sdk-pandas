@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, 
 import boto3
 import pandas as pd
 import pyarrow as pa
-import pyarrow.lib
 import pyarrow.orc
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation, typing

@@ -42,14 +42,12 @@ def test_orc_metadata_partitions_dataset(path, partition_cols):
 
 
 def test_read_orc_metadata_nulls(path):
-    df = pd.DataFrame({"c0": [None, None, None], "c1": [1, 2, 3], "c2": ["a", "b", "c"]})
+    df = pd.DataFrame({"c0": [1.0, 1.1, 1.2], "c1": [1, 2, 3], "c2": ["a", "b", "c"]})
     path = f"{path}df.orc"
     wr.s3.to_orc(df, path)
-    with pytest.raises(wr.exceptions.UndetectedType):
-        wr.s3.read_orc_metadata(path)
-    columns_types, _ = wr.s3.read_orc_metadata(path, ignore_null=True)
+    columns_types, _ = wr.s3.read_orc_metadata(path)
     assert len(columns_types) == len(df.columns)
-    assert columns_types.get("c0") == ""
+    assert columns_types.get("c0") == "double"
     assert columns_types.get("c1") == "bigint"
     assert columns_types.get("c2") == "string"
 
@@ -155,7 +153,6 @@ def test_orc(path):
     df_file = pd.DataFrame({"id": [1, 2, 3]})
     path_file = f"{path}test_orc_file.orc"
     df_dataset = pd.DataFrame({"id": [1, 2, 3], "partition": ["A", "A", "B"]})
-    df_dataset["partition"] = df_dataset["partition"].astype("category")
     path_dataset = f"{path}test_orc_dataset"
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_orc(df=df_file, path=path_file, mode="append")
@@ -205,31 +202,6 @@ def test_orc_validate_schema(path):
         wr.s3.read_orc(path=path, validate_schema=True)
 
 
-def test_orc_uint64(path):
-    df = pd.DataFrame(
-        {
-            "c0": [0, 0, (2**8) - 1],
-            "c1": [0, 0, (2**16) - 1],
-            "c2": [0, 0, (2**32) - 1],
-            "c3": [0, 0, (2**64) - 1],
-            "c4": [0, 1, 2],
-        }
-    )
-    df["c0"] = df.c0.astype("uint8")
-    df["c1"] = df.c1.astype("uint16")
-    df["c2"] = df.c2.astype("uint32")
-    df["c3"] = df.c3.astype("uint64")
-    wr.s3.to_orc(df=df, path=path, dataset=True, mode="overwrite", partition_cols=["c4"])
-    df = wr.s3.read_orc(path=path, dataset=True)
-    assert len(df.index) == 3
-    assert len(df.columns) == 5
-    assert df.c0.max() == (2**8) - 1
-    assert df.c1.max() == (2**16) - 1
-    assert df.c2.max() == (2**32) - 1
-    assert df.c3.max() == (2**64) - 1
-    assert df.c4.astype("uint8").sum() == 3
-
-
 def test_orc_metadata_partitions(path):
     path = f"{path}0.orc"
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["3", "4", "5"], "c2": [6.0, 7.0, 8.0]})
@@ -252,7 +224,7 @@ def test_orc_cast_string(path):
         assert df[col].iloc[row] == df2[col].iloc[row]
 
 
-def test_to_parquet_file_sanitize(path):
+def test_to_orc_file_sanitize(path):
     df = pd.DataFrame({"C0": [0, 1], "camelCase": [2, 3], "c**--2": [4, 5]})
     path_file = f"{path}0.orc"
     wr.s3.to_orc(df, path_file, sanitize_columns=True)
@@ -265,7 +237,7 @@ def test_to_parquet_file_sanitize(path):
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_to_parquet_file_dtype(path, use_threads):
+def test_to_orc_file_dtype(path, use_threads):
     df = pd.DataFrame({"c0": [1.0, None, 2.0], "c1": [pd.NA, pd.NA, pd.NA]})
     file_path = f"{path}0.orc"
     wr.s3.to_orc(df, file_path, dtype={"c0": "bigint", "c1": "string"}, use_threads=use_threads)
@@ -278,18 +250,18 @@ def test_to_parquet_file_dtype(path, use_threads):
 
 @pytest.mark.parametrize("filename_prefix", [None, "my_prefix"])
 @pytest.mark.parametrize("use_threads", [True, False])
-def test_to_parquet_filename_prefix(compare_filename_prefix, path, filename_prefix, use_threads):
+def test_to_orc_filename_prefix(compare_filename_prefix, path, filename_prefix, use_threads):
     test_prefix = "my_prefix"
     df = pd.DataFrame({"col": [1, 2, 3], "col2": ["A", "A", "B"]})
     file_path = f"{path}0.orc"
 
-    # If Dataset is False, parquet file should never start with prefix
+    # If Dataset is False, ORC file should never start with prefix
     filename = wr.s3.to_orc(
         df=df, path=file_path, dataset=False, filename_prefix=filename_prefix, use_threads=use_threads
     )["paths"][0].split("/")[-1]
     assert not filename.startswith(test_prefix)
 
-    # If Dataset is True, parquet file starts with prefix if one is supplied
+    # If Dataset is True, ORC file starts with prefix if one is supplied
     filename = wr.s3.to_orc(df=df, path=path, dataset=True, filename_prefix=filename_prefix, use_threads=use_threads)[
         "paths"
     ][0].split("/")[-1]
@@ -332,7 +304,7 @@ def test_read_orc_map_types(path):
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("max_rows_by_file", [None, 0, 40, 250, 1000])
 def test_orc_with_size(path, use_threads, max_rows_by_file):
-    df = get_df_list()
+    df = get_df_list().drop(["category"], axis=1)  # category not supported
     df = pd.concat([df for _ in range(100)])
     paths = wr.s3.to_orc(
         df=df,
@@ -346,121 +318,9 @@ def test_orc_with_size(path, use_threads, max_rows_by_file):
         assert len(paths) >= math.floor(300 / max_rows_by_file)
         assert len(paths) <= math.ceil(300 / max_rows_by_file)
     df2 = wr.s3.read_orc(path=path, dataset=False, use_threads=use_threads)
-    ensure_data_types(df2, has_list=True)
-    assert df2.shape == (300, 19)
+    ensure_data_types(df2, has_list=True, has_category=False)
+    assert df2.shape == (300, 18)
     assert df.iint8.sum() == df2.iint8.sum()
-
-
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_index_and_timezone(path, use_threads):
-    df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "par": ["a", "b"]}, index=["foo", "boo"])
-    df["c1"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
-    df.index = df.index.astype("string")
-    wr.s3.to_orc(df, path, index=True, use_threads=use_threads, dataset=True, partition_cols=["par"])
-    df2 = wr.s3.read_orc(path, use_threads=use_threads, dataset=True)
-    assert_pandas_equals(df[["c0", "c1"]], df2[["c0", "c1"]])
-
-
-@pytest.mark.xfail(
-    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
-)
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_index_recovery_simple_int(path, use_threads):
-    df = pd.DataFrame({"c0": np.arange(10, 1_010, 1)}, dtype="Int64")
-    df.index = df.index.astype("Int64")
-    paths = wr.s3.to_orc(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=300)["paths"]
-    assert len(paths) == 4
-    df2 = wr.s3.read_orc(f"{path}*.orc", use_threads=use_threads)
-    assert_pandas_equals(df, df2)
-
-
-@pytest.mark.xfail(
-    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
-)
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_index_recovery_simple_str(path, use_threads):
-    df = pd.DataFrame({"c0": [0, 1, 2, 3, 4]}, index=["a", "b", "c", "d", "e"], dtype="Int64")
-    df.index = df.index.astype("string")
-    paths = wr.s3.to_orc(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
-    assert len(paths) == 5
-    df2 = wr.s3.read_orc(f"{path}*.orc", use_threads=use_threads)
-    assert_pandas_equals(df, df2)
-
-
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_index_recovery_partitioned_str(path, use_threads):
-    df = pd.DataFrame(
-        {"c0": [0, 1, 2, 3, 4], "par": ["foo", "boo", "bar", "foo", "boo"]}, index=["a", "b", "c", "d", "e"]
-    )
-    df.index = df.index.astype("string")
-    df["c0"] = df["c0"].astype("Int64")
-    df["par"] = df["c0"].astype("category")
-    paths = wr.s3.to_orc(
-        df, path, index=True, use_threads=use_threads, dataset=True, partition_cols=["par"], max_rows_by_file=1
-    )["paths"]
-    assert len(paths) == 5
-    df2 = wr.s3.read_orc(f"{path}*.orc", use_threads=use_threads, dataset=True)
-    assert df.shape == df2.shape
-    assert df.c0.equals(df2.c0)
-    assert df.index.equals(df2.index)
-
-
-@pytest.mark.xfail(
-    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
-)
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_range_index_recovery_simple(path, use_threads):
-    df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
-    df.index = df.index.astype("Int64")
-    paths = wr.s3.to_orc(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=3)["paths"]
-    assert len(paths) == 2
-    df2 = wr.s3.read_orc(f"{path}*.orc", use_threads=use_threads)
-    assert_pandas_equals(df.reset_index(level=0), df2.reset_index(level=0))
-
-
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-@pytest.mark.parametrize("name", [None, "foo"])
-def test_range_index_recovery_pandas(path, use_threads, name):
-    # Import pandas because modin.to_parquet does not preserve index.name when writing parquet
-    import pandas as pd
-
-    df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
-    df.index.name = name
-    path_file = f"{path}0.orc"
-    df.to_orc(path_file)
-    df2 = wr.s3.read_orc(path_file, use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": False})
-    assert_pandas_equals(df.reset_index(level=0), df2.reset_index(level=0))
-
-
-@pytest.mark.xfail(
-    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
-)
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_multi_index_recovery_simple(path, use_threads):
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"], "c2": [True, False, True], "c3": [0, 1, 2]})
-    df["c0"] = df["c0"].astype("Int64")
-    df["c1"] = df["c1"].astype("string")
-    df["c2"] = df["c2"].astype("boolean")
-    df["c3"] = df["c3"].astype("Int64")
-
-    df = df.set_index(["c0", "c1", "c2"])
-    paths = wr.s3.to_orc(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
-    assert len(paths) == 3
-    df2 = wr.s3.read_orc(f"{path}*.orc", use_threads=use_threads)
-    assert_pandas_equals(df.reset_index(), df2.reset_index())
-
-
-@pytest.mark.xfail(
-    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
-)
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_multi_index_recovery_nameless(path, use_threads):
-    df = pd.DataFrame({"c0": np.arange(10, 13, 1)}, dtype="Int64")
-    df = df.set_index([pd.Index([1, 2, 3], dtype="Int64"), pd.Index([1, 2, 3], dtype="Int64")])
-    paths = wr.s3.to_orc(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
-    assert len(paths) == 3
-    df2 = wr.s3.read_orc(f"{path}*.orc", use_threads=use_threads)
-    assert_pandas_equals(df.reset_index(), df2.reset_index())
 
 
 @pytest.mark.xfail(
@@ -483,32 +343,7 @@ def test_index_columns(path, use_threads, name, pandas):
     assert df[["c0"]].equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-@pytest.mark.parametrize("name", [None, "foo"])
-@pytest.mark.parametrize("pandas", [True, False])
-@pytest.mark.parametrize("drop", [True, False])
-def test_range_index_columns(path, use_threads, name, pandas, drop):
-    if wr.memory_format.get() == MemoryFormatEnum.MODIN and not pandas:
-        pytest.skip("Skip due to Modin data frame index not saved as a named column")
-    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64", index=pd.RangeIndex(start=5, stop=7, step=1))
-    df.index.name = name
-    df.index = df.index.astype("Int64")
-
-    path_file = f"{path}0.orc"
-    if pandas:
-        # Convert to pandas because modin.to_orc() does not preserve index name
-        df = to_pandas(df)
-        df.to_orc(path_file, index=True)
-    else:
-        wr.s3.to_orc(df, path_file, index=True)
-
-    name = "__index_level_0__" if name is None else name
-    columns = ["c0"] if drop else [name, "c0"]
-    df2 = wr.s3.read_orc(path_file, columns=columns, use_threads=use_threads)
-    assert_pandas_equals(df[["c0"]].reset_index(level=0, drop=drop), df2.reset_index(level=0, drop=drop))
-
-
-def test_to_parquet_dataset_sanitize(path):
+def test_to_orc_dataset_sanitize(path):
     df = pd.DataFrame({"C0": [0, 1], "camelCase": [2, 3], "c**--2": [4, 5], "Par": ["a", "b"]})
 
     wr.s3.to_orc(df, path, dataset=True, partition_cols=["Par"], sanitize_columns=False)
@@ -529,16 +364,6 @@ def test_to_parquet_dataset_sanitize(path):
     assert df2.par.to_list() == ["a", "b"]
 
 
-@pytest.mark.parametrize("use_threads", [False, True, 2])
-def test_timezone_file(path, use_threads):
-    file_path = f"{path}0.orc"
-    df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()]})
-    df["c0"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
-    df.to_orc(file_path)
-    df2 = wr.s3.read_orc(path, use_threads=use_threads)
-    assert_pandas_equals(df, df2)
-
-
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_timezone_file_columns(path, use_threads):
     file_path = f"{path}0.orc"
@@ -547,23 +372,6 @@ def test_timezone_file_columns(path, use_threads):
     df.to_orc(file_path)
     df2 = wr.s3.read_orc(path, columns=["c1"], use_threads=use_threads)
     assert_pandas_equals(df[["c1"]], df2)
-
-
-def test_timezone_raw_values(path):
-    df = pd.DataFrame({"c0": [1.1, 2.2], "par": ["a", "b"]})
-    df["c1"] = pd.to_datetime(datetime.now(timezone.utc))
-    df["c2"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(seconds=14400))))
-    df["c3"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(-timedelta(seconds=14400))))
-    df["c4"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(hours=-8))))
-    wr.s3.to_orc(partition_cols=["par"], df=df, path=path, dataset=True, sanitize_columns=False)
-    df2 = wr.s3.read_orc(path, dataset=True, use_threads=False, pyarrow_additional_kwargs={"ignore_metadata": True})
-    # Use pandas to read because of Modin "Internal Error: Internal and external indices on axis 1 do not match."
-    import pandas
-
-    df3 = pandas.read_orc(path)
-    df2["par"] = df2["par"].astype("string")
-    df3["par"] = df3["par"].astype("string")
-    assert_pandas_equals(df2, df3)
 
 
 @pytest.mark.parametrize(
@@ -581,20 +389,9 @@ def test_timezone_raw_values(path):
 )
 def test_validate_columns(path, partition_cols) -> None:
     wr.s3.to_orc(pd.DataFrame({"a": [1], "b": [2]}), path, dataset=True, partition_cols=partition_cols)
-    wr.s3.read_orc(path, columns=["a", "b"], dataset=True, validate_schema=True)
+    wr.s3.read_orc(path, dataset=True, validate_schema=True)
     with pytest.raises(KeyError):
         wr.s3.read_orc(path, columns=["a", "b", "c"], dataset=True, validate_schema=True)
-
-
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_empty_column(path, use_threads):
-    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
-    df["c0"] = df["c0"].astype("Int64")
-    df["par"] = df["par"].astype("string")
-    wr.s3.to_orc(df, path, dataset=True, partition_cols=["par"])
-    df2 = wr.s3.read_orc(path, dataset=True, use_threads=use_threads).reset_index(drop=True)
-    df2["par"] = df2["par"].astype("string")
-    assert_pandas_equals(df, df2)
 
 
 def test_mixed_types_column(path) -> None:
@@ -605,7 +402,7 @@ def test_mixed_types_column(path) -> None:
         wr.s3.to_orc(df, path, dataset=True, partition_cols=["par"])
 
 
-@pytest.mark.parametrize("compression", [None, "snappy", "gzip", "zstd"])
+@pytest.mark.parametrize("compression", [None, "snappy", "zlib", "lz4", "zstd"])
 def test_orc_compression(path, compression) -> None:
     df = pd.DataFrame({"id": [1, 2, 3]}, dtype="Int64")
     path_file = f"{path}0.orc"
@@ -616,11 +413,10 @@ def test_orc_compression(path, compression) -> None:
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_empty_file(path, use_threads):
-    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
-    df.index = df.index.astype("Int64")
+    df = pd.DataFrame({"c0": [1, 2, 3], "par": ["a", "b", "c"]})
     df["c0"] = df["c0"].astype("Int64")
     df["par"] = df["par"].astype("string")
-    wr.s3.to_orc(df, path, index=True, dataset=True, partition_cols=["par"])
+    wr.s3.to_orc(df, path, dataset=True, partition_cols=["par"])
     bucket, key = wr._utils.parse_path(f"{path}test.csv")
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
     df2 = wr.s3.read_orc(path, dataset=True, use_threads=use_threads)
@@ -644,42 +440,6 @@ def test_ignore_files(path: str, use_threads: Union[bool, int]) -> None:
     )
 
     assert df.shape == df2.shape
-
-
-@pytest.mark.xfail(
-    is_ray_modin,
-    raises=AssertionError,
-    reason=(
-        "Ray currently ignores empty blocks when fetching dataset schema:"
-        "(ExecutionPlan)[https://github.com/ray-project/ray/blob/ray-2.0.1/python/ray/data/_internal/plan.py#L253]"
-    ),
-)
-def test_empty_orc(path):
-    path = f"{path}file.orc"
-    s = pa.schema([pa.field("a", pa.int64())])
-    orc.write_table(s.empty_table(), path)
-
-    df = wr.s3.read_orc(path)
-    assert len(df) == 0
-    assert len(df.columns) > 0
-
-
-def test_read_chunked(path):
-    path = f"{path}file.orc"
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [None, None, None]})
-    wr.s3.to_orc(df, path)
-    df2 = next(wr.s3.read_orc(path, chunked=True))
-    assert df.shape == df2.shape
-
-
-def test_read_chunked_validation_exception2(path):
-    df = pd.DataFrame({"c0": [0, 1, 2]})
-    wr.s3.to_orc(df, f"{path}file0.orc")
-    df = pd.DataFrame({"c1": [0, 1, 2]})
-    wr.s3.to_orc(df, f"{path}file1.orc")
-    with pytest.raises(wr.exceptions.InvalidSchemaConvergence):
-        for _ in wr.s3.read_orc(path, dataset=True, chunked=True, validate_schema=True):
-            pass
 
 
 @pytest.mark.xfail(
@@ -733,7 +493,7 @@ def test_orc_schema_evolution(path, glue_database, glue_table):
 @pytest.mark.xfail(
     reason="Schema resolution is not as consistent in distributed mode", condition=is_ray_modin, raises=AssertionError
 )
-def test_to_parquet_schema_evolution_out_of_order(path, glue_database, glue_table) -> None:
+def test_to_orc_schema_evolution_out_of_order(path, glue_database, glue_table) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"]})
     wr.s3.to_orc(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
 

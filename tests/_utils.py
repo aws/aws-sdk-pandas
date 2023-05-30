@@ -360,7 +360,7 @@ def get_df_dtype_backend(dtype_backend: Literal["numpy_nullable", "pyarrow"] = "
     return df
 
 
-def ensure_data_types(df: pd.DataFrame, has_list: bool = False) -> None:
+def ensure_data_types(df: pd.DataFrame, has_list: bool = False, has_category: bool = True) -> None:
     if "iint8" in df.columns:
         assert str(df["iint8"].dtype).startswith("Int")
     assert str(df["iint16"].dtype).startswith("Int")
@@ -377,7 +377,8 @@ def ensure_data_types(df: pd.DataFrame, has_list: bool = False) -> None:
     assert str(df["bool"].dtype) in ("boolean", "Int64", "object")
     if "binary" in df.columns:
         assert str(df["binary"].dtype) == "object"
-    assert str(df["category"].dtype) == "float64"
+    if has_category:
+        assert str(df["category"].dtype) == "float64"
     if has_list is True:
         assert str(df["list"].dtype) == "object"
         assert str(df["list_list"].dtype) == "object"
