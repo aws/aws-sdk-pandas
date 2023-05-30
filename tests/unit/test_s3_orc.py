@@ -9,7 +9,7 @@ from typing import Union
 import boto3
 import numpy as np
 import pyarrow as pa
-import pyarrow.parquet as pq
+import pyarrow.orc as orc
 import pytest
 
 import awswrangler as wr
@@ -316,7 +316,7 @@ def test_to_parquet_filename_prefix(compare_filename_prefix, path, filename_pref
         use_threads=use_threads,
     )["paths"][0].split("/")[-1]
     compare_filename_prefix(filename, filename_prefix, test_prefix)
-    assert filename.endswith("bucket-00000.snappy.orc")
+    assert filename.endswith("bucket-00000.orc")
 
 
 def test_read_orc_map_types(path):
@@ -654,10 +654,10 @@ def test_ignore_files(path: str, use_threads: Union[bool, int]) -> None:
         "(ExecutionPlan)[https://github.com/ray-project/ray/blob/ray-2.0.1/python/ray/data/_internal/plan.py#L253]"
     ),
 )
-def test_empty_parquet(path):
+def test_empty_orc(path):
     path = f"{path}file.orc"
     s = pa.schema([pa.field("a", pa.int64())])
-    pq.write_table(s.empty_table(), path)
+    orc.write_table(s.empty_table(), path)
 
     df = wr.s3.read_orc(path)
     assert len(df) == 0

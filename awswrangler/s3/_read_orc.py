@@ -240,7 +240,7 @@ def _read_orc_file(
         if pq_file is None:
             raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
         return _add_table_partitions(
-            table=pq_file.read(columns=columns, use_threads=False, use_pandas_metadata=False),
+            table=pq_file.read(columns=columns),
             path=path,
             path_root=path_root,
         )
