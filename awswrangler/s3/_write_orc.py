@@ -1,4 +1,4 @@
-"""Amazon PARQUET S3 Parquet Write Module (PRIVATE)."""
+"""Amazon S3 ORC Write Module (PRIVATE)."""
 
 import logging
 import math
@@ -16,6 +16,7 @@ from awswrangler._arrow import _df_to_table
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._utils import copy_df_shallow
+from awswrangler.annotations import Experimental
 from awswrangler.catalog._create import _create_orc_table
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
@@ -215,10 +216,11 @@ def _to_orc(
     return paths
 
 
-@apply_configs
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
+@Experimental
+@apply_configs
 def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
     path: Optional[str] = None,
@@ -245,7 +247,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
     athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     catalog_id: Optional[str] = None,
 ) -> _S3WriteDataReturnValue:
-    """Write Parquet file or dataset on Amazon S3.
+    """Write ORC file or dataset on Amazon S3.
 
     The concept of Dataset goes beyond the simple idea of ordinary files and enable more
     complex features like partitioning and catalog integration (Amazon Athena/AWS Glue Catalog).
@@ -271,7 +273,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
     df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     path : str, optional
-        S3 path (for file e.g. ``s3://bucket/prefix/filename.parquet``) (for dataset e.g. ``s3://bucket/prefix``).
+        S3 path (for file e.g. ``s3://bucket/prefix/filename.orc``) (for dataset e.g. ``s3://bucket/prefix``).
         Required if dataset=False or when dataset=True and creating a new dataset
     index : bool
         True to store the DataFrame index in file, otherwise False to ignore it.
@@ -301,7 +303,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
         or False to keep it as is.
         True value behaviour is enforced if `database` and `table` arguments are passed.
     dataset : bool
-        If True store a parquet dataset instead of a ordinary file(s)
+        If True store a orc dataset instead of a ordinary file(s)
         If True, enable all follow arguments:
         partition_cols, mode, database, table, description, parameters, columns_comments, concurrent_partitioning,
         catalog_versioning, projection_params, catalog_id, schema_evolution.
@@ -319,8 +321,6 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
         https://aws-sdk-pandas.readthedocs.io/en/3.1.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
-        For details check the related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.1.1/tutorials/004%20-%20Parquet%20Datasets.html
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
@@ -406,12 +406,12 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
 
     >>> import awswrangler as wr
     >>> import pandas as pd
-    >>> wr.s3.to_parquet(
+    >>> wr.s3.to_orc(
     ...     df=pd.DataFrame({'col': [1, 2, 3]}),
-    ...     path='s3://bucket/prefix/my_file.parquet',
+    ...     path='s3://bucket/prefix/my_file.orc',
     ... )
     {
-        'paths': ['s3://bucket/prefix/my_file.parquet'],
+        'paths': ['s3://bucket/prefix/my_file.orc'],
         'partitions_values': {}
     }
 
@@ -419,16 +419,16 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
 
     >>> import awswrangler as wr
     >>> import pandas as pd
-    >>> wr.s3.to_parquet(
+    >>> wr.s3.to_orc(
     ...     df=pd.DataFrame({'col': [1, 2, 3]}),
-    ...     path='s3://bucket/prefix/my_file.parquet',
+    ...     path='s3://bucket/prefix/my_file.orc',
     ...     s3_additional_kwargs={
     ...         'ServerSideEncryption': 'aws:kms',
     ...         'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'
     ...     }
     ... )
     {
-        'paths': ['s3://bucket/prefix/my_file.parquet'],
+        'paths': ['s3://bucket/prefix/my_file.orc'],
         'partitions_values': {}
     }
 
@@ -436,7 +436,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
 
     >>> import awswrangler as wr
     >>> import pandas as pd
-    >>> wr.s3.to_parquet(
+    >>> wr.s3.to_orc(
     ...     df=pd.DataFrame({
     ...         'col': [1, 2, 3],
     ...         'col2': ['A', 'A', 'B']
@@ -446,7 +446,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
     ...     partition_cols=['col2']
     ... )
     {
-        'paths': ['s3://.../col2=A/x.parquet', 's3://.../col2=B/y.parquet'],
+        'paths': ['s3://.../col2=A/x.orc', 's3://.../col2=B/y.orc'],
         'partitions_values: {
             's3://.../col2=A/': ['A'],
             's3://.../col2=B/': ['B']
@@ -459,7 +459,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
     >>> import pandas as pd
     >>> from datetime import datetime
     >>> dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()
-    >>> wr.s3.to_parquet(
+    >>> wr.s3.to_orc(
     ...     df=pd.DataFrame({
     ...         "id": [1, 2, 3],
     ...         "value": [1000, 1001, 1002],
@@ -481,7 +481,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
     ... )
     {
         'paths': [
-            's3://.../value=1000/category=A/x.snappy.parquet', ...
+            's3://.../value=1000/category=A/x.snappy.orc', ...
         ],
         'partitions_values': {
             's3://.../value=1000/category=A/': [
@@ -495,7 +495,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
 
     >>> import awswrangler as wr
     >>> import pandas as pd
-    >>> wr.s3.to_parquet(
+    >>> wr.s3.to_orc(
     ...     df=pd.DataFrame({
     ...         'col': [1, 2, 3],
     ...         'col2': ['A', 'A', 'B']
@@ -513,7 +513,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
 
     >>> import awswrangler as wr
     >>> import pandas as pd
-    >>> wr.s3.to_parquet(
+    >>> wr.s3.to_orc(
     ...     df=pd.DataFrame({
     ...         'col': [1, 2, 3],
     ...         'col2': ['A', 'A', 'B']
@@ -525,7 +525,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
     ...     table='my_table'  # Athena/Glue table
     ... )
     {
-        'paths': ['s3://.../col2=A/x.parquet', 's3://.../col2=B/y.parquet'],
+        'paths': ['s3://.../col2=A/x.orc', 's3://.../col2=B/y.orc'],
         'partitions_values: {
             's3://.../col2=A/': ['A'],
             's3://.../col2=B/': ['B']
@@ -536,7 +536,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
 
     >>> import awswrangler as wr
     >>> import pandas as pd
-    >>> wr.s3.to_parquet(
+    >>> wr.s3.to_orc(
     ...     df=pd.DataFrame({
     ...         'col': [1, 2, 3],
     ...         'col2': ['A', 'A', 'B'],
@@ -552,7 +552,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
     ...     ),
     ... )
     {
-        'paths': ['s3://.../x.parquet'],
+        'paths': ['s3://.../x.orc'],
         'partitions_values: {}
     }
 
@@ -560,7 +560,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
 
     >>> import awswrangler as wr
     >>> import pandas as pd
-    >>> wr.s3.to_parquet(
+    >>> wr.s3.to_orc(
     ...     df=pd.DataFrame({
     ...         'col': [1, 2, 3],
     ...         'col2': ['A', 'A', 'B'],
@@ -573,7 +573,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
     ...     dtype={'col3': 'date'}
     ... )
     {
-        'paths': ['s3://.../x.parquet'],
+        'paths': ['s3://.../x.orc'],
         'partitions_values: {}
     }
 
@@ -797,6 +797,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
+@Experimental
 @apply_configs
 def store_orc_metadata(  # pylint: disable=too-many-arguments,too-many-locals
     path: str,
@@ -823,7 +824,7 @@ def store_orc_metadata(  # pylint: disable=too-many-arguments,too-many-locals
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Infer and store ORC metadata on AWS Glue Catalog.
 
-    Infer Apache Parquet file(s) metadata from a received S3 prefix
+    Infer Apache ORC file(s) metadata from a received S3 prefix
     And then stores it on AWS Glue Catalog including all inferred partitions
     (No need for 'MSCK REPAIR TABLE')
 
@@ -868,7 +869,7 @@ def store_orc_metadata(  # pylint: disable=too-many-arguments,too-many-locals
         The higher, the more accurate.
         The lower, the faster.
     dataset: bool
-        If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
+        If True read an ORC dataset instead of simple file(s) loading all the related partitions as columns.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -960,10 +961,10 @@ def store_orc_metadata(  # pylint: disable=too-many-arguments,too-many-locals
 
     Examples
     --------
-    Reading all Parquet files metadata under a prefix
+    Reading all ORC files metadata under a prefix
 
     >>> import awswrangler as wr
-    >>> columns_types, partitions_types, partitions_values = wr.s3.store_parquet_metadata(
+    >>> columns_types, partitions_types, partitions_values = wr.s3.store_orc_metadata(
     ...     path='s3://bucket/prefix/',
     ...     database='...',
     ...     table='...',

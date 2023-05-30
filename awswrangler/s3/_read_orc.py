@@ -1,7 +1,6 @@
-"""Amazon S3 Read PARQUET Module (PRIVATE)."""
+"""Amazon S3 Read ORC Module (PRIVATE)."""
 
 import datetime
-import functools
 import itertools
 import logging
 from typing import (
@@ -25,10 +24,11 @@ import pyarrow.orc
 from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, exceptions
-from awswrangler._arrow import _add_table_partitions, _table_to_df
+from awswrangler._arrow import _add_table_partitions
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
+from awswrangler.annotations import Experimental
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
 from awswrangler.distributed.ray import ray_get
@@ -59,9 +59,9 @@ def _ensure_locations_are_valid(paths: Iterable[str]) -> Iterator[str]:
     for path in paths:
         suffix: str = path.rpartition("/")[2]
         # If the suffix looks like a partition,
-        if (suffix != "") and (suffix.count("=") == 1):
+        if suffix and (suffix.count("=") == 1):
             # the path should end in a '/' character.
-            path = f"{path}/"
+            path = f"{path}/"  # ruff: noqa: PLW2901
         yield path
 
 
@@ -277,6 +277,7 @@ def _read_orc(  # pylint: disable=W0613
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "version_id", "s3_additional_kwargs", "dtype_backend"],
 )
+@Experimental
 @apply_configs
 def read_orc(
     path: Union[str, List[str]],
@@ -297,7 +298,7 @@ def read_orc(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
     """Read ORC file(s) from an S3 prefix or list of S3 objects paths.
 
     The concept of `dataset` enables more complex features like partitioning
@@ -325,9 +326,9 @@ def read_orc(
     path_root : str, optional
         Root path of the dataset. If dataset=`True`, it is used as a starting point to load partition columns.
     dataset : bool, default False
-        If `True`, read a parquet dataset instead of individual file(s), loading all related partitions as columns.
+        If `True`, read an ORC dataset instead of individual file(s), loading all related partitions as columns.
     path_suffix : Union[str, List[str], None]
-        Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
+        Suffix or List of suffixes to be read (e.g. [".gz.orc", ".snappy.orc"]).
         If None, reads all files. (default)
     path_ignore_suffix : Union[str, List[str], None]
         Suffix or List of suffixes to be ignored.(e.g. [".csv", "_SUCCESS"]).
@@ -346,9 +347,6 @@ def read_orc(
         List of columns to read from the file(s).
     validate_schema : bool, default False
         Check that the schema is consistent across individual files.
-    coerce_int96_timestamp_unit : str, optional
-        Cast timestamps that are stored in INT96 format to a particular resolution (e.g. "ms").
-        Setting to None is equivalent to "ns" and therefore INT96 timestamps are inferred as in nanoseconds.
     last_modified_begin : datetime, optional
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
@@ -386,21 +384,21 @@ def read_orc(
 
     Examples
     --------
-    Reading all Parquet files under a prefix
+    Reading all ORC files under a prefix
 
     >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet(path='s3://bucket/prefix/')
+    >>> df = wr.s3.read_orc(path='s3://bucket/prefix/')
 
-    Reading all Parquet files from a list
+    Reading all ORC files from a list
 
     >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet(path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'])
+    >>> df = wr.s3.read_orc(path=['s3://bucket/filename0.orc', 's3://bucket/filename1.orc'])
 
-    Reading Parquet Dataset with PUSH-DOWN filter over partitions
+    Reading ORC Dataset with PUSH-DOWN filter over partitions
 
     >>> import awswrangler as wr
     >>> my_filter = lambda x: True if x["city"].startswith("new") else False
-    >>> df = wr.s3.read_parquet(path, dataset=True, partition_filter=my_filter)
+    >>> df = wr.s3.read_orc(path, dataset=True, partition_filter=my_filter)
 
     """
     ray_args = ray_args if ray_args else {}
@@ -474,6 +472,7 @@ def read_orc(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs", "dtype_backend"],
 )
+@Experimental
 @apply_configs
 def read_orc_table(
     table: str,
@@ -485,30 +484,13 @@ def read_orc_table(
     columns: Optional[List[str]] = None,
     validate_schema: bool = True,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     ray_args: Optional[RayReadParquetSettings] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
     """Read Apache ORC table registered in the AWS Glue Catalog.
-
-    Note
-    ----
-    ``Batching`` (`chunked` argument) (Memory Friendly):
-
-    Used to return an Iterable of DataFrames instead of a regular DataFrame.
-
-    Two batching strategies are available:
-
-    - If **chunked=True**, depending on the size of the data, one or more data frames are returned per file in the path/dataset.
-      Unlike **chunked=INTEGER**, rows from different files will not be mixed in the resulting data frames.
-
-    - If **chunked=INTEGER**, awswrangler will iterate on the data by number of rows equal the received INTEGER.
-
-    `P.S.` `chunked=True` is faster and uses less memory while `chunked=INTEGER` is more precise
-    in the number of rows.
 
     Note
     ----
@@ -521,7 +503,7 @@ def read_orc_table(
     database : str
         AWS Glue Catalog database name.
     filename_suffix : Union[str, List[str], None]
-        Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
+        Suffix or List of suffixes to be read (e.g. [".gz.orc", ".snappy.orc"]).
         If None, read all files. (default)
     filename_ignore_suffix : Union[str, List[str], None]
         Suffix or List of suffixes for S3 keys to be ignored.(e.g. [".csv", "_SUCCESS"]).
@@ -541,20 +523,12 @@ def read_orc_table(
         List of columns to read from the file(s).
     validate_schema : bool, default False
         Check that the schema is consistent across individual files.
-    coerce_int96_timestamp_unit : str, optional
-        Cast timestamps that are stored in INT96 format to a particular resolution (e.g. "ms").
-        Setting to None is equivalent to "ns" and therefore INT96 timestamps are inferred as in nanoseconds.
     dtype_backend: str, optional
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunked : Union[int, bool]
-        If passed, the data is split into an iterable of DataFrames (Memory friendly).
-        If `True` an iterable of DataFrames is returned without guarantee of chunksize.
-        If an `INTEGER` is passed, an iterable of DataFrames is returned with maximum rows
-        equal to the received INTEGER.
     use_threads : Union[bool, int], default True
         True to enable concurrent requests, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the max number of threads.
@@ -572,28 +546,21 @@ def read_orc_table(
 
     Returns
     -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
-        Pandas DataFrame or a Generator in case of `chunked=True`.
+    pandas.DataFrame
+        Pandas DataFrame.
 
     Examples
     --------
-    Reading Parquet Table
+    Reading ORC Table
 
     >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet_table(database='...', table='...')
+    >>> df = wr.s3.read_orc_table(database='...', table='...')
 
-    Reading Parquet Table in chunks (Chunk by file)
-
-    >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet_table(database='...', table='...', chunked=True)
-    >>> for df in dfs:
-    >>>     print(df)  # Smaller Pandas DataFrame
-
-    Reading Parquet Dataset with PUSH-DOWN filter over partitions
+    Reading ORC Dataset with PUSH-DOWN filter over partitions
 
     >>> import awswrangler as wr
     >>> my_filter = lambda x: True if x["city"].startswith("new") else False
-    >>> df = wr.s3.read_parquet_table(path, dataset=True, partition_filter=my_filter)
+    >>> df = wr.s3.read_orc_table(path, dataset=True, partition_filter=my_filter)
 
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
@@ -640,7 +607,6 @@ def read_orc_table(
         columns=columns,
         validate_schema=validate_schema,
         dtype_backend=dtype_backend,
-        chunked=chunked,
         use_threads=use_threads,
         ray_args=ray_args,
         boto3_session=boto3_session,
@@ -648,18 +614,17 @@ def read_orc_table(
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
 
-    partial_cast_function = functools.partial(
-        _data_types.cast_pandas_with_athena_types, dtype=_extract_partitions_dtypes_from_table_details(response=res)
+    return _data_types.cast_pandas_with_athena_types(
+        df=df,
+        dtype=_extract_partitions_dtypes_from_table_details(response=res),
+        dtype_backend=dtype_backend,
     )
-    if _utils.is_pandas_frame(df):
-        return partial_cast_function(df)
-    # df is a generator, so map is needed for casting dtypes
-    return map(partial_cast_function, df)
 
 
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
+@Experimental
 @apply_configs
 def read_orc_metadata(
     path: Union[str, List[str]],
@@ -696,12 +661,12 @@ def read_orc_metadata(
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     dataset : bool, default False
-        If `True`, read a parquet dataset instead of individual file(s), loading all related partitions as columns.
+        If `True`, read an ORC dataset instead of individual file(s), loading all related partitions as columns.
     version_id : Union[str, Dict[str, str]], optional
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
     path_suffix : Union[str, List[str], None]
-        Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
+        Suffix or List of suffixes to be read (e.g. [".gz.orc", ".snappy.orc"]).
         If None, reads all files. (default)
     path_ignore_suffix : Union[str, List[str], None]
         Suffix or List of suffixes to be ignored.(e.g. [".csv", "_SUCCESS"]).
@@ -738,17 +703,17 @@ def read_orc_metadata(
 
     Examples
     --------
-    Reading all Parquet files (with partitions) metadata under a prefix
+    Reading all ORC files (with partitions) metadata under a prefix
 
     >>> import awswrangler as wr
-    >>> columns_types, partitions_types = wr.s3.read_parquet_metadata(path='s3://bucket/prefix/', dataset=True)
+    >>> columns_types, partitions_types = wr.s3.read_orc_metadata(path='s3://bucket/prefix/', dataset=True)
 
-    Reading all Parquet files metadata from a list
+    Reading all ORC files metadata from a list
 
     >>> import awswrangler as wr
-    >>> columns_types, partitions_types = wr.s3.read_parquet_metadata(path=[
-    ...     's3://bucket/filename0.parquet',
-    ...     's3://bucket/filename1.parquet'
+    >>> columns_types, partitions_types = wr.s3.read_orc_metadata(path=[
+    ...     's3://bucket/filename0.orc',
+    ...     's3://bucket/filename1.orc',
     ... ])
 
     """

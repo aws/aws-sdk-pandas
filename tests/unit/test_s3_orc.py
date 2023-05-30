@@ -3,25 +3,22 @@
 import itertools
 import logging
 import math
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from typing import Union
 
 import boto3
 import numpy as np
 import pyarrow as pa
-import pyarrow.orc as orc
 import pytest
 
 import awswrangler as wr
 import awswrangler.pandas as pd
-from awswrangler._distributed import MemoryFormatEnum
 
 from .._utils import (
     assert_pandas_equals,
     ensure_data_types,
     get_df_list,
     is_ray_modin,
-    to_pandas,
 )
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
