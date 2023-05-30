@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import boto3
 
 from awswrangler import _utils, exceptions
+from awswrangler._config import apply_configs
+from awswrangler.annotations import Experimental
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -15,6 +17,7 @@ _EMR_SERVERLESS_JOB_WAIT_POLLING_DELAY: float = 5  # SECONDS
 _EMR_SERVERLESS_JOB_FINAL_STATES: List[str] = ["SUCCESS", "FAILED", "CANCELLED"]
 
 
+@Experimental
 def create_application(
     name: str,
     release_label: str,
@@ -38,26 +41,25 @@ def create_application(
 
     Parameters
     ----------
-    name
-    release_label
-    application_type
-    initial_capacity
-    maximum_capacity
-    tags
-    autostart
-    autostop
-    idle_timeout
-    network_configuration
-    architecture
-    image_uri
-    worker_type_specifications
-    boto3_session
+    name : str
+    release_label : str
+    application_type : str, optional
+    initial_capacity : Dict[str, str], optional
+    maximum_capacity : Dict[str, str], optional
+    tags : Dict[str, str], optional
+    autostart : bool, optional
+    autostop : bool, optional
+    idle_timeout : int, optional
+    network_configuration : Dict[str, str], optional
+    architecture : str, optional
+    image_uri : str, optional
+    worker_type_specifications : Dict[str, str], optional
+    boto3_session : boto3.Session(), optional
 
     Returns
     -------
     str
-        Application ID.
-
+        Application Id.
     """
     emr_serverless = _utils.client(service_name="emr-serverless", session=boto3_session)
     application_args: Dict[str, Any] = {
@@ -92,6 +94,8 @@ def create_application(
     return response["applicationId"]
 
 
+@Experimental
+@apply_configs
 def run_job(
     application_id: str,
     execution_role_arn: str,
@@ -105,6 +109,30 @@ def run_job(
     emr_serverless_job_wait_polling_delay: float = _EMR_SERVERLESS_JOB_WAIT_POLLING_DELAY,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Union[str, Dict[str, Any]]:
+    """
+    Run an EMR serverless job.
+
+    https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/emr-serverless.html
+
+    Parameters
+    ----------
+    application_id : str
+    execution_role_arn : str
+    job_driver_args : Dict[str, str]
+    job_type : str, optional
+    wait : bool, optional
+    configuration_overrides : Dict[str, str], optional
+    tags : Dict[str, str], optional
+    execution_timeout : int, optional
+    name : str, optional
+    emr_serverless_job_wait_polling_delay : int, optional
+    boto3_session : boto3.Session(), optional
+
+    Returns
+    -------
+    Union[str, Dict[str, Any]]
+        Job Id if wait=False, or job run details.
+    """
     emr_serverless = _utils.client(service_name="emr-serverless", session=boto3_session)
     job_args: Dict[str, Any] = {
         "applicationId": application_id,
@@ -141,12 +169,31 @@ def run_job(
     return job_run_id
 
 
+@Experimental
+@apply_configs
 def wait_job(
     application_id: str,
     job_run_id: str,
     emr_serverless_job_wait_polling_delay: float = _EMR_SERVERLESS_JOB_WAIT_POLLING_DELAY,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
+    """
+    Wait for the EMR Serverless job to finish.
+
+    https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/emr-serverless.html
+
+    Parameters
+    ----------
+    application_id : str
+    job_run_id : str
+    emr_serverless_job_wait_polling_delay : int, optional
+    boto3_session : boto3.Session(), optional
+
+    Returns
+    -------
+    Dict[str, Any]
+        Job run details.
+    """
     emr_serverless = _utils.client(service_name="emr-serverless", session=boto3_session)
     response = emr_serverless.get_job_run(
         applicationId=application_id,

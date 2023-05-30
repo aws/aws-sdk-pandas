@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any, Dict, Literal
 
 import boto3
@@ -15,6 +16,7 @@ def _get_emr_serverless_application(
     application_type: Literal["Spark", "Hive"],
     release_label: str = "emr-6.10.0",
 ):
+    """Create and tear down an EMR Serverless application."""
     application_name: str = f"test_app_{_get_unique_suffix()}"
     try:
         application_id: str = wr.emr_serverless.create_application(
@@ -25,6 +27,8 @@ def _get_emr_serverless_application(
         yield application_id
     finally:
         emr_serverless = boto3.client(service_name="emr-serverless")
+        emr_serverless.stop_application(applicationId=application_id)
+        time.sleep(30)
         emr_serverless.delete_application(applicationId=application_id)
 
 
@@ -39,7 +43,7 @@ def emr_serverless_hive_application_id() -> str:
 
 
 @pytest.mark.parametrize("application_type", ["Spark", "Hive"])
-@pytest.mark.parametrize("release_label", ["emr-6.10.0"])
+@pytest.mark.parametrize("release_label", ["emr-6.9.0", "emr-6.10.0"])
 def test_create_application(application_type, release_label):
     application_id: str = _get_emr_serverless_application(
         application_type=application_type, release_label=release_label
@@ -62,9 +66,9 @@ def test_create_application(application_type, release_label):
         (
             "Hive",
             {
-                "query": "s3://DOC-EXAMPLE-BUCKET/emr-serverless-hive/query/hive-query.ql",
-                "parameters": "--hiveconf hive.exec.scratchdir=$PATH/scratch --hiveconf hive.metastore.warehouse.dir=$PATH/warehouse",
-            }
+                "query": "$PATHhive-query.ql",
+                "parameters": "--hiveconf hive.exec.scratchdir=$PATHscratch --hiveconf hive.metastore.warehouse.dir=$PATHwarehouse",
+            },
         ),
     ],
 )
@@ -77,7 +81,13 @@ def test_run_job(
     path,
 ):
     if job_type == "Hive":
+        # Replace path with temporary path from a fixture
+        job_driver_args["query"] = job_driver_args["query"].replace("$PATH", path)
         job_driver_args["parameters"] = job_driver_args["parameters"].replace("$PATH", path)
+        # Put a file containing SQL query to run into the temp path
+        client_s3 = boto3.client("s3")
+        bucket, key = wr._utils.parse_path(job_driver_args["query"])
+        client_s3.put_object(Body="SELECT 1", Bucket=bucket, Key=key)
 
     job_run: Dict[str, Any] = wr.emr_serverless.run_job(
         application_id=emr_serverless_spark_application_id
@@ -86,6 +96,7 @@ def test_run_job(
         execution_role_arn=emr_serverless_execution_role_arn,
         job_driver_args=job_driver_args,
         job_type=job_type,
+        wait=True,
     )
 
     assert job_run["jobRun"]["state"] == "SUCCESS"
