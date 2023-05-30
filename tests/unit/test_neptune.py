@@ -2,12 +2,11 @@ import logging
 import random
 import string
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pytest  # type: ignore
 from gremlin_python.process.traversal import Direction, T
-from pyparsing import Optional
 
 import awswrangler as wr
 import awswrangler.pandas as pd
