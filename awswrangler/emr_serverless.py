@@ -201,7 +201,7 @@ def run_job(
             "hive": job_driver_args,
         }
     else:
-        raise ValueError(f"Unknown job type `{job_type}`")
+        raise exceptions.InvalidArgumentValue(f"Unsupported job type `{job_type}`")
 
     if configuration_overrides:
         job_args["configurationOverrides"] = configuration_overrides
