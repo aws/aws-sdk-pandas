@@ -7,9 +7,11 @@ from typing import Any, Dict
 import numpy as np
 import pytest  # type: ignore
 from gremlin_python.process.traversal import Direction, T
+from pyparsing import Optional
 
 import awswrangler as wr
 import awswrangler.pandas as pd
+from awswrangler.neptune._client import BulkLoadParserConfiguration
 
 from .._utils import extract_cloudformation_outputs
 
@@ -259,8 +261,20 @@ def test_gremlin_bulk_load_error_when_files_present(
         )
 
 
+DEFAULT_PARSER_CONFIGURATION = BulkLoadParserConfiguration(
+    namedGraphUri="http://aws.amazon.com/neptune/vocab/v01/DefaultNamedGraph",
+    baseUri="http://aws.amazon.com/neptune/default",
+    allowEmptyStrings=False,
+)
+
+
+@pytest.mark.parametrize("parser_config", [None, DEFAULT_PARSER_CONFIGURATION])
 def test_gremlin_bulk_load_from_files(
-    neptune_endpoint: str, neptune_port: int, neptune_load_iam_role_arn: str, path: str
+    neptune_endpoint: str,
+    neptune_port: int,
+    neptune_load_iam_role_arn: str,
+    path: str,
+    parser_config: Optional[BulkLoadParserConfiguration],
 ) -> None:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
@@ -274,6 +288,7 @@ def test_gremlin_bulk_load_from_files(
         client=client,
         path=path,
         iam_role=neptune_load_iam_role_arn,
+        parser_config=parser_config,
     )
     res_df = wr.neptune.execute_gremlin(client, f"g.V().hasLabel('{label}').valueMap().with(WithOptions.tokens)")
 
