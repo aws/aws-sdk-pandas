@@ -165,9 +165,8 @@ def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
     if "ExpressionAttributeNames" in kwargs:
         kwargs["ExpressionAttributeNames"].update(names)
-    else:
-        if names:
-            kwargs["ExpressionAttributeNames"] = names
+    elif names:
+        kwargs["ExpressionAttributeNames"] = names
 
     values = {k: serializer.serialize(v) for k, v in values.items()}
     if "ExpressionAttributeValues" in kwargs:
@@ -175,9 +174,8 @@ def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
             k: serializer.serialize(v) for k, v in kwargs["ExpressionAttributeValues"].items()
         }
         kwargs["ExpressionAttributeValues"].update(values)
-    else:
-        if values:
-            kwargs["ExpressionAttributeValues"] = values
+    elif values:
+        kwargs["ExpressionAttributeValues"] = values
 
     return kwargs
 

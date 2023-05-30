@@ -40,7 +40,7 @@ def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Sessio
     bucket_name, key_path = _utils.parse_path(path)
     client_s3 = _utils.client(service_name="s3", session=boto3_session)
     body: bytes = client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read()
-    paths = [x for x in body.decode("utf-8").split("\n") if x != ""]
+    paths = [x for x in body.decode("utf-8").split("\n") if x]
     _logger.debug("Read %d paths from manifest file in: %s", len(paths), path)
     return paths
 
@@ -58,7 +58,7 @@ def _add_query_metadata_generator(
 ) -> Iterator[pd.DataFrame]:
     """Add Query Execution metadata to every DF in iterator."""
     for df in dfs:
-        df = _apply_query_metadata(df=df, query_metadata=query_metadata)
+        df = _apply_query_metadata(df=df, query_metadata=query_metadata)  # ruff: noqa: PLW2901
         yield df
 
 
