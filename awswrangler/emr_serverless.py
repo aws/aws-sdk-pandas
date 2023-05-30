@@ -2,13 +2,17 @@
 
 import logging
 import pprint
-from typing import Any, Dict, Literal, Optional
+import time
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import boto3
 
-from awswrangler import _utils
+from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+_EMR_SERVERLESS_JOB_WAIT_POLLING_DELAY: float = 5  # SECONDS
+_EMR_SERVERLESS_JOB_FINAL_STATES: List[str] = ["SUCCESS", "FAILED", "CANCELLED"]
 
 
 def create_application(
@@ -86,3 +90,78 @@ def create_application(
     response: Dict[str, str] = emr_serverless.create_application(**application_args)
     _logger.debug("response: \n%s", pprint.pformat(response))
     return response["applicationId"]
+
+
+def run_job(
+    application_id: str,
+    execution_role_arn: str,
+    job_driver_args: Dict[str, Any],
+    job_type: Literal["Spark", "Hive"] = "Spark",
+    wait: bool = True,
+    configuration_overrides: Optional[Dict[str, Any]] = None,
+    tags: Optional[Dict[str, str]] = None,
+    execution_timeout: Optional[int] = None,
+    name: Optional[str] = None,
+    emr_serverless_job_wait_polling_delay: float = _EMR_SERVERLESS_JOB_WAIT_POLLING_DELAY,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Union[str, Dict[str, Any]]:
+    emr_serverless = _utils.client(service_name="emr-serverless", session=boto3_session)
+    job_args: Dict[str, Any] = {
+        "applicationId": application_id,
+        "executionRoleArn": execution_role_arn,
+    }
+    if job_type == "Spark":
+        job_args["jobDriver"] = {
+            "sparkSubmit": job_driver_args,
+        }
+    elif job_type == "Hive":
+        job_args["jobDriver"] = {
+            "hive": job_driver_args,
+        }
+    else:
+        raise ValueError(f"Unknown job type `{job_type}`")
+
+    if configuration_overrides:
+        job_args["configurationOverrides"] = configuration_overrides
+    if tags:
+        job_args["tags"] = tags
+    if execution_timeout:
+        job_args["executionTimeoutMinutes"] = execution_timeout
+    if name:
+        job_args["name"] = name
+    response = emr_serverless.start_job_run(**job_args)
+    _logger.debug("Job run response: %s", response)
+    job_run_id: str = response["jobRunId"]
+    if wait:
+        return wait_job(
+            application_id=application_id,
+            job_run_id=job_run_id,
+            emr_serverless_job_wait_polling_delay=emr_serverless_job_wait_polling_delay,
+        )
+    return job_run_id
+
+
+def wait_job(
+    application_id: str,
+    job_run_id: str,
+    emr_serverless_job_wait_polling_delay: float = _EMR_SERVERLESS_JOB_WAIT_POLLING_DELAY,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, Any]:
+    emr_serverless = _utils.client(service_name="emr-serverless", session=boto3_session)
+    response = emr_serverless.get_job_run(
+        applicationId=application_id,
+        jobRunId=job_run_id,
+    )
+    state = response["jobRun"]["state"]
+    while state not in _EMR_SERVERLESS_JOB_FINAL_STATES:
+        time.sleep(emr_serverless_job_wait_polling_delay)
+        response = emr_serverless.get_job_run(
+            applicationId=application_id,
+            jobRunId=job_run_id,
+        )
+        state = response["jobRun"]["state"]
+    _logger.debug("Job state: %s", state)
+    if state != "SUCCESS":
+        _logger.debug("Job run response: %s", response)
+        raise exceptions.EMRServerlessJobError(response.get("jobRun", {}).get("stateDetails"))
+    return response  # type: ignore[return-value]
