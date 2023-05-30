@@ -313,7 +313,9 @@ def _create_table(
     con.execute(sql, database=database, transaction_id=transaction_id)
 
 
-def _create_value_dict(value: Any) -> Tuple[Dict[str, Any], Optional[str]]:
+def _create_value_dict(  # pylint: disable=too-many-return-statements
+    value: Any,
+) -> Tuple[Dict[str, Any], Optional[str]]:
     if value is None or pd.isnull(value):
         return {"isNull": True}, None
 
@@ -351,7 +353,7 @@ def _generate_parameters(columns: List[str], values: List[Any]) -> List[Dict[str
     parameter_list = []
 
     for col, value in zip(columns, values):
-        value, type_hint = _create_value_dict(value)
+        value, type_hint = _create_value_dict(value)  # ruff: noqa: PLW2901
 
         parameter = {
             "name": col,
