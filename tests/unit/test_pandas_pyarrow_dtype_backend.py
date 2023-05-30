@@ -26,6 +26,15 @@ def test_s3_read_parquet(path: str) -> None:
     assert_pandas_equals(df, df2)
 
 
+def test_s3_read_parquet_table(path: str, glue_database: str, glue_table: str) -> None:
+    df = get_df_dtype_backend(dtype_backend="pyarrow")
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
+
+    df2 = wr.s3.read_parquet_table(database=glue_database, table=glue_table, dtype_backend="pyarrow")
+
+    assert_pandas_equals(df, df2)
+
+
 def test_s3_read_csv(path: str) -> None:
     df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
     wr.s3.to_csv(df=df, path=f"{path}.csv", index=False)
