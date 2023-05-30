@@ -511,16 +511,15 @@ def _set_properties(
         if column not in ["~id", "~label", "~to", "~from"]:
             if ignore_cardinality and pd.notna(value):
                 g = g.property(_get_column_name(column), value)
-            else:
+            elif use_header_cardinality:
                 # If the column header is specifying the cardinality then use it
-                if use_header_cardinality:
-                    if column.lower().find("(single)") > 0 and pd.notna(value):
-                        g = g.property(gremlin.Cardinality.single, _get_column_name(column), value)
-                    else:
-                        g = _expand_properties(g, _get_column_name(column), value)
+                if column.lower().find("(single)") > 0 and pd.notna(value):
+                    g = g.property(gremlin.Cardinality.single, _get_column_name(column), value)
                 else:
-                    # If not using header cardinality then use the default of set
-                    g = _expand_properties(g, column, value)
+                    g = _expand_properties(g, _get_column_name(column), value)
+            else:
+                # If not using header cardinality then use the default of set
+                g = _expand_properties(g, column, value)
     return g
 
 
