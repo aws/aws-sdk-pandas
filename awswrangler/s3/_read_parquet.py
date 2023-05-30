@@ -59,9 +59,9 @@ def _ensure_locations_are_valid(paths: Iterable[str]) -> Iterator[str]:
     for path in paths:
         suffix: str = path.rpartition("/")[2]
         # If the suffix looks like a partition,
-        if (suffix != "") and (suffix.count("=") == 1):
+        if suffix and (suffix.count("=") == 1):
             # the path should end in a '/' character.
-            path = f"{path}/"
+            path = f"{path}/"  # ruff: noqa: PLW2901
         yield path
 
 

@@ -591,7 +591,7 @@ def to_sql(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
             for _, parameters in placeholder_parameter_pair_generator:
-                parameters = list(zip(*[iter(parameters)] * len(df.columns)))
+                parameters = list(zip(*[iter(parameters)] * len(df.columns)))  # ruff: noqa: PLW2901
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, parameters)
 

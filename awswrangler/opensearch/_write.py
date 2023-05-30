@@ -199,11 +199,10 @@ def create_index(
     if mappings:
         if _get_distribution(client) == "opensearch" or _get_version_major(client) >= 7:
             body["mappings"] = mappings  # doc type deprecated
+        elif doc_type:
+            body["mappings"] = {doc_type: mappings}
         else:
-            if doc_type:
-                body["mappings"] = {doc_type: mappings}
-            else:
-                body["mappings"] = {index: mappings}
+            body["mappings"] = {index: mappings}
     if settings:
         body["settings"] = settings
     if not body:
