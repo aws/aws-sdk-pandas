@@ -55,6 +55,7 @@ def register_ray() -> None:
     ]:
         engine.register_func(func, ray_remote()(func))
 
+    # Register dispatch methods for Ray
     engine.register_func(_get_executor, _get_ray_executor)
     engine.register_func(_list_objects_paginate, _list_objects_s3fs)
     engine.register_func(_read_parquet_metadata_file, ray_remote()(_read_parquet_metadata_file_distributed))
@@ -77,6 +78,7 @@ def register_ray() -> None:
         from awswrangler.distributed.ray.modin.s3._write_parquet import _to_parquet_distributed
         from awswrangler.distributed.ray.modin.s3._write_text import _to_text_distributed
 
+        # Register dispatch methods for Modin
         engine.register_func(pyarrow_types_from_pandas, pyarrow_types_from_pandas_distributed)
         engine.register_func(_read_parquet, _read_parquet_distributed)
         engine.register_func(_read_text, _read_text_distributed)
