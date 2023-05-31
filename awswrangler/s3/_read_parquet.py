@@ -22,6 +22,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset
 import pyarrow.parquet
+from packaging import version
 from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, exceptions
@@ -66,7 +67,8 @@ def _ensure_locations_are_valid(paths: Iterable[str]) -> Iterator[str]:
 
 
 def _pyarrow_parquet_file_wrapper(
-    source: Any, coerce_int96_timestamp_unit: Optional[str] = None
+    source: Any,
+    coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> pyarrow.parquet.ParquetFile:
     try:
         return pyarrow.parquet.ParquetFile(source=source, coerce_int96_timestamp_unit=coerce_int96_timestamp_unit)
@@ -235,6 +237,7 @@ def _read_parquet_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     version_id: Optional[str] = None,
+    schema: Optional[pa.schema] = None,
 ) -> pa.Table:
     s3_block_size: int = FULL_READ_S3_BLOCK_SIZE if columns else -1  # One shot for a full read or see constant
     with open_s3_object(
@@ -252,8 +255,18 @@ def _read_parquet_file(
         )
         if pq_file is None:
             raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
+        if schema and version.parse(pa.__version__) >= version.parse("8.0.0"):
+            table = pyarrow.parquet.read_table(
+                pq_file,
+                columns=columns,
+                schema=schema,
+                use_threads=False,
+                use_pandas_metadata=False,
+            )
+        else:
+            table = pq_file.read(columns=columns, use_threads=False, use_pandas_metadata=False)
         return _add_table_partitions(
-            table=pq_file.read(columns=columns, use_threads=False, use_pandas_metadata=False),
+            table=table,
             path=path,
             path_root=path_root,
         )
@@ -343,6 +356,7 @@ def _read_parquet(  # pylint: disable=W0613
         itertools.repeat(s3_additional_kwargs),
         itertools.repeat(use_threads),
         [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths],
+        itertools.repeat(schema),
     )
     return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
 
@@ -362,6 +376,7 @@ def read_parquet(
     columns: Optional[List[str]] = None,
     validate_schema: bool = False,
     coerce_int96_timestamp_unit: Optional[str] = None,
+    schema: Optional[pa.Schema] = None,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
@@ -440,6 +455,8 @@ def read_parquet(
     coerce_int96_timestamp_unit : str, optional
         Cast timestamps that are stored in INT96 format to a particular resolution (e.g. "ms").
         Setting to None is equivalent to "ns" and therefore INT96 timestamps are inferred as in nanoseconds.
+    schema : pyarrow.Schema, optional
+        Schema to use whem reading the file.
     last_modified_begin : datetime, optional
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
@@ -543,7 +560,6 @@ def read_parquet(
     version_ids = _check_version_id(paths=paths, version_id=version_id)
 
     # Create PyArrow schema based on file metadata, columns filter, and partitions
-    schema: Optional[pa.schema] = None
     if validate_schema and not bulk_read:
         schema = _validate_schemas_from_files(
             validate_schema=validate_schema,
