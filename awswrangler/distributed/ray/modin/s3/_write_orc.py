@@ -27,6 +27,5 @@ def _to_orc_distributed(  # pylint: disable=unused-argument
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = "",
     max_rows_by_file: Optional[int] = 0,
-    bucketing: bool = False,
 ) -> List[str]:
     raise NotImplementedError()
