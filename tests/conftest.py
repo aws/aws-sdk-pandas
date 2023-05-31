@@ -440,6 +440,11 @@ def emr_security_configuration():
 
 
 @pytest.fixture(scope="session")
+def emr_serverless_execution_role_arn(cloudformation_outputs):
+    return cloudformation_outputs["EMRServerlessExecutionRoleArn"]
+
+
+@pytest.fixture(scope="session")
 def glue_data_quality_role(cloudformation_outputs):
     return cloudformation_outputs["GlueDataQualityRole"]
 

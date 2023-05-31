@@ -2,7 +2,6 @@ import json
 import logging
 import tempfile
 import time
-import uuid
 from typing import Any, Dict, List
 
 import boto3
@@ -14,7 +13,7 @@ import awswrangler as wr
 import awswrangler.pandas as pd
 from awswrangler.opensearch._utils import _is_serverless
 
-from .._utils import extract_cloudformation_outputs
+from .._utils import _get_unique_suffix, extract_cloudformation_outputs
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -126,10 +125,6 @@ inspections_documents = [
         "violation_id": "5794_20160907_103144",
     },
 ]
-
-
-def _get_unique_suffix() -> str:
-    return str(uuid.uuid4())[:8]
 
 
 @pytest.fixture(scope="session")
