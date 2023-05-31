@@ -2,6 +2,7 @@
 import datetime
 import logging
 import re
+import threading
 from heapq import heappop, heappush
 from typing import TYPE_CHECKING, Any, Dict, List, Match, NamedTuple, Optional, Tuple, Union
 
@@ -24,6 +25,7 @@ class _CacheInfo(NamedTuple):
 
 class _LocalMetadataCacheManager:
     def __init__(self) -> None:
+        self._lock: threading.Lock = threading.Lock()
         self._cache: Dict[str, Any] = {}
         self._pqueue: List[Tuple[datetime.datetime, str]] = []
         self._max_cache_size = 100
@@ -42,20 +44,25 @@ class _LocalMetadataCacheManager:
         None
             None.
         """
-        if self._pqueue:
-            oldest_item = self._cache[self._pqueue[0][1]]
-            items = list(
-                filter(lambda x: x["Status"]["SubmissionDateTime"] > oldest_item["Status"]["SubmissionDateTime"], items)
-            )
+        with self._lock:
+            if self._pqueue:
+                oldest_item = self._cache.get(self._pqueue[0][1])
+                if oldest_item:
+                    items = list(
+                        filter(
+                            lambda x: x["Status"]["SubmissionDateTime"] > oldest_item["Status"]["SubmissionDateTime"],  # type: ignore[arg-type]
+                            items,
+                        )
+                    )
 
-        cache_oversize = len(self._cache) + len(items) - self._max_cache_size
-        for _ in range(cache_oversize):
-            _, query_execution_id = heappop(self._pqueue)
-            del self._cache[query_execution_id]
+            cache_oversize = len(self._cache) + len(items) - self._max_cache_size
+            for _ in range(cache_oversize):
+                _, query_execution_id = heappop(self._pqueue)
+                del self._cache[query_execution_id]
 
-        for item in items[: self._max_cache_size]:
-            heappush(self._pqueue, (item["Status"]["SubmissionDateTime"], item["QueryExecutionId"]))
-            self._cache[item["QueryExecutionId"]] = item
+            for item in items[: self._max_cache_size]:
+                heappush(self._pqueue, (item["Status"]["SubmissionDateTime"], item["QueryExecutionId"]))
+                self._cache[item["QueryExecutionId"]] = item
 
     def sorted_successful_generator(self) -> List[Dict[str, Any]]:
         """

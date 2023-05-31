@@ -87,13 +87,13 @@ class RedshiftDataApi(_connector.DataApiConnector):
         raise NotImplementedError("Redshift Data API does not support transactions.")
 
     def _validate_redshift_target(self) -> None:
-        if self.database == "":
+        if not self.database:
             raise ValueError("`database` must be set for connection")
-        if self.cluster_id == "" and self.workgroup_name == "":
+        if not self.cluster_id and not self.workgroup_name:
             raise ValueError("Either `cluster_id` or `workgroup_name`(Redshift Serverless) must be set for connection")
 
     def _validate_auth_method(self) -> None:
-        if self.workgroup_name == "" and self.secret_arn == "" and self.db_user == "":
+        if not self.workgroup_name and not self.secret_arn and not self.db_user:
             raise ValueError("Either `secret_arn` or `db_user` must be set for authentication")
 
     def _execute_statement(
