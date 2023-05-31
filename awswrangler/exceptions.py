@@ -143,3 +143,7 @@ class TimestreamLoadError(Exception):
 
 class NeptuneLoadError(Exception):
     """NeptuneLoadError."""
+
+
+class EMRServerlessJobError(Exception):
+    """EMRServerlessJobError."""
