@@ -3183,7 +3183,7 @@ python-versions = ">=3.7"
 name = "s3fs"
 version = "0.4.2"
 description = "Convenient Filesystem interface over S3"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">= 3.5"
 
@@ -3763,7 +3763,7 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [extras]
 deltalake = ["deltalake"]
 gremlin = ["gremlinpython", "requests"]
-modin = ["modin", "s3fs"]
+modin = ["modin"]
 mysql = ["pymysql"]
 opencypher = ["requests"]
 openpyxl = ["openpyxl"]
@@ -3779,7 +3779,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "720d01e6a107e8b3995aae9008936dfae8c5098ebc524c5412069338cad19ab9"
+content-hash = "61464b1c7a0240d47147c2a1cfd5778dda7813cc9ecc04b8164b0a22afa07418"
 
 [metadata.files]
 aenum = [
