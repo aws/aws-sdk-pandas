@@ -277,8 +277,8 @@ def _read_orc(  # pylint: disable=W0613
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "version_id", "s3_additional_kwargs", "dtype_backend"],
 )
-@Experimental
 @apply_configs
+@Experimental
 def read_orc(
     path: Union[str, List[str]],
     path_root: Optional[str] = None,
@@ -472,8 +472,8 @@ def read_orc(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs", "dtype_backend"],
 )
-@Experimental
 @apply_configs
+@Experimental
 def read_orc_table(
     table: str,
     database: str,
@@ -624,8 +624,8 @@ def read_orc_table(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
-@Experimental
 @apply_configs
+@Experimental
 def read_orc_metadata(
     path: Union[str, List[str]],
     dataset: bool = False,
