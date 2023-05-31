@@ -362,7 +362,7 @@ Amazon EMR
     terminate_cluster
 
 Amazon EMR Serverless
-----------
+---------------------
 
 .. currentmodule:: awswrangler.emr_serverless
 
