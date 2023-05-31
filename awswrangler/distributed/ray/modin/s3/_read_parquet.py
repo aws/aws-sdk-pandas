@@ -1,5 +1,5 @@
 """Modin on Ray S3 read parquet module (PRIVATE)."""
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import modin.pandas as pd
 import pyarrow as pa
@@ -37,7 +37,7 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
     bulk_read: bool,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
     dataset_kwargs = {}
     if coerce_int96_timestamp_unit:
         dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
