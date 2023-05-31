@@ -171,7 +171,7 @@ def _to_parquet_chunked(
 
 
 @engine.dispatch_on_engine
-def _to_parquet(
+def _to_parquet(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     schema: pa.Schema,
     index: bool,
@@ -187,6 +187,7 @@ def _to_parquet(
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = None,
     max_rows_by_file: Optional[int] = 0,
+    bucketing: bool = False,
 ) -> List[str]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     file_path = _get_file_path(
