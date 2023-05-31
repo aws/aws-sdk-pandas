@@ -89,11 +89,10 @@ class Engine:
             return getattr(source_func, "_source_func", source_func)
 
     @classmethod
-    def register_func(cls, source_func: Callable[..., Any], destination_func: Callable[..., Any]) -> Callable[..., Any]:
+    def register_func(cls, source_func: FunctionType, destination_func: FunctionType) -> None:
         """Register a func based on the distribution engine and source function."""
         with cls._lock:
             cls._registry[cls.get().value][source_func.__name__] = destination_func
-        return destination_func
 
     @classmethod
     def dispatch_on_engine(cls, func: FunctionType) -> FunctionType:

@@ -55,13 +55,10 @@ def register_ray() -> None:
     ]:
         engine.register_func(func, ray_remote()(func))
 
-    for o_f, d_f in {
-        _get_executor: _get_ray_executor,
-        _list_objects_paginate: _list_objects_s3fs,
-        _read_parquet_metadata_file: ray_remote()(_read_parquet_metadata_file_distributed),
-        ensure_worker_or_thread_count: ensure_worker_count,
-    }.items():
-        engine.register_func(o_f, d_f)  # type: ignore[arg-type]
+    engine.register_func(_get_executor, _get_ray_executor)
+    engine.register_func(_list_objects_paginate, _list_objects_s3fs)
+    engine.register_func(_read_parquet_metadata_file, ray_remote()(_read_parquet_metadata_file_distributed))
+    engine.register_func(ensure_worker_or_thread_count, ensure_worker_count)
 
     if memory_format.get() == MemoryFormatEnum.MODIN:
         from awswrangler.distributed.ray.modin._data_types import pyarrow_types_from_pandas_distributed
@@ -80,17 +77,14 @@ def register_ray() -> None:
         from awswrangler.distributed.ray.modin.s3._write_parquet import _to_parquet_distributed
         from awswrangler.distributed.ray.modin.s3._write_text import _to_text_distributed
 
-        for o_f, d_f in {
-            pyarrow_types_from_pandas: pyarrow_types_from_pandas_distributed,
-            _read_parquet: _read_parquet_distributed,
-            _read_text: _read_text_distributed,
-            _to_buckets: _to_buckets_distributed,
-            _to_parquet: _to_parquet_distributed,
-            _to_partitions: _to_partitions_distributed,
-            _to_text: _to_text_distributed,
-            copy_df_shallow: _copy_modin_df_shallow,
-            is_pandas_frame: _is_pandas_or_modin_frame,
-            split_pandas_frame: _split_modin_frame,
-            table_refs_to_df: _arrow_refs_to_df,
-        }.items():
-            engine.register_func(o_f, d_f)  # type: ignore[arg-type]
+        engine.register_func(pyarrow_types_from_pandas, pyarrow_types_from_pandas_distributed)
+        engine.register_func(_read_parquet, _read_parquet_distributed)
+        engine.register_func(_read_text, _read_text_distributed)
+        engine.register_func(_to_buckets, _to_buckets_distributed)
+        engine.register_func(_to_parquet, _to_parquet_distributed)
+        engine.register_func(_to_partitions, _to_partitions_distributed)
+        engine.register_func(_to_text, _to_text_distributed)
+        engine.register_func(copy_df_shallow, _copy_modin_df_shallow)
+        engine.register_func(is_pandas_frame, _is_pandas_or_modin_frame)
+        engine.register_func(split_pandas_frame, _split_modin_frame)
+        engine.register_func(table_refs_to_df, _arrow_refs_to_df)

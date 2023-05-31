@@ -121,14 +121,14 @@ def _read_text_distributed(  # pylint: disable=unused-argument
     read_format: str,
     paths: List[str],
     path_root: Optional[str],
+    use_threads: Union[bool, int],
+    s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
     ignore_index: bool,
     parallelism: int,
     version_ids: Optional[Dict[str, str]],
     pandas_kwargs: Dict[str, Any],
-    use_threads: Union[bool, int],
-    s3_client: Optional["S3Client"],
 ) -> pd.DataFrame:
     try:
         configuration: Dict[str, Any] = _parse_configuration(  # type: ignore[assignment]
