@@ -130,7 +130,7 @@ def create_application(
         application_args["imageConfiguration"] = {
             "imageUri": image_uri,
         }
-    response: Dict[str, str] = emr_serverless.create_application(**application_args)
+    response: Dict[str, str] = emr_serverless.create_application(**application_args)  # type: ignore[assignment]
     _logger.debug("response: \n%s", pprint.pformat(response))
     return response["applicationId"]
 

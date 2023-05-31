@@ -71,6 +71,7 @@ if TYPE_CHECKING:
         "dynamodb",
         "ec2",
         "emr",
+        "emr-serverless",
         "glue",
         "kms",
         "lakeformation",
