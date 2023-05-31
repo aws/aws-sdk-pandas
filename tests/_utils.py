@@ -2,6 +2,7 @@ import os
 import random
 import re
 import time
+import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from timeit import default_timer as timer
@@ -98,6 +99,10 @@ class ExecutionTimer:
             }
         ).to_csv(output_path, mode="a", index=False, header=not os.path.exists(output_path))
         return None
+
+
+def _get_unique_suffix() -> str:
+    return str(uuid.uuid4())[:8]
 
 
 def ts(x: str) -> datetime:

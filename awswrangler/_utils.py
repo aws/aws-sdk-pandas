@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_emr.client import EMRClient
+    from mypy_boto3_emr_serverless import EMRServerlessClient
     from mypy_boto3_glue import GlueClient
     from mypy_boto3_kms.client import KMSClient
     from mypy_boto3_lakeformation.client import LakeFormationClient
@@ -70,6 +71,7 @@ if TYPE_CHECKING:
         "dynamodb",
         "ec2",
         "emr",
+        "emr-serverless",
         "glue",
         "kms",
         "lakeformation",
@@ -331,6 +333,16 @@ def client(
     botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
 ) -> "EMRClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["emr-serverless"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "EMRServerlessClient":
     ...
 
 
