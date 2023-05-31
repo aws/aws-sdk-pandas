@@ -589,33 +589,29 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
                 refresh_interval = _get_refresh_interval(client, index)
                 _disable_refresh_interval(client, index)
             _logger.debug("running bulk index of %s documents", len(bulk_chunk_documents))
+            bulk_kwargs = {
+                "ignore_status": ignore_status,
+                "chunk_size": chunk_size,
+                "max_chunk_bytes": max_chunk_bytes,
+                "max_retries": max_retries,
+                "initial_backoff": initial_backoff,
+                "max_backoff": max_backoff,
+                "request_timeout": 30,
+                **kwargs,
+            }
+            _logger.debug("running bulk with kwargs: %s", bulk_kwargs)
             if use_threads:
                 # Parallel bulk does not support max_retries, initial_backoff & max_backoff
+                bulk_kwargs.pop("max_retries")
+                bulk_kwargs.pop("initial_backoff")
+                bulk_kwargs.pop("max_backoff")
                 for _success, _errors in opensearchpy.helpers.parallel_bulk(
-                    client,
-                    bulk_chunk_documents,
-                    thread_count=_utils.ensure_cpu_count(use_threads=use_threads),
-                    ignore_status=ignore_status,
-                    chunk_size=chunk_size,
-                    max_chunk_bytes=max_chunk_bytes,
-                    request_timeout=30,
-                    **kwargs,
+                    client, bulk_chunk_documents, **bulk_kwargs
                 ):
                     success += _success
                     errors += _errors
             else:
-                _success, _errors = opensearchpy.helpers.bulk(
-                    client,
-                    bulk_chunk_documents,
-                    ignore_status=ignore_status,
-                    chunk_size=chunk_size,
-                    max_chunk_bytes=max_chunk_bytes,
-                    max_retries=max_retries,
-                    initial_backoff=initial_backoff,
-                    max_backoff=max_backoff,
-                    request_timeout=30,
-                    **kwargs,
-                )
+                _success, _errors = opensearchpy.helpers.bulk(client, bulk_chunk_documents, **bulk_kwargs)
                 success += _success
                 errors += _errors
             _logger.debug("indexed %s documents (%s/%s)", _success, success, total_documents)
