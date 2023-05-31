@@ -4,7 +4,7 @@ import logging
 import math
 import uuid
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Union, cast
 
 import boto3
 import pandas as pd
@@ -20,7 +20,6 @@ from awswrangler.annotations import Experimental
 from awswrangler.catalog._create import _create_orc_table
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
-from awswrangler.s3._read_orc import _read_orc_metadata
 from awswrangler.s3._write import _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
@@ -166,7 +165,6 @@ def _to_orc_chunked(
     return proxy.close()  # blocking
 
 
-@engine.dispatch_on_engine
 def _to_orc(
     df: pd.DataFrame,
     schema: pa.Schema,
