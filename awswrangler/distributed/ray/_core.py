@@ -2,7 +2,7 @@
 import logging
 import os
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, TypeVar, Union
 
 from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
@@ -11,6 +11,9 @@ if engine.get() == EngineEnum.RAY or TYPE_CHECKING:
     import ray
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
 
 class RayLogger:
@@ -31,10 +34,10 @@ class RayLogger:
 
 @apply_configs
 def ray_logger(
-    function: Callable[..., Any],
+    function: FunctionType,
     configure_logging: bool = True,
     logging_level: int = logging.INFO,
-) -> Callable[..., Any]:
+) -> FunctionType:
     """
     Decorate callable to add RayLogger.
 
@@ -57,7 +60,7 @@ def ray_logger(
     return wrapper
 
 
-def ray_remote(**options: Any) -> Callable[..., Any]:
+def ray_remote(**options: Any) -> Callable[[FunctionType], FunctionType]:
     """
     Decorate with @ray.remote providing .options().
 
@@ -71,7 +74,7 @@ def ray_remote(**options: Any) -> Callable[..., Any]:
     Callable[..., Any]
     """
 
-    def remote_decorator(function: Callable[..., Any]) -> Callable[..., Any]:
+    def remote_decorator(function: FunctionType) -> FunctionType:
         """
         Decorate callable to wrap within ray.remote.
 
