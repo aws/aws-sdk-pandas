@@ -2,15 +2,21 @@
 # pylint: disable=too-many-lines
 import logging
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import boto3
-import pandas as pd
 
-from awswrangler import _utils, exceptions, s3
+from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from mypy_boto3_athena.type_defs import (
+        EngineConfigurationTypeDef,
+        GetCalculationExecutionResponseTypeDef,
+        GetCalculationExecutionStatusResponseTypeDef,
+        GetSessionStatusResponseTypeDef,
+    )
 
 _SESSION_FINAL_STATES: List[str] = ["IDLE", "TERMINATED", "DEGRADED", "FAILED"]
 _CALCULATION_EXECUTION_FINAL_STATES: List[str] = ["COMPLETED", "FAILED", "CANCELED"]
@@ -22,10 +28,10 @@ def _wait_session(
     session_id: str,
     boto3_session: Optional[boto3.Session] = None,
     athena_session_wait_polling_delay: float = _SESSION_WAIT_POLLING_DELAY,
-) -> Dict[str, Any]:
+) -> GetSessionStatusResponseTypeDef:
     client_athena = _utils.client(service_name="athena", session=boto3_session)
 
-    response: Dict[str, Any] = client_athena.get_session_status(SessionId=session_id)
+    response: "GetSessionStatusResponseTypeDef" = client_athena.get_session_status(SessionId=session_id)
     state: str = response["Status"]["State"]
 
     while state not in _SESSION_FINAL_STATES:
@@ -39,15 +45,15 @@ def _wait_session(
     return response
 
 
-# TODO: refactor copy-paste
+# TODO: refactor copy-pasted waiters
 def _wait_calculation_execution(
     calculation_execution_id: str,
     boto3_session: Optional[boto3.Session] = None,
     athena_calculation_execution_wait_polling_delay: float = _CALCULATION_EXECUTION_WAIT_POLLING_DELAY,
-) -> Dict[str, Any]:
+) -> "GetCalculationExecutionStatusResponseTypeDef":
     client_athena = _utils.client(service_name="athena", session=boto3_session)
 
-    response: Dict[str, Any] = client_athena.get_calculation_execution_status(
+    response: "GetCalculationExecutionStatusResponseTypeDef" = client_athena.get_calculation_execution_status(
         CalculationExecutionId=calculation_execution_id
     )
     state: str = response["Status"]["State"]
@@ -66,7 +72,7 @@ def _wait_calculation_execution(
 def _get_calculation_execution_results(
     calculation_execution_id: str,
     boto3_session: Optional[boto3.Session] = None,
-) -> Union[str, pd.DataFrame, Dict[str, Any]]:
+) -> "GetCalculationExecutionResponseTypeDef":
     client_athena = _utils.client(service_name="athena", session=boto3_session)
 
     _wait_calculation_execution(
@@ -77,17 +83,15 @@ def _get_calculation_execution_results(
     response = client_athena.get_calculation_execution(
         CalculationExecutionId=calculation_execution_id,
     )
-    result_type = response["Result"]["ResultType"]
-    result_s3_uri = response["Result"]["ResultS3Uri"]
-
-    # TODO: process other content-types
-    if result_type == "application/vnd.aws.athena.v1+json":
-        return s3.read_json(path=result_s3_uri)
-
+    # TODO: process results by content-types
+    # result_type = response["Result"]["ResultType"]
+    # result_s3_uri = response["Result"]["ResultS3Uri"]
+    # if result_type == "application/vnd.aws.athena.v1+json":
+    #    return s3.read_json(path=result_s3_uri)
     return response
 
 
-def create_session(
+def create_spark_session(
     workgroup: str,
     notebook_id: Optional[str] = None,
     notebook_version: str = "Athena notebook version 1",
@@ -97,9 +101,9 @@ def create_session(
     additional_configs: Optional[Dict[str, Any]] = None,
     idle_timeout: int = 15,
     boto3_session: Optional[boto3.Session] = None,
-):
+) -> str:
     client_athena = _utils.client(service_name="athena", session=boto3_session)
-    engine_configuration: Dict[str, Any] = {
+    engine_configuration: "EngineConfigurationTypeDef" = {
         "CoordinatorDpuSize": coordinator_dpu_size,
         "MaxConcurrentDpus": max_concurrent_dpus,
         "DefaultExecutorDpuSize": default_executor_dpu_size,
@@ -135,11 +139,11 @@ def run_spark_calculation(
     additional_configs: Optional[Dict[str, Any]] = None,
     idle_timeout: int = 15,
     boto3_session: Optional[boto3.Session] = None,
-) -> Union[str, pd.DataFrame, Dict[str, Any]]:
+) -> "GetCalculationExecutionResponseTypeDef":
     client_athena = _utils.client(service_name="athena", session=boto3_session)
 
     session_id = (
-        create_session(
+        create_spark_session(
             workgroup=workgroup,
             notebook_id=notebook_id,
             notebook_version=notebook_version,

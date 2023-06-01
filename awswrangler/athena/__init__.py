@@ -6,7 +6,7 @@ from awswrangler.athena._executions import (  # noqa
     start_query_execution,
     wait_query,
 )
-from awswrangler.athena._spark import run_spark_calculation
+from awswrangler.athena._spark import create_spark_session, run_spark_calculation
 from awswrangler.athena._read import (  # noqa
     get_query_results,
     read_sql_query,
@@ -43,6 +43,7 @@ __all__ = [
     "generate_create_query",
     "list_query_executions",
     "repair_table",
+    "create_spark_session",
     "run_spark_calculation",
     "create_ctas_table",
     "show_create_table",
