@@ -481,9 +481,9 @@ def index_documents(
     bulk_size: int = 1000,
     chunk_size: Optional[int] = 500,
     max_chunk_bytes: Optional[int] = 100 * 1024 * 1024,
-    max_retries: Optional[int] = 5,
-    initial_backoff: Optional[int] = 2,
-    max_backoff: Optional[int] = 600,
+    max_retries: Optional[int] = None,
+    initial_backoff: Optional[int] = None,
+    max_backoff: Optional[int] = None,
     use_threads: Union[bool, int] = False,
     **kwargs: Any,
 ) -> Dict[str, Any]:
@@ -561,6 +561,11 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     if "refresh" in kwargs and _is_serverless(client):
         raise exceptions.NotSupported("Refresh policy not supported in OpenSearch Serverless.")
 
+    if use_threads and any([max_retries, initial_backoff, max_backoff]):
+        raise exceptions.InvalidArgumentCombination(
+            f"`max_retries`, `initial_backoff`, and `max_backoff` are not supported when `use_threads` is set to True"
+        )
+
     if not isinstance(documents, list):
         documents = list(documents)
     total_documents = len(documents)
@@ -593,24 +598,23 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
                 "ignore_status": ignore_status,
                 "chunk_size": chunk_size,
                 "max_chunk_bytes": max_chunk_bytes,
-                "max_retries": max_retries,
-                "initial_backoff": initial_backoff,
-                "max_backoff": max_backoff,
                 "request_timeout": 30,
                 **kwargs,
             }
             _logger.debug("running bulk with kwargs: %s", bulk_kwargs)
             if use_threads:
                 # Parallel bulk does not support max_retries, initial_backoff & max_backoff
-                bulk_kwargs.pop("max_retries")
-                bulk_kwargs.pop("initial_backoff")
-                bulk_kwargs.pop("max_backoff")
                 for _success, _errors in opensearchpy.helpers.parallel_bulk(
                     client, bulk_chunk_documents, **bulk_kwargs
                 ):
                     success += _success
                     errors += _errors
             else:
+                # Defaults
+                bulk_kwargs["max_retries"] = 5 if not max_retries else max_retries
+                bulk_kwargs["initial_backoff"] = 2 if not initial_backoff else initial_backoff
+                bulk_kwargs["max_backoff"] = 600 if not max_backoff else max_backoff
+
                 _success, _errors = opensearchpy.helpers.bulk(client, bulk_chunk_documents, **bulk_kwargs)
                 success += _success
                 errors += _errors
