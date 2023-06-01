@@ -26,6 +26,7 @@ from typing_extensions import Literal
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _add_table_partitions
 from awswrangler._config import apply_configs
+from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.annotations import Experimental
 from awswrangler.catalog._get import _get_partitions
@@ -74,6 +75,7 @@ def _pyarrow_orc_file_wrapper(source: Any) -> pyarrow.orc.ORCFile:
         raise
 
 
+@engine.dispatch_on_engine
 def _read_orc_metadata_file(
     s3_client: Optional["S3Client"],
     path: str,
