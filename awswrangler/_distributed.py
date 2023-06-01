@@ -112,7 +112,7 @@ class Engine:
     def register(cls, name: Optional[EngineLiteral] = None) -> None:
         """Register the distribution engine dispatch methods."""
         with cls._lock:
-            engine_name = cast(EngineLiteral, name or WR_ENGINE or cls.get_installed().value)
+            engine_name = cast(EngineLiteral, name or cls.get().value)
             cls.set(engine_name)
             cls._registry.clear()
 
