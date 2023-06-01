@@ -491,6 +491,11 @@ def index_documents(
 
     Note
     ----
+    `max_retries`, `initial_backoff`, and `max_backoff` are not supported with parallel bulk
+     (when `use_threads`is set to True).
+
+    Note
+    ----
     Some of the args are referenced from opensearch-py client library (bulk helpers)
     https://opensearch-py.readthedocs.io/en/latest/helpers.html#opensearchpy.helpers.bulk
     https://opensearch-py.readthedocs.io/en/latest/helpers.html#opensearchpy.helpers.streaming_bulk
