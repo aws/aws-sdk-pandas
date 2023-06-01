@@ -90,9 +90,9 @@ def _read_orc_metadata_file(
         s3_block_size=METADATA_READ_S3_BLOCK_SIZE,
         s3_additional_kwargs=s3_additional_kwargs,
     ) as f:
-        pq_file: Optional[pyarrow.orc.ORCFile] = _pyarrow_orc_file_wrapper(source=f)
-        if pq_file:
-            return pq_file.schema
+        orc_file: Optional[pyarrow.orc.ORCFile] = _pyarrow_orc_file_wrapper(source=f)
+        if orc_file:
+            return orc_file.schema
         return None
 
 

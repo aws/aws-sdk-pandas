@@ -4,7 +4,7 @@ import pyarrow as pa
 from pyarrow.fs import _resolve_filesystem_and_path
 
 from awswrangler import _utils
-from awswrangler.s3._read_parquet import _pyarrow_parquet_file_wrapper
+from awswrangler.s3._read_orc import _pyarrow_orc_file_wrapper
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -21,11 +21,11 @@ def _read_orc_metadata_file_distributed(
     resolved_filesystem, resolved_path = _resolve_filesystem_and_path(path)
 
     with resolved_filesystem.open_input_file(resolved_path) as f:
-        pq_file = _pyarrow_parquet_file_wrapper(
+        orc_file = _pyarrow_orc_file_wrapper(
             source=f,
         )
 
-        if pq_file:
-            return pq_file.schema
+        if orc_file:
+            return orc_file.schema
 
     return None
