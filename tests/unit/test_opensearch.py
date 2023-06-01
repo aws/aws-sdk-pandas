@@ -312,6 +312,27 @@ def test_index_documents(client):
         wr.opensearch.delete_index(client, index)
 
 
+@pytest.mark.parametrize("use_threads", [False, True, 2])
+def test_index_documents_parallel(client, use_threads):
+    index = f"test_index_documents_{_get_unique_suffix()}"
+    # Pre-create index to avoid multiple threads creating conflicting mappings
+    wr.opensearch.create_index(
+        client=client,
+        index=index,
+        mappings={"properties": {"name": {"type": "text"}}},
+    )
+    try:
+        response = wr.opensearch.index_documents(
+            client,
+            documents=[{"_id": "1", "name": "John"}, {"_id": "2", "name": "George"}, {"_id": "3", "name": "Julia"}],
+            index=index,
+            use_threads=use_threads,
+        )
+        assert response.get("success", 0) == 3
+    finally:
+        wr.opensearch.delete_index(client, index)
+
+
 def test_index_documents_id_keys(client):
     index = f"test_index_documents_id_keys_{_get_unique_suffix()}"
     try:
