@@ -59,9 +59,9 @@ def _ensure_locations_are_valid(paths: Iterable[str]) -> Iterator[str]:
     for path in paths:
         suffix: str = path.rpartition("/")[2]
         # If the suffix looks like a partition,
-        if (suffix != "") and (suffix.count("=") == 1):
+        if suffix and (suffix.count("=") == 1):
             # the path should end in a '/' character.
-            path = f"{path}/"
+            path = f"{path}/"  # ruff: noqa: PLW2901
         yield path
 
 
@@ -331,7 +331,7 @@ def _read_parquet(  # pylint: disable=W0613
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
     bulk_read: bool,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_parquet_file,
@@ -780,7 +780,9 @@ def read_parquet_table(
     )
 
     partial_cast_function = functools.partial(
-        _data_types.cast_pandas_with_athena_types, dtype=_extract_partitions_dtypes_from_table_details(response=res)
+        _data_types.cast_pandas_with_athena_types,
+        dtype=_extract_partitions_dtypes_from_table_details(response=res),
+        dtype_backend=dtype_backend,
     )
     if _utils.is_pandas_frame(df):
         return partial_cast_function(df)

@@ -52,7 +52,7 @@ def _read_text(  # pylint: disable=W0613
     parallelism: int,
     version_ids: Optional[Dict[str, str]],
     pandas_kwargs: Dict[str, Any],
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
     parser_func = _resolve_format(read_format)
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     tables = executor.map(

@@ -18,6 +18,7 @@ API Reference
 * `DynamoDB`_
 * `Amazon Timestream`_
 * `Amazon EMR`_
+* `Amazon EMR Serverless`_
 * `Amazon CloudWatch Logs`_
 * `Amazon QuickSight`_
 * `AWS STS`_
@@ -359,6 +360,18 @@ Amazon EMR
     submit_step
     submit_steps
     terminate_cluster
+
+Amazon EMR Serverless
+---------------------
+
+.. currentmodule:: awswrangler.emr_serverless
+
+.. autosummary::
+    :toctree: stubs
+
+    create_application
+    run_job
+    wait_job
 
 Amazon CloudWatch Logs
 ----------------------
