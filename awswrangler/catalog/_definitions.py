@@ -122,8 +122,8 @@ def _orc_table_definition(
         "StorageDescriptor": {
             "Columns": [{"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()],
             "Location": path,
-            "InputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcNewInputFormat",
-            "OutputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcNewOutputFormat",
+            "InputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat",
             "Compressed": compressed,
             "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
             "SerdeInfo": {
@@ -154,8 +154,8 @@ def _orc_partition_definition(
     compressed: bool = compression is not None
     definition: Dict[str, Any] = {
         "StorageDescriptor": {
-            "InputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcNewInputFormat",
-            "OutputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcNewOutputFormat",
+            "InputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat",
             "Location": location,
             "Compressed": compressed,
             "SerdeInfo": {

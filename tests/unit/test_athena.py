@@ -13,6 +13,7 @@ import awswrangler as wr
 import awswrangler.pandas as pd
 
 from .._utils import (
+    assert_pandas_equals,
     ensure_athena_ctas_table,
     ensure_athena_query_metadata,
     ensure_data_types,
@@ -291,6 +292,32 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
         f"STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' "
         f"OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat' "
     )
+
+
+def test_athena_orc(path, glue_database, glue_table):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "bar", "foo"], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["c1"] = df["c1"].astype("string")
+    df["par"] = df["par"].astype("string")
+
+    wr.s3.to_orc(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par"],
+    )
+    df_out = wr.athena.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        ctas_approach=False,
+        keep_files=False,
+    )
+    df_out = df_out.sort_values(by="c0", ascending=True).reset_index(drop=True)
+
+    assert_pandas_equals(df, df_out)
 
 
 def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_database, glue_table, workgroup0):
