@@ -568,7 +568,7 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
 
     if use_threads and any([max_retries, initial_backoff, max_backoff]):
         raise exceptions.InvalidArgumentCombination(
-            f"`max_retries`, `initial_backoff`, and `max_backoff` are not supported when `use_threads` is set to True"
+            "`max_retries`, `initial_backoff`, and `max_backoff` are not supported when `use_threads` is set to True"
         )
 
     if not isinstance(documents, list):
