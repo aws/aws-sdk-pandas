@@ -1,4 +1,4 @@
-"""Amazon Spark on Athena Calculations Module."""
+"""Apache Spark on Amazon Athena Module."""
 # pylint: disable=too-many-lines
 import logging
 import time
@@ -102,6 +102,25 @@ def create_spark_session(
     idle_timeout: int = 15,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
+    """
+    Create session and wait until ready to accept calculations.
+
+    Parameters
+    ----------
+    workgroup : str
+    notebook_id : str, optional
+    notebook_version : str, optional
+    coordinator_dpu_size : int, optional
+    max_concurrent_dpus : int, optional
+    default_executor_dpu_size: int, optional
+    additional_configs : Dict[str, Any], optional
+    idle_timeout : int, optional
+    boto3_session : boto3.Session(), optional
+
+    Returns
+    -------
+        Session id
+    """
     client_athena = _utils.client(service_name="athena", session=boto3_session)
     engine_configuration: "EngineConfigurationTypeDef" = {
         "CoordinatorDpuSize": coordinator_dpu_size,
@@ -140,6 +159,27 @@ def run_spark_calculation(
     idle_timeout: int = 15,
     boto3_session: Optional[boto3.Session] = None,
 ) -> "GetCalculationExecutionResponseTypeDef":
+    """
+    Execute Spark Calculation and wait for completion.
+
+    Parameters
+    ----------
+    code : str
+    workgroup : str
+    session_id : str, optional
+    notebook_id : str, optional
+    notebook_version : str, optional
+    coordinator_dpu_size : int, optional
+    max_concurrent_dpus : int, optional
+    default_executor_dpu_size: int, optional
+    additional_configs : Dict[str, Any], optional
+    idle_timeout : int, optional
+    boto3_session : boto3.Session(), optional
+
+    Returns
+    -------
+        Calculation response
+    """
     client_athena = _utils.client(service_name="athena", session=boto3_session)
 
     session_id = (
