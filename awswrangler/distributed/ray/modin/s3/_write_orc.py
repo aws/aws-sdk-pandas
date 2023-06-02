@@ -56,6 +56,7 @@ def _to_orc_distributed(  # pylint: disable=unused-argument
             )
 
         ds = ds.repartition(1)
+
     # Repartition by max_rows_by_file
     elif max_rows_by_file and (max_rows_by_file > 0):
         if index:
