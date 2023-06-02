@@ -56,7 +56,7 @@ def glue_job(
             "ScriptLocation": script_path,
         },
         DefaultArguments={
-            "--pip-install": wrangler_zip_location,
+            "--pip-install": f"modin,{wrangler_zip_location}",
             "--min-workers": "2",
         },
         GlueVersion="4.0",
