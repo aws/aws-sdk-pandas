@@ -118,7 +118,7 @@ def test_read_parquet_small_benchmark(data_gen_bucket: str, glue_job: str, reque
             job_name=glue_job,
             arguments={
                 "--data-gen-bucket": data_gen_bucket,
-                "--auto-scaling-ray-min-workers": "10",
+                "--min-workers": "10",
             },
             num_workers=10,
         )
@@ -135,7 +135,7 @@ def test_write_partitioned_parquet_benchmark(
             arguments={
                 "--data-gen-bucket": data_gen_bucket,
                 "--output-path": path,
-                "--auto-scaling-ray-min-workers": "10",
+                "--min-workers": "10",
             },
             num_workers=10,
         )
