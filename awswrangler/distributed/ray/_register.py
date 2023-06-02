@@ -23,11 +23,12 @@ from awswrangler.s3._copy import _copy_objects
 from awswrangler.s3._delete import _delete_objects
 from awswrangler.s3._describe import _describe_object
 from awswrangler.s3._list import _list_objects_paginate
-from awswrangler.s3._read_orc import _read_orc_metadata_file
+from awswrangler.s3._read_orc import _read_orc, _read_orc_metadata_file
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
 from awswrangler.s3._select import _select_object_content, _select_query
 from awswrangler.s3._wait import _wait_object_batch
 from awswrangler.s3._write_dataset import _to_buckets, _to_partitions
+from awswrangler.s3._write_orc import _to_orc
 from awswrangler.s3._write_parquet import _to_parquet
 from awswrangler.s3._write_text import _to_text
 from awswrangler.timestream._write import _write_batch, _write_df
@@ -71,11 +72,13 @@ def register_ray() -> None:
             _is_pandas_or_modin_frame,
             _split_modin_frame,
         )
+        from awswrangler.distributed.ray.modin.s3._read_orc import _read_orc_distributed
         from awswrangler.distributed.ray.modin.s3._read_parquet import _read_parquet_distributed
         from awswrangler.distributed.ray.modin.s3._write_dataset import (
             _to_buckets_distributed,
             _to_partitions_distributed,
         )
+        from awswrangler.distributed.ray.modin.s3._write_orc import _to_orc_distributed
         from awswrangler.distributed.ray.modin.s3._write_parquet import _to_parquet_distributed
         from awswrangler.distributed.ray.modin.s3._write_text import _to_text_distributed
 
@@ -86,6 +89,8 @@ def register_ray() -> None:
         engine.register_func(_to_parquet, _to_parquet_distributed)
         engine.register_func(_to_partitions, _to_partitions_distributed)
         engine.register_func(_to_text, _to_text_distributed)
+        engine.register_func(_read_orc, _read_orc_distributed)
+        engine.register_func(_to_orc, _to_orc_distributed)
         engine.register_func(copy_df_shallow, _copy_modin_df_shallow)
         engine.register_func(is_pandas_frame, _is_pandas_or_modin_frame)
         engine.register_func(split_pandas_frame, _split_modin_frame)

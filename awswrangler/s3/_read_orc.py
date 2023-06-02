@@ -28,7 +28,6 @@ from awswrangler._arrow import _add_table_partitions
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
-from awswrangler.annotations import Experimental
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
 from awswrangler.distributed.ray import ray_get
@@ -42,7 +41,7 @@ from awswrangler.s3._read import (
     _get_path_ignore_suffix,
     _get_path_root,
 )
-from awswrangler.typing import RayReadParquetSettings
+from awswrangler.typing import RaySettings
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -246,6 +245,7 @@ def _read_orc_file(
         )
 
 
+@engine.dispatch_on_engine
 def _read_orc(  # pylint: disable=W0613
     paths: List[str],
     path_root: Optional[str],
@@ -257,8 +257,7 @@ def _read_orc(  # pylint: disable=W0613
     s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
-    bulk_read: bool,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_orc_file,
@@ -277,7 +276,6 @@ def _read_orc(  # pylint: disable=W0613
     unsupported_kwargs=["boto3_session", "version_id", "s3_additional_kwargs", "dtype_backend"],
 )
 @apply_configs
-@Experimental
 def read_orc(
     path: Union[str, List[str]],
     path_root: Optional[str] = None,
@@ -293,7 +291,7 @@ def read_orc(
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     use_threads: Union[bool, int] = True,
-    ray_args: Optional[RayReadParquetSettings] = None,
+    ray_args: Optional[RaySettings] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -365,7 +363,7 @@ def read_orc(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    ray_args: typing.RayReadParquetSettings, optional
+    ray_args: typing.RaySettings, optional
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
@@ -401,10 +399,6 @@ def read_orc(
 
     """
     ray_args = ray_args if ray_args else {}
-    bulk_read = ray_args.get("bulk_read", False)
-
-    if bulk_read and validate_schema:
-        exceptions.InvalidArgumentCombination("Cannot validate schema when bulk reading data files.")
 
     s3_client = _utils.client(service_name="s3", session=boto3_session)
     paths: List[str] = _path2list(
@@ -428,7 +422,7 @@ def read_orc(
 
     # Create PyArrow schema based on file metadata, columns filter, and partitions
     schema: Optional[pa.schema] = None
-    if validate_schema and not bulk_read:
+    if validate_schema:
         schema = _validate_schemas_from_files(
             validate_schema=validate_schema,
             paths=paths,
@@ -464,7 +458,6 @@ def read_orc(
         s3_additional_kwargs=s3_additional_kwargs,
         arrow_kwargs=arrow_kwargs,
         version_ids=version_ids,
-        bulk_read=bulk_read,
     )
 
 
@@ -472,7 +465,6 @@ def read_orc(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs", "dtype_backend"],
 )
 @apply_configs
-@Experimental
 def read_orc_table(
     table: str,
     database: str,
@@ -484,7 +476,7 @@ def read_orc_table(
     validate_schema: bool = True,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     use_threads: Union[bool, int] = True,
-    ray_args: Optional[RayReadParquetSettings] = None,
+    ray_args: Optional[RaySettings] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -532,7 +524,7 @@ def read_orc_table(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    ray_args: typing.RayReadParquetSettings, optional
+    ray_args: typing.RaySettings, optional
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
@@ -624,7 +616,6 @@ def read_orc_table(
     unsupported_kwargs=["boto3_session"],
 )
 @apply_configs
-@Experimental
 def read_orc_metadata(
     path: Union[str, List[str]],
     dataset: bool = False,

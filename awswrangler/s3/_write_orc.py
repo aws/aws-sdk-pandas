@@ -16,7 +16,6 @@ from awswrangler._arrow import _df_to_table
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._utils import copy_df_shallow
-from awswrangler.annotations import Experimental
 from awswrangler.catalog._create import _create_orc_table
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
@@ -165,6 +164,7 @@ def _to_orc_chunked(
     return proxy.close()  # blocking
 
 
+@engine.dispatch_on_engine
 def _to_orc(
     df: pd.DataFrame,
     schema: pa.Schema,
@@ -181,6 +181,7 @@ def _to_orc(
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = None,
     max_rows_by_file: Optional[int] = 0,
+    bucketing: bool = False,
 ) -> List[str]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     file_path = _get_file_path(
@@ -218,7 +219,6 @@ def _to_orc(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
 @apply_configs
-@Experimental
 def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
     path: Optional[str] = None,
