@@ -25,9 +25,22 @@ def workgroup_spark(bucket, kms_key, athena_spark_execution_role_arn):
 
 @pytest.mark.parametrize(
     "code",
-    ["print(spark)"],
+    [
+        "print(spark)",
+        """
+input_path = "s3://athena-examples-us-east-1/notebooks/yellow_tripdata_2016-01.parquet"
+output_path = "$PATH"
+
+taxi_df = spark.read.format("parquet").load(input_path)
+
+taxi_passenger_counts = taxi_df.groupBy("VendorID", "passenger_count").count()
+taxi_passenger_counts.coalesce(1).write.mode('overwrite').csv(output_path)
+        """,
+    ],
 )
 def test_athena_spark_calculation(code, path, workgroup_spark):
+    code = code.replace("$PATH", path)
+
     result = wr.athena.run_spark_calculation(
         code=code,
         workgroup=workgroup_spark,

@@ -2,7 +2,7 @@
 # pylint: disable=too-many-lines
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 import boto3
 
@@ -28,7 +28,7 @@ def _wait_session(
     session_id: str,
     boto3_session: Optional[boto3.Session] = None,
     athena_session_wait_polling_delay: float = _SESSION_WAIT_POLLING_DELAY,
-) -> GetSessionStatusResponseTypeDef:
+) -> "GetSessionStatusResponseTypeDef":
     client_athena = _utils.client(service_name="athena", session=boto3_session)
 
     response: "GetSessionStatusResponseTypeDef" = client_athena.get_session_status(SessionId=session_id)
@@ -72,7 +72,7 @@ def _wait_calculation_execution(
 def _get_calculation_execution_results(
     calculation_execution_id: str,
     boto3_session: Optional[boto3.Session] = None,
-) -> "GetCalculationExecutionResponseTypeDef":
+) -> Dict[str, Any]:
     client_athena = _utils.client(service_name="athena", session=boto3_session)
 
     _wait_calculation_execution(
@@ -80,7 +80,7 @@ def _get_calculation_execution_results(
         boto3_session=boto3_session,
     )
 
-    response = client_athena.get_calculation_execution(
+    response: "GetCalculationExecutionResponseTypeDef" = client_athena.get_calculation_execution(
         CalculationExecutionId=calculation_execution_id,
     )
     # TODO: process results by content-types
@@ -88,13 +88,11 @@ def _get_calculation_execution_results(
     # result_s3_uri = response["Result"]["ResultS3Uri"]
     # if result_type == "application/vnd.aws.athena.v1+json":
     #    return s3.read_json(path=result_s3_uri)
-    return response
+    return cast(Dict[str, Any], response)
 
 
 def create_spark_session(
     workgroup: str,
-    notebook_id: Optional[str] = None,
-    notebook_version: str = "Athena notebook version 1",
     coordinator_dpu_size: int = 1,
     max_concurrent_dpus: int = 5,
     default_executor_dpu_size: int = 1,
@@ -108,8 +106,6 @@ def create_spark_session(
     Parameters
     ----------
     workgroup : str
-    notebook_id : str, optional
-    notebook_version : str, optional
     coordinator_dpu_size : int, optional
     max_concurrent_dpus : int, optional
     default_executor_dpu_size: int, optional
@@ -132,8 +128,6 @@ def create_spark_session(
     response = client_athena.start_session(
         WorkGroup=workgroup,
         EngineConfiguration=engine_configuration,
-        # NotebookId=notebook_id,
-        # NotebookVersion=notebook_version if notebook_id else None,
         SessionIdleTimeoutInMinutes=idle_timeout,
     )
     _logger.info("Session info:\n%s", response)
@@ -150,15 +144,13 @@ def run_spark_calculation(
     code: str,
     workgroup: str,
     session_id: Optional[str] = None,
-    notebook_id: Optional[str] = None,
-    notebook_version: str = "Athena notebook version 1",
     coordinator_dpu_size: int = 1,
     max_concurrent_dpus: int = 5,
     default_executor_dpu_size: int = 1,
     additional_configs: Optional[Dict[str, Any]] = None,
     idle_timeout: int = 15,
     boto3_session: Optional[boto3.Session] = None,
-) -> "GetCalculationExecutionResponseTypeDef":
+) -> Dict[str, Any]:
     """
     Execute Spark Calculation and wait for completion.
 
@@ -167,8 +159,6 @@ def run_spark_calculation(
     code : str
     workgroup : str
     session_id : str, optional
-    notebook_id : str, optional
-    notebook_version : str, optional
     coordinator_dpu_size : int, optional
     max_concurrent_dpus : int, optional
     default_executor_dpu_size: int, optional
@@ -185,8 +175,6 @@ def run_spark_calculation(
     session_id = (
         create_spark_session(
             workgroup=workgroup,
-            notebook_id=notebook_id,
-            notebook_version=notebook_version,
             coordinator_dpu_size=coordinator_dpu_size,
             max_concurrent_dpus=max_concurrent_dpus,
             default_executor_dpu_size=default_executor_dpu_size,
