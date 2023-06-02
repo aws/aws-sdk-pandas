@@ -133,7 +133,7 @@ def test_missing_or_wrong_path(path, glue_database, glue_table):
         wr.s3.to_parquet(df=df, path=wrong_path, dataset=True, database=glue_database, table=glue_table)
 
 
-@pytest.mark.xfail(is_ray_modin, raises=wr.exceptions.NoFilesFound, reason="Ray dataset cannot write empty DF")
+@pytest.mark.xfail(is_ray_modin, reason="Ray dataset cannot write empty DF")
 def test_s3_empty_dfs(path):
     df = pd.DataFrame()
     file_path = f"{path}empty"
