@@ -370,7 +370,7 @@ def test_read_json_versioned(path) -> None:
 
     for df, version_id in zip(dfs, version_ids):
         df_temp = wr.s3.read_json(path_file, version_id=version_id)
-        assert df_temp.equals(df)
+        assert df.equals(df_temp)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
 
@@ -389,7 +389,7 @@ def test_read_csv_versioned(path) -> None:
 
     for df, version_id in zip(dfs, version_ids):
         df_temp = wr.s3.read_csv(path_file, version_id=version_id)
-        assert df_temp.equals(df)
+        assert df.equals(df_temp)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
 
