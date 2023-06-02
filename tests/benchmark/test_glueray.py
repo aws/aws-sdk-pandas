@@ -52,11 +52,12 @@ def glue_job(
         Command={
             "Name": "glueray",
             "PythonVersion": "3.9",
+            "Runtime": "Ray2.4",
             "ScriptLocation": script_path,
         },
         DefaultArguments={
-            "--additional-python-modules": wrangler_zip_location,
-            "--auto-scaling-ray-min-workers": "2",
+            "--pip-install": wrangler_zip_location,
+            "--min-workers": "2",
         },
         GlueVersion="4.0",
         WorkerType="Z.2X",
