@@ -56,7 +56,7 @@ def test_csv_ignore_encoding_errors(path, encoding, strings, wrong_encoding):
     with pytest.raises(UnicodeDecodeError):
         df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding)
     df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding, encoding_errors="ignore")
-    if isinstance(df2, pd.DataFrame) is False:
+    if isinstance(df2, (pd.DataFrame, PandasDataFrame)) is False:
         df2 = pd.concat(df2, ignore_index=True)
         assert df2.shape == (3, 4)
 
