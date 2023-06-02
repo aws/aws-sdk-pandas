@@ -39,5 +39,8 @@ def _read_orc_distributed(  # pylint: disable=unused-argument
         columns=columns,
         path_root=path_root,
     )
-    to_pandas_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads)
+    to_pandas_kwargs = _data_types.pyarrow2pandas_defaults(
+        use_threads=use_threads,
+        kwargs=arrow_kwargs,
+    )
     return _to_modin(dataset=ray_dataset, to_pandas_kwargs=to_pandas_kwargs)

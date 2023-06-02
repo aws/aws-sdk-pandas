@@ -37,7 +37,7 @@ def _to_orc_distributed(  # pylint: disable=unused-argument
 ) -> List[str]:
     if bucketing:
         # Add bucket id to the prefix
-        path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}{compression_ext}.parquet"
+        path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}{compression_ext}.orc"
 
     # Create Ray Dataset
     ds = _ray_dataset_from_df(df)
