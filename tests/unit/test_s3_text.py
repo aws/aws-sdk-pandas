@@ -2,6 +2,7 @@ import logging
 
 import boto3
 import pytest
+from pandas import DataFrame as PandasDataFrame
 
 import awswrangler as wr
 import awswrangler.pandas as pd
@@ -31,12 +32,12 @@ def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_t
     df2 = wr.s3.read_csv(
         file_path, encoding=encoding, lineterminator=line_terminator, use_threads=use_threads, chunksize=chunksize
     )
-    if isinstance(df2, pd.DataFrame) is False:
+    if isinstance(df2, (pd.DataFrame, PandasDataFrame)) is False:
         df2 = pd.concat(df2, ignore_index=True)
     assert df.equals(df2)
     with pytest.raises(exception):
         df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding, use_threads=use_threads, chunksize=chunksize)
-        if isinstance(df2, pd.DataFrame) is False:
+        if isinstance(df2, (pd.DataFrame, PandasDataFrame)) is False:
             df2 = pd.concat(df2, ignore_index=True)
         assert df.equals(df2)
 
