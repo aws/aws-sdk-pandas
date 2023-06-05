@@ -2,7 +2,21 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable, Dict, List, NamedTuple, Optional, Set, Tuple, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 
 import boto3
 import numpy as np
@@ -12,6 +26,8 @@ from pandas.api.types import union_categoricals
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _extract_partitions_from_path
+from awswrangler.catalog._get import _get_partitions
+from awswrangler.catalog._utils import _catalog_id
 from awswrangler.s3._list import _path2list, _prefix_cleanup
 
 if TYPE_CHECKING:
@@ -235,3 +251,64 @@ def _validate_schemas_from_files(
         version_ids=version_ids,
     )
     return _validate_schemas(schemas, validate_schema)
+
+
+def _ensure_locations_are_valid(paths: Iterable[str]) -> Iterator[str]:
+    for path in paths:
+        suffix: str = path.rpartition("/")[2]
+        # If the suffix looks like a partition,
+        if suffix and (suffix.count("=") == 1):
+            # the path should end in a '/' character.
+            path = f"{path}/"  # ruff: noqa: PLW2901
+        yield path
+
+
+def _get_paths_for_glue_table(
+    table: str,
+    database: str,
+    filename_suffix: Union[str, List[str], None] = None,
+    filename_ignore_suffix: Union[str, List[str], None] = None,
+    catalog_id: Optional[str] = None,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+) -> Tuple[Union[str, List[str]], Optional[str], GetTableResponseTypeDef]:
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
+
+    res = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
+    try:
+        location: str = res["Table"]["StorageDescriptor"]["Location"]
+        path: str = location if location.endswith("/") else f"{location}/"
+    except KeyError as ex:
+        raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
+
+    path_root: Optional[str] = None
+    paths: Union[str, List[str]] = path
+
+    # If filter is available, fetch & filter out partitions
+    # Then list objects & process individual object keys under path_root
+    if partition_filter:
+        available_partitions_dict = _get_partitions(
+            database=database,
+            table=table,
+            catalog_id=catalog_id,
+            boto3_session=boto3_session,
+        )
+        available_partitions = list(_ensure_locations_are_valid(available_partitions_dict.keys()))
+        if available_partitions:
+            paths = []
+            path_root = path
+            partitions: Union[str, List[str]] = _apply_partition_filter(
+                path_root=path_root, paths=available_partitions, filter_func=partition_filter
+            )
+            for partition in partitions:
+                paths += _path2list(
+                    path=partition,
+                    s3_client=s3_client,
+                    suffix=filename_suffix,
+                    ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=filename_ignore_suffix),
+                    s3_additional_kwargs=s3_additional_kwargs,
+                )
+
+    return paths, path_root, res
