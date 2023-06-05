@@ -4,11 +4,14 @@ from dataclasses import dataclass
 
 import pytest
 
-from awswrangler._sql_formatter import _EngineType, _format_parameters
+from awswrangler._sql_formatter import _Engine, _format_parameters, _HiveEngine, _PrestoEngine
+
+_hive_engine_param = pytest.param(_HiveEngine(), id="hive")
+_presto_engine_param = pytest.param(_PrestoEngine(), id="presto")
 
 
-@pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])
-def test_parameter_formatting(engine: _EngineType) -> None:
+@pytest.mark.parametrize("engine", [_hive_engine_param, _presto_engine_param])
+def test_parameter_formatting(engine: _Engine) -> None:
     actual_params = _format_parameters(
         {
             "string": "hello",
@@ -43,8 +46,8 @@ def test_parameter_formatting(engine: _EngineType) -> None:
     assert actual_params == expected_params
 
 
-@pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])
-def test_set_formatting(engine: _EngineType) -> None:
+@pytest.mark.parametrize("engine", [_hive_engine_param, _presto_engine_param])
+def test_set_formatting(engine: _Engine) -> None:
     actual_params = _format_parameters(
         {"set": {decimal.Decimal("33.33"), 1, None, False}},
         engine=engine,
@@ -62,7 +65,7 @@ def test_set_formatting(engine: _EngineType) -> None:
 def test_escaped_string_formatting_for_presto() -> None:
     actual_params = _format_parameters(
         {"string": "Driver's License"},
-        engine=_EngineType.PRESTO,
+        engine=_PrestoEngine(),
     )
 
     expected_params = {
@@ -75,7 +78,7 @@ def test_escaped_string_formatting_for_presto() -> None:
 def test_escaped_string_formatting_for_hive() -> None:
     actual_params = _format_parameters(
         {"string": "Driver's License"},
-        engine=_EngineType.HIVE,
+        engine=_HiveEngine(),
     )
 
     expected_params = {
@@ -85,8 +88,8 @@ def test_escaped_string_formatting_for_hive() -> None:
     assert actual_params == expected_params
 
 
-@pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])
-def test_map_key_cannot_be_null(engine: _EngineType) -> None:
+@pytest.mark.parametrize("engine", [_hive_engine_param, _presto_engine_param])
+def test_map_key_cannot_be_null(engine: _Engine) -> None:
     with pytest.raises(TypeError, match=r".*Map key cannot be null.*"):
         _format_parameters(
             {"map": {None: 4}},
@@ -94,8 +97,8 @@ def test_map_key_cannot_be_null(engine: _EngineType) -> None:
         )
 
 
-@pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])
-def test_map_keys_cannot_have_different_types(engine: _EngineType) -> None:
+@pytest.mark.parametrize("engine", [_hive_engine_param, _presto_engine_param])
+def test_map_keys_cannot_have_different_types(engine: _Engine) -> None:
     with pytest.raises(TypeError, match=r".*All Map key elements must be the same type\..*"):
         _format_parameters(
             {"map": {"hello": 3, 77: 10}},
@@ -103,8 +106,8 @@ def test_map_keys_cannot_have_different_types(engine: _EngineType) -> None:
         )
 
 
-@pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])
-def test_invalid_parameter_type(engine: _EngineType) -> None:
+@pytest.mark.parametrize("engine", [_hive_engine_param, _presto_engine_param])
+def test_invalid_parameter_type(engine: _Engine) -> None:
     @dataclass
     class Point:
         x: int

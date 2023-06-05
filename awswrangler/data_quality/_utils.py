@@ -175,8 +175,16 @@ def _get_data_quality_results(
     )["Results"]
     rule_results: List[Dict[str, Any]] = []
     for result in results:
-        rules = result["RuleResults"]
-        for rule in rules:
-            rule["ResultId"] = result["ResultId"]  # type: ignore[typeddict-unknown-key]
-        rule_results.extend(cast(List[Dict[str, Any]], rules))
+        rule_results.extend(
+            cast(
+                List[Dict[str, Any]],
+                [
+                    dict(
+                        ((k, d[k]) for k in ("Name", "Description", "Result") if k in d),  # type: ignore[literal-required]
+                        **{"ResultId": result["ResultId"]},
+                    )
+                    for d in result["RuleResults"]
+                ],
+            )
+        )
     return pd.json_normalize(rule_results)

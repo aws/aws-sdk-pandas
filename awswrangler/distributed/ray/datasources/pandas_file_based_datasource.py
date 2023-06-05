@@ -64,7 +64,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
-    def do_write(  # pylint: disable=arguments-differ
+    def do_write(  # type: ignore[override] # pylint: disable=arguments-differ
         self,
         blocks: List[ObjectRef[pd.DataFrame]],
         metadata: List[BlockMetadata],
@@ -141,7 +141,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
 
         return write_tasks
 
-    def write(  # type: ignore[override]
+    def write(
         self,
         blocks: Iterable[Union[Block[pd.DataFrame], ObjectRef[pd.DataFrame]]],
         ctx: TaskContext,
@@ -198,7 +198,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
             path,
             filesystem=filesystem,
             dataset_uuid=dataset_uuid,
-            block=block,
+            block=block,  # type: ignore[arg-type]
             block_index=ctx.task_idx,
             file_format=file_suffix,
         )
