@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import boto3
 import pandas as pd
@@ -25,6 +25,7 @@ def _create_iceberg_table(
     table: str,
     path: str,
     wg_config: _WorkGroupConfig,
+    partition_cols: Optional[List[str]],
     index: bool = False,
     data_source: Optional[str] = None,
     workgroup: Optional[str] = None,
@@ -37,9 +38,11 @@ def _create_iceberg_table(
 
     columns_types, _ = catalog.extract_athena_types(df=df, index=index)
     cols_str: str = ", ".join([f"{k} {v}" for k, v in columns_types.items()])
+    partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
 
     create_sql: str = (
         f"CREATE TABLE IF NOT EXISTS {table} ({cols_str}) "
+        f"{partition_cols_str} "
         f"LOCATION '{path}' "
         f"TBLPROPERTIES ( 'table_type' ='ICEBERG', 'format'='parquet' )"
     )
@@ -68,6 +71,7 @@ def to_iceberg(
     temp_path: Optional[str] = None,
     index: bool = False,
     table_location: Optional[str] = None,
+    partition_cols: Optional[List[str]] = None,
     keep_files: bool = True,
     data_source: Optional[str] = None,
     workgroup: Optional[str] = None,
@@ -97,6 +101,11 @@ def to_iceberg(
         Should consider the DataFrame index as a column?.
     table_location : str, optional
         Amazon S3 location for the table. Will only be used to create a new table if it does not exist.
+    partition_cols: List[str], optional
+        List of column names that will be used to create partitions, including support for transform
+        functions (e.g. "day(ts)").
+
+        https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-partitioning
     keep_files : bool
         Whether staging files produced by Athena are retained. 'True' by default.
     data_source : str, optional
@@ -163,6 +172,7 @@ def to_iceberg(
                 table=table,
                 path=table_location,  # type: ignore[arg-type]
                 wg_config=wg_config,
+                partition_cols=partition_cols,
                 index=index,
                 data_source=data_source,
                 workgroup=workgroup,

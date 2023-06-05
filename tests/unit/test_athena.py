@@ -23,6 +23,7 @@ from .._utils import (
     get_df_txt,
     get_time_str_with_random_suffix,
     pandas_equals,
+    ts,
 )
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -1403,8 +1404,15 @@ def test_athena_date_recovery(path, glue_database, glue_table):
     assert pandas_equals(df, df2)
 
 
-def test_athena_to_iceberg(path, path2, glue_database, glue_table):
-    df = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
+@pytest.mark.parametrize("partition_cols", [None, ["name"], ["name", "day(ts)"]])
+def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_cols):
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "name": ["a", "b", "c"],
+            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+        }
+    )
     df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
     df["name"] = df["name"].astype("string")
 
@@ -1414,6 +1422,7 @@ def test_athena_to_iceberg(path, path2, glue_database, glue_table):
         table=glue_table,
         table_location=path,
         temp_path=path2,
+        partition_cols=partition_cols,
     )
 
     df_out = wr.athena.read_sql_query(
