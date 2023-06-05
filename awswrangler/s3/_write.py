@@ -4,7 +4,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, Optional, Union
 
 import boto3
 import pandas as pd
@@ -168,6 +168,11 @@ def _get_file_path(
 
 
 class _S3WriteStrategy(ABC):
+    @property
+    @abstractmethod
+    def _write_to_s3_func(self) -> Callable[..., List[str]]:
+        pass
+
     @abstractmethod
     def _write_to_s3(
         self,
@@ -386,7 +391,7 @@ class _S3WriteStrategy(ABC):
                     )
 
             paths, partitions_values = _to_dataset(
-                func=self._write_to_s3,
+                func=self._write_to_s3_func,
                 concurrent_partitioning=concurrent_partitioning,
                 df=df,
                 path_root=path,  # type: ignore[arg-type]

@@ -3,7 +3,7 @@
 import logging
 import math
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Literal, Optional, Union, cast
 
 import boto3
 import pandas as pd
@@ -190,6 +190,10 @@ def _to_orc(
 
 
 class _S3ORCWriteStrategy(_S3WriteStrategy):
+    @property
+    def _write_to_s3_func(self) -> Callable[..., List[str]]:
+        return _to_orc
+
     def _write_to_s3(
         self,
         df: pd.DataFrame,
