@@ -272,7 +272,7 @@ def _get_paths_for_glue_table(
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Tuple[Union[str, List[str]], Optional[str], GetTableResponseTypeDef]:
+) -> Tuple[Union[str, List[str]], Optional[str], "GetTableResponseTypeDef"]:
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     s3_client = _utils.client(service_name="s3", session=boto3_session)
 
