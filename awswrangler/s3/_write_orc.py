@@ -19,7 +19,14 @@ from awswrangler._utils import copy_df_shallow
 from awswrangler.catalog._create import _create_orc_table
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
-from awswrangler.s3._write import _apply_dtype, _sanitize, _validate_args
+from awswrangler.s3._write import (
+    _apply_dtype,
+    _get_chunk_file_path,
+    _get_file_path,
+    _get_write_table_args,
+    _sanitize,
+    _validate_args,
+)
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 from awswrangler.typing import BucketingInfoTuple, GlueTableSettings, _S3WriteDataReturnValue
@@ -37,43 +44,6 @@ _COMPRESSION_2_EXT: Dict[Optional[str], str] = {
     "lz4": ".lz4",
     "zstd": ".zstd",
 }
-
-
-def _get_file_path(
-    path_root: Optional[str] = None,
-    path: Optional[str] = None,
-    filename_prefix: Optional[str] = None,
-    compression_ext: str = "",
-    bucket_id: Optional[int] = None,
-    extension: str = ".orc",
-) -> str:
-    if bucket_id is not None:
-        filename_prefix = f"{filename_prefix}_bucket-{bucket_id:05d}"
-    if path is None and path_root is not None:
-        file_path: str = f"{path_root}{filename_prefix}{compression_ext}{extension}"
-    elif path is not None and path_root is None:
-        file_path = path
-    else:
-        raise RuntimeError("path and path_root received at the same time.")
-    return file_path
-
-
-def _get_chunk_file_path(file_counter: int, file_path: str) -> str:
-    slash_index: int = file_path.rfind("/")
-    dot_index: int = file_path.find(".", slash_index)
-    file_index: str = "_" + str(file_counter)
-    if dot_index == -1:
-        file_path = file_path + file_index
-    else:
-        file_path = file_path[:dot_index] + file_index + file_path[dot_index:]
-    return file_path
-
-
-def _get_write_table_args(pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    write_table_args: Dict[str, Any] = {}
-    if pyarrow_additional_kwargs and "write_table_args" in pyarrow_additional_kwargs:
-        write_table_args = pyarrow_additional_kwargs.pop("write_table_args")
-    return write_table_args
 
 
 @contextmanager
@@ -185,7 +155,11 @@ def _to_orc(
 ) -> List[str]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     file_path = _get_file_path(
-        path_root=path_root, path=path, filename_prefix=filename_prefix, compression_ext=compression_ext
+        path_root=path_root,
+        path=path,
+        filename_prefix=filename_prefix,
+        compression_ext=compression_ext,
+        extension=".orc",
     )
     table: pa.Table = _df_to_table(df, schema, index, dtype)
     if max_rows_by_file is not None and max_rows_by_file > 0:

@@ -117,3 +117,40 @@ def _sanitize(
     dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
     _utils.check_duplicated_columns(df=df)
     return _SanitizeResult(df, dtype, partition_cols, bucketing_info)
+
+
+def _get_chunk_file_path(file_counter: int, file_path: str) -> str:
+    slash_index: int = file_path.rfind("/")
+    dot_index: int = file_path.find(".", slash_index)
+    file_index: str = "_" + str(file_counter)
+    if dot_index == -1:
+        file_path = file_path + file_index
+    else:
+        file_path = file_path[:dot_index] + file_index + file_path[dot_index:]
+    return file_path
+
+
+def _get_write_table_args(pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    write_table_args: Dict[str, Any] = {}
+    if pyarrow_additional_kwargs and "write_table_args" in pyarrow_additional_kwargs:
+        write_table_args = pyarrow_additional_kwargs.pop("write_table_args")
+    return write_table_args
+
+
+def _get_file_path(
+    path_root: Optional[str] = None,
+    path: Optional[str] = None,
+    filename_prefix: Optional[str] = None,
+    compression_ext: str = "",
+    bucket_id: Optional[int] = None,
+    extension: str = ".parquet",
+) -> str:
+    if bucket_id is not None:
+        filename_prefix = f"{filename_prefix}_bucket-{bucket_id:05d}"
+    if path is None and path_root is not None:
+        file_path: str = f"{path_root}{filename_prefix}{compression_ext}{extension}"
+    elif path is not None and path_root is None:
+        file_path = path
+    else:
+        raise RuntimeError("path and path_root received at the same time.")
+    return file_path
