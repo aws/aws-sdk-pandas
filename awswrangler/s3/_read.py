@@ -240,6 +240,7 @@ def _validate_schemas_from_files(
     s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]],
+    coerce_int96_timestamp_unit: Optional[str],
     metadata_reader: _TableMetadataReader,
 ) -> pa.schema:
     schemas: List[pa.schema] = metadata_reader.read_schemas_from_files(
@@ -249,6 +250,7 @@ def _validate_schemas_from_files(
         s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         version_ids=version_ids,
+        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
     )
     return _validate_schemas(schemas, validate_schema)
 
