@@ -45,7 +45,6 @@ def _wait_session(
     return response
 
 
-# TODO: refactor copy-pasted waiters
 def _wait_calculation_execution(
     calculation_execution_id: str,
     boto3_session: Optional[boto3.Session] = None,
@@ -83,11 +82,6 @@ def _get_calculation_execution_results(
     response: "GetCalculationExecutionResponseTypeDef" = client_athena.get_calculation_execution(
         CalculationExecutionId=calculation_execution_id,
     )
-    # TODO: process results by content-types
-    # result_type = response["Result"]["ResultType"]
-    # result_s3_uri = response["Result"]["ResultS3Uri"]
-    # if result_type == "application/vnd.aws.athena.v1+json":
-    #    return s3.read_json(path=result_s3_uri)
     return cast(Dict[str, Any], response)
 
 
