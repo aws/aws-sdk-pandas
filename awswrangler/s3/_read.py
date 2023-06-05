@@ -172,6 +172,7 @@ class _TableMetadataReader(ABC):
         boto3_session: Optional[boto3.Session],
         s3_additional_kwargs: Optional[Dict[str, str]],
         version_id: Optional[Union[str, Dict[str, str]]] = None,
+        coerce_int96_timestamp_unit: Optional[str] = None,
     ) -> _InternalReadTableMetadataReturnValue:
         """Handle table metadata internally."""
         s3_client = _utils.client(service_name="s3", session=boto3_session)
@@ -194,6 +195,7 @@ class _TableMetadataReader(ABC):
             s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             version_ids=version_ids,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         )
         merged_schemas = _validate_schemas(schemas=schemas, validate_schema=False)
 
