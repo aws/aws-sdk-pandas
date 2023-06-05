@@ -1,18 +1,22 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
 import logging
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
+import boto3
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 from pandas.api.types import union_categoricals
 
-from awswrangler import exceptions
+from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _extract_partitions_from_path
-from awswrangler.s3._list import _prefix_cleanup
+from awswrangler.s3._list import _path2list, _prefix_cleanup
 
 if TYPE_CHECKING:
     from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -116,3 +120,112 @@ def _check_version_id(
     return (
         version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
     )
+
+
+class _TableMetadataReader(ABC):
+    @abstractmethod
+    def read_schemas_from_files(
+        self,
+        paths: List[str],
+        sampling: float,
+        use_threads: Union[bool, int],
+        s3_client: "S3Client",
+        s3_additional_kwargs: Optional[Dict[str, str]],
+        version_ids: Optional[Dict[str, str]],
+        coerce_int96_timestamp_unit: Optional[str] = None,
+    ) -> List[pa.schema]:
+        pass
+
+    def read_table_metadata(
+        self,
+        path: Union[str, List[str]],
+        path_suffix: Optional[str],
+        path_ignore_suffix: Union[str, List[str], None],
+        ignore_empty: bool,
+        ignore_null: bool,
+        dtype: Optional[Dict[str, str]],
+        sampling: float,
+        dataset: bool,
+        use_threads: Union[bool, int],
+        boto3_session: Optional[boto3.Session],
+        s3_additional_kwargs: Optional[Dict[str, str]],
+        version_id: Optional[Union[str, Dict[str, str]]] = None,
+    ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
+        """Handle table metadata internally."""
+        s3_client = _utils.client(service_name="s3", session=boto3_session)
+        path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
+        paths: List[str] = _path2list(
+            path=path,
+            s3_client=s3_client,
+            suffix=path_suffix,
+            ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
+            ignore_empty=ignore_empty,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
+        version_ids = _check_version_id(paths=paths, version_id=version_id)
+
+        # Files
+        schemas: List[pa.schema] = self.read_schemas_from_files(
+            paths=paths,
+            sampling=sampling,
+            use_threads=use_threads,
+            s3_client=s3_client,
+            s3_additional_kwargs=s3_additional_kwargs,
+            version_ids=version_ids,
+        )
+        merged_schemas = _validate_schemas(schemas=schemas, validate_schema=False)
+
+        columns_types: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
+            schema=merged_schemas, partitions=None, ignore_null=ignore_null
+        )[0]
+
+        # Partitions
+        partitions_types: Optional[Dict[str, str]] = None
+        partitions_values: Optional[Dict[str, List[str]]] = None
+        if (dataset is True) and (path_root is not None):
+            partitions_types, partitions_values = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
+
+        # Casting
+        if dtype:
+            for k, v in dtype.items():
+                if columns_types and k in columns_types:
+                    columns_types[k] = v
+                if partitions_types and k in partitions_types:
+                    partitions_types[k] = v
+
+        return columns_types, partitions_types, partitions_values
+
+
+def _validate_schemas(schemas: List[pa.schema], validate_schema: bool) -> pa.schema:
+    first: pa.schema = schemas[0]
+    if len(schemas) == 1:
+        return first
+    first_dict = {s.name: s.type for s in first}
+    if validate_schema:
+        for schema in schemas[1:]:
+            if first_dict != {s.name: s.type for s in schema}:
+                raise exceptions.InvalidSchemaConvergence(
+                    f"At least 2 different schemas were detected:\n    1 - {first}\n    2 - {schema}."
+                )
+    return pa.unify_schemas(schemas)
+
+
+def _validate_schemas_from_files(
+    validate_schema: bool,
+    paths: List[str],
+    sampling: float,
+    use_threads: Union[bool, int],
+    s3_client: "S3Client",
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    version_ids: Optional[Dict[str, str]],
+    metadata_reader: _TableMetadataReader,
+) -> pa.schema:
+    schemas: List[pa.schema] = metadata_reader.read_schemas_from_files(
+        paths=paths,
+        sampling=sampling,
+        use_threads=use_threads,
+        s3_client=s3_client,
+        s3_additional_kwargs=s3_additional_kwargs,
+        version_ids=version_ids,
+    )
+    return _validate_schemas(schemas, validate_schema)
