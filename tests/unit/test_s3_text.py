@@ -2,7 +2,6 @@ import logging
 
 import boto3
 import pytest
-from pandas import DataFrame as PandasDataFrame
 
 import awswrangler as wr
 import awswrangler.pandas as pd
@@ -32,12 +31,12 @@ def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_t
     df2 = wr.s3.read_csv(
         file_path, encoding=encoding, lineterminator=line_terminator, use_threads=use_threads, chunksize=chunksize
     )
-    if isinstance(df2, (pd.DataFrame, PandasDataFrame)) is False:
+    if isinstance(df2, pd.DataFrame) is False:
         df2 = pd.concat(df2, ignore_index=True)
     assert df.equals(df2)
     with pytest.raises(exception):
         df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding, use_threads=use_threads, chunksize=chunksize)
-        if isinstance(df2, (pd.DataFrame, PandasDataFrame)) is False:
+        if isinstance(df2, pd.DataFrame) is False:
             df2 = pd.concat(df2, ignore_index=True)
         assert df.equals(df2)
 
@@ -56,7 +55,7 @@ def test_csv_ignore_encoding_errors(path, encoding, strings, wrong_encoding):
     with pytest.raises(UnicodeDecodeError):
         df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding)
     df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding, encoding_errors="ignore")
-    if isinstance(df2, (pd.DataFrame, PandasDataFrame)) is False:
+    if isinstance(df2, pd.DataFrame) is False:
         df2 = pd.concat(df2, ignore_index=True)
         assert df2.shape == (3, 4)
 
@@ -370,7 +369,7 @@ def test_read_json_versioned(path) -> None:
 
     for df, version_id in zip(dfs, version_ids):
         df_temp = wr.s3.read_json(path_file, version_id=version_id)
-        assert df.equals(df_temp)
+        assert df_temp.equals(df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
 
@@ -389,7 +388,7 @@ def test_read_csv_versioned(path) -> None:
 
     for df, version_id in zip(dfs, version_ids):
         df_temp = wr.s3.read_csv(path_file, version_id=version_id)
-        assert df.equals(df_temp)
+        assert df_temp.equals(df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
 

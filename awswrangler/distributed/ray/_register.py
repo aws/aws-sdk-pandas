@@ -25,6 +25,7 @@ from awswrangler.s3._describe import _describe_object
 from awswrangler.s3._list import _list_objects_paginate
 from awswrangler.s3._read_orc import _read_orc, _read_orc_metadata_file
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
+from awswrangler.s3._read_text import _read_text
 from awswrangler.s3._select import _select_object_content, _select_query
 from awswrangler.s3._wait import _wait_object_batch
 from awswrangler.s3._write_dataset import _to_buckets, _to_partitions
@@ -74,6 +75,7 @@ def register_ray() -> None:
         )
         from awswrangler.distributed.ray.modin.s3._read_orc import _read_orc_distributed
         from awswrangler.distributed.ray.modin.s3._read_parquet import _read_parquet_distributed
+        from awswrangler.distributed.ray.modin.s3._read_text import _read_text_distributed
         from awswrangler.distributed.ray.modin.s3._write_dataset import (
             _to_buckets_distributed,
             _to_partitions_distributed,
@@ -85,6 +87,7 @@ def register_ray() -> None:
         # Register dispatch methods for Modin
         engine.register_func(pyarrow_types_from_pandas, pyarrow_types_from_pandas_distributed)
         engine.register_func(_read_parquet, _read_parquet_distributed)
+        engine.register_func(_read_text, _read_text_distributed)
         engine.register_func(_to_buckets, _to_buckets_distributed)
         engine.register_func(_to_parquet, _to_parquet_distributed)
         engine.register_func(_to_partitions, _to_partitions_distributed)
