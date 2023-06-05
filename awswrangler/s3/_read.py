@@ -2,7 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Tuple, Union, cast
+from typing import TYPE_CHECKING, Callable, Dict, List, NamedTuple, Optional, Set, Tuple, Union, cast
 
 import boto3
 import numpy as np
@@ -122,6 +122,12 @@ def _check_version_id(
     )
 
 
+class _InternalReadTableMetadataReturnValue(NamedTuple):
+    columns_types: Dict[str, str]
+    partitions_types: Optional[Dict[str, str]]
+    partitions_values: Optional[Dict[str, List[str]]]
+
+
 class _TableMetadataReader(ABC):
     @abstractmethod
     def read_schemas_from_files(
@@ -150,7 +156,7 @@ class _TableMetadataReader(ABC):
         boto3_session: Optional[boto3.Session],
         s3_additional_kwargs: Optional[Dict[str, str]],
         version_id: Optional[Union[str, Dict[str, str]]] = None,
-    ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
+    ) -> _InternalReadTableMetadataReturnValue:
         """Handle table metadata internally."""
         s3_client = _utils.client(service_name="s3", session=boto3_session)
         path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
@@ -193,7 +199,7 @@ class _TableMetadataReader(ABC):
                 if partitions_types and k in partitions_types:
                     partitions_types[k] = v
 
-        return columns_types, partitions_types, partitions_values
+        return _InternalReadTableMetadataReturnValue(columns_types, partitions_types, partitions_values)
 
 
 def _validate_schemas(schemas: List[pa.schema], validate_schema: bool) -> pa.schema:

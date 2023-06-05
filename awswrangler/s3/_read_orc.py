@@ -12,7 +12,6 @@ from typing import (
     Iterator,
     List,
     Optional,
-    Tuple,
     Union,
 )
 
@@ -40,10 +39,11 @@ from awswrangler.s3._read import (
     _extract_partitions_metadata_from_paths,
     _get_path_ignore_suffix,
     _get_path_root,
+    _InternalReadTableMetadataReturnValue,
     _TableMetadataReader,
     _validate_schemas_from_files,
 )
-from awswrangler.typing import RaySettings
+from awswrangler.typing import RaySettings, _ReadTableMetadataReturnValue
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -142,6 +142,38 @@ class _ORCTableMetadataReader(_TableMetadataReader):
             s3_additional_kwargs=s3_additional_kwargs,
             version_ids=version_ids,
         )
+
+
+def _read_orc_metadata(
+    path: Union[str, List[str]],
+    path_suffix: Optional[str],
+    path_ignore_suffix: Union[str, List[str], None],
+    ignore_empty: bool,
+    ignore_null: bool,
+    dtype: Optional[Dict[str, str]],
+    sampling: float,
+    dataset: bool,
+    use_threads: Union[bool, int],
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    version_id: Optional[Union[str, Dict[str, str]]] = None,
+) -> _InternalReadTableMetadataReturnValue:
+    """Handle wr.s3.read_orc_metadata internally."""
+    reader = _ORCTableMetadataReader()
+    return reader.read_table_metadata(
+        path=path,
+        version_id=version_id,
+        path_suffix=path_suffix,
+        path_ignore_suffix=path_ignore_suffix,
+        ignore_empty=ignore_empty,
+        ignore_null=ignore_null,
+        dtype=dtype,
+        sampling=sampling,
+        dataset=dataset,
+        use_threads=use_threads,
+        s3_additional_kwargs=s3_additional_kwargs,
+        boto3_session=boto3_session,
+    )
 
 
 def _read_orc_file(
@@ -560,7 +592,7 @@ def read_orc_metadata(
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
+) -> _ReadTableMetadataReturnValue:
     """Read Apache ORC file(s) metadata from an S3 prefix or list of S3 objects paths.
 
     The concept of `dataset` enables more complex features like partitioning
@@ -638,8 +670,7 @@ def read_orc_metadata(
     ... ])
 
     """
-    reader = _ORCTableMetadataReader()
-    return reader.read_table_metadata(
+    columns_types, partitions_types, _ = _read_orc_metadata(
         path=path,
         version_id=version_id,
         path_suffix=path_suffix,
@@ -652,4 +683,5 @@ def read_orc_metadata(
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
-    )[:2]
+    )
+    return _ReadTableMetadataReturnValue(columns_types, partitions_types)
