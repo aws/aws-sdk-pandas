@@ -489,6 +489,7 @@ Typing
     RaySettings
     RayReadParquetSettings
     _S3WriteDataReturnValue
+    _ReadTableMetadataReturnValue
 
 Global Configurations
 ---------------------
