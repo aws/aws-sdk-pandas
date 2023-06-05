@@ -294,15 +294,6 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
             partitions_parameters=partitions_parameters,
         )
 
-    def _get_pyarrow_defaults(
-        self,
-        pyarrow_additional_kwargs: Optional[Dict[str, Any]],
-    ) -> Dict[str, Any]:
-        if not pyarrow_additional_kwargs:
-            pyarrow_additional_kwargs = {}
-
-        return pyarrow_additional_kwargs
-
 
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
@@ -676,6 +667,10 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
             f"{compression} is invalid, please use None, 'snappy', 'zlib', 'lz4' or 'zstd'."
         )
     compression_ext: str = _COMPRESSION_2_EXT[compression]
+
+    # Pyarrow defaults
+    if not pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs = {}
 
     strategy = _S3ORCWriteStrategy()
     return strategy.write(

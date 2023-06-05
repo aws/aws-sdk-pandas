@@ -229,20 +229,13 @@ class _S3WriteStrategy(ABC):
     ) -> None:
         pass
 
-    @abstractmethod
-    def _get_pyarrow_defaults(
-        self,
-        pyarrow_additional_kwargs: Optional[Dict[str, Any]],
-    ) -> Dict[str, Any]:
-        pass
-
     def write(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
         self,
         df: pd.DataFrame,
         path: Optional[str],
         index: bool,
         compression: Optional[str],
-        pyarrow_additional_kwargs: Optional[Dict[str, Any]],
+        pyarrow_additional_kwargs: Dict[str, Any],
         max_rows_by_file: Optional[int],
         use_threads: Union[bool, int],
         boto3_session: Optional[boto3.Session],
@@ -281,9 +274,6 @@ class _S3WriteStrategy(ABC):
         filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         s3_client = _utils.client(service_name="s3", session=boto3_session)
-
-        # Pyarrow defaults
-        pyarrow_additional_kwargs = self._get_pyarrow_defaults(pyarrow_additional_kwargs)
 
         # Sanitize table to respect Athena's standards
         if (sanitize_columns is True) or (database is not None and table is not None):

@@ -303,19 +303,6 @@ class _S3ParquetWriteStrategy(_S3WriteStrategy):
             partitions_parameters=partitions_parameters,
         )
 
-    def _get_pyarrow_defaults(
-        self,
-        pyarrow_additional_kwargs: Optional[Dict[str, Any]],
-    ) -> Dict[str, Any]:
-        if not pyarrow_additional_kwargs:
-            pyarrow_additional_kwargs = {}
-        if not pyarrow_additional_kwargs.get("coerce_timestamps"):
-            pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
-        if "flavor" not in pyarrow_additional_kwargs:
-            pyarrow_additional_kwargs["flavor"] = "spark"
-
-        return pyarrow_additional_kwargs
-
 
 @apply_configs
 @_utils.validate_distributed_kwargs(
@@ -711,6 +698,14 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     if _COMPRESSION_2_EXT.get(compression, None) is None:
         raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, 'snappy', 'gzip' or 'zstd'.")
     compression_ext: str = _COMPRESSION_2_EXT[compression]
+
+    # Pyarrow defaults
+    if not pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs = {}
+    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+    if "flavor" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["flavor"] = "spark"
 
     strategy = _S3ParquetWriteStrategy()
     return strategy.write(
