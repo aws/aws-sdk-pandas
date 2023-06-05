@@ -6,7 +6,7 @@ from tests._utils import create_workgroup
 
 @pytest.fixture(scope="session")
 def athena_spark_execution_role_arn(cloudformation_outputs):
-    return cloudformation_outputs["AthenaSparkExecutionRole"]
+    return cloudformation_outputs["AthenaSparkExecutionRoleArn"]
 
 
 @pytest.fixture(scope="session")
