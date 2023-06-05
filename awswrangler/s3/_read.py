@@ -240,8 +240,8 @@ def _validate_schemas_from_files(
     s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]],
-    coerce_int96_timestamp_unit: Optional[str],
     metadata_reader: _TableMetadataReader,
+    coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> pa.schema:
     schemas: List[pa.schema] = metadata_reader.read_schemas_from_files(
         paths=paths,
