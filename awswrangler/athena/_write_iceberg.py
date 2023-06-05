@@ -26,6 +26,7 @@ def _create_iceberg_table(
     path: str,
     wg_config: _WorkGroupConfig,
     partition_cols: Optional[List[str]],
+    additional_table_properties: Optional[Dict[str, Any]],
     index: bool = False,
     data_source: Optional[str] = None,
     workgroup: Optional[str] = None,
@@ -39,12 +40,17 @@ def _create_iceberg_table(
     columns_types, _ = catalog.extract_athena_types(df=df, index=index)
     cols_str: str = ", ".join([f"{k} {v}" for k, v in columns_types.items()])
     partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
+    table_properties_str: str = (
+        ", " + ", ".join([f"'{key}'='{value}'" for key, value in additional_table_properties.items()])
+        if additional_table_properties
+        else ""
+    )
 
     create_sql: str = (
         f"CREATE TABLE IF NOT EXISTS {table} ({cols_str}) "
         f"{partition_cols_str} "
         f"LOCATION '{path}' "
-        f"TBLPROPERTIES ( 'table_type' ='ICEBERG', 'format'='parquet' )"
+        f"TBLPROPERTIES ('table_type' ='ICEBERG', 'format'='parquet'{table_properties_str})"
     )
 
     query_id: str = _start_query_execution(
@@ -79,6 +85,7 @@ def to_iceberg(
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    additional_table_properties: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
     Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
@@ -121,6 +128,11 @@ def to_iceberg(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
+    additional_table_properties : Optional[Dict[str, Any]]
+        Additional table properties.
+        e.g. additional_table_properties={'write_target_data_file_size_bytes': '536870912'}
+
+        https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-table-properties
 
     Returns
     -------
@@ -173,6 +185,7 @@ def to_iceberg(
                 path=table_location,  # type: ignore[arg-type]
                 wg_config=wg_config,
                 partition_cols=partition_cols,
+                additional_table_properties=additional_table_properties,
                 index=index,
                 data_source=data_source,
                 workgroup=workgroup,

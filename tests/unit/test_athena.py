@@ -1405,7 +1405,11 @@ def test_athena_date_recovery(path, glue_database, glue_table):
 
 
 @pytest.mark.parametrize("partition_cols", [None, ["name"], ["name", "day(ts)"]])
-def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_cols):
+@pytest.mark.parametrize(
+    "additional_table_properties",
+    [None, {"write_target_data_file_size_bytes": 536870912, "optimize_rewrite_delete_file_threshold": 10}],
+)
+def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_cols, additional_table_properties):
     df = pd.DataFrame(
         {
             "id": [1, 2, 3],
@@ -1423,6 +1427,7 @@ def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_col
         table_location=path,
         temp_path=path2,
         partition_cols=partition_cols,
+        additional_table_properties=additional_table_properties,
     )
 
     df_out = wr.athena.read_sql_query(
