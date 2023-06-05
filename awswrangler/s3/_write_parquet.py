@@ -2,7 +2,6 @@
 
 import logging
 import math
-import uuid
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast
 
@@ -12,26 +11,28 @@ import pyarrow as pa
 import pyarrow.lib
 import pyarrow.parquet
 
-from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation, typing
+from awswrangler import _utils, catalog, exceptions, typing
 from awswrangler._arrow import _df_to_table
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
-from awswrangler._utils import copy_df_shallow
-from awswrangler.s3._delete import delete_objects
+from awswrangler.catalog._create import _create_parquet_table
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
 from awswrangler.s3._write import (
     _COMPRESSION_2_EXT,
-    _apply_dtype,
     _get_chunk_file_path,
     _get_file_path,
     _get_write_table_args,
-    _sanitize,
+    _S3WriteStrategy,
     _validate_args,
 )
 from awswrangler.s3._write_concurrent import _WriteProxy
-from awswrangler.s3._write_dataset import _to_dataset
-from awswrangler.typing import BucketingInfoTuple, GlueTableSettings, _S3WriteDataReturnValue
+from awswrangler.typing import (
+    AthenaPartitionProjectionSettings,
+    BucketingInfoTuple,
+    GlueTableSettings,
+    _S3WriteDataReturnValue,
+)
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -195,6 +196,125 @@ def _to_parquet(  # pylint: disable=unused-argument
             writer.write_table(table, **write_table_args)
         paths = [file_path]
     return paths
+
+
+class _S3ParquetWriteStrategy(_S3WriteStrategy):
+    def _write_to_s3(
+        self,
+        df: pd.DataFrame,
+        schema: pa.Schema,
+        index: bool,
+        compression: Optional[str],
+        compression_ext: str,
+        pyarrow_additional_kwargs: Dict[str, Any],
+        cpus: int,
+        dtype: Dict[str, str],
+        s3_client: Optional["S3Client"],
+        s3_additional_kwargs: Optional[Dict[str, str]],
+        use_threads: Union[bool, int],
+        path: Optional[str] = None,
+        path_root: Optional[str] = None,
+        filename_prefix: Optional[str] = None,
+        max_rows_by_file: Optional[int] = 0,
+        bucketing: bool = False,
+    ) -> List[str]:
+        return _to_parquet(
+            df=df,
+            schema=schema,
+            index=index,
+            compression=compression,
+            compression_ext=compression_ext,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            cpus=cpus,
+            dtype=dtype,
+            s3_client=s3_client,
+            s3_additional_kwargs=s3_additional_kwargs,
+            use_threads=use_threads,
+            path=path,
+            path_root=path_root,
+            filename_prefix=filename_prefix,
+            max_rows_by_file=max_rows_by_file,
+            bucketing=bucketing,
+        )
+
+    def _create_glue_table(
+        self,
+        database: str,
+        table: str,
+        path: str,
+        columns_types: Dict[str, str],
+        table_type: Optional[str] = None,
+        partitions_types: Optional[Dict[str, str]] = None,
+        bucketing_info: Optional[BucketingInfoTuple] = None,
+        catalog_id: Optional[str] = None,
+        compression: Optional[str] = None,
+        description: Optional[str] = None,
+        parameters: Optional[Dict[str, str]] = None,
+        columns_comments: Optional[Dict[str, str]] = None,
+        mode: str = "overwrite",
+        catalog_versioning: bool = False,
+        transaction_id: Optional[str] = None,
+        athena_partition_projection_settings: Optional[AthenaPartitionProjectionSettings] = None,
+        boto3_session: Optional[boto3.Session] = None,
+        catalog_table_input: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        return _create_parquet_table(
+            database=database,
+            table=table,
+            path=path,
+            columns_types=columns_types,
+            table_type=table_type,
+            partitions_types=partitions_types,
+            bucketing_info=bucketing_info,
+            catalog_id=catalog_id,
+            compression=compression,
+            description=description,
+            parameters=parameters,
+            columns_comments=columns_comments,
+            mode=mode,
+            catalog_versioning=catalog_versioning,
+            transaction_id=transaction_id,
+            athena_partition_projection_settings=athena_partition_projection_settings,
+            boto3_session=boto3_session,
+            catalog_table_input=catalog_table_input,
+        )
+
+    def _add_glue_partitions(
+        self,
+        database: str,
+        table: str,
+        partitions_values: Dict[str, List[str]],
+        bucketing_info: Optional[BucketingInfoTuple] = None,
+        catalog_id: Optional[str] = None,
+        compression: Optional[str] = None,
+        boto3_session: Optional[boto3.Session] = None,
+        columns_types: Optional[Dict[str, str]] = None,
+        partitions_parameters: Optional[Dict[str, str]] = None,
+    ) -> None:
+        return catalog.add_parquet_partitions(
+            database=database,
+            table=table,
+            partitions_values=partitions_values,
+            bucketing_info=bucketing_info,
+            compression=compression,
+            boto3_session=boto3_session,
+            catalog_id=catalog_id,
+            columns_types=columns_types,
+            partitions_parameters=partitions_parameters,
+        )
+
+    def _get_pyarrow_defaults(
+        self,
+        pyarrow_additional_kwargs: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        if not pyarrow_additional_kwargs:
+            pyarrow_additional_kwargs = {}
+        if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+            pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+        if "flavor" not in pyarrow_additional_kwargs:
+            pyarrow_additional_kwargs["flavor"] = "spark"
+
+        return pyarrow_additional_kwargs
 
 
 @apply_configs
@@ -592,189 +712,39 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, 'snappy', 'gzip' or 'zstd'.")
     compression_ext: str = _COMPRESSION_2_EXT[compression]
 
-    # Initializing defaults
-    partition_cols = partition_cols if partition_cols else []
-    dtype = dtype if dtype else {}
-    partitions_values: Dict[str, List[str]] = {}
-    mode = "append" if mode is None else mode
-    commit_trans: bool = False
-    if transaction_id:
-        table_type = "GOVERNED"
-
-    filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
-    cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-    s3_client = _utils.client(service_name="s3", session=boto3_session)
-    # Pyarrow defaults
-    if not pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs = {}
-    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
-    if "flavor" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["flavor"] = "spark"
-
-    # Sanitize table to respect Athena's standards
-    if (sanitize_columns is True) or (database is not None and table is not None):
-        df, dtype, partition_cols, bucketing_info = _sanitize(
-            df=copy_df_shallow(df),
-            dtype=dtype,
-            partition_cols=partition_cols,
-            bucketing_info=bucketing_info,
-        )
-
-    # Evaluating dtype
-    catalog_table_input: Optional[Dict[str, Any]] = None
-    if database is not None and table is not None:
-        catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-            database=database,
-            table=table,
-            boto3_session=boto3_session,
-            transaction_id=transaction_id,
-            catalog_id=catalog_id,
-        )
-        catalog_path: Optional[str] = None
-        if catalog_table_input:
-            table_type = catalog_table_input["TableType"]
-            catalog_path = catalog_table_input["StorageDescriptor"]["Location"]
-        if path is None:
-            if catalog_path:
-                path = catalog_path
-            else:
-                raise exceptions.InvalidArgumentValue(
-                    "Glue table does not exist in the catalog. Please pass the `path` argument to create it."
-                )
-        elif path and catalog_path:
-            if path.rstrip("/") != catalog_path.rstrip("/"):
-                raise exceptions.InvalidArgumentValue(
-                    f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
-                )
-        if (table_type == "GOVERNED") and (not transaction_id):
-            _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-            transaction_id = lakeformation.start_transaction(
-                read_only=False,
-                boto3_session=boto3_session,
-            )
-            commit_trans = True
-
-    df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
-    schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
-        df=df, index=index, ignore_cols=partition_cols, dtype=dtype
+    strategy = _S3ParquetWriteStrategy()
+    return strategy.write(
+        df=df,
+        path=path,
+        index=index,
+        compression=compression,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        max_rows_by_file=max_rows_by_file,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        sanitize_columns=sanitize_columns,
+        dataset=dataset,
+        filename_prefix=filename_prefix,
+        partition_cols=partition_cols,
+        bucketing_info=bucketing_info,
+        concurrent_partitioning=concurrent_partitioning,
+        mode=mode,
+        catalog_versioning=catalog_versioning,
+        schema_evolution=schema_evolution,
+        database=database,
+        table=table,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+        table_type=table_type,
+        transaction_id=transaction_id,
+        regular_partitions=regular_partitions,
+        dtype=dtype,
+        athena_partition_projection_settings=athena_partition_projection_settings,
+        catalog_id=catalog_id,
+        compression_ext=compression_ext,
     )
-    _logger.debug("Resolved pyarrow schema: \n%s", schema)
-
-    if dataset is False:
-        paths = _to_parquet(
-            df,
-            path=path,
-            filename_prefix=filename_prefix,
-            schema=schema,
-            index=index,
-            cpus=cpus,
-            compression=compression,
-            compression_ext=compression_ext,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-            s3_client=s3_client,
-            s3_additional_kwargs=s3_additional_kwargs,
-            dtype=dtype,
-            max_rows_by_file=max_rows_by_file,
-            use_threads=use_threads,
-        )
-    else:
-        columns_types: Dict[str, str] = {}
-        partitions_types: Dict[str, str] = {}
-        if (database is not None) and (table is not None):
-            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
-                df=df, index=index, partition_cols=partition_cols, dtype=dtype
-            )
-            if schema_evolution is False:
-                _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
-
-            create_table_args: Dict[str, Any] = {
-                "database": database,
-                "table": table,
-                "path": path,
-                "columns_types": columns_types,
-                "table_type": table_type,
-                "partitions_types": partitions_types,
-                "bucketing_info": bucketing_info,
-                "compression": compression,
-                "description": description,
-                "parameters": parameters,
-                "columns_comments": columns_comments,
-                "boto3_session": boto3_session,
-                "mode": mode,
-                "transaction_id": transaction_id,
-                "catalog_versioning": catalog_versioning,
-                "athena_partition_projection_settings": athena_partition_projection_settings,
-                "catalog_id": catalog_id,
-                "catalog_table_input": catalog_table_input,
-            }
-
-            if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
-                create_table_args["catalog_table_input"] = catalog._get_table_input(  # pylint: disable=protected-access
-                    database=database,
-                    table=table,
-                    boto3_session=boto3_session,
-                    transaction_id=transaction_id,
-                    catalog_id=catalog_id,
-                )
-
-        paths, partitions_values = _to_dataset(
-            func=_to_parquet,
-            concurrent_partitioning=concurrent_partitioning,
-            df=df,
-            path_root=path,  # type: ignore[arg-type]
-            filename_prefix=filename_prefix,
-            index=index,
-            compression=compression,
-            compression_ext=compression_ext,
-            catalog_id=catalog_id,
-            database=database,
-            table=table,
-            table_type=table_type,
-            transaction_id=transaction_id,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-            cpus=cpus,
-            use_threads=use_threads,
-            partition_cols=partition_cols,
-            partitions_types=partitions_types,
-            bucketing_info=bucketing_info,
-            dtype=dtype,
-            mode=mode,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            schema=schema,
-            max_rows_by_file=max_rows_by_file,
-        )
-        if database and table:
-            try:
-                catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
-                if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
-                    catalog.add_parquet_partitions(
-                        database=database,
-                        table=table,
-                        partitions_values=partitions_values,
-                        bucketing_info=bucketing_info,
-                        compression=compression,
-                        boto3_session=boto3_session,
-                        catalog_id=catalog_id,
-                        columns_types=columns_types,
-                    )
-                if commit_trans:
-                    lakeformation.commit_transaction(
-                        transaction_id=transaction_id,  # type: ignore[arg-type]
-                        boto3_session=boto3_session,
-                    )
-            except Exception:
-                _logger.debug("Catalog write failed, cleaning up S3 objects (len(paths): %s).", len(paths))
-                delete_objects(
-                    path=paths,
-                    use_threads=use_threads,
-                    boto3_session=boto3_session,
-                    s3_additional_kwargs=s3_additional_kwargs,
-                )
-                raise
-    return {"paths": paths, "partitions_values": partitions_values}
 
 
 @apply_configs
