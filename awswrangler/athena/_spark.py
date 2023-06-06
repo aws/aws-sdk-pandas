@@ -100,12 +100,20 @@ def create_spark_session(
     Parameters
     ----------
     workgroup : str
+        Athena workgroup name. Must be Spark-enabled.
     coordinator_dpu_size : int, optional
+        The number of DPUs to use for the coordinator. A coordinator is a special executor that orchestrates
+        processing work and manages other executors in a notebook session. The default is 1.
     max_concurrent_dpus : int, optional
+        The maximum number of DPUs that can run concurrently. The default is 5.
     default_executor_dpu_size: int, optional
+        The default number of DPUs to use for executors. The default is 1.
     additional_configs : Dict[str, Any], optional
+        Contains additional engine parameter mappings in the form of key-value pairs.
     idle_timeout : int, optional
+         The idle timeout in minutes for the session. The default is 15.
     boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
@@ -151,14 +159,24 @@ def run_spark_calculation(
     Parameters
     ----------
     code : str
+        A string that contains the code for the calculation.
     workgroup : str
+        Athena workgroup name. Must be Spark-enabled.
     session_id : str, optional
+        The session id. If not passed, a session will be started.
     coordinator_dpu_size : int, optional
+        The number of DPUs to use for the coordinator. A coordinator is a special executor that orchestrates
+        processing work and manages other executors in a notebook session. The default is 1.
     max_concurrent_dpus : int, optional
+        The maximum number of DPUs that can run concurrently. The default is 5.
     default_executor_dpu_size: int, optional
+        The default number of DPUs to use for executors. The default is 1.
     additional_configs : Dict[str, Any], optional
+        Contains additional engine parameter mappings in the form of key-value pairs.
     idle_timeout : int, optional
+        The idle timeout in minutes for the session. The default is 15.
     boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
