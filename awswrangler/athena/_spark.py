@@ -117,7 +117,14 @@ def create_spark_session(
 
     Returns
     -------
+    str
         Session id
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df = wr.athena.create_spark_session(workgroup="...", max_concurrent_dpus=10)
+
     """
     client_athena = _utils.client(service_name="athena", session=boto3_session)
     engine_configuration: "EngineConfigurationTypeDef" = {
@@ -180,7 +187,17 @@ def run_spark_calculation(
 
     Returns
     -------
+    Dict[str, Any]
         Calculation response
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df = wr.athena.run_spark_calculation(
+    ...     code="print(spark)",
+    ...     workgroup="...",
+    ... )
+
     """
     client_athena = _utils.client(service_name="athena", session=boto3_session)
 
