@@ -59,16 +59,17 @@ def test_update_prepared_statement_error(workgroup0: str, statement: str) -> Non
 
 
 def test_athena_deallocate_prepared_statement(workgroup0: str, statement: str) -> None:
-    wr.athena.prepare_statement(
+    res = wr.athena.prepare_statement(
         sql="SELECT 1 as col0",
         statement_name=statement,
         workgroup=workgroup0,
     )
 
-    wr.athena.deallocate_prepared_statement(
+    res2 = wr.athena.deallocate_prepared_statement(
         statement_name=statement,
         workgroup=workgroup0,
     )
+    print(res2)
 
 
 def test_list_prepared_statements(workgroup1: str, statement: str) -> None:

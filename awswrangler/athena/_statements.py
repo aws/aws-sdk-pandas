@@ -39,6 +39,40 @@ def prepare_statement(
     mode: Literal["update", "error"] = "update",
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
+    """
+    Create a SQL statement with the name statement_name to be run at a later time. The statement can include parameters represented by question marks.
+
+    https://docs.aws.amazon.com/athena/latest/ug/sql-prepare.html
+
+    Parameters
+    ----------
+    sql : str
+        The query string for the prepared statement.
+    statement_name : str
+        The name of the prepared statement.
+    workgroup : str, optional
+        The name of the workgroup to which the prepared statement belongs.
+    mode: str
+        Determines the behaviour if the prepared statement already exists:
+
+        - ``update`` - updates statement if already exists
+        - ``error`` - throws an error if table exists
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, Any]
+        Response to `create_prepared_statement <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena/client/create_prepared_statement.html>`__.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> res = wr.athena.prepare_statement(
+    ...     sql="SELECT * FROM my_table WHERE name = ?",
+    ...     statement_name="statement",
+    ... )
+    """
     if mode not in ["update", "error"]:
         raise exceptions.InvalidArgumentValue("`mode` must be one of 'update' or 'error'.")
 
@@ -69,6 +103,22 @@ def prepare_statement(
 def list_prepared_statements(
     workgroup: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> List[str]:
+    """
+    List the prepared statements in the specified workgroup.
+
+    Parameters
+    ----------
+    workgroup: str, optional
+        The name of the workgroup to which the prepared statement belongs.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of prepared statements in the workgroup.
+        Each item is a dictionary with the keys ``StatementName`` and ``LastModifiedTime``.
+    """
     athena_client = _utils.client("athena", session=boto3_session)
     workgroup = workgroup if workgroup else "primary"
 
@@ -88,6 +138,33 @@ def deallocate_prepared_statement(
     workgroup: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
+    """
+    Delete the prepared statement with the specified name from the specified workgroup.
+
+    https://docs.aws.amazon.com/athena/latest/ug/sql-deallocate-prepare.html
+
+    Parameters
+    ----------
+    statement_name : str
+        The name of the prepared statement.
+    workgroup : str, optional
+        The name of the workgroup to which the prepared statement belongs.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, Any]
+        Response to `delete_prepared_statement <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena/client/delete_prepared_statement.html>`__.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> res = wr.athena.prepare_statement(
+    ...     sql="SELECT * FROM my_table WHERE name = ?",
+    ...     statement_name="statement",
+    ... )
+    """
     athena_client = _utils.client("athena", session=boto3_session)
     workgroup = workgroup if workgroup else "primary"
 
