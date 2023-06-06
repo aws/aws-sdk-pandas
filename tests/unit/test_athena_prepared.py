@@ -108,3 +108,44 @@ def test_athena_execute_prepared_statement(
 
     assert len(df_out1) == 1
     assert len(df_out2) == 1
+
+
+def test_athena_execute_prepared_statement_with_params(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+    workgroup0: str,
+    statement: str,
+) -> None:
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+
+    wr.athena.prepare_statement(
+        sql=f"SELECT * FROM {glue_table} WHERE string = ?",
+        statement_name=statement,
+        workgroup=workgroup0,
+    )
+
+    df_out1 = wr.athena.read_sql_query(
+        sql=f'EXECUTE "{statement}"',
+        database=glue_database,
+        ctas_approach=False,
+        workgroup=workgroup0,
+        execution_params=["Washington"],
+        keep_files=False,
+        s3_output=path2,
+    )
+
+    ensure_data_types(df=df_out1)
+    ensure_athena_query_metadata(df=df_out1, ctas_approach=False, encrypted=False)
+
+    assert len(df_out1) == 1
