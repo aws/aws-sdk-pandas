@@ -4,6 +4,7 @@ import time
 from typing import (
     Any,
     Dict,
+    List,
     Optional,
     Union,
     cast,
@@ -42,6 +43,7 @@ def start_query_execution(
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     data_source: Optional[str] = None,
     wait: bool = False,
+    execution_params: Optional[List[str]] = None,
 ) -> Union[str, Dict[str, Any]]:
     """Start a SQL Query against AWS Athena.
 
@@ -67,7 +69,14 @@ def start_query_execution(
     params: Dict[str, any], optional
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
+        `:name`.
+
+        Note that this formatter is applied client-side, and the query sent to Athena will include the parameter values.
+        For a server-side application of parameters, see ``execution_params``.
+    execution_params: List[str], optional
+        A list of values for the parameters in a query.
+        The values are applied sequentially to the parameters in the query in the order in which the parameters occur.
+        The parameters will be applied server-side in Athena.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     athena_cache_settings: typing.AthenaCacheSettings, optional
@@ -139,6 +148,7 @@ def start_query_execution(
             workgroup=workgroup,
             encryption=encryption,
             kms_key=kms_key,
+            execution_params=execution_params,
             boto3_session=boto3_session,
         )
     if wait:

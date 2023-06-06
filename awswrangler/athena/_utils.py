@@ -82,6 +82,7 @@ def _start_query_execution(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    execution_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     args: Dict[str, Any] = {"QueryString": sql}
@@ -111,6 +112,9 @@ def _start_query_execution(
     # workgroup
     if workgroup is not None:
         args["WorkGroup"] = workgroup
+
+    if execution_params:
+        args["ExecutionParameters"] = execution_params
 
     client_athena = _utils.client(service_name="athena", session=boto3_session)
     _logger.debug("Starting query execution with args: \n%s", pprint.pformat(args))
@@ -207,6 +211,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     query_execution_payload: Optional[Dict[str, Any]] = None,
     metadata_cache_manager: Optional[_LocalMetadataCacheManager] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    execution_params: Optional[List[str]] = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> _QueryMetadata:
     """Get query metadata."""
@@ -568,6 +573,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     categories: Optional[List[str]] = None,
     wait: bool = False,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    execution_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Union[str, _QueryMetadata]]:
     """Create a new table populated with the results of a SELECT query.
@@ -721,6 +727,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
             encryption=encryption,
             kms_key=kms_key,
             boto3_session=boto3_session,
+            execution_params=execution_params,
         )
     except botocore.exceptions.ClientError as ex:
         error = ex.response["Error"]
