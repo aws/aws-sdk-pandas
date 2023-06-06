@@ -1,6 +1,7 @@
 import logging
 
 import pytest
+from botocore.exceptions import ClientError
 
 import awswrangler as wr
 
@@ -22,9 +23,39 @@ def statement(workgroup0: str) -> str:
     yield name
     try:
         wr.athena.deallocate_prepared_statement(statement_name=name, workgroup=workgroup0)
-    except wr.exceptions.QueryFailed as e:
-        if not str(e).startswith(f"PreparedStatement {name} was not found"):
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
             raise e
+
+
+def test_update_prepared_statement(workgroup0: str, statement: str) -> None:
+    wr.athena.prepare_statement(
+        sql="SELECT 1 AS col0",
+        statement_name=statement,
+        workgroup=workgroup0,
+    )
+
+    wr.athena.prepare_statement(
+        sql="SELECT 1 AS col0, 2 AS col1",
+        statement_name=statement,
+        workgroup=workgroup0,
+    )
+
+
+def test_update_prepared_statement_error(workgroup0: str, statement: str) -> None:
+    wr.athena.prepare_statement(
+        sql="SELECT 1 AS col0",
+        statement_name=statement,
+        workgroup=workgroup0,
+    )
+
+    with pytest.raises(wr.exceptions.AlreadyExists):
+        wr.athena.prepare_statement(
+            sql="SELECT 1 AS col0, 2 AS col1",
+            statement_name=statement,
+            workgroup=workgroup0,
+            mode="error",
+        )
 
 
 def test_athena_deallocate_prepared_statement(workgroup0: str, statement: str) -> None:

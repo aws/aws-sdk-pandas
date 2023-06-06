@@ -1391,4 +1391,5 @@ def unload(
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         boto3_session=boto3_session,
         data_source=data_source,
+        execution_params=execution_params,
     )
