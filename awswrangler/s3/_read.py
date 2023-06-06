@@ -1,5 +1,6 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
+import itertools
 import logging
 from abc import ABC, abstractmethod
 from typing import (
@@ -26,8 +27,10 @@ from pandas.api.types import union_categoricals
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _extract_partitions_from_path
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
+from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._list import _path2list, _prefix_cleanup
 
 if TYPE_CHECKING:
@@ -146,7 +149,18 @@ class _InternalReadTableMetadataReturnValue(NamedTuple):
 
 class _TableMetadataReader(ABC):
     @abstractmethod
-    def read_schemas_from_files(
+    def _read_metadata_file(
+        self,
+        s3_client: Optional["S3Client"],
+        path: str,
+        s3_additional_kwargs: Optional[Dict[str, str]],
+        use_threads: Union[bool, int],
+        version_id: Optional[str] = None,
+        coerce_int96_timestamp_unit: Optional[str] = None,
+    ) -> pa.schema:
+        pass
+
+    def _read_schemas_from_files(
         self,
         paths: List[str],
         sampling: float,
@@ -156,7 +170,78 @@ class _TableMetadataReader(ABC):
         version_ids: Optional[Dict[str, str]],
         coerce_int96_timestamp_unit: Optional[str] = None,
     ) -> List[pa.schema]:
-        pass
+        paths = _utils.list_sampling(lst=paths, sampling=sampling)
+
+        executor: _BaseExecutor = _get_executor(use_threads=use_threads)
+        schemas = ray_get(
+            executor.map(
+                self._read_metadata_file,
+                s3_client,
+                paths,
+                itertools.repeat(s3_additional_kwargs),
+                itertools.repeat(use_threads),
+                [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths],
+                itertools.repeat(coerce_int96_timestamp_unit),
+            )
+        )
+        return [schema for schema in schemas if schema is not None]
+
+    def _validate_schemas_from_files(
+        self,
+        validate_schema: bool,
+        paths: List[str],
+        sampling: float,
+        use_threads: Union[bool, int],
+        s3_client: "S3Client",
+        s3_additional_kwargs: Optional[Dict[str, str]],
+        version_ids: Optional[Dict[str, str]],
+        coerce_int96_timestamp_unit: Optional[str] = None,
+    ) -> pa.schema:
+        schemas: List[pa.schema] = self._read_schemas_from_files(
+            paths=paths,
+            sampling=sampling,
+            use_threads=use_threads,
+            s3_client=s3_client,
+            s3_additional_kwargs=s3_additional_kwargs,
+            version_ids=version_ids,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+        )
+        return _validate_schemas(schemas, validate_schema)
+
+    def validate_schemas(
+        self,
+        paths: List[str],
+        path_root: Optional[str],
+        columns: Optional[List[str]],
+        validate_schema: bool,
+        s3_client: "S3Client",
+        version_ids: Optional[Dict[str, str]] = None,
+        use_threads: Union[bool, int] = True,
+        coerce_int96_timestamp_unit: Optional[str] = None,
+        s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> pa.schema:
+        schema = self._validate_schemas_from_files(
+            validate_schema=validate_schema,
+            paths=paths,
+            sampling=1.0,
+            use_threads=use_threads,
+            s3_client=s3_client,
+            s3_additional_kwargs=s3_additional_kwargs,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            version_ids=version_ids,
+        )
+        if path_root:
+            partition_types, _ = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
+            if partition_types:
+                partition_schema = pa.schema(
+                    fields={k: _data_types.athena2pyarrow(dtype=v) for k, v in partition_types.items()}
+                )
+                schema = pa.unify_schemas([schema, partition_schema])
+        if columns:
+            schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
+        _logger.debug("Resolved pyarrow schema:\n%s", schema)
+
+        return schema
 
     def read_table_metadata(
         self,
@@ -188,7 +273,7 @@ class _TableMetadataReader(ABC):
         version_ids = _check_version_id(paths=paths, version_id=version_id)
 
         # Files
-        schemas: List[pa.schema] = self.read_schemas_from_files(
+        schemas: List[pa.schema] = self._read_schemas_from_files(
             paths=paths,
             sampling=sampling,
             use_threads=use_threads,
@@ -232,29 +317,6 @@ def _validate_schemas(schemas: List[pa.schema], validate_schema: bool) -> pa.sch
                     f"At least 2 different schemas were detected:\n    1 - {first}\n    2 - {schema}."
                 )
     return pa.unify_schemas(schemas)
-
-
-def _validate_schemas_from_files(
-    validate_schema: bool,
-    paths: List[str],
-    sampling: float,
-    use_threads: Union[bool, int],
-    s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    version_ids: Optional[Dict[str, str]],
-    metadata_reader: _TableMetadataReader,
-    coerce_int96_timestamp_unit: Optional[str] = None,
-) -> pa.schema:
-    schemas: List[pa.schema] = metadata_reader.read_schemas_from_files(
-        paths=paths,
-        sampling=sampling,
-        use_threads=use_threads,
-        s3_client=s3_client,
-        s3_additional_kwargs=s3_additional_kwargs,
-        version_ids=version_ids,
-        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-    )
-    return _validate_schemas(schemas, validate_schema)
 
 
 def _ensure_locations_are_valid(paths: Iterable[str]) -> Iterator[str]:

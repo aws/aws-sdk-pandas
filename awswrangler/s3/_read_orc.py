@@ -25,20 +25,17 @@ from awswrangler._arrow import _add_table_partitions
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
-from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
     _check_version_id,
     _extract_partitions_dtypes_from_table_details,
-    _extract_partitions_metadata_from_paths,
     _get_path_ignore_suffix,
     _get_path_root,
     _get_paths_for_glue_table,
     _InternalReadTableMetadataReturnValue,
     _TableMetadataReader,
-    _validate_schemas_from_files,
 )
 from awswrangler.typing import RaySettings, _ReadTableMetadataReturnValue
 
@@ -84,48 +81,22 @@ def _read_orc_metadata_file(
         return None
 
 
-def _read_schemas_from_files(
-    paths: List[str],
-    sampling: float,
-    use_threads: Union[bool, int],
-    s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    version_ids: Optional[Dict[str, str]] = None,
-) -> List[pa.schema]:
-    paths = _utils.list_sampling(lst=paths, sampling=sampling)
-
-    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
-    schemas = ray_get(
-        executor.map(
-            _read_orc_metadata_file,
-            s3_client,
-            paths,
-            itertools.repeat(s3_additional_kwargs),
-            itertools.repeat(use_threads),
-            [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths],
-        )
-    )
-    return [schema for schema in schemas if schema is not None]
-
-
 class _ORCTableMetadataReader(_TableMetadataReader):
-    def read_schemas_from_files(
+    def _read_metadata_file(
         self,
-        paths: List[str],
-        sampling: float,
-        use_threads: Union[bool, int],
-        s3_client: "S3Client",
+        s3_client: Optional["S3Client"],
+        path: str,
         s3_additional_kwargs: Optional[Dict[str, str]],
-        version_ids: Optional[Dict[str, str]],
+        use_threads: Union[bool, int],
+        version_id: Optional[str] = None,
         coerce_int96_timestamp_unit: Optional[str] = None,
-    ) -> List[pa.schema]:
-        return _read_schemas_from_files(
-            paths=paths,
-            sampling=sampling,
-            use_threads=use_threads,
+    ) -> pa.schema:
+        return _read_orc_metadata_file(
             s3_client=s3_client,
+            path=path,
             s3_additional_kwargs=s3_additional_kwargs,
-            version_ids=version_ids,
+            use_threads=use_threads,
+            version_id=version_id,
         )
 
 
@@ -370,26 +341,17 @@ def read_orc(
     # Create PyArrow schema based on file metadata, columns filter, and partitions
     schema: Optional[pa.schema] = None
     if validate_schema:
-        schema = _validate_schemas_from_files(
-            validate_schema=validate_schema,
+        metadata_reader = _ORCTableMetadataReader()
+        schema = metadata_reader.validate_schemas(
             paths=paths,
-            sampling=1.0,
-            use_threads=use_threads,
+            path_root=path_root,
+            columns=columns,
+            validate_schema=validate_schema,
             s3_client=s3_client,
-            s3_additional_kwargs=s3_additional_kwargs,
             version_ids=version_ids,
-            metadata_reader=_ORCTableMetadataReader(),
+            use_threads=use_threads,
+            s3_additional_kwargs=s3_additional_kwargs,
         )
-        if path_root:
-            partition_types, _ = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
-            if partition_types:
-                partition_schema = pa.schema(
-                    fields={k: _data_types.athena2pyarrow(dtype=v) for k, v in partition_types.items()}
-                )
-                schema = pa.unify_schemas([schema, partition_schema])
-        if columns:
-            schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
-        _logger.debug("Resolved pyarrow schema:\n%s", schema)
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(
         use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
