@@ -40,6 +40,24 @@ def test_athena_deallocate_prepared_statement(workgroup0: str, statement: str) -
     )
 
 
+def test_list_prepared_statements(workgroup1: str, statement: str) -> None:
+    wr.athena.prepare_statement(
+        sql="SELECT 1 as col0",
+        statement_name=statement,
+        workgroup=workgroup1,
+    )
+
+    statement_list = wr.athena.list_prepared_statements(workgroup1)
+
+    assert len(statement_list) == 1
+    assert statement_list[0]["StatementName"] == statement
+
+    wr.athena.deallocate_prepared_statement(statement, workgroup=workgroup1)
+
+    statement_list = wr.athena.list_prepared_statements(workgroup1)
+    assert len(statement_list) == 0
+
+
 def test_athena_execute_prepared_statement(
     path: str,
     path2: str,
@@ -62,7 +80,6 @@ def test_athena_execute_prepared_statement(
     wr.athena.prepare_statement(
         sql=f"SELECT * FROM {glue_table} WHERE string = ?",
         statement_name=statement,
-        database=glue_database,
         workgroup=workgroup0,
     )
 
