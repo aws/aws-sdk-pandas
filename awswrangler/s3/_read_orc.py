@@ -34,7 +34,6 @@ from awswrangler.s3._read import (
     _get_path_ignore_suffix,
     _get_path_root,
     _get_paths_for_glue_table,
-    _InternalReadTableMetadataReturnValue,
     _TableMetadataReader,
 )
 from awswrangler.typing import RaySettings, _ReadTableMetadataReturnValue
@@ -98,38 +97,6 @@ class _ORCTableMetadataReader(_TableMetadataReader):
             use_threads=use_threads,
             version_id=version_id,
         )
-
-
-def _read_orc_metadata(
-    path: Union[str, List[str]],
-    path_suffix: Optional[str],
-    path_ignore_suffix: Union[str, List[str], None],
-    ignore_empty: bool,
-    ignore_null: bool,
-    dtype: Optional[Dict[str, str]],
-    sampling: float,
-    dataset: bool,
-    use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
-) -> _InternalReadTableMetadataReturnValue:
-    """Handle wr.s3.read_orc_metadata internally."""
-    reader = _ORCTableMetadataReader()
-    return reader.read_table_metadata(
-        path=path,
-        version_id=version_id,
-        path_suffix=path_suffix,
-        path_ignore_suffix=path_ignore_suffix,
-        ignore_empty=ignore_empty,
-        ignore_null=ignore_null,
-        dtype=dtype,
-        sampling=sampling,
-        dataset=dataset,
-        use_threads=use_threads,
-        s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=boto3_session,
-    )
 
 
 def _read_orc_file(
@@ -596,7 +563,8 @@ def read_orc_metadata(
     ... ])
 
     """
-    columns_types, partitions_types, _ = _read_orc_metadata(
+    reader = _ORCTableMetadataReader()
+    columns_types, partitions_types, _ = reader.read_table_metadata(
         path=path,
         version_id=version_id,
         path_suffix=path_suffix,
@@ -610,4 +578,5 @@ def read_orc_metadata(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     )
+
     return _ReadTableMetadataReturnValue(columns_types, partitions_types)
