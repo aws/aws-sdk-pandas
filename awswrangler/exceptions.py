@@ -49,6 +49,14 @@ class QueryCancelled(Exception):
     """QueryCancelled exception."""
 
 
+class SessionFailed(Exception):
+    """SessionFailed exception."""
+
+
+class CalculationFailed(Exception):
+    """CalculationFailed exception."""
+
+
 class EmptyDataFrame(Exception):
     """EmptyDataFrame exception."""
 

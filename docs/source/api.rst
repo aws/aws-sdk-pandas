@@ -121,6 +121,7 @@ Amazon Athena
     :toctree: stubs
 
     create_athena_bucket
+    create_spark_session
     create_ctas_table
     generate_create_query
     get_query_columns_types
@@ -133,6 +134,7 @@ Amazon Athena
     read_sql_query
     read_sql_table
     repair_table
+    run_spark_calculation
     start_query_execution
     stop_query_execution
     to_iceberg
