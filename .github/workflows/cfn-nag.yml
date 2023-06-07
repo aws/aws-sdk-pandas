@@ -23,6 +23,9 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8]
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js
