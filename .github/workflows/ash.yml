@@ -18,7 +18,6 @@ jobs:
     steps:
       - name: Automated Security Helper
         run: |
-          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
           git clone https://github.com/aws-samples/automated-security-helper.git
           ./automated-security-helper/ash --source-dir . --output-dir ash-report
       - name: Upload Artifact
