@@ -26,3 +26,8 @@ jobs:
           git clone https://github.com/aws-samples/automated-security-helper.git /tmp/ash
       - name: ASH
         run: /tmp/ash/ash --source-dir .
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: results
+          path: /home/runner/work/aws-sdk-pandas/aws-sdk-pandas/aggregated_results.txt
