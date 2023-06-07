@@ -18,12 +18,11 @@ jobs:
     steps:
       - name: Automated Security Helper
         run: |
-          mkdir ash-report
           git clone https://github.com/aws-samples/automated-security-helper.git
-          ./automated-security-helper/ash --source-dir awswrangler --output-dir ash-report
+          ./automated-security-helper/ash --source-dir awswrangler --ext py
       - name: Upload Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
           name: ash-report
-          path: ash-report
+          path: aggregated_results.txt
