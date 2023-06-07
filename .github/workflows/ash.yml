@@ -16,18 +16,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install
+      - name: Automated Security Helper
         run: |
-          git clone https://github.com/aws-samples/automated-security-helper.git /tmp/ash
-      - name: ASH
-        run: /tmp/ash/ash --source-dir .
-      - name: Archive code coverage results
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+          git clone https://github.com/aws-samples/automated-security-helper.git
+          ./automated-security-helper/ash --source-dir . --output-dir ash-report
+      - name: Upload Artifact
+        if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: results
-          path: /home/runner/work/aws-sdk-pandas/aws-sdk-pandas/aggregated_results.txt
+          name: ash-report
+          path: ash-report
