@@ -26,4 +26,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ash-report
-          path: aggregated-results.txt
+          path: aggregated_results.txt
