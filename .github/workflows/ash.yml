@@ -16,10 +16,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Automated Security Helper
-        run: |
-          git clone https://github.com/aws-samples/automated-security-helper.git
-          ./automated-security-helper/ash --source-dir awswrangler --ext py
+      - name: Install
+        run: git clone https://github.com/aws-samples/automated-security-helper.git /tmp/ash
+      - name: ASH
+        run: /tmp/ash/ash --source-dir .
       - name: Upload Artifact
         if: always()
         uses: actions/upload-artifact@v3
