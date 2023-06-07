@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Automated Security Helper
         run: |
-          pwd
+          mkdir ash-report
           git clone https://github.com/aws-samples/automated-security-helper.git
           ./automated-security-helper/ash --source-dir . --output-dir ash-report
       - name: Upload Artifact
@@ -26,4 +26,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ash-report
-          path: aggregated_results.txt
+          path: ash-report
