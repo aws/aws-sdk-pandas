@@ -1,5 +1,6 @@
 import logging
 
+import boto3
 import pytest
 from botocore.exceptions import ClientError
 
@@ -59,11 +60,17 @@ def test_update_prepared_statement_error(workgroup0: str, statement: str) -> Non
 
 
 def test_athena_deallocate_prepared_statement(workgroup0: str, statement: str) -> None:
+    athena_client = boto3.client("athena")
+
+    sql_statement = "SELECT 1 as col0"
     wr.athena.prepare_statement(
-        sql="SELECT 1 as col0",
+        sql=sql_statement,
         statement_name=statement,
         workgroup=workgroup0,
     )
+
+    resp = athena_client.get_prepared_statement(StatementName=statement, WorkGroup=workgroup0)
+    assert resp["PreparedStatement"]["QueryStatement"] == sql_statement
 
     wr.athena.deallocate_prepared_statement(
         statement_name=statement,
