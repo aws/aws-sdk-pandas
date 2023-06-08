@@ -1,6 +1,6 @@
 """Module with parameter types."""
 
-from typing import Dict, List, Literal, Tuple, TypedDict
+from typing import Dict, List, Literal, NamedTuple, Optional, Tuple, TypedDict
 
 from typing_extensions import NotRequired, Required
 
@@ -223,3 +223,12 @@ class _S3WriteDataReturnValue(TypedDict):
     Dictionary of partitions added with keys as S3 path locations
     and values as a list of partitions values as str.
     """
+
+
+class _ReadTableMetadataReturnValue(NamedTuple):
+    """Named tuple defining the return value of the ``read_*_metadata`` functions."""
+
+    columns_types: Dict[str, str]
+    """Dictionary containing column names and types."""
+    partitions_types: Optional[Dict[str, str]]
+    """Dictionary containing partition names and types, if partitioned."""

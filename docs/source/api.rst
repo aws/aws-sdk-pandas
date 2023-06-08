@@ -54,6 +54,9 @@ Amazon S3
     read_parquet
     read_parquet_metadata
     read_parquet_table
+    read_orc
+    read_orc_metadata
+    read_orc_table
     read_deltalake
     select_query
     size_objects
@@ -62,6 +65,7 @@ Amazon S3
     to_excel
     to_json
     to_parquet
+    to_orc
     to_deltalake
     upload
     wait_objects_exist
@@ -490,6 +494,7 @@ Typing
     RaySettings
     RayReadParquetSettings
     _S3WriteDataReturnValue
+    _ReadTableMetadataReturnValue
 
 Global Configurations
 ---------------------
