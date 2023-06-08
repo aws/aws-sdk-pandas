@@ -17,6 +17,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    TypedDict,
     Union,
     cast,
 )
@@ -28,6 +29,7 @@ from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts, typing
 from awswrangler._config import apply_configs
+from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 
 from . import _executions
@@ -293,6 +295,70 @@ def _apply_query_metadata(df: pd.DataFrame, query_metadata: _QueryMetadata) -> p
         warnings.simplefilter("ignore", category=UserWarning)
         df.query_metadata = query_metadata.raw_payload
     return df
+
+
+class _FormatterTypeQMark(TypedDict):
+    params: List[str]
+    paramstyle: Literal["qmark"]
+
+
+class _FormatterTypeNamed(TypedDict):
+    params: Dict[str, Any]
+    paramstyle: Literal["named"]
+
+
+_FormatterType = Union[_FormatterTypeQMark, _FormatterTypeNamed, None]
+
+
+def _verify_formatter(
+    params: Union[Dict[str, Any], List[str], None],
+    paramstyle: Literal["qmark", "named"],
+) -> _FormatterType:
+    if params is None:
+        return None
+
+    if paramstyle == "named":
+        if not isinstance(params, dict):
+            raise exceptions.InvalidArgumentCombination(
+                f"`params` must be a dict when paramstyle is `named`. Instead, found type {type(params)}."
+            )
+
+        return {
+            "paramstyle": "named",
+            "params": params,
+        }
+
+    if paramstyle == "qmark":
+        if not isinstance(params, list):
+            raise exceptions.InvalidArgumentCombination(
+                f"`params` must be a list when paramstyle is `qmark`. Instead, found type {type(params)}."
+            )
+
+        return {
+            "paramstyle": "qmark",
+            "params": params,
+        }
+
+    raise exceptions.InvalidArgumentValue(f"`paramstyle` must be either `qmark` or `named`. Found: {paramstyle}.")
+
+
+def _apply_formatter(
+    sql: str,
+    params: Union[Dict[str, Any], List[str], None],
+    paramstyle: Literal["qmark", "named"],
+) -> Tuple[str, Optional[List[str]]]:
+    formatter_settings = _verify_formatter(params, paramstyle)
+
+    if formatter_settings is None:
+        return sql, None
+
+    if formatter_settings["paramstyle"] == "named":
+        # Substitute query parameters]
+        sql = _process_sql_params(sql, formatter_settings["params"])
+
+        return sql, None
+
+    return sql, formatter_settings["params"]
 
 
 def get_named_query_statement(

@@ -16,9 +16,9 @@ from typing_extensions import Literal
 from awswrangler import _utils, catalog, exceptions, s3, typing
 from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
-from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.athena._utils import (
     _QUERY_WAIT_POLLING_DELAY,
+    _apply_formatter,
     _apply_query_metadata,
     _empty_dataframe_response,
     _get_query_metadata,
@@ -747,8 +747,8 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
     data_source: Optional[str] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-    params: Optional[Dict[str, Any]] = None,
-    execution_params: Optional[List[str]] = None,
+    params: Union[Dict[str, Any], List[str], None] = None,
+    paramstyle: Literal["qmark", "named"] = "named",
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -918,17 +918,25 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
-    params: Dict[str, any], optional
-        Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
-        The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name`.
+    params: Dict[str, any] | List[str], optional
+        Parameters that will be used for constructing the SQL query.
+        Only named or question mark parameters are supported.
+        The parameter style needs to be specified in the ``paramstyle`` parameter.
 
-        Note that this formatter is applied client-side, and the query sent to Athena will include the parameter values.
-        For a server-side application of parameters, see ``execution_params``.
-    execution_params: List[str], optional
-        A list of values for the parameters in a query.
+        For ``paramstyle="named"``, this value needs to be a dictionary.
+        The dict needs to contain the information in the form ``{'name': 'value'}`` and the SQL query needs to contain
+        ``:name``.
+        The formatter will be applied client-side in this scenario.
+
+        For ``paramstyle="qmark"``, this value needs to be a list of strings.
+        The formatter will be applied server-side.
         The values are applied sequentially to the parameters in the query in the order in which the parameters occur.
-        The parameters will be applied server-side in Athena.
+    paramstyle: str, optional
+        Determines the style of ``params``.
+        Possible values are:
+
+        - ``named``
+        - ``qmark``
     dtype_backend: str, optional
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
@@ -984,14 +992,14 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         raise exceptions.InvalidArgumentCombination("Only PARQUET file format is supported if unload_approach=True")
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
 
+    # Substitute query parameters if applicable
+    sql, execution_params = _apply_formatter(sql, params, paramstyle)
+
     athena_cache_settings = athena_cache_settings if athena_cache_settings else {}
     max_cache_seconds = athena_cache_settings.get("max_cache_seconds", 0)
     max_cache_query_inspections = athena_cache_settings.get("max_cache_query_inspections", 50)
     max_remote_cache_entries = athena_cache_settings.get("max_remote_cache_entries", 50)
     max_local_cache_entries = athena_cache_settings.get("max_local_cache_entries", 100)
-
-    # Substitute query parameters
-    sql = _process_sql_params(sql, params)
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
@@ -1309,8 +1317,8 @@ def unload(
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     data_source: Optional[str] = None,
-    params: Optional[Dict[str, Any]] = None,
-    execution_params: Optional[List[str]] = None,
+    params: Union[Dict[str, Any], List[str], None] = None,
+    paramstyle: Literal["qmark", "named"] = "named",
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> _QueryMetadata:
     """Write query results from a SELECT statement to the specified data format using UNLOAD.
@@ -1347,17 +1355,25 @@ def unload(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
-    params: Dict[str, any], optional
-        Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
-        The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name`.
+    params: Dict[str, any] | List[str], optional
+        Parameters that will be used for constructing the SQL query.
+        Only named or question mark parameters are supported.
+        The parameter style needs to be specified in the ``paramstyle`` parameter.
 
-        Note that this formatter is applied client-side, and the query sent to Athena will include the parameter values.
-        For a server-side application of parameters, see ``execution_params``.
-    execution_params: List[str], optional
-        A list of values for the parameters in a query.
+        For ``paramstyle="named"``, this value needs to be a dictionary.
+        The dict needs to contain the information in the form ``{'name': 'value'}`` and the SQL query needs to contain
+        ``:name``.
+        The formatter will be applied client-side in this scenario.
+
+        For ``paramstyle="qmark"``, this value needs to be a list of strings.
+        The formatter will be applied server-side.
         The values are applied sequentially to the parameters in the query in the order in which the parameters occur.
-        The parameters will be applied server-side in Athena.
+    paramstyle: str, optional
+        Determines the style of ``params``.
+        Possible values are:
+
+        - ``named``
+        - ``qmark``
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
 
@@ -1375,8 +1391,8 @@ def unload(
     ... )
 
     """
-    # Substitute query parameters
-    sql = _process_sql_params(sql, params)
+    # Substitute query parameters if applicable
+    sql, execution_params = _apply_formatter(sql, params, paramstyle)
     return _unload(
         sql=sql,
         path=path,

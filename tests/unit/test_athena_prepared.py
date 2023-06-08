@@ -178,7 +178,8 @@ def test_athena_execute_prepared_statement_with_params(
         database=glue_database,
         ctas_approach=False,
         workgroup=workgroup0,
-        execution_params=["Washington"],
+        params=["Washington"],
+        paramstyle="qmark",
         keep_files=False,
         s3_output=path2,
     )

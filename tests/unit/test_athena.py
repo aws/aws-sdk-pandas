@@ -333,7 +333,7 @@ def test_athena_orc(path, glue_database, glue_table):
 @pytest.mark.parametrize(
     "col_name,col_value", [("string", "Washington"), ("iint32", "1"), ("date", "DATE '2020-01-01'")]
 )
-def test_athena_execution_parameters(
+def test_athena_paramstyle_qmark_parameters(
     path: str,
     path2: str,
     glue_database: str,
@@ -361,7 +361,8 @@ def test_athena_execution_parameters(
         ctas_approach=ctas_approach,
         unload_approach=unload_approach,
         workgroup=workgroup0,
-        execution_params=[col_value],
+        params=[col_value],
+        paramstyle="qmark",
         keep_files=False,
         s3_output=path2,
     )
