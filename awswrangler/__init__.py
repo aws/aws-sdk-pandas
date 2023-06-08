@@ -17,6 +17,7 @@ from awswrangler import (  # noqa
     dynamodb,
     emr,
     emr_serverless,
+    elasticache,
     exceptions,
     lakeformation,
     mysql,
@@ -31,7 +32,7 @@ from awswrangler import (  # noqa
     sqlserver,
     sts,
     timestream,
-    typing,
+    typing
 )
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
 from awswrangler._config import config  # noqa
@@ -46,6 +47,7 @@ __all__ = [
     "cloudwatch",
     "emr",
     "emr_serverless",
+    "elasticache",
     "data_api",
     "data_quality",
     "dynamodb",
