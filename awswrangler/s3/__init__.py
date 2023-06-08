@@ -7,6 +7,7 @@ from awswrangler.s3._download import download  # noqa
 from awswrangler.s3._list import does_object_exist, list_buckets, list_directories, list_objects  # noqa
 from awswrangler.s3._read_deltalake import read_deltalake  # noqa
 from awswrangler.s3._read_excel import read_excel  # noqa
+from awswrangler.s3._read_orc import read_orc, read_orc_metadata, read_orc_table  # noqa
 from awswrangler.s3._read_parquet import read_parquet, read_parquet_metadata, read_parquet_table  # noqa
 from awswrangler.s3._read_text import read_csv, read_fwf, read_json  # noqa
 from awswrangler.s3._select import select_query
@@ -14,6 +15,7 @@ from awswrangler.s3._upload import upload  # noqa
 from awswrangler.s3._wait import wait_objects_exist, wait_objects_not_exist  # noqa
 from awswrangler.s3._write_deltalake import to_deltalake  # noqa
 from awswrangler.s3._write_excel import to_excel  # noqa
+from awswrangler.s3._write_orc import to_orc  # noqa
 from awswrangler.s3._write_parquet import store_parquet_metadata, to_parquet  # noqa
 from awswrangler.s3._write_text import to_csv, to_json  # noqa
 
@@ -32,6 +34,9 @@ __all__ = [
     "read_parquet",
     "read_parquet_metadata",
     "read_parquet_table",
+    "read_orc",
+    "read_orc_metadata",
+    "read_orc_table",
     "read_csv",
     "read_fwf",
     "read_json",
@@ -40,6 +45,7 @@ __all__ = [
     "select_query",
     "store_parquet_metadata",
     "to_parquet",
+    "to_orc",
     "to_csv",
     "to_json",
     "to_deltalake",
