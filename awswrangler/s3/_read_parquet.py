@@ -249,21 +249,22 @@ def _read_parquet_file(
         s3_additional_kwargs=s3_additional_kwargs,
         s3_client=s3_client,
     ) as f:
-        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
-            source=f,
-            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-        )
-        if pq_file is None:
-            raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
         if schema and version.parse(pa.__version__) >= version.parse("8.0.0"):
             table = pyarrow.parquet.read_table(
-                pq_file,
+                f,
                 columns=columns,
                 schema=schema,
                 use_threads=False,
                 use_pandas_metadata=False,
+                coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
             )
         else:
+            pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+                source=f,
+                coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            )
+            if pq_file is None:
+                raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
             table = pq_file.read(columns=columns, use_threads=False, use_pandas_metadata=False)
         return _add_table_partitions(
             table=table,
