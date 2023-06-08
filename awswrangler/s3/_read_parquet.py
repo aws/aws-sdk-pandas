@@ -250,14 +250,19 @@ def _read_parquet_file(
         s3_client=s3_client,
     ) as f:
         if schema and version.parse(pa.__version__) >= version.parse("8.0.0"):
-            table = pyarrow.parquet.read_table(
-                f,
-                columns=columns,
-                schema=schema,
-                use_threads=False,
-                use_pandas_metadata=False,
-                coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-            )
+            try:
+                table = pyarrow.parquet.read_table(
+                    f,
+                    columns=columns,
+                    schema=schema,
+                    use_threads=False,
+                    use_pandas_metadata=False,
+                    coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+                )
+            except pyarrow.ArrowInvalid as ex:
+                if "Parquet file size is 0 bytes" in str(ex):
+                    raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
+                raise
         else:
             pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
                 source=f,
