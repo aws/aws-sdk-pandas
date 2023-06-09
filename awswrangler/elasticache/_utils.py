@@ -1,18 +1,12 @@
-import json
 import logging
-import re
-import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union, cast
-from awswrangler import _utils, exceptions
+from typing import Optional
+
 
 import boto3
-import botocore
+
+from awswrangler import _utils
 
 redis = _utils.import_optional_dependency("redis")
-
-from awswrangler import _utils, exceptions
-from awswrangler.annotations import Experimental
-
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
