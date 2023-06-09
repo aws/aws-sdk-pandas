@@ -7,7 +7,11 @@ from awswrangler.athena._executions import (  # noqa
     wait_query,
 )
 from awswrangler.athena._spark import create_spark_session, run_spark_calculation
-from awswrangler.athena._statements import create_prepared_statement, delete_prepared_statement, list_prepared_statements
+from awswrangler.athena._statements import (
+    create_prepared_statement,
+    delete_prepared_statement,
+    list_prepared_statements,
+)
 from awswrangler.athena._read import (  # noqa
     get_query_results,
     read_sql_query,
