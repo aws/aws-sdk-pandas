@@ -26,9 +26,15 @@ def connect(
     password: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> "redis.Redis":
-    """
+    """Create a connection to ElastiCache running Cluster
+
+    Note
+    -------
+    
     In order to connect to the elasti-cache cluster you need to be in the same VPC.
     Since the elasti-cache cluster cannot be accessed outside of the VPC.
+    
+    We are using redis-py client to connect to the cluster 
 
     Parameters
     ----------
