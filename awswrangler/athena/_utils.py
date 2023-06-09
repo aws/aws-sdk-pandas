@@ -47,6 +47,7 @@ class _QueryMetadata(NamedTuple):
     dtype: Dict[str, str]
     parse_timestamps: List[str]
     parse_dates: List[str]
+    parse_geometry: List[str]
     converters: Dict[str, Any]
     binaries: List[str]
     output_location: Optional[str]
@@ -228,6 +229,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     dtype: Dict[str, str] = {}
     parse_timestamps: List[str] = []
     parse_dates: List[str] = []
+    parse_geometry: List[str] = []
     converters: Dict[str, Any] = {}
     binaries: List[str] = []
     col_name: str
@@ -245,6 +247,8 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
             binaries.append(col_name)
         elif pandas_type == "decimal":
             converters[col_name] = lambda x: Decimal(str(x)) if str(x) not in ("", "none", " ", "<NA>") else None
+        elif col_type == "geometry" and pandas_type == "string":
+            parse_geometry.append(col_name)
         else:
             dtype[col_name] = pandas_type
 
@@ -262,6 +266,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
         dtype=dtype,
         parse_timestamps=parse_timestamps,
         parse_dates=parse_dates,
+        parse_geometry=parse_geometry,
         converters=converters,
         binaries=binaries,
         output_location=output_location,
