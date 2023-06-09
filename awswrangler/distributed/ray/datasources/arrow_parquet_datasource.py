@@ -29,6 +29,7 @@ from ray.data.datasource.file_meta_provider import (
     _handle_read_os_error,
 )
 
+from awswrangler import exceptions
 from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray import ray_remote
 from awswrangler.distributed.ray.datasources.arrow_parquet_base_datasource import ArrowParquetBaseDatasource
@@ -243,6 +244,10 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             self._metadata = meta_provider.prefetch_file_metadata(pq_ds.pieces, **prefetch_remote_args) or []
         except OSError as e:
             _handle_read_os_error(e, paths)
+        except pyarrow.ArrowInvalid as ex:
+            if "Parquet file size is 0 bytes" in str(ex):
+                raise exceptions.InvalidFile(f"Invalid Parquet file. {str(ex)}")
+            raise
         self._pq_ds = pq_ds
         self._meta_provider = meta_provider
         self._inferred_schema = inferred_schema
