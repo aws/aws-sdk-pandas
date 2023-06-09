@@ -4,6 +4,7 @@ import datetime
 import functools
 import itertools
 import logging
+import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -183,6 +184,11 @@ def _read_parquet_file(
                     raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
                 raise
         else:
+            if schema:
+                warnings.warn(
+                    "Your version of pyarrow does not support reading with schema. Consider an upgrade to pyarrow 8+.",
+                    UserWarning,
+                )
             pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
                 source=f,
                 coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
