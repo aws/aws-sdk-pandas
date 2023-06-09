@@ -32,7 +32,7 @@ def _does_statement_exist(
 
 
 @apply_configs
-def prepare_statement(
+def create_prepared_statement(
     sql: str,
     statement_name: str,
     workgroup: Optional[str] = None,
@@ -63,7 +63,7 @@ def prepare_statement(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> res = wr.athena.prepare_statement(
+    >>> wr.athena.create_prepared_statement(
     ...     sql="SELECT * FROM my_table WHERE name = ?",
     ...     statement_name="statement",
     ... )
@@ -128,7 +128,7 @@ def list_prepared_statements(
 
 
 @apply_configs
-def deallocate_prepared_statement(
+def delete_prepared_statement(
     statement_name: str,
     workgroup: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -150,8 +150,7 @@ def deallocate_prepared_statement(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> res = wr.athena.prepare_statement(
-    ...     sql="SELECT * FROM my_table WHERE name = ?",
+    >>> wr.athena.delete_prepared_statement(
     ...     statement_name="statement",
     ... )
     """

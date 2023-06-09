@@ -23,20 +23,20 @@ def statement(workgroup0: str) -> str:
     name = f"prepared_statement_{get_time_str_with_random_suffix()}"
     yield name
     try:
-        wr.athena.deallocate_prepared_statement(statement_name=name, workgroup=workgroup0)
+        wr.athena.delete_prepared_statement(statement_name=name, workgroup=workgroup0)
     except ClientError as e:
         if e.response["Error"]["Code"] != "ResourceNotFoundException":
             raise e
 
 
 def test_update_prepared_statement(workgroup0: str, statement: str) -> None:
-    wr.athena.prepare_statement(
+    wr.athena.create_prepared_statement(
         sql="SELECT 1 AS col0",
         statement_name=statement,
         workgroup=workgroup0,
     )
 
-    wr.athena.prepare_statement(
+    wr.athena.create_prepared_statement(
         sql="SELECT 1 AS col0, 2 AS col1",
         statement_name=statement,
         workgroup=workgroup0,
@@ -44,14 +44,14 @@ def test_update_prepared_statement(workgroup0: str, statement: str) -> None:
 
 
 def test_update_prepared_statement_error(workgroup0: str, statement: str) -> None:
-    wr.athena.prepare_statement(
+    wr.athena.create_prepared_statement(
         sql="SELECT 1 AS col0",
         statement_name=statement,
         workgroup=workgroup0,
     )
 
     with pytest.raises(wr.exceptions.AlreadyExists):
-        wr.athena.prepare_statement(
+        wr.athena.create_prepared_statement(
             sql="SELECT 1 AS col0, 2 AS col1",
             statement_name=statement,
             workgroup=workgroup0,
@@ -63,7 +63,7 @@ def test_athena_deallocate_prepared_statement(workgroup0: str, statement: str) -
     athena_client = boto3.client("athena")
 
     sql_statement = "SELECT 1 as col0"
-    wr.athena.prepare_statement(
+    wr.athena.create_prepared_statement(
         sql=sql_statement,
         statement_name=statement,
         workgroup=workgroup0,
@@ -72,14 +72,14 @@ def test_athena_deallocate_prepared_statement(workgroup0: str, statement: str) -
     resp = athena_client.get_prepared_statement(StatementName=statement, WorkGroup=workgroup0)
     assert resp["PreparedStatement"]["QueryStatement"] == sql_statement
 
-    wr.athena.deallocate_prepared_statement(
+    wr.athena.delete_prepared_statement(
         statement_name=statement,
         workgroup=workgroup0,
     )
 
 
 def test_list_prepared_statements(workgroup1: str, statement: str) -> None:
-    wr.athena.prepare_statement(
+    wr.athena.create_prepared_statement(
         sql="SELECT 1 as col0",
         statement_name=statement,
         workgroup=workgroup1,
@@ -90,7 +90,7 @@ def test_list_prepared_statements(workgroup1: str, statement: str) -> None:
     assert len(statement_list) == 1
     assert statement_list[0]["StatementName"] == statement
 
-    wr.athena.deallocate_prepared_statement(statement, workgroup=workgroup1)
+    wr.athena.delete_prepared_statement(statement, workgroup=workgroup1)
 
     statement_list = wr.athena.list_prepared_statements(workgroup1)
     assert len(statement_list) == 0
@@ -115,7 +115,7 @@ def test_athena_execute_prepared_statement(
         partition_cols=["par0", "par1"],
     )
 
-    wr.athena.prepare_statement(
+    wr.athena.create_prepared_statement(
         sql=f"SELECT * FROM {glue_table} WHERE string = ?",
         statement_name=statement,
         workgroup=workgroup0,
@@ -167,7 +167,7 @@ def test_athena_execute_prepared_statement_with_params(
         partition_cols=["par0", "par1"],
     )
 
-    wr.athena.prepare_statement(
+    wr.athena.create_prepared_statement(
         sql=f"SELECT * FROM {glue_table} WHERE string = ?",
         statement_name=statement,
         workgroup=workgroup0,
