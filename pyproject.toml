@@ -57,6 +57,7 @@ jsonpath-ng = { version = "^1.5.3", optional = true }
 openpyxl = { version = "^3.0.0", optional = true }
 progressbar2 = { version = "^4.0.0", optional = true }
 deltalake = { version = ">=0.6.4,<0.10.0", optional = true }
+geopandas = {version = "^0.13.2", optional = true}
 
 # Distributed
 modin = { version = "^0.20.1", optional = true }
@@ -75,6 +76,7 @@ opensearch = ["opensearch-py", "jsonpath-ng", "requests-aws4auth"]
 openpyxl = ["openpyxl"]
 progressbar = ["progressbar2"]
 deltalake = ["deltalake"]
+geospatial = ["geopandas"]
 modin = ["modin"]
 ray = ["ray"]
 
