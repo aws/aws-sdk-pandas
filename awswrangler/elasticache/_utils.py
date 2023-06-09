@@ -30,11 +30,11 @@ def connect(
 
     Note
     -------
-    
+
     In order to connect to the elasti-cache cluster you need to be in the same VPC.
     Since the elasti-cache cluster cannot be accessed outside of the VPC.
 
-    We are using redis-py client to connect to the cluster 
+    We are using redis-py client to connect to the cluster
 
     Parameters
     ----------

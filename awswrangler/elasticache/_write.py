@@ -20,18 +20,15 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 redis = _utils.import_optional_dependency("redis")
 
+
 @_utils.check_optional_dependency(redis, "redis")
-def bulk_write_df(
-    client: "redis.Redis",
-    key_name: str,
-    df: pd.DataFrame
-) -> None:
+def bulk_write_df(client: "redis.Redis", key_name: str, df: pd.DataFrame) -> None:
     """Bulk writes the dataframe data as bytes in ElastiCache cluster with the given key
-    
+
     Parameters
     ----------
 
-    
+
 
     """
     compressed_df = pa.serialize_pandas(df).to_pybytes()
