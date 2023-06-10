@@ -28,7 +28,7 @@ At scale
 
 AWS SDK for pandas can also run your workflows at scale by leveraging `modin <https://modin.readthedocs.io/en/stable/>`_ and `ray <https://www.ray.io/>`_.
 
-    >>> pip install "awswrangler[modin,ray]==3.1.1"
+    >>> pip install "awswrangler[modin,ray]==3.2.0"
 
 As a result existing scripts can run on significantly larger datasets with no code rewrite.
 
@@ -189,7 +189,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for the above Job parameter as follows:
 
-* Value: ``pyarrow==7,pandas==1.5.3,awswrangler==3.1.1``
+* Value: ``pyarrow==7,pandas==1.5.3,awswrangler==3.2.0``
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 
