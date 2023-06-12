@@ -17,7 +17,6 @@ import boto3
 import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset
-import pyarrow.orc
 from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, exceptions
@@ -40,6 +39,7 @@ from awswrangler.typing import RaySettings, _ReadTableMetadataReturnValue
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
+    from pyarrow.orc import ORCFile
 
 FULL_READ_S3_BLOCK_SIZE = 20_971_520  # 20 MB (20 * 2**20)
 METADATA_READ_S3_BLOCK_SIZE = 131_072  # 128 KB (128 * 2**10)
@@ -47,9 +47,11 @@ METADATA_READ_S3_BLOCK_SIZE = 131_072  # 128 KB (128 * 2**10)
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _pyarrow_orc_file_wrapper(source: Any) -> pyarrow.orc.ORCFile:
+def _pyarrow_orc_file_wrapper(source: Any) -> "ORCFile":
+    from pyarrow.orc import ORCFile
+
     try:
-        return pyarrow.orc.ORCFile(source=source)
+        return ORCFile(source=source)
     except pyarrow.ArrowInvalid as ex:
         if str(ex) == "ORC file size is 0 bytes":
             _logger.warning("Ignoring empty file...")
@@ -74,7 +76,7 @@ def _read_orc_metadata_file(
         s3_block_size=METADATA_READ_S3_BLOCK_SIZE,
         s3_additional_kwargs=s3_additional_kwargs,
     ) as f:
-        orc_file: Optional[pyarrow.orc.ORCFile] = _pyarrow_orc_file_wrapper(source=f)
+        orc_file: Optional["ORCFile"] = _pyarrow_orc_file_wrapper(source=f)
         if orc_file:
             return orc_file.schema
         return None
@@ -118,7 +120,7 @@ def _read_orc_file(
         s3_additional_kwargs=s3_additional_kwargs,
         s3_client=s3_client,
     ) as f:
-        orc_file: Optional[pyarrow.orc.ORCFile] = _pyarrow_orc_file_wrapper(
+        orc_file: Optional["ORCFile"] = _pyarrow_orc_file_wrapper(
             source=f,
         )
         if orc_file is None:
