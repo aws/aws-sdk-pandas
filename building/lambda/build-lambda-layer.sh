@@ -84,7 +84,6 @@ pip3 install . -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyx
 
 rm -rf python/pyarrow*
 rm -rf python/boto*
-rm -rf python/packaging*
 
 rm -f /aws-sdk-pandas/dist/pyarrow_files/pyarrow/libarrow.so
 rm -f /aws-sdk-pandas/dist/pyarrow_files/pyarrow/libparquet.so
