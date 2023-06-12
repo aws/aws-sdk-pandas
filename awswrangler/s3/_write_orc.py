@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Literal, 
 import boto3
 import pandas as pd
 import pyarrow as pa
-import pyarrow.orc
 
 from awswrangler import _utils, catalog, exceptions, typing
 from awswrangler._arrow import _df_to_table
@@ -33,6 +32,7 @@ from awswrangler.typing import (
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
+    from pyarrow.orc import ORCWriter
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -54,8 +54,8 @@ def _new_writer(
     s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
-) -> Iterator[pyarrow.orc.ORCWriter]:
-    writer: Optional[pyarrow.orc.ORCWriter] = None
+) -> Iterator["ORCWriter"]:
+    writer: Optional["ORCWriter"] = None
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
 
@@ -67,7 +67,7 @@ def _new_writer(
         s3_client=s3_client,
     ) as f:
         try:
-            writer = pyarrow.orc.ORCWriter(
+            writer = ORCWriter(
                 where=f,
                 compression="uncompressed" if compression is None else compression,
                 **pyarrow_additional_kwargs,
