@@ -33,7 +33,7 @@ cmake \
     -DARROW_WITH_ZLIB=ON \
     -DARROW_FLIGHT=OFF \
     -DARROW_GANDIVA=OFF \
-    -DARROW_ORC=ON \
+    -DARROW_ORC=OFF \
     -DARROW_CSV=ON \
     -DARROW_JSON=ON \
     -DARROW_COMPUTE=ON \
@@ -84,6 +84,7 @@ pip3 install . -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyx
 
 rm -rf python/pyarrow*
 rm -rf python/boto*
+rm -rf python/packaging*
 
 rm -f /aws-sdk-pandas/dist/pyarrow_files/pyarrow/libarrow.so
 rm -f /aws-sdk-pandas/dist/pyarrow_files/pyarrow/libparquet.so
