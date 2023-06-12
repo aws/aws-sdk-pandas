@@ -55,6 +55,8 @@ def _new_writer(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
 ) -> Iterator["ORCWriter"]:
+    from pyarrow.orc import ORCWriter
+
     writer: Optional["ORCWriter"] = None
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}

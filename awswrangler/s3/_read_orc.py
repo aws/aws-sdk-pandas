@@ -48,6 +48,8 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _pyarrow_orc_file_wrapper(source: Any) -> "ORCFile":
+    from pyarrow.orc import ORCFile
+
     try:
         return ORCFile(source=source)
     except pyarrow.ArrowInvalid as ex:
