@@ -18,6 +18,7 @@ API Reference
 * `DynamoDB`_
 * `Amazon Timestream`_
 * `Amazon EMR`_
+* `Amazon EMR Serverless`_
 * `Amazon CloudWatch Logs`_
 * `Amazon QuickSight`_
 * `AWS STS`_
@@ -53,6 +54,9 @@ Amazon S3
     read_parquet
     read_parquet_metadata
     read_parquet_table
+    read_orc
+    read_orc_metadata
+    read_orc_table
     read_deltalake
     select_query
     size_objects
@@ -61,6 +65,7 @@ Amazon S3
     to_excel
     to_json
     to_parquet
+    to_orc
     to_deltalake
     upload
     wait_objects_exist
@@ -120,6 +125,7 @@ Amazon Athena
     :toctree: stubs
 
     create_athena_bucket
+    create_spark_session
     create_ctas_table
     generate_create_query
     get_query_columns_types
@@ -132,11 +138,15 @@ Amazon Athena
     read_sql_query
     read_sql_table
     repair_table
+    run_spark_calculation
     start_query_execution
     stop_query_execution
     to_iceberg
     unload
     wait_query
+    create_prepared_statement
+    list_prepared_statements
+    delete_prepared_statement
 
 AWS Lake Formation
 ------------------
@@ -360,6 +370,18 @@ Amazon EMR
     submit_steps
     terminate_cluster
 
+Amazon EMR Serverless
+---------------------
+
+.. currentmodule:: awswrangler.emr_serverless
+
+.. autosummary::
+    :toctree: stubs
+
+    create_application
+    run_job
+    wait_job
+
 Amazon CloudWatch Logs
 ----------------------
 
@@ -472,6 +494,7 @@ Typing
     RaySettings
     RayReadParquetSettings
     _S3WriteDataReturnValue
+    _ReadTableMetadataReturnValue
 
 Global Configurations
 ---------------------

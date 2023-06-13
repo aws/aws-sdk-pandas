@@ -4,16 +4,15 @@ import datetime
 import functools
 import itertools
 import logging
+import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
-    Iterable,
     Iterator,
     List,
     Optional,
-    Tuple,
     Union,
 )
 
@@ -22,6 +21,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset
 import pyarrow.parquet
+from packaging import version
 from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, exceptions
@@ -29,20 +29,20 @@ from awswrangler._arrow import _add_table_partitions, _table_to_df
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
-from awswrangler.catalog._get import _get_partitions
-from awswrangler.catalog._utils import _catalog_id
-from awswrangler.distributed.ray import ray_get
+from awswrangler.distributed.ray import ray_get  # noqa: F401
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
     _check_version_id,
     _extract_partitions_dtypes_from_table_details,
-    _extract_partitions_metadata_from_paths,
     _get_path_ignore_suffix,
     _get_path_root,
+    _get_paths_for_glue_table,
+    _InternalReadTableMetadataReturnValue,
+    _TableMetadataReader,
 )
-from awswrangler.typing import RayReadParquetSettings
+from awswrangler.typing import RayReadParquetSettings, _ReadTableMetadataReturnValue
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -55,18 +55,9 @@ METADATA_READ_S3_BLOCK_SIZE = 131_072  # 128 KB (128 * 2**10)
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _ensure_locations_are_valid(paths: Iterable[str]) -> Iterator[str]:
-    for path in paths:
-        suffix: str = path.rpartition("/")[2]
-        # If the suffix looks like a partition,
-        if (suffix != "") and (suffix.count("=") == 1):
-            # the path should end in a '/' character.
-            path = f"{path}/"
-        yield path
-
-
 def _pyarrow_parquet_file_wrapper(
-    source: Any, coerce_int96_timestamp_unit: Optional[str] = None
+    source: Any,
+    coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> pyarrow.parquet.ParquetFile:
     try:
         return pyarrow.parquet.ParquetFile(source=source, coerce_int96_timestamp_unit=coerce_int96_timestamp_unit)
@@ -103,66 +94,24 @@ def _read_parquet_metadata_file(
         return None
 
 
-def _read_schemas_from_files(
-    paths: List[str],
-    sampling: float,
-    use_threads: Union[bool, int],
-    s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    version_ids: Optional[Dict[str, str]] = None,
-    coerce_int96_timestamp_unit: Optional[str] = None,
-) -> List[pa.schema]:
-    paths = _utils.list_sampling(lst=paths, sampling=sampling)
-
-    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
-    schemas = ray_get(
-        executor.map(
-            _read_parquet_metadata_file,
-            s3_client,
-            paths,
-            itertools.repeat(s3_additional_kwargs),
-            itertools.repeat(use_threads),
-            [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths],
-            itertools.repeat(coerce_int96_timestamp_unit),
+class _ParquetTableMetadataReader(_TableMetadataReader):
+    def _read_metadata_file(
+        self,
+        s3_client: Optional["S3Client"],
+        path: str,
+        s3_additional_kwargs: Optional[Dict[str, str]],
+        use_threads: Union[bool, int],
+        version_id: Optional[str] = None,
+        coerce_int96_timestamp_unit: Optional[str] = None,
+    ) -> pa.schema:
+        return _read_parquet_metadata_file(
+            s3_client=s3_client,
+            path=path,
+            s3_additional_kwargs=s3_additional_kwargs,
+            use_threads=use_threads,
+            version_id=version_id,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         )
-    )
-    return [schema for schema in schemas if schema is not None]
-
-
-def _validate_schemas(schemas: List[pa.schema], validate_schema: bool) -> pa.schema:
-    first: pa.schema = schemas[0]
-    if len(schemas) == 1:
-        return first
-    first_dict = {s.name: s.type for s in first}
-    if validate_schema:
-        for schema in schemas[1:]:
-            if first_dict != {s.name: s.type for s in schema}:
-                raise exceptions.InvalidSchemaConvergence(
-                    f"At least 2 different schemas were detected:\n    1 - {first}\n    2 - {schema}."
-                )
-    return pa.unify_schemas(schemas)
-
-
-def _validate_schemas_from_files(
-    validate_schema: bool,
-    paths: List[str],
-    sampling: float,
-    use_threads: Union[bool, int],
-    s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    version_ids: Optional[Dict[str, str]] = None,
-    coerce_int96_timestamp_unit: Optional[str] = None,
-) -> pa.schema:
-    schemas: List[pa.schema] = _read_schemas_from_files(
-        paths=paths,
-        sampling=sampling,
-        use_threads=use_threads,
-        s3_client=s3_client,
-        s3_additional_kwargs=s3_additional_kwargs,
-        version_ids=version_ids,
-        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-    )
-    return _validate_schemas(schemas, validate_schema)
 
 
 def _read_parquet_metadata(
@@ -179,51 +128,24 @@ def _read_parquet_metadata(
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
-) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
+) -> _InternalReadTableMetadataReturnValue:
     """Handle wr.s3.read_parquet_metadata internally."""
-    s3_client = _utils.client(service_name="s3", session=boto3_session)
-    path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
-    paths: List[str] = _path2list(
+    reader = _ParquetTableMetadataReader()
+    return reader.read_table_metadata(
         path=path,
-        s3_client=s3_client,
-        suffix=path_suffix,
-        ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
+        version_id=version_id,
+        path_suffix=path_suffix,
+        path_ignore_suffix=path_ignore_suffix,
         ignore_empty=ignore_empty,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-    version_ids = _check_version_id(paths=paths, version_id=version_id)
-
-    # Files
-    schemas: List[pa.schema] = _read_schemas_from_files(
-        paths=paths,
+        ignore_null=ignore_null,
+        dtype=dtype,
         sampling=sampling,
+        dataset=dataset,
         use_threads=use_threads,
-        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
-        version_ids=version_ids,
+        boto3_session=boto3_session,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
     )
-    merged_schemas = _validate_schemas(schemas=schemas, validate_schema=False)
-
-    columns_types: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
-        schema=merged_schemas, partitions=None, ignore_null=ignore_null
-    )[0]
-
-    # Partitions
-    partitions_types: Optional[Dict[str, str]] = None
-    partitions_values: Optional[Dict[str, List[str]]] = None
-    if (dataset is True) and (path_root is not None):
-        partitions_types, partitions_values = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
-
-    # Casting
-    if dtype:
-        for k, v in dtype.items():
-            if columns_types and k in columns_types:
-                columns_types[k] = v
-            if partitions_types and k in partitions_types:
-                partitions_types[k] = v
-
-    return columns_types, partitions_types, partitions_values
 
 
 def _read_parquet_file(
@@ -235,6 +157,7 @@ def _read_parquet_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     version_id: Optional[str] = None,
+    schema: Optional[pa.schema] = None,
 ) -> pa.Table:
     s3_block_size: int = FULL_READ_S3_BLOCK_SIZE if columns else -1  # One shot for a full read or see constant
     with open_s3_object(
@@ -246,14 +169,35 @@ def _read_parquet_file(
         s3_additional_kwargs=s3_additional_kwargs,
         s3_client=s3_client,
     ) as f:
-        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
-            source=f,
-            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-        )
-        if pq_file is None:
-            raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
+        if schema and version.parse(pa.__version__) >= version.parse("8.0.0"):
+            try:
+                table = pyarrow.parquet.read_table(
+                    f,
+                    columns=columns,
+                    schema=schema,
+                    use_threads=False,
+                    use_pandas_metadata=False,
+                    coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+                )
+            except pyarrow.ArrowInvalid as ex:
+                if "Parquet file size is 0 bytes" in str(ex):
+                    raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
+                raise
+        else:
+            if schema:
+                warnings.warn(
+                    "Your version of pyarrow does not support reading with schema. Consider an upgrade to pyarrow 8+.",
+                    UserWarning,
+                )
+            pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+                source=f,
+                coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            )
+            if pq_file is None:
+                raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
+            table = pq_file.read(columns=columns, use_threads=False, use_pandas_metadata=False)
         return _add_table_partitions(
-            table=pq_file.read(columns=columns, use_threads=False, use_pandas_metadata=False),
+            table=table,
             path=path,
             path_root=path_root,
         )
@@ -331,7 +275,7 @@ def _read_parquet(  # pylint: disable=W0613
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
     bulk_read: bool,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_parquet_file,
@@ -343,6 +287,7 @@ def _read_parquet(  # pylint: disable=W0613
         itertools.repeat(s3_additional_kwargs),
         itertools.repeat(use_threads),
         [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths],
+        itertools.repeat(schema),
     )
     return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
 
@@ -362,6 +307,7 @@ def read_parquet(
     columns: Optional[List[str]] = None,
     validate_schema: bool = False,
     coerce_int96_timestamp_unit: Optional[str] = None,
+    schema: Optional[pa.Schema] = None,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
@@ -432,7 +378,7 @@ def read_parquet(
         must return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-data-wrangler.readthedocs.io/en/3.1.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-data-wrangler.readthedocs.io/en/3.2.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     columns : List[str], optional
         List of columns to read from the file(s).
     validate_schema : bool, default False
@@ -440,6 +386,8 @@ def read_parquet(
     coerce_int96_timestamp_unit : str, optional
         Cast timestamps that are stored in INT96 format to a particular resolution (e.g. "ms").
         Setting to None is equivalent to "ns" and therefore INT96 timestamps are inferred as in nanoseconds.
+    schema : pyarrow.Schema, optional
+        Schema to use whem reading the file.
     last_modified_begin : datetime, optional
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
@@ -543,28 +491,19 @@ def read_parquet(
     version_ids = _check_version_id(paths=paths, version_id=version_id)
 
     # Create PyArrow schema based on file metadata, columns filter, and partitions
-    schema: Optional[pa.schema] = None
     if validate_schema and not bulk_read:
-        schema = _validate_schemas_from_files(
-            validate_schema=validate_schema,
+        metadata_reader = _ParquetTableMetadataReader()
+        schema = metadata_reader.validate_schemas(
             paths=paths,
-            sampling=1.0,
-            use_threads=use_threads,
+            path_root=path_root,
+            columns=columns,
+            validate_schema=validate_schema,
             s3_client=s3_client,
+            version_ids=version_ids,
+            use_threads=use_threads,
             s3_additional_kwargs=s3_additional_kwargs,
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-            version_ids=version_ids,
         )
-        if path_root:
-            partition_types, _ = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
-            if partition_types:
-                partition_schema = pa.schema(
-                    fields={k: _data_types.athena2pyarrow(dtype=v) for k, v in partition_types.items()}
-                )
-                schema = pa.unify_schemas([schema, partition_schema])
-        if columns:
-            schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
-        _logger.debug("Resolved pyarrow schema:\n%s", schema)
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(
         use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
@@ -666,7 +605,7 @@ def read_parquet_table(
         must return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/3.1.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.2.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     columns : List[str], optional
         List of columns to read from the file(s).
     validate_schema : bool, default False
@@ -726,40 +665,19 @@ def read_parquet_table(
     >>> df = wr.s3.read_parquet_table(path, dataset=True, partition_filter=my_filter)
 
     """
-    client_glue = _utils.client(service_name="glue", session=boto3_session)
-    s3_client = _utils.client(service_name="s3", session=boto3_session)
-    res = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
-    try:
-        location: str = res["Table"]["StorageDescriptor"]["Location"]
-        path: str = location if location.endswith("/") else f"{location}/"
-    except KeyError as ex:
-        raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
-    path_root: Optional[str] = None
-    paths: Union[str, List[str]] = path
-    # If filter is available, fetch & filter out partitions
-    # Then list objects & process individual object keys under path_root
-    if partition_filter:
-        available_partitions_dict = _get_partitions(
-            database=database,
-            table=table,
-            catalog_id=catalog_id,
-            boto3_session=boto3_session,
-        )
-        available_partitions = list(_ensure_locations_are_valid(available_partitions_dict.keys()))
-        if available_partitions:
-            paths = []
-            path_root = path
-            partitions: Union[str, List[str]] = _apply_partition_filter(
-                path_root=path_root, paths=available_partitions, filter_func=partition_filter
-            )
-            for partition in partitions:
-                paths += _path2list(
-                    path=partition,
-                    s3_client=s3_client,
-                    suffix=filename_suffix,
-                    ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=filename_ignore_suffix),
-                    s3_additional_kwargs=s3_additional_kwargs,
-                )
+    paths: Union[str, List[str]]
+    path_root: Optional[str]
+
+    paths, path_root, res = _get_paths_for_glue_table(
+        table=table,
+        database=database,
+        filename_suffix=filename_suffix,
+        filename_ignore_suffix=filename_ignore_suffix,
+        catalog_id=catalog_id,
+        partition_filter=partition_filter,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
 
     df = read_parquet(
         path=paths,
@@ -780,7 +698,9 @@ def read_parquet_table(
     )
 
     partial_cast_function = functools.partial(
-        _data_types.cast_pandas_with_athena_types, dtype=_extract_partitions_dtypes_from_table_details(response=res)
+        _data_types.cast_pandas_with_athena_types,
+        dtype=_extract_partitions_dtypes_from_table_details(response=res),
+        dtype_backend=dtype_backend,
     )
     if _utils.is_pandas_frame(df):
         return partial_cast_function(df)
@@ -806,7 +726,7 @@ def read_parquet_metadata(
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
+) -> _ReadTableMetadataReturnValue:
     """Read Apache Parquet file(s) metadata from an S3 prefix or list of S3 objects paths.
 
     The concept of `dataset` enables more complex features like partitioning
@@ -884,7 +804,7 @@ def read_parquet_metadata(
     ... ])
 
     """
-    return _read_parquet_metadata(
+    columns_types, partitions_types, _ = _read_parquet_metadata(
         path=path,
         version_id=version_id,
         path_suffix=path_suffix,
@@ -898,4 +818,5 @@ def read_parquet_metadata(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-    )[:2]
+    )
+    return _ReadTableMetadataReturnValue(columns_types, partitions_types)

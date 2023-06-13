@@ -2,7 +2,6 @@ import json
 import logging
 import tempfile
 import time
-import uuid
 from typing import Any, Dict, List
 
 import boto3
@@ -14,7 +13,7 @@ import awswrangler as wr
 import awswrangler.pandas as pd
 from awswrangler.opensearch._utils import _is_serverless
 
-from .._utils import extract_cloudformation_outputs
+from .._utils import _get_unique_suffix, extract_cloudformation_outputs
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -126,10 +125,6 @@ inspections_documents = [
         "violation_id": "5794_20160907_103144",
     },
 ]
-
-
-def _get_unique_suffix() -> str:
-    return str(uuid.uuid4())[:8]
 
 
 @pytest.fixture(scope="session")
@@ -311,6 +306,27 @@ def test_index_documents(client):
             client,
             documents=[{"_id": "1", "name": "John"}, {"_id": "2", "name": "George"}, {"_id": "3", "name": "Julia"}],
             index=index,
+        )
+        assert response.get("success", 0) == 3
+    finally:
+        wr.opensearch.delete_index(client, index)
+
+
+@pytest.mark.parametrize("use_threads", [False, True, 2])
+def test_index_documents_parallel(client, use_threads):
+    index = f"test_index_documents_{_get_unique_suffix()}"
+    # Pre-create index to avoid multiple threads creating conflicting mappings
+    wr.opensearch.create_index(
+        client=client,
+        index=index,
+        mappings={"properties": {"name": {"type": "text"}}},
+    )
+    try:
+        response = wr.opensearch.index_documents(
+            client,
+            documents=[{"_id": "1", "name": "John"}, {"_id": "2", "name": "George"}, {"_id": "3", "name": "Julia"}],
+            index=index,
+            use_threads=use_threads,
         )
         assert response.get("success", 0) == 3
     finally:

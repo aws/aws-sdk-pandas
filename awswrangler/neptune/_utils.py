@@ -24,7 +24,7 @@ class WriteDFType(Enum):
     UPDATE = 3
 
 
-def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType, batch_size: int) -> bool:
+def write_gremlin_df(client: "NeptuneClient", df: pd.DataFrame, mode: WriteDFType, batch_size: int) -> bool:
     """Write the provided DataFrame using Gremlin.
 
     Parameters
@@ -67,7 +67,7 @@ def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType,
     return _run_gremlin_insert(client, g)
 
 
-def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
+def _run_gremlin_insert(client: "NeptuneClient", g: GraphTraversalSource) -> bool:
     translator = Translator("g")
     s = translator.translate(g.bytecode)
     s = s.replace("Cardinality.", "")  # hack to fix parser error for set cardinality

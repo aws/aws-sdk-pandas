@@ -104,6 +104,78 @@ def _parquet_partition_definition(
     return definition
 
 
+def _orc_table_definition(
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    table_type: Optional[str],
+    partitions_types: Dict[str, str],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
+    compression: Optional[str],
+) -> Dict[str, Any]:
+    compressed: bool = compression is not None
+    return {
+        "Name": table,
+        "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
+        "TableType": "EXTERNAL_TABLE" if table_type is None else table_type,
+        "Parameters": {"classification": "orc", "compressionType": str(compression).lower(), "typeOfData": "file"},
+        "StorageDescriptor": {
+            "Columns": [{"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()],
+            "Location": path,
+            "InputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat",
+            "Compressed": compressed,
+            "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
+            "SerdeInfo": {
+                "SerializationLibrary": "org.apache.hadoop.hive.ql.io.orc.OrcSerde",
+                "Parameters": {"serialization.format": "1"},
+            },
+            "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
+            "StoredAsSubDirectories": False,
+            "SortColumns": [],
+            "Parameters": {
+                "CrawlerSchemaDeserializerVersion": "1.0",
+                "classification": "orc",
+                "compressionType": str(compression).lower(),
+                "typeOfData": "file",
+            },
+        },
+    }
+
+
+def _orc_partition_definition(
+    location: str,
+    values: List[str],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
+    compression: Optional[str],
+    columns_types: Optional[Dict[str, str]],
+    partitions_parameters: Optional[Dict[str, str]],
+) -> Dict[str, Any]:
+    compressed: bool = compression is not None
+    definition: Dict[str, Any] = {
+        "StorageDescriptor": {
+            "InputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat",
+            "Location": location,
+            "Compressed": compressed,
+            "SerdeInfo": {
+                "Parameters": {"serialization.format": "1"},
+                "SerializationLibrary": "org.apache.hadoop.hive.ql.io.orc.OrcSerde",
+            },
+            "StoredAsSubDirectories": False,
+            "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
+            "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
+        },
+        "Values": values,
+        "Parameters": {} if partitions_parameters is None else partitions_parameters,
+    }
+    if columns_types is not None:
+        definition["StorageDescriptor"]["Columns"] = [
+            {"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()
+        ]
+    return definition
+
+
 def _csv_table_definition(
     table: str,
     path: Optional[str],

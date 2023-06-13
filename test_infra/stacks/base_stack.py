@@ -87,6 +87,16 @@ class BaseStack(Stack):  # type: ignore
             resource_arn=self.bucket.bucket_arn,
             use_service_linked_role=True,
         )
+        inline_lf_policies = {
+            "GetDataAccess": iam.PolicyDocument(
+                statements=[
+                    iam.PolicyStatement(
+                        actions=["lakeformation:GetDataAccess"],
+                        resources=["*"],
+                    ),
+                ]
+            ),
+        }
         glue_data_quality_role = iam.Role(
             self,
             "aws-sdk-pandas-glue-data-quality-role",
@@ -96,16 +106,30 @@ class BaseStack(Stack):  # type: ignore
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
                 iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
             ],
-            inline_policies={
-                "GetDataAccess": iam.PolicyDocument(
-                    statements=[
-                        iam.PolicyStatement(
-                            actions=["lakeformation:GetDataAccess"],
-                            resources=["*"],
-                        ),
-                    ]
-                ),
-            },
+            inline_policies=inline_lf_policies,
+        )
+        emr_serverless_exec_role = iam.Role(
+            self,
+            "aws-sdk-pandas-emr-serverless-exec-role",
+            role_name="EMRServerlessExecutionRole",
+            assumed_by=iam.ServicePrincipal("emr-serverless.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
+            ],
+            inline_policies=inline_lf_policies,
+        )
+        athena_spark_exec_role = iam.Role(
+            self,
+            "aws-sdk-pandas-athena-spark-exec-role",
+            role_name="AthenaSparkExecutionRole",
+            assumed_by=iam.ServicePrincipal("athena.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonAthenaFullAccess"),
+            ],
+            inline_policies=inline_lf_policies,
         )
         glue_db = glue.Database(
             self,
@@ -178,6 +202,8 @@ class BaseStack(Stack):  # type: ignore
         )
         CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
         CfnOutput(self, "GlueDataQualityRole", value=glue_data_quality_role.role_arn)
+        CfnOutput(self, "EMRServerlessExecutionRoleArn", value=emr_serverless_exec_role.role_arn)
+        CfnOutput(self, "AthenaSparkExecutionRoleArn", value=athena_spark_exec_role.role_arn)
         CfnOutput(self, "LogGroupName", value=log_group.log_group_name)
         CfnOutput(self, "LogStream", value=log_stream.log_stream_name)
 

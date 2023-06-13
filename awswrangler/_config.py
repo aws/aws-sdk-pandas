@@ -45,6 +45,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "lakeformation_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "neptune_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "timestream_batch_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "emr_serverless_job_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
@@ -376,6 +377,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @timestream_batch_load_wait_polling_delay.setter
     def timestream_batch_load_wait_polling_delay(self, value: float) -> None:
         self._set_config_value(key="timestream_batch_load_wait_polling_delay", value=value)
+
+    @property
+    def emr_serverless_job_wait_polling_delay(self) -> float:
+        """Property emr_serverless_job_wait_polling_delay."""
+        return cast(float, self["emr_serverless_job_wait_polling_delay"])
+
+    @emr_serverless_job_wait_polling_delay.setter
+    def emr_serverless_job_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="emr_serverless_job_wait_polling_delay", value=value)
 
     @property
     def s3_block_size(self) -> int:

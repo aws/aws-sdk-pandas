@@ -209,11 +209,10 @@ def create_index(
     if mappings:
         if _get_distribution(client) == "opensearch" or _get_version_major(client) >= 7:
             body["mappings"] = mappings  # doc type deprecated
+        elif doc_type:
+            body["mappings"] = {doc_type: mappings}
         else:
-            if doc_type:
-                body["mappings"] = {doc_type: mappings}
-            else:
-                body["mappings"] = {index: mappings}
+            body["mappings"] = {index: mappings}
     if settings:
         body["settings"] = settings
     if not body:
@@ -271,6 +270,7 @@ def index_json(
     doc_type: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = boto3.Session(),
     json_path: Optional[str] = None,
+    use_threads: Union[bool, int] = False,
     **kwargs: Any,
 ) -> Any:
     """Index all documents from JSON file to OpenSearch index.
@@ -295,6 +295,10 @@ def index_json(
     boto3_session : boto3.Session(), optional
         Boto3 Session to be used to access s3 if s3 path is provided.
         The default boto3 Session will be used if boto3_session receive None.
+    use_threads : bool, int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     **kwargs :
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
@@ -335,7 +339,9 @@ def index_json(
         documents = list(_file_line_generator(path, is_json=True))
         if json_path:
             documents = _get_documents_w_json_path(documents, json_path)
-    return index_documents(client=client, documents=documents, index=index, doc_type=doc_type, **kwargs)
+    return index_documents(
+        client=client, documents=documents, index=index, doc_type=doc_type, use_threads=use_threads, **kwargs
+    )
 
 
 @_utils.check_optional_dependency(opensearchpy, "opensearchpy")
@@ -345,6 +351,7 @@ def index_csv(
     index: str,
     doc_type: Optional[str] = None,
     pandas_kwargs: Optional[Dict[str, Any]] = None,
+    use_threads: Union[bool, int] = False,
     **kwargs: Any,
 ) -> Any:
     """Index all documents from a CSV file to OpenSearch index.
@@ -364,6 +371,10 @@ def index_csv(
         e.g. pandas_kwargs={'sep': '|', 'na_values': ['null', 'none']}
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
         Note: these params values are enforced: `skip_blank_lines=True`
+    use_threads : bool, int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     **kwargs :
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
@@ -407,12 +418,17 @@ def index_csv(
     }
     pandas_kwargs.update(enforced_pandas_params)
     df = pd.read_csv(path, **pandas_kwargs)
-    return index_df(client, df=df, index=index, doc_type=doc_type, **kwargs)
+    return index_df(client, df=df, index=index, doc_type=doc_type, use_threads=use_threads, **kwargs)
 
 
 @_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def index_df(
-    client: "opensearchpy.OpenSearch", df: pd.DataFrame, index: str, doc_type: Optional[str] = None, **kwargs: Any
+    client: "opensearchpy.OpenSearch",
+    df: pd.DataFrame,
+    index: str,
+    doc_type: Optional[str] = None,
+    use_threads: Union[bool, int] = False,
+    **kwargs: Any,
 ) -> Any:
     """Index all documents from a DataFrame to OpenSearch index.
 
@@ -426,6 +442,10 @@ def index_df(
         Name of the index.
     doc_type : str, optional
         Name of the document type (for Elasticsearch versions 5.x and earlier).
+    use_threads : bool, int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     **kwargs :
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
@@ -449,7 +469,14 @@ def index_df(
     ...     index='sample-index1'
     ... )
     """
-    return index_documents(client=client, documents=_df_doc_generator(df), index=index, doc_type=doc_type, **kwargs)
+    return index_documents(
+        client=client,
+        documents=_df_doc_generator(df),
+        index=index,
+        doc_type=doc_type,
+        use_threads=use_threads,
+        **kwargs,
+    )
 
 
 @_utils.check_optional_dependency(opensearchpy, "opensearchpy")
@@ -464,12 +491,18 @@ def index_documents(
     bulk_size: int = 1000,
     chunk_size: Optional[int] = 500,
     max_chunk_bytes: Optional[int] = 100 * 1024 * 1024,
-    max_retries: Optional[int] = 5,
-    initial_backoff: Optional[int] = 2,
-    max_backoff: Optional[int] = 600,
+    max_retries: Optional[int] = None,
+    initial_backoff: Optional[int] = None,
+    max_backoff: Optional[int] = None,
+    use_threads: Union[bool, int] = False,
     **kwargs: Any,
 ) -> Dict[str, Any]:
     """Index all documents to OpenSearch index.
+
+    Note
+    ----
+    `max_retries`, `initial_backoff`, and `max_backoff` are not supported with parallel bulk
+     (when `use_threads`is set to True).
 
     Note
     ----
@@ -512,6 +545,10 @@ def index_documents(
         Any subsequent retries will be powers of ``initial_backoff*2**retry_number`` (default: 2)
     max_backoff: int, optional
         maximum number of seconds a retry will wait (default: 600)
+    use_threads : bool, int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     **kwargs :
         KEYWORD arguments forwarded to bulk operation
         elasticsearch >= 7.10.2 / opensearch: \
@@ -538,6 +575,11 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     """
     if "refresh" in kwargs and _is_serverless(client):
         raise exceptions.NotSupported("Refresh policy not supported in OpenSearch Serverless.")
+
+    if use_threads and any([max_retries, initial_backoff, max_backoff]):
+        raise exceptions.InvalidArgumentCombination(
+            "`max_retries`, `initial_backoff`, and `max_backoff` are not supported when `use_threads` is set to True"
+        )
 
     if not isinstance(documents, list):
         documents = list(documents)
@@ -567,20 +609,30 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
                 refresh_interval = _get_refresh_interval(client, index)
                 _disable_refresh_interval(client, index)
             _logger.debug("running bulk index of %s documents", len(bulk_chunk_documents))
-            _success, _errors = opensearchpy.helpers.bulk(
-                client=client,
-                actions=bulk_chunk_documents,
-                ignore_status=ignore_status,
-                chunk_size=chunk_size,
-                max_chunk_bytes=max_chunk_bytes,
-                max_retries=max_retries,
-                initial_backoff=initial_backoff,
-                max_backoff=max_backoff,
-                request_timeout=30,
+            bulk_kwargs = {
+                "ignore_status": ignore_status,
+                "chunk_size": chunk_size,
+                "max_chunk_bytes": max_chunk_bytes,
+                "request_timeout": 30,
                 **kwargs,
-            )
-            success += _success
-            errors += _errors
+            }
+            _logger.debug("running bulk with kwargs: %s", bulk_kwargs)
+            if use_threads:
+                # Parallel bulk does not support max_retries, initial_backoff & max_backoff
+                for _success, _errors in opensearchpy.helpers.parallel_bulk(
+                    client, bulk_chunk_documents, **bulk_kwargs  # type: ignore[arg-type]
+                ):
+                    success += _success
+                    errors += _errors
+            else:
+                # Defaults
+                bulk_kwargs["max_retries"] = 5 if not max_retries else max_retries
+                bulk_kwargs["initial_backoff"] = 2 if not initial_backoff else initial_backoff
+                bulk_kwargs["max_backoff"] = 600 if not max_backoff else max_backoff
+
+                _success, _errors = opensearchpy.helpers.bulk(client, bulk_chunk_documents, **bulk_kwargs)  # type: ignore[call-overload]
+                success += _success
+                errors += _errors
             _logger.debug("indexed %s documents (%s/%s)", _success, success, total_documents)
             if progressbar:
                 progress_bar.update(success, force=True)

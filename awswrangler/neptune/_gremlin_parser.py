@@ -67,7 +67,7 @@ class GremlinParser:
         for k, v in data.items():
             # If the key is a Vertex or an Edge do special processing
             if isinstance(k, (gremlin.Vertex, gremlin.Edge)):
-                k = k.id
+                k = k.id  # ruff: noqa: PLW2901
 
             # If the value is a list do special processing to make it a scalar if the list is of length 1
             if isinstance(v, list) and len(v) == 1:

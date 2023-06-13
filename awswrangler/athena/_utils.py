@@ -17,6 +17,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    TypedDict,
     Union,
     cast,
 )
@@ -28,6 +29,7 @@ from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts, typing
 from awswrangler._config import apply_configs
+from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 
 from . import _executions
@@ -82,6 +84,7 @@ def _start_query_execution(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    execution_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     args: Dict[str, Any] = {"QueryString": sql}
@@ -97,11 +100,10 @@ def _start_query_execution(
             args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": wg_config.encryption}
             if wg_config.kms_key is not None:
                 args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = wg_config.kms_key
-    else:
-        if encryption is not None:
-            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
-            if kms_key is not None:
-                args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
+    elif encryption is not None:
+        args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
+        if kms_key is not None:
+            args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
 
     # database
     if database is not None:
@@ -112,6 +114,9 @@ def _start_query_execution(
     # workgroup
     if workgroup is not None:
         args["WorkGroup"] = workgroup
+
+    if execution_params:
+        args["ExecutionParameters"] = execution_params
 
     client_athena = _utils.client(service_name="athena", session=boto3_session)
     _logger.debug("Starting query execution with args: \n%s", pprint.pformat(args))
@@ -187,8 +192,8 @@ def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
     origin_df_dict = df.to_dict()
     target_df_dict: Dict[str, List[Union[str, bool]]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
     for index, col_name in origin_df_dict["col_name"].items():
-        col_name = col_name.strip()
-        if col_name.startswith("#") or col_name == "":
+        col_name = col_name.strip()  # ruff: noqa: PLW2901
+        if col_name.startswith("#") or not col_name:
             pass
         elif col_name in target_df_dict["Column Name"]:
             index_col_name = target_df_dict["Column Name"].index(col_name)
@@ -208,6 +213,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     query_execution_payload: Optional[Dict[str, Any]] = None,
     metadata_cache_manager: Optional[_LocalMetadataCacheManager] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    execution_params: Optional[List[str]] = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> _QueryMetadata:
     """Get query metadata."""
@@ -289,6 +295,70 @@ def _apply_query_metadata(df: pd.DataFrame, query_metadata: _QueryMetadata) -> p
         warnings.simplefilter("ignore", category=UserWarning)
         df.query_metadata = query_metadata.raw_payload
     return df
+
+
+class _FormatterTypeQMark(TypedDict):
+    params: List[str]
+    paramstyle: Literal["qmark"]
+
+
+class _FormatterTypeNamed(TypedDict):
+    params: Dict[str, Any]
+    paramstyle: Literal["named"]
+
+
+_FormatterType = Union[_FormatterTypeQMark, _FormatterTypeNamed, None]
+
+
+def _verify_formatter(
+    params: Union[Dict[str, Any], List[str], None],
+    paramstyle: Literal["qmark", "named"],
+) -> _FormatterType:
+    if params is None:
+        return None
+
+    if paramstyle == "named":
+        if not isinstance(params, dict):
+            raise exceptions.InvalidArgumentCombination(
+                f"`params` must be a dict when paramstyle is `named`. Instead, found type {type(params)}."
+            )
+
+        return {
+            "paramstyle": "named",
+            "params": params,
+        }
+
+    if paramstyle == "qmark":
+        if not isinstance(params, list):
+            raise exceptions.InvalidArgumentCombination(
+                f"`params` must be a list when paramstyle is `qmark`. Instead, found type {type(params)}."
+            )
+
+        return {
+            "paramstyle": "qmark",
+            "params": params,
+        }
+
+    raise exceptions.InvalidArgumentValue(f"`paramstyle` must be either `qmark` or `named`. Found: {paramstyle}.")
+
+
+def _apply_formatter(
+    sql: str,
+    params: Union[Dict[str, Any], List[str], None],
+    paramstyle: Literal["qmark", "named"],
+) -> Tuple[str, Optional[List[str]]]:
+    formatter_settings = _verify_formatter(params, paramstyle)
+
+    if formatter_settings is None:
+        return sql, None
+
+    if formatter_settings["paramstyle"] == "named":
+        # Substitute query parameters]
+        sql = _process_sql_params(sql, formatter_settings["params"])
+
+        return sql, None
+
+    return sql, formatter_settings["params"]
 
 
 def get_named_query_statement(
@@ -569,6 +639,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     categories: Optional[List[str]] = None,
     wait: bool = False,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    execution_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Union[str, _QueryMetadata]]:
     """Create a new table populated with the results of a SELECT query.
@@ -722,6 +793,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
             encryption=encryption,
             kms_key=kms_key,
             boto3_session=boto3_session,
+            execution_params=execution_params,
         )
     except botocore.exceptions.ClientError as ex:
         error = ex.response["Error"]
