@@ -1763,7 +1763,7 @@ python-versions = "*"
 
 [[package]]
 name = "modin"
-version = "0.22.1"
+version = "0.20.1"
 description = "Modin: Make your pandas code run faster by changing one line of code."
 category = "main"
 optional = true
@@ -3791,7 +3791,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "26346b7aa8996fc7013f26940b2ebd27ef7c36368be4176ac0bb01b051d2b1dc"
+content-hash = "4d5d33a5a601924ea0abc56522653bbe0643164e8b55c19eca63675c1642cecc"
 
 [metadata.files]
 aenum = [
@@ -4837,8 +4837,8 @@ mistune = [
     {file = "mistune-2.0.5.tar.gz", hash = "sha256:0246113cb2492db875c6be56974a7c893333bf26cd92891c85f63151cee09d34"},
 ]
 modin = [
-    {file = "modin-0.22.1-py3-none-any.whl", hash = "sha256:bd6c01ab3714a6c8bb3ae73c34e22264db20f2f8751f4caeef3731573d518501"},
-    {file = "modin-0.22.1.tar.gz", hash = "sha256:ca7cc6dfd41cf5b405aef9281f136b65a42aa1f2ee41f660f0fdcf30cad2e20a"},
+    {file = "modin-0.20.1-py3-none-any.whl", hash = "sha256:8b539c79f77577c9ba5d5ed5f73b039d4b0c581d4d8138414f35429623c92493"},
+    {file = "modin-0.20.1.tar.gz", hash = "sha256:1e6143189b01a9d3c98a7b681549fc13abca49df9035efcce0dfc93930d8b093"},
 ]
 moto = [
     {file = "moto-4.1.11-py2.py3-none-any.whl", hash = "sha256:5003126c46ce70fe351ff1cb67dc8d9a5983f403fae13b7628b0fb503d19039e"},

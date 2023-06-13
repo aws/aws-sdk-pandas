@@ -59,7 +59,7 @@ progressbar2 = { version = "^4.0.0", optional = true }
 deltalake = { version = ">=0.6.4,<0.10.0", optional = true }
 
 # Distributed
-modin = { version = "^0.22.0", optional = true }
+modin = { version = "^0.20.1", optional = true }
 ray = { version = "2.5.0", extras = ["default", "data"], optional = true }
 
 [tool.poetry.extras]
