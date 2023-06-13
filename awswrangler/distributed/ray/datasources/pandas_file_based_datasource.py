@@ -35,7 +35,7 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
         *,
         filesystem: Optional["pyarrow.fs.FileSystem"] = None,
         dataset_uuid: Optional[str] = None,
-        block: Optional[Block[Any]] = None,
+        block: Optional[Block] = None,
         block_index: Optional[int] = None,
         file_format: Optional[str] = None,
     ) -> str:
@@ -143,7 +143,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
 
     def write(
         self,
-        blocks: Iterable[Union[Block[pd.DataFrame], ObjectRef[pd.DataFrame]]],
+        blocks: Iterable[Union[Block, ObjectRef[pd.DataFrame]]],
         ctx: TaskContext,
         path: str,
         dataset_uuid: str,
@@ -211,7 +211,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     def _write_block(
         self,
         f: "pyarrow.NativeFile",
-        block: BlockAccessor[Any],
+        block: BlockAccessor,
         writer_args_fn: Callable[[], Dict[str, Any]] = lambda: {},
         **writer_args: Any,
     ) -> None:
