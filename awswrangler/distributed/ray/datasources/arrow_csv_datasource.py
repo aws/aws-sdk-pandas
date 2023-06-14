@@ -59,7 +59,7 @@ class ArrowCSVDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract
     def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ
         self,
         f: pa.NativeFile,
-        block: BlockAccessor[Any],
+        block: BlockAccessor,
         **writer_args: Any,
     ) -> None:
         write_options_dict = writer_args.get("write_options", {})

@@ -44,7 +44,7 @@ class ArrowORCDatasource(PandasFileBasedDatasource):
     def _write_block(  # type: ignore[override]
         self,
         f: pa.NativeFile,
-        block: BlockAccessor[Any],
+        block: BlockAccessor,
         pandas_kwargs: Optional[Dict[str, Any]],
         **writer_args: Any,
     ) -> None:
