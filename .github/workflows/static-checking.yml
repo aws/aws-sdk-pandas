@@ -44,3 +44,5 @@ jobs:
         run: pylint -j 0 --disable=all --enable=R0913,R0915 awswrangler
       - name: Documentation check
         run: doc8 --max-line-length 120 docs/source
+      - name: Check poetry.lock consistency with pyproject.toml
+        run: poetry lock --check
