@@ -2,7 +2,6 @@
 from typing import Any, Dict, List, Optional
 
 import pyarrow as pa
-from pyarrow import orc
 from ray.data.block import BlockAccessor
 
 from awswrangler._arrow import _add_table_partitions, _df_to_table
@@ -21,6 +20,8 @@ class ArrowORCDatasource(PandasFileBasedDatasource):
         path_root: str,
         **reader_args: Any,
     ) -> pa.Table:
+        from pyarrow import orc
+
         columns: Optional[List[str]] = reader_args.get("columns", None)
 
         table: pa.Table = orc.read_table(f, columns=columns)
@@ -48,6 +49,8 @@ class ArrowORCDatasource(PandasFileBasedDatasource):
         pandas_kwargs: Optional[Dict[str, Any]],
         **writer_args: Any,
     ) -> None:
+        from pyarrow import orc
+
         schema: Optional[pa.schema] = writer_args.get("schema", None)
         dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
         index: bool = writer_args.get("index", False)
