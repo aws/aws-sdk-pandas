@@ -3791,7 +3791,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "4d5d33a5a601924ea0abc56522653bbe0643164e8b55c19eca63675c1642cecc"
+content-hash = "b30a01bddfce5345dc29cc7e30424d0477e988ae05fca8338887a05309de4cae"
 
 [metadata.files]
 aenum = [
