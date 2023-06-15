@@ -8,7 +8,7 @@ import awswrangler.pandas as pd
 from awswrangler.data_api.rds import RdsDataApi
 from awswrangler.data_api.redshift import RedshiftDataApi
 
-from .._utils import assert_pandas_equals, get_df, get_time_str_with_random_suffix
+from .._utils import assert_pandas_equals, get_df, get_time_str_with_random_suffix, is_ray_modin
 
 pytestmark = pytest.mark.distributed
 
@@ -211,7 +211,13 @@ def test_data_api_mysql_to_sql_mode(
     else:
         expected_frame = pd.concat([frame, frame2], axis=0).reset_index(drop=True)
 
-    assert_pandas_equals(out_frame.astype(expected_frame.dtypes), expected_frame)
+    # Cast types
+    out_frame = out_frame.astype(expected_frame.dtypes)
+    # Modin upcasts to float64 now
+    if is_ray_modin:
+        out_frame["float"] = out_frame["float"].astype("float32")
+
+    assert_pandas_equals(out_frame, expected_frame)
 
 
 def test_data_api_exception(mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str) -> None:
