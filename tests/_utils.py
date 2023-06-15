@@ -31,9 +31,9 @@ if is_ray_modin:
     from modin.pandas import DataFrame as ModinDataFrame
     from modin.pandas import Series as ModinSeries
 else:
-    import pandas as pd
+    import pandas as _pd
 
-    if version.parse(pd.__version__) >= version.parse("2.0.0"):
+    if version.parse(_pd.__version__) >= version.parse("2.0.0"):
         is_pandas_2_x = True
 
 
