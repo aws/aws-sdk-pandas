@@ -17,6 +17,7 @@ import boto3
 import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset
+import pyarrow.orc
 from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, exceptions
