@@ -38,19 +38,17 @@ geopandas = _utils.import_optional_dependency("geopandas")
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-@_utils.check_optional_dependency(geopandas, "geopandas")
-def _cast_geodataframe(df: pd.DataFrame):
-    return geopandas.GeoDataFrame(df)
-
-
 @_utils.check_optional_dependency(shapely_wkt, "shapely")
 @_utils.check_optional_dependency(geopandas, "geopandas")
-def _parse_geometry(df_series: pd.Series):
-    def load_geom_text(x):
-        """Load from binary encoded as text."""
+def _cast_geometry(df: pd.DataFrame, parse_geometry: List[str] = None):
+    def load_geom_wkt(x):
+        """Load geometry from well-known text."""
         return shapely_wkt.loads(x)
 
-    return geopandas.GeoSeries(df_series.apply(load_geom_text))
+    for col in parse_geometry:
+        df[col] = geopandas.GeoSeries(df[col].apply(load_geom_wkt))
+
+    return geopandas.GeoDataFrame(df)
 
 
 def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
@@ -84,9 +82,6 @@ def _fix_csv_types(
     df: pd.DataFrame, parse_dates: List[str], binaries: List[str], parse_geometry: List[str]
 ) -> pd.DataFrame:
     """Apply data types cast to a Pandas DataFrames."""
-    if parse_geometry:
-        df = _cast_geodataframe(df)
-
     if len(df.index) > 0:
         for col in parse_dates:
             if pd.api.types.is_datetime64_any_dtype(df[col]):
@@ -97,8 +92,10 @@ def _fix_csv_types(
                 )
         for col in binaries:
             df[col] = df[col].str.encode(encoding="utf-8")
-        for col in parse_geometry:
-            df[col] = _parse_geometry(df[col])
+
+    if geopandas and parse_geometry:
+        df = _cast_geometry(df, parse_geometry=parse_geometry)
+
     return df
 
 
