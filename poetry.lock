@@ -3875,7 +3875,7 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 
 [extras]
 deltalake = ["deltalake"]
-geospatial = ["geopandas"]
+geopandas = ["geopandas"]
 gremlin = ["gremlinpython", "requests"]
 modin = ["modin"]
 mysql = ["pymysql"]
@@ -3893,7 +3893,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "bf2dd176aa69043a9cf4bb15ebf044297531ca4e0cfd457cccc5b217e69f9270"
+content-hash = "6667a7581501a1bc5db6b049657ef683266040397e417d2d1317eea3ba7d6710"
 
 [metadata.files]
 aenum = [
