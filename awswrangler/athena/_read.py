@@ -38,13 +38,17 @@ geopandas = _utils.import_optional_dependency("geopandas")
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+@_utils.check_optional_dependency(geopandas, "geopandas")
+def _cast_geodataframe(df: pd.DataFrame):
+    return geopandas.GeoDataFrame(df)
+
+
 @_utils.check_optional_dependency(shapely_wkt, "shapely")
 @_utils.check_optional_dependency(geopandas, "geopandas")
 def _parse_geometry(df_series: pd.Series):
-
     def load_geom_text(x):
         """Load from binary encoded as text."""
-        return shapely_wkt.loads(str(x))
+        return shapely_wkt.loads(x)
 
     return geopandas.GeoSeries(df_series.apply(load_geom_text))
 
@@ -80,6 +84,9 @@ def _fix_csv_types(
     df: pd.DataFrame, parse_dates: List[str], binaries: List[str], parse_geometry: List[str]
 ) -> pd.DataFrame:
     """Apply data types cast to a Pandas DataFrames."""
+    if parse_geometry:
+        df = _cast_geodataframe(df)
+
     if len(df.index) > 0:
         for col in parse_dates:
             if pd.api.types.is_datetime64_any_dtype(df[col]):
