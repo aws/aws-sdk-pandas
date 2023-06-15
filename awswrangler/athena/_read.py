@@ -62,11 +62,11 @@ def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Sessio
 
 
 def _fix_csv_types_generator(
-    dfs: Iterator[pd.DataFrame], parse_dates: List[str], binaries: List[str]
+    dfs: Iterator[pd.DataFrame], parse_dates: List[str], binaries: List[str], parse_geometry: List[str]
 ) -> Iterator[pd.DataFrame]:
     """Apply data types cast to a Pandas DataFrames Generator."""
     for df in dfs:
-        yield _fix_csv_types(df=df, parse_dates=parse_dates, binaries=binaries)
+        yield _fix_csv_types(df=df, parse_dates=parse_dates, binaries=binaries, parse_geometry=parse_geometry)
 
 
 def _add_query_metadata_generator(
@@ -234,7 +234,12 @@ def _fetch_csv_result(
                 s3_additional_kwargs=s3_additional_kwargs,
             )
         return df
-    dfs = _fix_csv_types_generator(dfs=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
+    dfs = _fix_csv_types_generator(
+        dfs=ret,
+        parse_dates=query_metadata.parse_dates,
+        binaries=query_metadata.binaries,
+        parse_geometry=query_metadata.parse_geometry,
+    )
     dfs = _add_query_metadata_generator(dfs=dfs, query_metadata=query_metadata)
     if keep_files is False:
         return _delete_after_iterate(
