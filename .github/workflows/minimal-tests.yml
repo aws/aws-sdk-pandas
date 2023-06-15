@@ -37,13 +37,14 @@ jobs:
         run: python -m pip install poetry
       - name: Install Requirements
         run: |
-          poetry config virtualenvs.create false --local
+          poetry config virtualenvs.in-project true
+          poetry config virtualenvs.path .venv
           poetry install -vvv
       - name: Test Metadata
-        run: pytest tests/unit/test_metadata.py
+        run: poetry run pytest tests/unit/test_metadata.py
       - name: Test Session
-        run: pytest tests/unit/test_session.py
+        run: poetry run pytest tests/unit/test_session.py
       - name: Test Utils
-        run: pytest tests/unit/test_utils.py
+        run: poetry run pytest tests/unit/test_utils.py
       - name: Test Moto
-        run: pytest -n 4 tests/unit/test_moto.py
+        run: poetry run pytest -n 4 tests/unit/test_moto.py
