@@ -144,6 +144,9 @@ Amazon Athena
     to_iceberg
     unload
     wait_query
+    create_prepared_statement
+    list_prepared_statements
+    delete_prepared_statement
 
 AWS Lake Formation
 ------------------
