@@ -1,0 +1,21 @@
+name: "CodeBuild Package Lambda Layer"
+
+on:
+  workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  Package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::658066294590:role/my-github-actions-role
+          aws-region: us-east-1
+      - name: Run CodeBuild
+        uses: aws-actions/aws-codebuild-run-build@v1
+        with:
+          project-name: DistBuildCodeBuildA8D468F9-wCaomeK66HHs
