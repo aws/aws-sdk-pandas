@@ -20,6 +20,7 @@ from pytest import FixtureRequest
 from typing_extensions import Literal
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 from awswrangler._utils import try_it
 
@@ -27,12 +28,9 @@ is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == M
 is_pandas_2_x = False
 
 if is_ray_modin:
-    import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
     from modin.pandas import Series as ModinSeries
 else:
-    import pandas as pd
-
     if version.parse(pd.__version__) >= version.parse("2.0.0"):
         is_pandas_2_x = True
 
