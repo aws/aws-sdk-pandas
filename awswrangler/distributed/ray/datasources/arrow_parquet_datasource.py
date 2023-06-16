@@ -29,6 +29,7 @@ from ray.data.datasource.file_meta_provider import (
     _handle_read_os_error,
 )
 
+from awswrangler import exceptions
 from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray import ray_remote
 from awswrangler.distributed.ray.datasources.arrow_parquet_base_datasource import ArrowParquetBaseDatasource
@@ -81,14 +82,14 @@ class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abs
        relative to the root S3 prefix.
     """
 
-    def create_reader(self, **kwargs: Dict[str, Any]) -> Reader[Any]:
+    def create_reader(self, **kwargs: Dict[str, Any]) -> Reader:
         """Return a Reader for the given read arguments."""
         return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore[arg-type]
 
     def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
         self,
         f: "pyarrow.NativeFile",
-        block: BlockAccessor[Any],
+        block: BlockAccessor,
         pandas_kwargs: Optional[Dict[str, Any]],
         **writer_args: Any,
     ) -> None:
@@ -184,7 +185,7 @@ def _deserialize_pieces_with_retry(
     raise final_exception  # type: ignore[misc]
 
 
-class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-instance-attributes
+class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         paths: Union[str, List[str]],
@@ -193,7 +194,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         columns: Optional[List[str]] = None,
         schema: Optional[Schema] = None,
         meta_provider: ParquetMetadataProvider = DefaultParquetMetadataProvider(),
-        _block_udf: Optional[Callable[[Block[Any]], Block[Any]]] = None,
+        _block_udf: Optional[Callable[[Block], Block]] = None,
         **reader_args: Any,
     ):
         import pyarrow as pa
@@ -208,7 +209,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             import ray
             from ray.util.scheduling_strategies import NodeAffinitySchedulingStrategy
 
-            self._local_scheduling = NodeAffinitySchedulingStrategy(ray.get_runtime_context().get_node_id(), soft=False)
+            self._local_scheduling = NodeAffinitySchedulingStrategy(ray.get_runtime_context().get_node_id(), soft=False)  # type: ignore[attr-defined]
 
         dataset_kwargs = reader_args.pop("dataset_kwargs", {})
         try:
@@ -243,6 +244,10 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             self._metadata = meta_provider.prefetch_file_metadata(pq_ds.pieces, **prefetch_remote_args) or []
         except OSError as e:
             _handle_read_os_error(e, paths)
+        except pyarrow.ArrowInvalid as ex:
+            if "Parquet file size is 0 bytes" in str(ex):
+                raise exceptions.InvalidFile(f"Invalid Parquet file. {str(ex)}")
+            raise
         self._pq_ds = pq_ds
         self._meta_provider = meta_provider
         self._inferred_schema = inferred_schema
@@ -356,7 +361,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
 # 1. Use _add_table_partitions to add partition columns. The behavior is controlled by Pandas SDK
 #    native `dataset` parameter. The partitions are loaded relative to the `path_root` prefix.
 def _read_pieces(
-    block_udf: Optional[Callable[[Block[Any]], Block[Any]]],
+    block_udf: Optional[Callable[[Block], Block]],
     reader_args: Any,
     columns: Optional[List[str]],
     schema: Optional[Union[type, "pyarrow.lib.Schema"]],

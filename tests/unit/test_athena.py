@@ -1,6 +1,7 @@
 import datetime
 import logging
 import string
+from typing import Any
 from unittest.mock import patch
 
 import boto3
@@ -13,6 +14,7 @@ import awswrangler as wr
 import awswrangler.pandas as pd
 
 from .._utils import (
+    assert_pandas_equals,
     ensure_athena_ctas_table,
     ensure_athena_query_metadata,
     ensure_data_types,
@@ -292,6 +294,82 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
         f"STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' "
         f"OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat' "
     )
+
+
+def test_athena_orc(path, glue_database, glue_table):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "bar", "foo"], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["c1"] = df["c1"].astype("string")
+    df["par"] = df["par"].astype("string")
+
+    wr.s3.to_orc(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par"],
+    )
+    df_out = wr.athena.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        ctas_approach=False,
+        keep_files=False,
+    )
+    df_out = df_out.sort_values(by="c0", ascending=True).reset_index(drop=True)
+
+    assert_pandas_equals(df, df_out)
+
+
+@pytest.mark.parametrize(
+    "ctas_approach,unload_approach",
+    [
+        pytest.param(False, False, id="regular"),
+        pytest.param(True, False, id="ctas"),
+        pytest.param(False, True, id="unload"),
+    ],
+)
+@pytest.mark.parametrize(
+    "col_name,col_value", [("string", "Washington"), ("iint32", "1"), ("date", "DATE '2020-01-01'")]
+)
+def test_athena_paramstyle_qmark_parameters(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+    workgroup0: str,
+    ctas_approach: bool,
+    unload_approach: bool,
+    col_name: str,
+    col_value: Any,
+) -> None:
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+
+    df_out = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_table} WHERE {col_name} = ?",
+        database=glue_database,
+        ctas_approach=ctas_approach,
+        unload_approach=unload_approach,
+        workgroup=workgroup0,
+        params=[col_value],
+        paramstyle="qmark",
+        keep_files=False,
+        s3_output=path2,
+    )
+    ensure_data_types(df=df_out)
+    ensure_athena_query_metadata(df=df_out, ctas_approach=ctas_approach, encrypted=False)
+
+    assert len(df_out) == 1
 
 
 def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_database, glue_table, workgroup0):

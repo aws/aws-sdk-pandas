@@ -630,7 +630,10 @@ def test_parquet_compression(path, compression) -> None:
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_empty_file(path, use_threads):
+@pytest.mark.parametrize(
+    "schema", [None, pa.schema([pa.field("c0", pa.int64()), pa.field("c1", pa.int64()), pa.field("par", pa.string())])]
+)
+def test_empty_file(path, use_threads, schema):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
     df.index = df.index.astype("Int64")
     df["c0"] = df["c0"].astype("Int64")
@@ -638,6 +641,8 @@ def test_empty_file(path, use_threads):
     wr.s3.to_parquet(df, path, index=True, dataset=True, partition_cols=["par"])
     bucket, key = wr._utils.parse_path(f"{path}test.csv")
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
+    with pytest.raises(wr.exceptions.InvalidFile):
+        wr.s3.read_parquet(path, use_threads=use_threads, ignore_empty=False, schema=schema)
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
     assert_pandas_equals(df, df2)

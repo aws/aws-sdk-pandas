@@ -20,6 +20,7 @@ from pytest import FixtureRequest
 from typing_extensions import Literal
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 from awswrangler._utils import try_it
 
@@ -27,13 +28,12 @@ is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == M
 is_pandas_2_x = False
 
 if is_ray_modin:
-    import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
     from modin.pandas import Series as ModinSeries
 else:
-    import pandas as pd
+    import pandas as _pd
 
-    if version.parse(pd.__version__) >= version.parse("2.0.0"):
+    if version.parse(_pd.__version__) >= version.parse("2.0.0"):
         is_pandas_2_x = True
 
 
@@ -365,7 +365,7 @@ def get_df_dtype_backend(dtype_backend: Literal["numpy_nullable", "pyarrow"] = "
     return df
 
 
-def ensure_data_types(df: pd.DataFrame, has_list: bool = False) -> None:
+def ensure_data_types(df: pd.DataFrame, has_list: bool = False, has_category: bool = True) -> None:
     if "iint8" in df.columns:
         assert str(df["iint8"].dtype).startswith("Int")
     assert str(df["iint16"].dtype).startswith("Int")
@@ -382,7 +382,8 @@ def ensure_data_types(df: pd.DataFrame, has_list: bool = False) -> None:
     assert str(df["bool"].dtype) in ("boolean", "Int64", "object")
     if "binary" in df.columns:
         assert str(df["binary"].dtype) == "object"
-    assert str(df["category"].dtype) == "float64"
+    if has_category:
+        assert str(df["category"].dtype) == "float64"
     if has_list is True:
         assert str(df["list"].dtype) == "object"
         assert str(df["list_list"].dtype) == "object"
