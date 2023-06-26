@@ -2,12 +2,16 @@
 import datetime
 import logging
 import re
+import threading
 from heapq import heappop, heappush
-from typing import Any, Dict, List, Match, NamedTuple, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Match, NamedTuple, Optional, Tuple, Union
 
 import boto3
 
 from awswrangler import _utils
+
+if TYPE_CHECKING:
+    from mypy_boto3_athena.type_defs import QueryExecutionTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -21,6 +25,7 @@ class _CacheInfo(NamedTuple):
 
 class _LocalMetadataCacheManager:
     def __init__(self) -> None:
+        self._lock: threading.Lock = threading.Lock()
         self._cache: Dict[str, Any] = {}
         self._pqueue: List[Tuple[datetime.datetime, str]] = []
         self._max_cache_size = 100
@@ -39,20 +44,25 @@ class _LocalMetadataCacheManager:
         None
             None.
         """
-        if self._pqueue:
-            oldest_item = self._cache[self._pqueue[0][1]]
-            items = list(
-                filter(lambda x: x["Status"]["SubmissionDateTime"] > oldest_item["Status"]["SubmissionDateTime"], items)
-            )
+        with self._lock:
+            if self._pqueue:
+                oldest_item = self._cache.get(self._pqueue[0][1])
+                if oldest_item:
+                    items = list(
+                        filter(
+                            lambda x: x["Status"]["SubmissionDateTime"] > oldest_item["Status"]["SubmissionDateTime"],  # type: ignore[arg-type]
+                            items,
+                        )
+                    )
 
-        cache_oversize = len(self._cache) + len(items) - self._max_cache_size
-        for _ in range(cache_oversize):
-            _, query_execution_id = heappop(self._pqueue)
-            del self._cache[query_execution_id]
+            cache_oversize = len(self._cache) + len(items) - self._max_cache_size
+            for _ in range(cache_oversize):
+                _, query_execution_id = heappop(self._pqueue)
+                del self._cache[query_execution_id]
 
-        for item in items[: self._max_cache_size]:
-            heappush(self._pqueue, (item["Status"]["SubmissionDateTime"], item["QueryExecutionId"]))
-            self._cache[item["QueryExecutionId"]] = item
+            for item in items[: self._max_cache_size]:
+                heappush(self._pqueue, (item["Status"]["SubmissionDateTime"], item["QueryExecutionId"]))
+                self._cache[item["QueryExecutionId"]] = item
 
     def sorted_successful_generator(self) -> List[Dict[str, Any]]:
         """
@@ -129,7 +139,7 @@ def _get_last_query_infos(
     workgroup: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Return an iterator of `query_execution_info`s run by the workgroup in Athena."""
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
     page_size = 50
     args: Dict[str, Union[str, Dict[str, int]]] = {
         "PaginationConfig": {"MaxItems": max_remote_cache_entries, "PageSize": page_size}
@@ -137,28 +147,28 @@ def _get_last_query_infos(
     if workgroup is not None:
         args["WorkGroup"] = workgroup
     paginator = client_athena.get_paginator("list_query_executions")
-    uncached_ids = []
-    for page in paginator.paginate(**args):
+    uncached_ids: List[str] = []
+    for page in paginator.paginate(**args):  # type: ignore[arg-type]
         _logger.debug("paginating Athena's queries history...")
         query_execution_id_list: List[str] = page["QueryExecutionIds"]
         for query_execution_id in query_execution_id_list:
             if query_execution_id not in _cache_manager:
                 uncached_ids.append(query_execution_id)
     if uncached_ids:
-        new_execution_data = []
+        new_execution_data: List[QueryExecutionTypeDef] = []
         for i in range(0, len(uncached_ids), page_size):
             new_execution_data.extend(
-                client_athena.batch_get_query_execution(QueryExecutionIds=uncached_ids[i : i + page_size]).get(
-                    "QueryExecutions"
-                )
+                client_athena.batch_get_query_execution(  # type: ignore[arg-type]
+                    QueryExecutionIds=uncached_ids[i : i + page_size],
+                ).get("QueryExecutions")
             )
-        _cache_manager.update_cache(new_execution_data)
+        _cache_manager.update_cache(new_execution_data)  # type: ignore[arg-type]
     return _cache_manager.sorted_successful_generator()
 
 
 def _check_for_cached_results(
     sql: str,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     workgroup: Optional[str],
     max_cache_seconds: int,
     max_cache_query_inspections: int,

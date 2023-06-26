@@ -39,7 +39,7 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
         path: str,
         path_root: str,
         dataset: bool,
-        version_ids: Dict[str, Optional[str]],
+        version_ids: Optional[Dict[str, str]],
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Optional[Dict[str, Any]],
         **reader_args: Any,
@@ -59,20 +59,20 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
             parser_func=read_text_func,
             path_root=path_root,
             dataset=dataset,
-            boto3_session=None,
+            s3_client=None,
             pandas_kwargs=pandas_kwargs,
             s3_additional_kwargs=s3_additional_kwargs,
             use_threads=False,
-            version_id=version_ids.get(s3_path),
+            version_id=version_ids.get(s3_path) if version_ids else None,
         )
 
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
-    def _write_block(  # type: ignore  # pylint: disable=arguments-differ, arguments-renamed
+    def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed
         self,
         f: io.TextIOWrapper,
-        block: BlockAccessor[Any],
+        block: BlockAccessor,
         pandas_kwargs: Optional[Dict[str, Any]],
         **writer_args: Any,
     ) -> None:
@@ -81,7 +81,7 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
         if not pandas_kwargs:
             pandas_kwargs = {}
 
-        write_text_func(block.to_pandas(), f, **pandas_kwargs)  # type: ignore
+        write_text_func(block.to_pandas(), f, **pandas_kwargs)  # type: ignore[misc]
 
 
 class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
@@ -92,13 +92,13 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
     def __init__(self) -> None:
         super().__init__(pd.read_csv, pd.DataFrame.to_csv)
 
-    def _read_stream(  # type: ignore
+    def _read_stream(  # type: ignore[override]
         self,
         f: pyarrow.NativeFile,
         path: str,
         path_root: str,
         dataset: bool,
-        version_ids: Dict[str, Optional[str]],
+        version_ids: Optional[Dict[str, str]],
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Dict[str, Any],
         **reader_args: Any,
@@ -140,13 +140,13 @@ class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-me
     def __init__(self) -> None:
         super().__init__(pd.read_json, pd.DataFrame.to_json)
 
-    def _read_stream(  # type: ignore
+    def _read_stream(  # type: ignore[override]
         self,
         f: pyarrow.NativeFile,
         path: str,
         path_root: str,
         dataset: bool,
-        version_ids: Dict[str, Optional[str]],
+        version_ids: Optional[Dict[str, str]],
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Dict[str, Any],
         **reader_args: Any,
@@ -172,8 +172,8 @@ class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-me
                 parser_func=read_text_func,
                 path_root=path_root,
                 dataset=dataset,
-                boto3_session=None,
+                s3_client=None,
                 pandas_kwargs=pandas_kwargs,
                 s3_additional_kwargs=s3_additional_kwargs,
-                version_id=version_ids.get(s3_path),
+                version_id=version_ids.get(s3_path) if version_ids else None,
             )

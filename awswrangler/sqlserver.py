@@ -1,43 +1,35 @@
+# mypy: disable-error-code=name-defined
 """Amazon Microsoft SQL Server Module."""
 
-
-import importlib.util
-import inspect
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 
-from awswrangler import _data_types
+import awswrangler.pandas as pd
+from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
-from awswrangler import exceptions
 from awswrangler._config import apply_configs
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
-_pyodbc_found = importlib.util.find_spec("pyodbc")
-if _pyodbc_found:
-    import pyodbc  # pylint: disable=import-error
+pyodbc = _utils.import_optional_dependency("pyodbc")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
-
-
-def _check_for_pyodbc(func: FuncT) -> FuncT:
-    def inner(*args: Any, **kwargs: Any) -> Any:
-        if not _pyodbc_found:
-            raise ModuleNotFoundError(
-                "You need to install pyodbc respectively the "
-                "AWS SDK for pandas package with the `sqlserver` extra for using the sqlserver module"
-            )
-        return func(*args, **kwargs)
-
-    inner.__doc__ = func.__doc__
-    inner.__name__ = func.__name__
-    inner.__setattr__("__signature__", inspect.signature(func))  # pylint: disable=no-member
-    return inner  # type: ignore
 
 
 def _validate_connection(con: "pyodbc.Connection") -> None:
@@ -99,7 +91,7 @@ def _create_table(
     cursor.execute(sql)
 
 
-@_check_for_pyodbc
+@_utils.check_optional_dependency(pyodbc, "pyodbc")
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
@@ -181,7 +173,54 @@ def connect(
     return pyodbc.connect(connection_str, timeout=timeout)
 
 
-@_check_for_pyodbc
+@overload
+def read_sql_query(
+    sql: str,
+    con: "pyodbc.Connection",
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "pyodbc.Connection",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "pyodbc.Connection",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(pyodbc, "pyodbc")
 def read_sql_query(
     sql: str,
     con: "pyodbc.Connection",
@@ -191,6 +230,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -216,6 +256,12 @@ def read_sql_query(
         Check for overflows or other unsafe data type conversions.
     timestamp_as_object : bool
         Cast non-nanosecond timestamps (np.datetime64) to objects.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
 
     Returns
     -------
@@ -244,10 +290,61 @@ def read_sql_query(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        dtype_backend=dtype_backend,
     )
 
 
-@_check_for_pyodbc
+@overload
+def read_sql_table(
+    table: str,
+    con: "pyodbc.Connection",
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "pyodbc.Connection",
+    *,
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "pyodbc.Connection",
+    *,
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(pyodbc, "pyodbc")
 def read_sql_table(
     table: str,
     con: "pyodbc.Connection",
@@ -258,6 +355,7 @@ def read_sql_table(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding the table.
 
@@ -286,6 +384,12 @@ def read_sql_table(
         Check for overflows or other unsafe data type conversions.
     timestamp_as_object : bool
         Cast non-nanosecond timestamps (np.datetime64) to objects.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
 
     Returns
     -------
@@ -316,17 +420,18 @@ def read_sql_table(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        dtype_backend=dtype_backend,
     )
 
 
-@_check_for_pyodbc
+@_utils.check_optional_dependency(pyodbc, "pyodbc")
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
     con: "pyodbc.Connection",
     table: str,
     schema: str,
-    mode: str = "append",
+    mode: Literal["append", "overwrite"] = "append",
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
@@ -371,7 +476,7 @@ def to_sql(
 
         Note: when using this mode, pyodbc converts the Python parameter values to their ODBC "C" equivalents,
         based on the target column types in the database which may lead to subtle data type conversion
-        diffferences depending on whether fast_executemany is True or False.
+        differences depending on whether fast_executemany is True or False.
 
     Returns
     -------

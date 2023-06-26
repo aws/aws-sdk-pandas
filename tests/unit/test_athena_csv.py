@@ -1,19 +1,14 @@
 import csv
 import logging
-from sys import version_info
 
 import boto3
 import pyarrow as pa
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import ensure_data_types_csv, get_df_csv, is_ray_modin
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -23,7 +18,6 @@ pytestmark = pytest.mark.distributed
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_partitioning):
-
     # Round 1 - Warm up
     df = pd.DataFrame({"c0": [0, 1]}, dtype="Int64")
     wr.s3.to_csv(
@@ -33,9 +27,11 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        description="c0",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c0": "0"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c0",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+            columns_comments={"c0": "0"},
+        ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
         index=False,
@@ -60,9 +56,11 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        description="c1",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c1": "1"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c1",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+            columns_comments={"c1": "1"},
+        ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
         index=False,
@@ -88,9 +86,11 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         mode="append",
         database=glue_database,
         table=glue_table,
-        description="c1",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
-        columns_comments={"c1": "1"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c1",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
+            columns_comments={"c1": "1"},
+        ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
         index=False,
@@ -116,10 +116,12 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         mode="overwrite",
         database=glue_database,
         table=glue_table,
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c0+c1",
+            parameters={"num_cols": "2", "num_rows": "2"},
+            columns_comments={"c0": "zero", "c1": "one"},
+        ),
         partition_cols=["c1"],
-        description="c0+c1",
-        parameters={"num_cols": "2", "num_rows": "2"},
-        columns_comments={"c0": "zero", "c1": "one"},
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
         index=False,
@@ -146,10 +148,12 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         mode="overwrite_partitions",
         database=glue_database,
         table=glue_table,
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c0+c1",
+            parameters={"num_cols": "2", "num_rows": "3"},
+            columns_comments={"c0": "zero", "c1": "one"},
+        ),
         partition_cols=["c1"],
-        description="c0+c1",
-        parameters={"num_cols": "2", "num_rows": "3"},
-        columns_comments={"c0": "zero", "c1": "one"},
         concurrent_partitioning=concurrent_partitioning,
         use_threads=use_threads,
         index=False,
@@ -182,8 +186,8 @@ def test_csv_overwrite_several_partitions(path, glue_database, glue_table, use_t
             dataset=True,
             partition_cols=["par"],
             mode="overwrite",
-            table=glue_table,
             database=glue_database,
+            table=glue_table,
             concurrent_partitioning=True,
         )
         df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
@@ -197,18 +201,43 @@ def test_csv_overwrite_several_partitions(path, glue_database, glue_table, use_t
 )
 def test_csv_dataset(path, glue_database):
     with pytest.raises(wr.exceptions.UndetectedType):
-        wr.s3.to_csv(pd.DataFrame({"A": [None]}), path, dataset=True, database=glue_database, table="test_csv_dataset")
+        wr.s3.to_csv(
+            pd.DataFrame({"A": [None]}),
+            path,
+            dataset=True,
+            database=glue_database,
+            table="test_csv_dataset",
+        )
     df = get_df_csv()
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df, path + "0", dataset=False, mode="overwrite", database=glue_database, table="test_csv_dataset")
+        wr.s3.to_csv(
+            df,
+            path + "0",
+            dataset=False,
+            mode="overwrite",
+            database=glue_database,
+            table="test_csv_dataset",
+        )
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df, path + "0", dataset=False, table="test_csv_dataset")
+        wr.s3.to_csv(
+            df,
+            path + "0",
+            dataset=False,
+            database=None,
+            table="test_csv_dataset",
+        )
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_csv(df=df, path=path + "0", mode="append")
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_csv(df=df, path=path + "0", partition_cols=["col2"])
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df=df, path=path + "0", description="foo")
+        wr.s3.to_csv(
+            df=df,
+            path=path + "0",
+            database=None,
+            table=None,
+            glue_table_settings=wr.typing.GlueTableSettings(description="foo"),
+        )
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_csv(df=df, path=path + "0", partition_cols=["col2"], dataset=True, mode="WRONG")
     paths = wr.s3.to_csv(
@@ -231,7 +260,6 @@ def test_csv_dataset(path, glue_database):
     wr.s3.delete_objects(path=paths)
 
 
-@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 def test_csv_catalog(path, glue_table, glue_database, use_threads, concurrent_partitioning):
@@ -256,7 +284,6 @@ def test_csv_catalog(path, glue_table, glue_database, use_threads, concurrent_pa
     assert len(df2.columns) == 11
     assert df2["id"].sum() == 6
     ensure_data_types_csv(df2)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
@@ -343,7 +370,6 @@ def test_athena_csv_types(path, glue_database, glue_table):
     assert len(df2.columns) == 10
     assert df2["id"].sum() == 6
     ensure_data_types_csv(df2)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
@@ -405,60 +431,46 @@ def test_mixed_types_column(path, glue_table, glue_database, use_threads):
 def test_failing_catalog(path, glue_table, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3]})
     try:
-        wr.s3.to_csv(df, path, use_threads=use_threads, dataset=True, table=glue_table, database="foo")
+        wr.s3.to_csv(
+            df,
+            path,
+            use_threads=use_threads,
+            dataset=True,
+            table=glue_table,
+            database="foo",
+        )
     except boto3.client("glue").exceptions.EntityNotFoundException:
         pass
     assert len(wr.s3.list_objects(path)) == 0
 
 
-@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 @pytest.mark.parametrize("compression", ["gzip", "bz2", None])
 def test_csv_compressed(path, glue_table, glue_database, use_threads, concurrent_partitioning, compression):
-    df = get_df_csv()
-    if version_info < (3, 7) and compression:
-        with pytest.raises(wr.exceptions.InvalidArgument):
-            wr.s3.to_csv(
-                df=df,
-                path=path,
-                sep="\t",
-                index=True,
-                use_threads=use_threads,
-                boto3_session=None,
-                s3_additional_kwargs=None,
-                dataset=True,
-                partition_cols=["par0", "par1"],
-                mode="overwrite",
-                table=glue_table,
-                database=glue_database,
-                concurrent_partitioning=concurrent_partitioning,
-                compression=compression,
-            )
-    else:
-        wr.s3.to_csv(
-            df=df,
-            path=path,
-            sep="\t",
-            index=True,
-            use_threads=use_threads,
-            boto3_session=None,
-            s3_additional_kwargs=None,
-            dataset=True,
-            partition_cols=["par0", "par1"],
-            mode="overwrite",
-            table=glue_table,
-            database=glue_database,
-            concurrent_partitioning=concurrent_partitioning,
-            compression=compression,
-        )
-        df2 = wr.athena.read_sql_table(glue_table, glue_database)
-        assert df2.shape == (3, 11)
-        assert df2["id"].sum() == 6
-        ensure_data_types_csv(df2)
-        assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
+    wr.s3.to_csv(
+        df=get_df_csv(),
+        path=path,
+        sep="\t",
+        index=True,
+        use_threads=use_threads,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite",
+        table=glue_table,
+        database=glue_database,
+        concurrent_partitioning=concurrent_partitioning,
+        compression=compression,
+    )
+    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    assert df2.shape == (3, 11)
+    assert df2["id"].sum() == 6
+    ensure_data_types_csv(df2)
 
 
+@pytest.mark.xfail(is_ray_modin, raises=TypeError, reason="Broken sort_values in Modin")
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("ctas_approach", [True, False])
 def test_opencsv_serde(path, glue_table, glue_database, use_threads, ctas_approach):

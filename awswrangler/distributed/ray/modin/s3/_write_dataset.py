@@ -4,8 +4,8 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 import boto3
 import modin.pandas as pd
 import numpy as np
-from pandas import DataFrame as PandasDataFrame
 
+from awswrangler import _utils, typing
 from awswrangler._distributed import engine
 from awswrangler.distributed.ray import ray_get, ray_remote
 from awswrangler.distributed.ray.modin import modin_repartition
@@ -28,9 +28,9 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     func: Callable[..., List[str]],
     path_root: str,
-    bucketing_info: Tuple[List[str], int],
+    bucketing_info: typing.BucketingInfoTuple,
     filename_prefix: str,
-    boto3_session: "boto3.Session",
+    boto3_session: Optional["boto3.Session"],
     use_threads: Union[bool, int],
     proxy: Optional[_WriteProxy] = None,
     **func_kwargs: Any,
@@ -42,7 +42,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
         engine.dispatch_func(func),
         path_root=path_root,
         filename_prefix=filename_prefix,
-        boto3_session=None,
+        s3_client=None,
         use_threads=False,
         bucketing=True,
         **func_kwargs,
@@ -69,7 +69,7 @@ def _write_partitions_distributed(
     table_type: Optional[str],
     transaction_id: Optional[str],
     filename_prefix: str,
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     boto3_session: Optional["boto3.Session"] = None,
     **func_kwargs: Any,
 ) -> pd.DataFrame:
@@ -100,11 +100,12 @@ def _write_partitions_distributed(
             **func_kwargs,
         )
     else:
+        s3_client = _utils.client(service_name="s3", session=boto3_session)
         paths = write_func(
             df_group.drop(partition_cols, axis="columns"),
             path_root=prefix,
             filename_prefix=filename_prefix,
-            boto3_session=boto3_session,
+            s3_client=s3_client,
             use_threads=use_threads,
             **func_kwargs,
         )
@@ -126,9 +127,9 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     table: Optional[str],
     table_type: Optional[str],
     transaction_id: Optional[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     filename_prefix: str,
-    boto3_session: "boto3.Session",
+    boto3_session: Optional["boto3.Session"],
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     paths: List[str]
@@ -137,8 +138,8 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     if not bucketing_info:
         # If only partitioning (without bucketing), avoid expensive modin groupby
         # by partitioning and writing each block as an ordinary Pandas DataFrame
-        _to_partitions_func = engine.dispatch_func(_to_partitions, PandasDataFrame)
-        func = engine.dispatch_func(func, PandasDataFrame)
+        _to_partitions_func = engine.dispatch_func(_to_partitions, "python")
+        func = engine.dispatch_func(func, "python")
 
         @ray_remote()
         def write_partitions(df: pd.DataFrame, block_index: int) -> Tuple[List[str], Dict[str, List[str]]]:

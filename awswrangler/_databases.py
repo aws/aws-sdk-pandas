@@ -3,12 +3,13 @@
 import importlib.util
 import logging
 import ssl
-from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, Tuple, Union, cast, overload
 
 import boto3
-import pandas as pd
 import pyarrow as pa
+from typing_extensions import Literal
 
+import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions, oracle, secretsmanager
 from awswrangler.catalog import get_connection
 
@@ -30,9 +31,9 @@ class ConnectionAttributes(NamedTuple):
 
 
 def _get_dbname(cluster_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
-    client_redshift: boto3.client = _utils.client(service_name="redshift", session=boto3_session)
-    res: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
-    return cast(str, res["DBName"])
+    client_redshift = _utils.client(service_name="redshift", session=boto3_session)
+    res = client_redshift.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
+    return res["DBName"]
 
 
 def _get_connection_attributes_from_catalog(
@@ -52,19 +53,29 @@ def _get_connection_attributes_from_catalog(
         ssl_cadata: Optional[str] = None
         if ssl_cert_path:
             bucket_name, key_path = _utils.parse_path(ssl_cert_path)
-            client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+            client_s3 = _utils.client(service_name="s3", session=boto3_session)
             try:
                 ssl_cadata = client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read().decode("utf-8")
-            except client_s3.exception.NoSuchKey:
+            except client_s3.exceptions.NoSuchKey:
                 raise exceptions.NoFilesFound(  # pylint: disable=raise-missing-from
                     f"No CA certificate found at {ssl_cert_path}."
                 )
         ssl_context = ssl.create_default_context(cadata=ssl_cadata)
 
+    if "SECRET_ID" in details:
+        secret_value: Dict[str, Any] = secretsmanager.get_secret_json(
+            name=details["SECRET_ID"], boto3_session=boto3_session
+        )
+        username = secret_value["username"]
+        password = secret_value["password"]
+    else:
+        username = details["USERNAME"]
+        password = details["PASSWORD"]
+
     return ConnectionAttributes(
         kind=details["JDBC_CONNECTION_URL"].split(":")[1].lower(),
-        user=details["USERNAME"],
-        password=details["PASSWORD"],
+        user=username,
+        password=password,
         host=details["JDBC_CONNECTION_URL"].split(":")[-2].replace("/", "").replace("@", ""),
         port=int(port),
         database=dbname if dbname is not None else database,
@@ -126,6 +137,16 @@ def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...],
     return args
 
 
+def _should_handle_oracle_objects(dtype: pa.DataType) -> bool:
+    return (
+        dtype == pa.string()
+        or dtype == pa.large_string()
+        or isinstance(dtype, pa.Decimal128Type)
+        or dtype == pa.binary()
+        or dtype == pa.large_binary()
+    )
+
+
 def _records2df(
     records: List[Tuple[Any]],
     cols_names: List[str],
@@ -133,12 +154,13 @@ def _records2df(
     safe: bool,
     dtype: Optional[Dict[str, pa.DataType]],
     timestamp_as_object: bool,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"],
 ) -> pd.DataFrame:
     arrays: List[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
         if (dtype is None) or (col_name not in dtype):
             if _oracledb_found:
-                col_values = oracle.handle_oracle_objects(col_values, col_name)
+                col_values = oracle.handle_oracle_objects(col_values, col_name)  # ruff: noqa: PLW2901
             try:
                 array: pa.Array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
             except pa.ArrowInvalid as ex:
@@ -146,7 +168,7 @@ def _records2df(
         else:
             try:
                 if _oracledb_found:
-                    if dtype[col_name] == pa.string() or isinstance(dtype[col_name], pa.Decimal128Type):
+                    if _should_handle_oracle_objects(dtype[col_name]):
                         col_values = oracle.handle_oracle_objects(col_values, col_name, dtype)
                 array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
             except (pa.ArrowInvalid, pa.ArrowTypeError):
@@ -163,7 +185,7 @@ def _records2df(
             self_destruct=True,
             integer_object_nulls=False,
             date_as_object=True,
-            types_mapper=_data_types.pyarrow2pandas_extension,
+            types_mapper=_data_types.get_pyarrow2pandas_type_mapper(dtype_backend=dtype_backend),
             safe=safe,
             timestamp_as_object=timestamp_as_object,
         )
@@ -187,6 +209,7 @@ def _iterate_results(
     safe: bool,
     dtype: Optional[Dict[str, pa.DataType]],
     timestamp_as_object: bool,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"],
 ) -> Iterator[pd.DataFrame]:
     with con.cursor() as cursor:
         cursor.execute(*cursor_args)
@@ -210,6 +233,7 @@ def _iterate_results(
                 safe=safe,
                 dtype=dtype,
                 timestamp_as_object=timestamp_as_object,
+                dtype_backend=dtype_backend,
             )
 
 
@@ -220,6 +244,7 @@ def _fetch_all_results(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "pyarrow",
 ) -> pd.DataFrame:
     with con.cursor() as cursor:
         cursor.execute(*cursor_args)
@@ -239,7 +264,55 @@ def _fetch_all_results(
             dtype=dtype,
             safe=safe,
             timestamp_as_object=timestamp_as_object,
+            dtype_backend=dtype_backend,
         )
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: Any,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: Any,
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: Any,
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
 
 
 def read_sql_query(
@@ -251,6 +324,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read SQL Query (generic)."""
     args = _convert_params(sql, params)
@@ -263,6 +337,7 @@ def read_sql_query(
                 dtype=dtype,
                 safe=safe,
                 timestamp_as_object=timestamp_as_object,
+                dtype_backend=dtype_backend,
             )
 
         return _iterate_results(
@@ -273,6 +348,7 @@ def read_sql_query(
             dtype=dtype,
             safe=safe,
             timestamp_as_object=timestamp_as_object,
+            dtype_backend=dtype_backend,
         )
     except Exception as ex:
         con.rollback()

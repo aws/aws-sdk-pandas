@@ -37,7 +37,7 @@ def describe_dashboard(
     Returns
     -------
     Dict[str, Any]
-        Dashboad Description.
+        Dashboard Description.
 
     Examples
     --------
@@ -46,15 +46,16 @@ def describe_dashboard(
     """
     if (name is None) and (dashboard_id is None):
         raise exceptions.InvalidArgument("You must pass a not None name or dashboard_id argument.")
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=boto3_session)
     if (dashboard_id is None) and (name is not None):
-        dashboard_id = get_dashboard_id(name=name, account_id=account_id, boto3_session=session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    return cast(
-        Dict[str, Any], client.describe_dashboard(AwsAccountId=account_id, DashboardId=dashboard_id)["Dashboard"]
-    )
+        dashboard_id = get_dashboard_id(name=name, account_id=account_id, boto3_session=boto3_session)
+
+    client = _utils.client(service_name="quicksight", session=boto3_session)
+    dashboard_id = cast(str, dashboard_id)
+
+    response = client.describe_dashboard(AwsAccountId=account_id, DashboardId=dashboard_id)
+    return response["Dashboard"]  # type: ignore[return-value]
 
 
 def describe_data_source(
@@ -92,15 +93,16 @@ def describe_data_source(
     """
     if (name is None) and (data_source_id is None):
         raise exceptions.InvalidArgument("You must pass a not None name or data_source_id argument.")
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=boto3_session)
     if (data_source_id is None) and (name is not None):
-        data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    return cast(
-        Dict[str, Any], client.describe_data_source(AwsAccountId=account_id, DataSourceId=data_source_id)["DataSource"]
-    )
+        data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=boto3_session)
+
+    client = _utils.client(service_name="quicksight", session=boto3_session)
+    data_source_id = cast(str, data_source_id)
+
+    response = client.describe_data_source(AwsAccountId=account_id, DataSourceId=data_source_id)
+    return response["DataSource"]  # type: ignore[return-value]
 
 
 def describe_data_source_permissions(
@@ -138,16 +140,16 @@ def describe_data_source_permissions(
     """
     if (name is None) and (data_source_id is None):
         raise exceptions.InvalidArgument("You must pass a not None name or data_source_id argument.")
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=boto3_session)
     if (data_source_id is None) and (name is not None):
-        data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    return cast(
-        Dict[str, Any],
-        client.describe_data_source_permissions(AwsAccountId=account_id, DataSourceId=data_source_id)["Permissions"],
-    )
+        data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=boto3_session)
+
+    client = _utils.client(service_name="quicksight", session=boto3_session)
+    data_source_id = cast(str, data_source_id)
+
+    response = client.describe_data_source_permissions(AwsAccountId=account_id, DataSourceId=data_source_id)
+    return response["Permissions"]  # type: ignore[return-value]
 
 
 def describe_dataset(
@@ -185,13 +187,16 @@ def describe_dataset(
     """
     if (name is None) and (dataset_id is None):
         raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=boto3_session)
     if (dataset_id is None) and (name is not None):
-        dataset_id = get_dataset_id(name=name, account_id=account_id, boto3_session=session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    return cast(Dict[str, Any], client.describe_data_set(AwsAccountId=account_id, DataSetId=dataset_id)["DataSet"])
+        dataset_id = get_dataset_id(name=name, account_id=account_id, boto3_session=boto3_session)
+
+    client = _utils.client(service_name="quicksight", session=boto3_session)
+    dataset_id = cast(str, dataset_id)
+
+    response = client.describe_data_set(AwsAccountId=account_id, DataSetId=dataset_id)
+    return response["DataSet"]  # type: ignore[return-value]
 
 
 def describe_ingestion(
@@ -232,13 +237,13 @@ def describe_ingestion(
     """
     if (dataset_name is None) and (dataset_id is None):
         raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=boto3_session)
     if (dataset_id is None) and (dataset_name is not None):
-        dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    return cast(
-        Dict[str, Any],
-        client.describe_ingestion(IngestionId=ingestion_id, AwsAccountId=account_id, DataSetId=dataset_id)["Ingestion"],
-    )
+        dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=boto3_session)
+
+    client = _utils.client(service_name="quicksight", session=boto3_session)
+    dataset_id = cast(str, dataset_id)
+
+    response = client.describe_ingestion(IngestionId=ingestion_id, AwsAccountId=account_id, DataSetId=dataset_id)
+    return response["Ingestion"]  # type: ignore[return-value]

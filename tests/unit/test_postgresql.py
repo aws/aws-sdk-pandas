@@ -2,17 +2,19 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 
-import pandas as pd
 import pg8000
 import pyarrow as pa
 import pytest
 from pg8000.dbapi import ProgrammingError
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
-from .._utils import ensure_data_types, get_df
+from .._utils import ensure_data_types, get_df, pandas_equals
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="function")
@@ -22,8 +24,12 @@ def postgresql_con():
     con.close()
 
 
-def test_connection():
+def test_glue_connection():
     wr.postgresql.connect("aws-sdk-pandas-postgresql", timeout=10).close()
+
+
+def test_glue_connection_ssm_credential_type():
+    wr.postgresql.connect("aws-sdk-pandas-postgresql-ssm", timeout=10).close()
 
 
 def test_read_sql_query_simple(databases_parameters):
@@ -130,7 +136,7 @@ def test_null(postgresql_table, postgresql_con):
     )
     df2 = wr.postgresql.read_sql_table(table=table, schema="public", con=postgresql_con)
     df["id"] = df["id"].astype("Int64")
-    assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
+    assert pandas_equals(pd.concat(objs=[df, df], ignore_index=True), df2)
 
 
 def test_decimal_cast(postgresql_table, postgresql_con):
@@ -214,7 +220,17 @@ def test_dfs_are_equal_for_different_chunksizes(postgresql_table, postgresql_con
     df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
     wr.postgresql.to_sql(df=df, con=postgresql_con, schema="public", table=postgresql_table, chunksize=chunksize)
 
-    df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
+    df2 = pd.concat(
+        list(
+            wr.postgresql.read_sql_table(
+                con=postgresql_con,
+                schema="public",
+                table=postgresql_table,
+                chunksize=chunksize,
+            )
+        ),
+        ignore_index=True,
+    )
 
     df["c0"] = df["c0"].astype("Int64")
     df["c1"] = df["c1"].astype("string")
@@ -371,7 +387,7 @@ def test_upsert_multiple_conflict_columns(postgresql_table, postgresql_con):
     df7["c0"] = df7["c0"].astype("string")
     df7["c1"] = df7["c1"].astype("Int64")
     df7["c2"] = df7["c2"].astype("Int64")
-    assert df6.equals(df7)
+    assert pandas_equals(df6, df7)
 
 
 def test_insert_ignore_duplicate_columns(postgresql_table, postgresql_con):
@@ -503,7 +519,7 @@ def test_insert_ignore_duplicate_multiple_columns(postgresql_table, postgresql_c
     df7["c0"] = df7["c0"].astype("string")
     df7["c1"] = df7["c1"].astype("Int64")
     df7["c2"] = df7["c2"].astype("Int64")
-    assert df6.equals(df7)
+    assert pandas_equals(df6, df7)
 
 
 def test_timestamp_overflow(postgresql_table, postgresql_con):

@@ -4,22 +4,39 @@ import csv
 import json
 import logging
 import pprint
-import time
 import uuid
 import warnings
 from decimal import Decimal
-from typing import Any, Dict, Generator, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    TypedDict,
+    Union,
+    cast,
+)
 
 import boto3
 import botocore.exceptions
 import pandas as pd
+from typing_extensions import Literal
 
-from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
+from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts, typing
 from awswrangler._config import apply_configs
 from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 
-from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager
+from . import _executions
+from ._cache import _cache_manager, _LocalMetadataCacheManager
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue.type_defs import ColumnTypeDef
 
 _QUERY_FINAL_STATES: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
 _QUERY_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
@@ -46,7 +63,9 @@ class _WorkGroupConfig(NamedTuple):
     kms_key: Optional[str]
 
 
-def _get_s3_output(s3_output: Optional[str], wg_config: _WorkGroupConfig, boto3_session: boto3.Session) -> str:
+def _get_s3_output(
+    s3_output: Optional[str], wg_config: _WorkGroupConfig, boto3_session: Optional[boto3.Session] = None
+) -> str:
     if wg_config.enforced and wg_config.s3_output is not None:
         return wg_config.s3_output
     if s3_output is not None:
@@ -65,14 +84,14 @@ def _start_query_execution(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    execution_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     args: Dict[str, Any] = {"QueryString": sql}
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # s3_output
     args["ResultConfiguration"] = {
-        "OutputLocation": _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
+        "OutputLocation": _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
     }
 
     # encryption
@@ -81,11 +100,10 @@ def _start_query_execution(
             args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": wg_config.encryption}
             if wg_config.kms_key is not None:
                 args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = wg_config.kms_key
-    else:
-        if encryption is not None:
-            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
-            if kms_key is not None:
-                args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
+    elif encryption is not None:
+        args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
+        if kms_key is not None:
+            args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
 
     # database
     if database is not None:
@@ -97,19 +115,23 @@ def _start_query_execution(
     if workgroup is not None:
         args["WorkGroup"] = workgroup
 
-    client_athena: boto3.client = _utils.client(service_name="athena", session=session)
-    _logger.debug("args: \n%s", pprint.pformat(args))
-    response: Dict[str, Any] = _utils.try_it(
+    if execution_params:
+        args["ExecutionParameters"] = execution_params
+
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
+    _logger.debug("Starting query execution with args: \n%s", pprint.pformat(args))
+    response = _utils.try_it(
         f=client_athena.start_query_execution,
         ex=botocore.exceptions.ClientError,
         ex_code="ThrottlingException",
         max_num_tries=5,
         **args,
     )
-    return cast(str, response["QueryExecutionId"])
+    _logger.debug("Query response:\n%s", response)
+    return response["QueryExecutionId"]
 
 
-def _get_workgroup_config(session: boto3.Session, workgroup: Optional[str] = None) -> _WorkGroupConfig:
+def _get_workgroup_config(session: Optional[boto3.Session] = None, workgroup: Optional[str] = None) -> _WorkGroupConfig:
     enforced: bool
     wg_s3_output: Optional[str]
     wg_encryption: Optional[str]
@@ -128,20 +150,20 @@ def _get_workgroup_config(session: boto3.Session, workgroup: Optional[str] = Non
     wg_config: _WorkGroupConfig = _WorkGroupConfig(
         enforced=enforced, s3_output=wg_s3_output, encryption=wg_encryption, kms_key=wg_kms_key
     )
-    _logger.debug("wg_config:\n%s", wg_config)
+    _logger.debug("Workgroup config:\n%s", wg_config)
     return wg_config
 
 
 def _fetch_txt_result(
     query_metadata: _QueryMetadata,
     keep_files: bool,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> pd.DataFrame:
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:
         return pd.DataFrame()
     path: str = query_metadata.output_location
-    _logger.debug("Start TXT reading from %s", path)
+    _logger.debug("Reading TXT result from %s", path)
     df = s3.read_csv(
         path=[path],
         dtype=query_metadata.dtype,
@@ -170,8 +192,8 @@ def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
     origin_df_dict = df.to_dict()
     target_df_dict: Dict[str, List[Union[str, bool]]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
     for index, col_name in origin_df_dict["col_name"].items():
-        col_name = col_name.strip()
-        if col_name.startswith("#") or col_name == "":
+        col_name = col_name.strip()  # ruff: noqa: PLW2901
+        if col_name.startswith("#") or not col_name:
             pass
         elif col_name in target_df_dict["Column Name"]:
             index_col_name = target_df_dict["Column Name"].index(col_name)
@@ -186,10 +208,13 @@ def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
 
 def _get_query_metadata(  # pylint: disable=too-many-statements
     query_execution_id: str,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session] = None,
     categories: Optional[List[str]] = None,
     query_execution_payload: Optional[Dict[str, Any]] = None,
     metadata_cache_manager: Optional[_LocalMetadataCacheManager] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    execution_params: Optional[List[str]] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> _QueryMetadata:
     """Get query metadata."""
     if (query_execution_payload is not None) and (query_execution_payload["Status"]["State"] in _QUERY_FINAL_STATES):
@@ -198,11 +223,15 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
             raise exceptions.QueryFailed(f"Query error: {reason}")
         _query_execution_payload: Dict[str, Any] = query_execution_payload
     else:
-        _query_execution_payload = wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
+        _query_execution_payload = _executions.wait_query(
+            query_execution_id=query_execution_id,
+            boto3_session=boto3_session,
+            athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        )
     cols_types: Dict[str, str] = get_query_columns_types(
         query_execution_id=query_execution_id, boto3_session=boto3_session
     )
-    _logger.debug("cols_types: %s", cols_types)
+    _logger.debug("Casting query column types: %s", cols_types)
     dtype: Dict[str, str] = {}
     parse_timestamps: List[str] = []
     parse_dates: List[str] = []
@@ -211,7 +240,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     col_name: str
     col_type: str
     for col_name, col_type in cols_types.items():
-        pandas_type: str = _data_types.athena2pandas(dtype=col_type)
+        pandas_type: str = _data_types.athena2pandas(dtype=col_type, dtype_backend=dtype_backend)
         if (categories is not None) and (col_name in categories):
             dtype[col_name] = "category"
         elif pandas_type in ["datetime64", "date"]:
@@ -246,14 +275,14 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
         manifest_location=manifest_location,
         raw_payload=_query_execution_payload,
     )
-    _logger.debug("query_metadata:\n%s", query_metadata)
+    _logger.debug("Query metadata:\n%s", query_metadata)
     return query_metadata
 
 
 def _empty_dataframe_response(
     chunked: bool, query_metadata: _QueryMetadata
 ) -> Union[pd.DataFrame, Generator[None, None, None]]:
-    """Generate an empty dataframe response."""
+    """Generate an empty DataFrame response."""
     if chunked is False:
         df = pd.DataFrame()
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
@@ -266,6 +295,70 @@ def _apply_query_metadata(df: pd.DataFrame, query_metadata: _QueryMetadata) -> p
         warnings.simplefilter("ignore", category=UserWarning)
         df.query_metadata = query_metadata.raw_payload
     return df
+
+
+class _FormatterTypeQMark(TypedDict):
+    params: List[str]
+    paramstyle: Literal["qmark"]
+
+
+class _FormatterTypeNamed(TypedDict):
+    params: Dict[str, Any]
+    paramstyle: Literal["named"]
+
+
+_FormatterType = Union[_FormatterTypeQMark, _FormatterTypeNamed, None]
+
+
+def _verify_formatter(
+    params: Union[Dict[str, Any], List[str], None],
+    paramstyle: Literal["qmark", "named"],
+) -> _FormatterType:
+    if params is None:
+        return None
+
+    if paramstyle == "named":
+        if not isinstance(params, dict):
+            raise exceptions.InvalidArgumentCombination(
+                f"`params` must be a dict when paramstyle is `named`. Instead, found type {type(params)}."
+            )
+
+        return {
+            "paramstyle": "named",
+            "params": params,
+        }
+
+    if paramstyle == "qmark":
+        if not isinstance(params, list):
+            raise exceptions.InvalidArgumentCombination(
+                f"`params` must be a list when paramstyle is `qmark`. Instead, found type {type(params)}."
+            )
+
+        return {
+            "paramstyle": "qmark",
+            "params": params,
+        }
+
+    raise exceptions.InvalidArgumentValue(f"`paramstyle` must be either `qmark` or `named`. Found: {paramstyle}.")
+
+
+def _apply_formatter(
+    sql: str,
+    params: Union[Dict[str, Any], List[str], None],
+    paramstyle: Literal["qmark", "named"],
+) -> Tuple[str, Optional[List[str]]]:
+    formatter_settings = _verify_formatter(params, paramstyle)
+
+    if formatter_settings is None:
+        return sql, None
+
+    if formatter_settings["paramstyle"] == "named":
+        # Substitute query parameters]
+        sql = _process_sql_params(sql, formatter_settings["params"])
+
+        return sql, None
+
+    return sql, formatter_settings["params"]
 
 
 def get_named_query_statement(
@@ -288,10 +381,8 @@ def get_named_query_statement(
     str
         The named query statement string
     """
-    client_athena: boto3.client = _utils.client(
-        service_name="athena", session=_utils.ensure_session(session=boto3_session)
-    )
-    return client_athena.get_named_query(NamedQueryId=named_query_id)["NamedQuery"]["QueryString"]  # type: ignore
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
+    return client_athena.get_named_query(NamedQueryId=named_query_id)["NamedQuery"]["QueryString"]
 
 
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
@@ -318,11 +409,9 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     {'col0': 'int', 'col1': 'double'}
 
     """
-    client_athena: boto3.client = _utils.client(
-        service_name="athena", session=_utils.ensure_session(session=boto3_session)
-    )
-    response: Dict[str, Any] = client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
-    col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
+    response = client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
+    col_info = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
     return dict(
         (c["Name"], f"{c['Type']}({c['Precision']},{c.get('Scale', 0)})")
         if c["Type"] in ["decimal"]
@@ -351,148 +440,21 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     's3://aws-athena-query-results-ACCOUNT-REGION/'
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    account_id: str = sts.get_account_id(boto3_session=session)
-    region_name: str = str(session.region_name).lower()
+    account_id: str = sts.get_account_id(boto3_session=boto3_session)
+    region_name: str = _utils.get_region_from_session(boto3_session=boto3_session).lower()
     bucket_name = f"aws-athena-query-results-{account_id}-{region_name}"
     path = f"s3://{bucket_name}/"
-    resource = _utils.resource(service_name="s3", session=session)
-    bucket = resource.Bucket(bucket_name)
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
     args = {} if region_name == "us-east-1" else {"CreateBucketConfiguration": {"LocationConstraint": region_name}}
     try:
-        bucket.create(**args)
-    except resource.meta.client.exceptions.BucketAlreadyOwnedByYou as err:
+        client_s3.create_bucket(Bucket=bucket_name, **args)  # type: ignore[arg-type]
+    except (client_s3.exceptions.BucketAlreadyExists, client_s3.exceptions.BucketAlreadyOwnedByYou) as err:
         _logger.debug("Bucket %s already exists.", err.response["Error"]["BucketName"])
     except botocore.exceptions.ClientError as err:
         if err.response["Error"]["Code"] == "OperationAborted":
             _logger.debug("A conflicting conditional operation is currently in progress against this resource.")
-    bucket.wait_until_exists()
+    client_s3.get_waiter("bucket_exists").wait(Bucket=bucket_name)
     return path
-
-
-@apply_configs
-def start_query_execution(
-    sql: str,
-    database: Optional[str] = None,
-    s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    params: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    max_cache_seconds: int = 0,
-    max_cache_query_inspections: int = 50,
-    max_remote_cache_entries: int = 50,
-    max_local_cache_entries: int = 100,
-    data_source: Optional[str] = None,
-    wait: bool = False,
-) -> Union[str, Dict[str, Any]]:
-    """Start a SQL Query against AWS Athena.
-
-    Note
-    ----
-    Create the default Athena bucket if it doesn't exist and s3_output is None.
-    (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
-
-    Parameters
-    ----------
-    sql : str
-        SQL query.
-    database : str, optional
-        AWS Glue/Athena database name.
-    s3_output : str, optional
-        AWS S3 path.
-    workgroup : str, optional
-        Athena workgroup.
-    encryption : str, optional
-        None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
-    kms_key : str, optional
-        For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
-    params: Dict[str, any], optional
-        Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
-        The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    max_cache_seconds: int
-        awswrangler can look up in Athena's history if this query has been run before.
-        If so, and its completion time is less than `max_cache_seconds` before now, awswrangler
-        skips query execution and just returns the same results as last time.
-        If cached results are valid, awswrangler ignores the `s3_output`, `encryption` and `kms_key` params.
-        If reading cached data fails for any reason, execution falls back to the usual query run path.
-    max_cache_query_inspections : int
-        Max number of queries that will be inspected from the history to try to find some result to reuse.
-        The bigger the number of inspection, the bigger will be the latency for not cached queries.
-        Only takes effect if max_cache_seconds > 0.
-    max_remote_cache_entries : int
-        Max number of queries that will be retrieved from AWS for cache inspection.
-        The bigger the number of inspection, the bigger will be the latency for not cached queries.
-        Only takes effect if max_cache_seconds > 0 and default value is 50.
-    max_local_cache_entries : int
-        Max number of queries for which metadata will be cached locally. This will reduce the latency and also
-        enables keeping more than `max_remote_cache_entries` available for the cache. This value should not be
-        smaller than max_remote_cache_entries.
-        Only takes effect if max_cache_seconds > 0 and default value is 100.
-    data_source : str, optional
-        Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
-    wait : bool, default False
-        Indicates whether to wait for the query to finish and return a dictionary with the query execution response.
-
-    Returns
-    -------
-    Union[str, Dict[str, Any]]
-        Query execution ID if `wait` is set to `False`, dictionary with the get_query_execution response otherwise.
-
-    Examples
-    --------
-    Querying into the default data source (Amazon s3 - 'AwsDataCatalog')
-
-    >>> import awswrangler as wr
-    >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...')
-
-    Querying into another data source (PostgreSQL, Redshift, etc)
-
-    >>> import awswrangler as wr
-    >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...', data_source='...')
-
-    """
-    sql = _process_sql_params(sql, params)
-
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-
-    max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
-
-    _cache_manager.max_cache_size = max_local_cache_entries
-    cache_info: _CacheInfo = _check_for_cached_results(
-        sql=sql,
-        boto3_session=session,
-        workgroup=workgroup,
-        max_cache_seconds=max_cache_seconds,
-        max_cache_query_inspections=max_cache_query_inspections,
-        max_remote_cache_entries=max_remote_cache_entries,
-    )
-    _logger.debug("cache_info:\n%s", cache_info)
-
-    if cache_info.has_valid_cache and cache_info.query_execution_id is not None:
-        query_execution_id = cache_info.query_execution_id
-        _logger.debug("Valid cache found. Retrieving...")
-    else:
-        wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
-        query_execution_id = _start_query_execution(
-            sql=sql,
-            wg_config=wg_config,
-            database=database,
-            data_source=data_source,
-            s3_output=s3_output,
-            workgroup=workgroup,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=session,
-        )
-    if wait:
-        return wait_query(query_execution_id=query_execution_id, boto3_session=session)
-
-    return query_execution_id
 
 
 @apply_configs
@@ -504,6 +466,7 @@ def repair_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     """Run the Hive's metastore consistency check: 'MSCK REPAIR TABLE table;'.
@@ -535,6 +498,8 @@ def repair_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -552,25 +517,28 @@ def repair_table(
     query = f"MSCK REPAIR TABLE `{table}`;"
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    query_id = cast(
-        str,
-        start_query_execution(
-            sql=query,
-            database=database,
-            data_source=data_source,
-            s3_output=s3_output,
-            workgroup=workgroup,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=session,
-        ),
+    query_id = _executions.start_query_execution(
+        sql=query,
+        database=database,
+        data_source=data_source,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=boto3_session,
     )
-    response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
+    response: Dict[str, Any] = _executions.wait_query(
+        query_execution_id=query_id,
+        boto3_session=boto3_session,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+    )
     return cast(str, response["Status"]["State"])
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def describe_table(
     table: str,
     database: Optional[str] = None,
@@ -578,6 +546,7 @@ def describe_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
@@ -605,6 +574,8 @@ def describe_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -614,7 +585,7 @@ def describe_table(
     Returns
     -------
     pandas.DataFrame
-        Pandas DataFrame filled by formatted infos.
+        Pandas DataFrame filled by formatted table information.
 
     Examples
     --------
@@ -625,22 +596,25 @@ def describe_table(
     query = f"DESCRIBE `{table}`;"
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    query_id = cast(
-        str,
-        start_query_execution(
-            sql=query,
-            database=database,
-            s3_output=s3_output,
-            workgroup=workgroup,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=session,
-        ),
+    query_id = _executions.start_query_execution(
+        sql=query,
+        database=database,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=boto3_session,
     )
-    query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
+    query_metadata: _QueryMetadata = _get_query_metadata(
+        query_execution_id=query_id,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        boto3_session=boto3_session,
+    )
     raw_result = _fetch_txt_result(
-        query_metadata=query_metadata, keep_files=True, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+        query_metadata=query_metadata,
+        keep_files=True,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     return _parse_describe_table(raw_result)
 
@@ -655,7 +629,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     storage_format: Optional[str] = None,
     write_compression: Optional[str] = None,
     partitioning_info: Optional[List[str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     field_delimiter: Optional[str] = None,
     schema_only: bool = False,
     workgroup: Optional[str] = None,
@@ -664,6 +638,8 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     kms_key: Optional[str] = None,
     categories: Optional[List[str]] = None,
     wait: bool = False,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    execution_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Union[str, _QueryMetadata]]:
     """Create a new table populated with the results of a SELECT query.
@@ -714,6 +690,8 @@ def create_ctas_table(  # pylint: disable=too-many-locals
         Recommended for memory restricted environments.
     wait : bool, default False
         Whether to wait for the query to finish and return a dictionary with the Query metadata.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     boto3_session : Optional[boto3.Session], optional
         Boto3 Session. The default boto3 session is used if boto3_session is None.
 
@@ -815,9 +793,10 @@ def create_ctas_table(  # pylint: disable=too-many-locals
             encryption=encryption,
             kms_key=kms_key,
             boto3_session=boto3_session,
+            execution_params=execution_params,
         )
     except botocore.exceptions.ClientError as ex:
-        error: Dict[str, Any] = ex.response["Error"]
+        error = ex.response["Error"]
         if error["Code"] == "InvalidRequestException" and "Exception parsing query" in error["Message"]:
             raise exceptions.InvalidCtasApproachQuery(
                 f"It is not possible to wrap this query into a CTAS statement. Root error message: {error['Message']}"
@@ -836,6 +815,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
                 boto3_session=boto3_session,
                 categories=categories,
                 metadata_cache_manager=_cache_manager,
+                athena_query_wait_polling_delay=athena_query_wait_polling_delay,
             )
         except exceptions.QueryFailed as ex:
             msg: str = str(ex)
@@ -855,10 +835,14 @@ def create_ctas_table(  # pylint: disable=too-many-locals
             raise ex
     else:
         response["ctas_query_id"] = query_execution_id
+    _logger.info("Created CTAS table %s", fully_qualified_name)
     return response
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def show_create_table(
     table: str,
     database: Optional[str] = None,
@@ -866,6 +850,7 @@ def show_create_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -892,6 +877,8 @@ def show_create_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    athena_query_wait_polling_delay: float, default: 0.25 seconds
+        Interval in seconds for how often the function will check if the Athena query has completed.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -912,22 +899,25 @@ def show_create_table(
     query = f"SHOW CREATE TABLE `{table}`;"
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    query_id = cast(
-        str,
-        start_query_execution(
-            sql=query,
-            database=database,
-            s3_output=s3_output,
-            workgroup=workgroup,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=session,
-        ),
+    query_id = _executions.start_query_execution(
+        sql=query,
+        database=database,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=boto3_session,
     )
-    query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
+    query_metadata: _QueryMetadata = _get_query_metadata(
+        query_execution_id=query_id,
+        athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        boto3_session=boto3_session,
+    )
     raw_result = _fetch_txt_result(
-        query_metadata=query_metadata, keep_files=True, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+        query_metadata=query_metadata,
+        keep_files=True,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     return cast(str, raw_result.createtab_stmt.str.strip().str.cat(sep=" "))
 
@@ -974,7 +964,7 @@ def generate_create_query(
 
     """
 
-    def parse_columns(columns_description: List[Dict[str, str]]) -> str:
+    def parse_columns(columns_description: Sequence["ColumnTypeDef"]) -> str:
         columns_str: List[str] = []
         for column in columns_description:
             column_str = f"  `{column['Name']}` {column['Type']}"
@@ -992,8 +982,8 @@ def generate_create_query(
             properties_str.append(property_key_value)
         return ", \n".join(properties_str)
 
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    table_detail: Dict[str, Any] = client_glue.get_table(
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
+    table_detail = client_glue.get_table(
         **_catalog_id(
             catalog_id=catalog_id,
             **_transaction_id(
@@ -1024,7 +1014,9 @@ def generate_create_query(
             f"""  '{table_detail['StorageDescriptor']['Location']}'""",
             f"""TBLPROPERTIES (\n{tblproperties})""",
         ]
-        return "\n".join(query_parts)
+        sql = "\n".join(query_parts)
+        _logger.debug("Generated create query:\n%s", sql)
+        return sql
     raise NotImplementedError()
 
 
@@ -1049,7 +1041,7 @@ def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None
     >>> res = wr.athena.get_work_group(workgroup='workgroup_name')
 
     """
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
     return cast(
         Dict[str, Any],
         _utils.try_it(
@@ -1060,104 +1052,6 @@ def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None
             WorkGroup=workgroup,
         ),
     )
-
-
-def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
-    """Stop a query execution.
-
-    Requires you to have access to the workgroup in which the query ran.
-
-    Parameters
-    ----------
-    query_execution_id : str
-        Athena query execution ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> wr.athena.stop_query_execution(query_execution_id='query-execution-id')
-
-    """
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    client_athena.stop_query_execution(QueryExecutionId=query_execution_id)
-
-
-def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
-    """Wait for the query end.
-
-    Parameters
-    ----------
-    query_execution_id : str
-        Athena query execution ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    Dict[str, Any]
-        Dictionary with the get_query_execution response.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> res = wr.athena.wait_query(query_execution_id='query-execution-id')
-
-    """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    response: Dict[str, Any] = get_query_execution(query_execution_id=query_execution_id, boto3_session=session)
-    state: str = response["Status"]["State"]
-    while state not in _QUERY_FINAL_STATES:
-        time.sleep(_QUERY_WAIT_POLLING_DELAY)
-        response = get_query_execution(query_execution_id=query_execution_id, boto3_session=session)
-        state = response["Status"]["State"]
-    _logger.debug("state: %s", state)
-    _logger.debug("StateChangeReason: %s", response["Status"].get("StateChangeReason"))
-    if state == "FAILED":
-        raise exceptions.QueryFailed(response["Status"].get("StateChangeReason"))
-    if state == "CANCELLED":
-        raise exceptions.QueryCancelled(response["Status"].get("StateChangeReason"))
-    return response
-
-
-def get_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
-    """Fetch query execution details.
-
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.get_query_execution
-
-    Parameters
-    ----------
-    query_execution_id : str
-        Athena query execution ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    Dict[str, Any]
-        Dictionary with the get_query_execution response.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> res = wr.athena.get_query_execution(query_execution_id='query-execution-id')
-
-    """
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    response: Dict[str, Any] = _utils.try_it(
-        f=client_athena.get_query_execution,
-        ex=botocore.exceptions.ClientError,
-        ex_code="ThrottlingException",
-        max_num_tries=5,
-        QueryExecutionId=query_execution_id,
-    )
-    return cast(Dict[str, Any], response["QueryExecution"])
 
 
 def get_query_executions(
@@ -1194,9 +1088,9 @@ def get_query_executions(
         )
     """
     chunked_size: int = 50
-    query_executions: List[Dict[str, Any]] = []
-    unprocessed_query_execution: List[Dict[str, str]] = []
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    query_executions = []
+    unprocessed_query_execution = []
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
     for i in range(0, len(query_execution_ids), chunked_size):
         response = client_athena.batch_get_query_execution(QueryExecutionIds=query_execution_ids[i : i + chunked_size])
         query_executions += response["QueryExecutions"]
@@ -1235,12 +1129,12 @@ def list_query_executions(workgroup: Optional[str] = None, boto3_session: Option
     >>> res = wr.athena.list_query_executions(workgroup='workgroup-name')
 
     """
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
     kwargs: Dict[str, Any] = {"base": 1}
     if workgroup:
         kwargs["WorkGroup"] = workgroup
     query_list: List[str] = []
-    response: Dict[str, Any] = _utils.try_it(
+    response = _utils.try_it(
         f=client_athena.list_query_executions,
         ex=botocore.exceptions.ClientError,
         ex_code="ThrottlingException",
@@ -1258,4 +1152,5 @@ def list_query_executions(workgroup: Optional[str] = None, boto3_session: Option
             **kwargs,
         )
         query_list += response["QueryExecutionIds"]
+    _logger.debug("Running %d query executions", len(query_list))
     return query_list

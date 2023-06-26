@@ -19,7 +19,7 @@ import sphinx_bootstrap_theme
 sys.path.append(os.path.abspath("./_ext"))
 # Insert awswrangler"s path into the system.
 sys.path.insert(0, os.path.abspath("../.."))
-import awswrangler
+import awswrangler  # noqa: E402
 
 # -- Project information -----------------------------------------------------
 
@@ -44,11 +44,13 @@ extensions = [
     "sphinx.ext.napoleon",
     "nbsphinx",
     "nbsphinx_link",
+    "myst_parser",
     "copy_tutorials",
+    "copy_adr",
     "IPython.sphinxext.ipython_console_highlighting",
 ]
 
-language = None
+language = "en"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -59,6 +61,8 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 autosummary_generate = True
+
+autosectionlabel_prefix_document = True
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -94,6 +98,7 @@ html_theme_options = {
     "navbar_links": [
         ("About", "about"),
         ("Install", "install"),
+        ("At Scale", "scale"),
         ("Tutorials", "tutorials"),
         ("API Reference", "api"),
         ("License", "https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE.txt", True),

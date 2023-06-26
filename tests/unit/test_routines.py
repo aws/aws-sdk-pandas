@@ -1,9 +1,9 @@
 import logging
 
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -12,7 +12,6 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 @pytest.mark.parametrize("table_type", ["EXTERNAL_TABLE", "GOVERNED"])
 def test_routine_0(glue_database, glue_table, table_type, path, use_threads, concurrent_partitioning):
-
     # Round 1 - Warm up
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(
@@ -22,10 +21,12 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        table_type=table_type,
-        description="c0",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c0": "0"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            table_type=table_type,
+            description="c0",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+            columns_comments={"c0": "0"},
+        ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
@@ -52,9 +53,11 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        description="c1",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c1": "1"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c1",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+            columns_comments={"c1": "1"},
+        ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
@@ -82,9 +85,11 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
         mode="append",
         database=glue_database,
         table=glue_table,
-        description="c1",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
-        columns_comments={"c1": "1"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c1",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
+            columns_comments={"c1": "1"},
+        ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
@@ -112,9 +117,11 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
         mode="append",
         database=glue_database,
         table=glue_table,
-        description="c1+c2",
-        parameters={"num_cols": "2", "num_rows": "9"},
-        columns_comments={"c1": "1", "c2": "2"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c1+c2",
+            parameters={"num_cols": "2", "num_rows": "9"},
+            columns_comments={"c1": "1", "c2": "2"},
+        ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
@@ -144,9 +151,11 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
         mode="append",
         database=glue_database,
         table=glue_table,
-        description="c1+c2+c3",
-        parameters={"num_cols": "3", "num_rows": "10"},
-        columns_comments={"c1": "1!", "c2": "2!", "c3": "3"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c1+c2+c3",
+            parameters={"num_cols": "3", "num_rows": "10"},
+            columns_comments={"c1": "1!", "c2": "2!", "c3": "3"},
+        ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
@@ -173,7 +182,6 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 @pytest.mark.parametrize("table_type", ["EXTERNAL_TABLE", "GOVERNED"])
 def test_routine_1(glue_database, glue_table, table_type, path, use_threads, concurrent_partitioning):
-
     # Round 1 - Overwrite Partitioned
     df = pd.DataFrame({"c0": ["foo", None], "c1": [0, 1]})
     wr.s3.to_parquet(
@@ -183,11 +191,13 @@ def test_routine_1(glue_database, glue_table, table_type, path, use_threads, con
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        table_type=table_type,
         partition_cols=["c1"],
-        description="c0+c1",
-        parameters={"num_cols": "2", "num_rows": "2"},
-        columns_comments={"c0": "zero", "c1": "one"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            table_type=table_type,
+            description="c0+c1",
+            parameters={"num_cols": "2", "num_rows": "2"},
+            columns_comments={"c0": "zero", "c1": "one"},
+        ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
@@ -216,9 +226,11 @@ def test_routine_1(glue_database, glue_table, table_type, path, use_threads, con
         database=glue_database,
         table=glue_table,
         partition_cols=["c1"],
-        description="c0+c1",
-        parameters={"num_cols": "2", "num_rows": "3"},
-        columns_comments={"c0": "zero", "c1": "one"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c0+c1",
+            parameters={"num_cols": "2", "num_rows": "3"},
+            columns_comments={"c0": "zero", "c1": "one"},
+        ),
         concurrent_partitioning=concurrent_partitioning,
         use_threads=use_threads,
     )
@@ -248,9 +260,11 @@ def test_routine_1(glue_database, glue_table, table_type, path, use_threads, con
         database=glue_database,
         table=glue_table,
         partition_cols=["c1"],
-        description="c0+c1+c2",
-        parameters={"num_cols": "3", "num_rows": "4"},
-        columns_comments={"c0": "zero", "c1": "one", "c2": "two"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            description="c0+c1+c2",
+            parameters={"num_cols": "3", "num_rows": "4"},
+            columns_comments={"c0": "zero", "c1": "one", "c2": "two"},
+        ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
@@ -274,7 +288,6 @@ def test_routine_1(glue_database, glue_table, table_type, path, use_threads, con
 
 
 def test_routine_2(glue_database, glue_table, path):
-
     # Round 1 - Warm up
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite")
@@ -466,5 +479,3 @@ def test_routine_2(glue_database, glue_table, path):
     assert comments["c0"] == "zero"
     assert comments["c1"] == "one"
     assert comments["c2"] == "two"
-
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)

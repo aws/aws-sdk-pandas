@@ -8,7 +8,7 @@ import math
 import socket
 from contextlib import contextmanager
 from errno import ESPIPE
-from typing import Any, BinaryIO, Dict, Iterator, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, Dict, Iterator, List, Optional, Tuple, Union, cast
 
 import boto3
 from botocore.exceptions import ReadTimeoutError
@@ -17,7 +17,12 @@ from botocore.model import ServiceModel
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
-from awswrangler.s3._describe import size_objects
+from awswrangler._distributed import engine
+from awswrangler.s3._describe import _describe_object
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -38,7 +43,7 @@ def _snake_to_camel_case(s: str) -> str:
 def get_botocore_valid_kwargs(function_name: str, s3_additional_kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Filter and keep only the valid botocore key arguments."""
     s3_operation_model = _S3_SERVICE_MODEL.operation_model(_snake_to_camel_case(function_name))
-    allowed_kwargs = s3_operation_model.input_shape.members.keys()  # pylint: disable=E1101
+    allowed_kwargs = s3_operation_model.input_shape.members.keys()  # type: ignore[union-attr] # pylint: disable=E1101
     return {k: v for k, v in s3_additional_kwargs.items() if k in allowed_kwargs}
 
 
@@ -46,13 +51,12 @@ def _fetch_range(
     range_values: Tuple[int, int],
     bucket: str,
     key: str,
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     boto3_kwargs: Dict[str, Any],
     version_id: Optional[str] = None,
 ) -> Tuple[int, bytes]:
     start, end = range_values
     _logger.debug("Fetching: s3://%s/%s - VersionId: %s - Range: %s-%s", bucket, key, version_id, start, end)
-    resp: Dict[str, Any]
     if version_id:
         boto3_kwargs["VersionId"] = version_id
     resp = _utils.try_it(
@@ -65,7 +69,7 @@ def _fetch_range(
         Range=f"bytes={start}-{end - 1}",
         **boto3_kwargs,
     )
-    return start, cast(bytes, resp["Body"].read())
+    return start, resp["Body"].read()
 
 
 class _UploadProxy:
@@ -91,14 +95,12 @@ class _UploadProxy:
         part: int,
         upload_id: str,
         data: bytes,
-        boto3_primitives: _utils.Boto3PrimitivesType,
+        s3_client: "S3Client",
         boto3_kwargs: Dict[str, Any],
     ) -> Dict[str, Union[str, int]]:
         _logger.debug("Upload part %s started.", part)
-        boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-        client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-        resp: Dict[str, Any] = _utils.try_it(
-            f=client.upload_part,
+        resp = _utils.try_it(
+            f=s3_client.upload_part,
             ex=_S3_RETRYABLE_ERRORS,
             base=0.5,
             max_num_tries=6,
@@ -119,7 +121,7 @@ class _UploadProxy:
         part: int,
         upload_id: str,
         data: bytes,
-        boto3_session: boto3.Session,
+        s3_client: "S3Client",
         boto3_kwargs: Dict[str, Any],
     ) -> None:
         """Upload Part."""
@@ -132,7 +134,7 @@ class _UploadProxy:
                 part=part,
                 upload_id=upload_id,
                 data=data,
-                boto3_primitives=_utils.boto3_to_primitives(boto3_session=boto3_session),
+                s3_client=s3_client,
                 boto3_kwargs=boto3_kwargs,
             )
             self._futures.append(future)
@@ -144,7 +146,7 @@ class _UploadProxy:
                     part=part,
                     upload_id=upload_id,
                     data=data,
-                    boto3_primitives=_utils.boto3_to_primitives(boto3_session=boto3_session),
+                    s3_client=s3_client,
                     boto3_kwargs=boto3_kwargs,
                 )
             )
@@ -172,8 +174,8 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
         s3_block_size: int,
         mode: str,
         use_threads: Union[bool, int],
+        s3_client: "S3Client",
         s3_additional_kwargs: Optional[Dict[str, str]],
-        boto3_session: Optional[boto3.Session],
         newline: Optional[str],
         encoding: Optional[str],
         version_id: Optional[str] = None,
@@ -184,7 +186,6 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
         self._encoding: str = "utf-8" if encoding is None else encoding
         self._bucket, self._key = _utils.parse_path(path=path)
         self._version_id = version_id
-        self._boto3_session: boto3.Session = _utils.ensure_session(session=boto3_session)
         if mode not in {"rb", "wb", "r", "w"}:
             raise NotImplementedError(f"File mode must be {'rb', 'wb', 'r', 'w'}, not {mode}")
         self._mode: str = "rb" if mode is None else mode
@@ -200,20 +201,21 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
         self._s3_block_size: int = s3_block_size
         self._s3_half_block_size: int = s3_block_size // 2
         self._s3_additional_kwargs: Dict[str, str] = {} if s3_additional_kwargs is None else s3_additional_kwargs
-        self._client: boto3.client = _utils.client(service_name="s3", session=self._boto3_session)
+        self._client: "S3Client" = s3_client
         self._loc: int = 0
 
         if self.readable() is True:
             self._cache: bytes = b""
             self._start: int = 0
             self._end: int = 0
-            size: Optional[int] = size_objects(
-                path=[path],
-                version_id=version_id,
-                use_threads=False,
-                boto3_session=self._boto3_session,
+            func = engine.dispatch_func(_describe_object, "python")
+            _, desc = func(
+                s3_client=self._client,
+                path=path,
                 s3_additional_kwargs=self._s3_additional_kwargs,
-            )[path]
+                version_id=version_id,
+            )
+            size: Optional[int] = desc.get("ContentLength", None)
             if size is None:
                 raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
             self._size: int = size
@@ -261,7 +263,6 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
 
     def _fetch_range_proxy(self, start: int, end: int) -> bytes:
         _logger.debug("Fetching: s3://%s/%s - Range: %s-%s", self._bucket, self._key, start, end)
-        s3_client: boto3.client = _utils.client(service_name="s3", session=self._boto3_session)
         boto3_kwargs: Dict[str, Any] = get_botocore_valid_kwargs(
             function_name="get_object", s3_additional_kwargs=self._s3_additional_kwargs
         )
@@ -272,7 +273,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
                 range_values=(start, end),
                 bucket=self._bucket,
                 key=self._key,
-                s3_client=s3_client,
+                s3_client=self._client,
                 boto3_kwargs=boto3_kwargs,
                 version_id=self._version_id,
             )[1]
@@ -292,7 +293,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
                         ranges,
                         itertools.repeat(self._bucket),
                         itertools.repeat(self._key),
-                        itertools.repeat(s3_client),
+                        itertools.repeat(self._client),
                         itertools.repeat(boto3_kwargs),
                         itertools.repeat(self._version_id),
                     )
@@ -399,7 +400,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
                 return None
             _logger.debug("Flushing: %s bytes", total_size)
             self._mpu = self._mpu or _utils.try_it(
-                f=self._client.create_multipart_upload,
+                f=self._client.create_multipart_upload,  # type: ignore[arg-type]
                 ex=_S3_RETRYABLE_ERRORS,
                 base=0.5,
                 max_num_tries=6,
@@ -421,7 +422,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
                     part=self._parts_count,
                     upload_id=self._mpu["UploadId"],
                     data=self._buffer.read(chunk_size),
-                    boto3_session=self._boto3_session,
+                    s3_client=self._client,
                     boto3_kwargs=get_botocore_valid_kwargs(
                         function_name="upload_part", s3_additional_kwargs=self._s3_additional_kwargs
                     ),
@@ -529,7 +530,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
             end = self._size if end > self._size else end
             self._fetch(self._loc, end)
 
-    def write(self, data: Union[bytes, bytearray, memoryview]) -> int:  # type: ignore
+    def write(self, data: Union[bytes, bytearray, memoryview]) -> int:  # type: ignore[override]
         """Write data to buffer and only upload on close() or if buffer is greater than or equal to _MIN_WRITE_BLOCK."""
         if self.writable() is False:
             raise RuntimeError("File not in write mode.")
@@ -552,12 +553,14 @@ def open_s3_object(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     s3_block_size: int = -1,  # One shot download
     boto3_session: Optional[boto3.Session] = None,
+    s3_client: Optional["S3Client"] = None,
     newline: Optional[str] = "\n",
     encoding: Optional[str] = "utf-8",
 ) -> Iterator[Union[_S3ObjectBase, io.TextIOWrapper]]:
     """Return a _S3Object or TextIOWrapper based on the received mode."""
     s3obj: Optional[_S3ObjectBase] = None
     text_s3obj: Optional[io.TextIOWrapper] = None
+    s3_client = _utils.client(service_name="s3", session=boto3_session) if not s3_client else s3_client
     try:
         s3obj = _S3ObjectBase(
             path=path,
@@ -565,8 +568,8 @@ def open_s3_object(
             mode=mode,
             version_id=version_id,
             use_threads=use_threads,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
-            boto3_session=boto3_session,
             encoding=encoding,
             newline=newline,
         )

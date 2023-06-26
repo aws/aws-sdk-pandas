@@ -4,37 +4,37 @@ import logging
 from enum import Enum
 from typing import Any
 
-import pandas as pd
 from gremlin_python.process.graph_traversal import GraphTraversalSource, __
 from gremlin_python.process.translator import Translator
 from gremlin_python.process.traversal import Cardinality, T
 from gremlin_python.structure.graph import Graph
 
+import awswrangler.pandas as pd
 from awswrangler import exceptions
-from awswrangler.neptune.client import NeptuneClient
+from awswrangler.neptune._client import NeptuneClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class WriteDFType(Enum):
-    """Dataframe type enum."""
+    """DataFrame type enum."""
 
     VERTEX = 1
     EDGE = 2
     UPDATE = 3
 
 
-def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType, batch_size: int) -> bool:
-    """Write the provided dataframe using Gremlin.
+def write_gremlin_df(client: "NeptuneClient", df: pd.DataFrame, mode: WriteDFType, batch_size: int) -> bool:
+    """Write the provided DataFrame using Gremlin.
 
     Parameters
     ----------
     client : NeptuneClient
-        The Neptune client to write the dataframe
+        The Neptune client to write the DataFrame
     df : pd.DataFrame
-        The dataframe to write
+        The DataFrame to write
     mode : WriteDFType
-        The type of dataframe to write
+        The type of DataFrame to write
     batch_size : int
         The size of the batch to write
 
@@ -45,7 +45,7 @@ def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType,
     """
     g = Graph().traversal()
     # Loop through items in the DF
-    for (index, row) in df.iterrows():
+    for index, row in df.iterrows():
         # build up a query
         if mode == WriteDFType.EDGE:
             g = _build_gremlin_edges(g, row.to_dict())
@@ -67,7 +67,7 @@ def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType,
     return _run_gremlin_insert(client, g)
 
 
-def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
+def _run_gremlin_insert(client: "NeptuneClient", g: GraphTraversalSource) -> bool:
     translator = Translator("g")
     s = translator.translate(g.bytecode)
     s = s.replace("Cardinality.", "")  # hack to fix parser error for set cardinality
@@ -108,7 +108,7 @@ def _build_gremlin_edges(g: GraphTraversalSource, row: pd.Series) -> GraphTraver
 
 
 def _build_gremlin_properties(g: GraphTraversalSource, row: Any) -> GraphTraversalSource:
-    for (column, value) in row.items():
+    for column, value in row.items():
         if column not in ["~id", "~label", "~to", "~from"]:
             if isinstance(value, list) and len(value) > 0:
                 for item in value:

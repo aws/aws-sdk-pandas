@@ -1,11 +1,15 @@
 import logging
 
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
+
+from .._utils import pandas_equals
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture()
@@ -30,7 +34,7 @@ def test_ruleset_df(df, path, glue_database, glue_table, glue_ruleset, glue_data
         df_rules=df_rules,
     )
     df_ruleset = wr.data_quality.get_ruleset(name=glue_ruleset)
-    assert df_rules.equals(df_ruleset)
+    assert pandas_equals(df_rules, df_ruleset)
 
     df_results = wr.data_quality.evaluate_ruleset(
         name=glue_ruleset,
@@ -78,8 +82,14 @@ def test_recommendation_ruleset(df, path, name, glue_database, glue_table, glue_
         iam_role_arn=glue_data_quality_role,
         number_of_workers=2,
     )
-    df_rules = df_recommended_ruleset.append(
-        {"rule_type": "ColumnValues", "parameter": '"c2"', "expression": "in [0, 1, 2]"}, ignore_index=True
+    df_rules = pd.concat(
+        [
+            df_recommended_ruleset,
+            pd.DataFrame(
+                [{"rule_type": "ColumnValues", "parameter": '"c2"', "expression": "in [0, 1, 2]"}],
+            ),
+        ],
+        ignore_index=True,
     )
     wr.data_quality.create_ruleset(
         name=glue_ruleset,
@@ -175,21 +185,21 @@ def test_update_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
         table=glue_table,
         df_rules=df_rules,
     )
-
-    df_rules = df_rules.append(
-        {"rule_type": "ColumnValues", "parameter": '"c2"', "expression": "in [0, 1, 2]"}, ignore_index=True
+    df_rules = pd.concat(
+        [
+            df_rules,
+            pd.DataFrame(
+                [{"rule_type": "ColumnValues", "parameter": '"c2"', "expression": "in [0, 1, 2]"}],
+            ),
+        ],
+        ignore_index=True,
     )
 
-    new_glue_ruleset_name = f"{glue_ruleset} 2.0"
-    wr.data_quality.update_ruleset(
-        name=glue_ruleset,
-        updated_name=new_glue_ruleset_name,
-        df_rules=df_rules,
-    )
+    wr.data_quality.update_ruleset(name=glue_ruleset, df_rules=df_rules)
 
-    df_ruleset = wr.data_quality.get_ruleset(name=new_glue_ruleset_name)
+    df_ruleset = wr.data_quality.get_ruleset(name=glue_ruleset)
 
-    assert df_rules.equals(df_ruleset)
+    assert pandas_equals(df_rules, df_ruleset)
 
 
 def test_update_ruleset_exceptions(df: pd.DataFrame, glue_ruleset: str) -> None:
@@ -202,11 +212,7 @@ def test_update_ruleset_exceptions(df: pd.DataFrame, glue_ruleset: str) -> None:
     )
 
     with pytest.raises(wr.exceptions.ResourceDoesNotExist):
-        wr.data_quality.update_ruleset(
-            name=glue_ruleset,
-            updated_name=f"{glue_ruleset} 2.0",
-            df_rules=df_rules,
-        )
+        wr.data_quality.update_ruleset(name=glue_ruleset, df_rules=df_rules)
 
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.data_quality.update_ruleset(name=glue_ruleset, df_rules=df_rules, mode="append")

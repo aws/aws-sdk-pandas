@@ -1,9 +1,10 @@
+import json
 import os
 import uuid
 from datetime import datetime
 from importlib import reload
 from types import ModuleType
-from typing import Iterator
+from typing import Iterator, Optional
 
 import boto3
 import botocore.exceptions
@@ -182,11 +183,10 @@ def redshift_external_schema(cloudformation_outputs, databases_parameters, glue_
     IAM_ROLE '{databases_parameters["redshift"]["role"]}'
     REGION '{region}';
     """
-    con = wr.redshift.connect(connection="aws-sdk-pandas-redshift")
-    with con.cursor() as cursor:
-        cursor.execute(sql)
-        con.commit()
-    con.close()
+    with wr.redshift.connect(connection="aws-sdk-pandas-redshift") as con:
+        with con.cursor() as cursor:
+            cursor.execute(sql)
+            con.commit()
     return "aws_sdk_pandas_external"
 
 
@@ -283,11 +283,10 @@ def redshift_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.redshift.connect("aws-sdk-pandas-redshift")
-    with con.cursor() as cursor:
-        cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
-    con.commit()
-    con.close()
+    with wr.redshift.connect("aws-sdk-pandas-redshift") as con:
+        with con.cursor() as cursor:
+            cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
+        con.commit()
 
 
 @pytest.fixture(scope="function")
@@ -295,11 +294,10 @@ def redshift_table_with_hyphenated_name():
     name = f"tbl-{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.redshift.connect("aws-sdk-pandas-redshift")
-    with con.cursor() as cursor:
-        cursor.execute(f'DROP TABLE IF EXISTS public."{name}"')
-    con.commit()
-    con.close()
+    with wr.redshift.connect("aws-sdk-pandas-redshift") as con:
+        with con.cursor() as cursor:
+            cursor.execute(f'DROP TABLE IF EXISTS public."{name}"')
+        con.commit()
 
 
 @pytest.fixture(scope="function")
@@ -339,25 +337,24 @@ def sqlserver_table():
 
 
 @pytest.fixture(scope="function")
-def oracle_table():
+def oracle_table() -> str:
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.oracle.connect("aws-sdk-pandas-oracle")
-    sql = f"""
+    with wr.oracle.connect("aws-sdk-pandas-oracle") as con:
+        sql = f"""
 BEGIN
-   EXECUTE IMMEDIATE 'DROP TABLE "TEST"."{name}"';
+    EXECUTE IMMEDIATE 'DROP TABLE "TEST"."{name}"';
 EXCEPTION
-   WHEN OTHERS THEN
-      IF SQLCODE != -942 THEN
-         RAISE;
-      END IF;
+    WHEN OTHERS THEN
+        IF SQLCODE != -942 THEN
+            RAISE;
+        END IF;
 END;
-"""
-    with con.cursor() as cursor:
-        cursor.execute(sql)
-    con.commit()
-    con.close()
+        """
+        with con.cursor() as cursor:
+            cursor.execute(sql)
+        con.commit()
 
 
 @pytest.fixture(scope="function")
@@ -380,8 +377,16 @@ def timestream_database_and_table():
     wr.timestream.create_database(name)
     wr.timestream.create_table(name, name, 1, 1)
     yield name
-    wr.timestream.delete_table(name, name)
-    wr.timestream.delete_database(name)
+    try:
+        wr.timestream.delete_table(name, name)
+    except botocore.exceptions.ClientError as err:
+        if err.response["Error"]["Code"] == "ResourceNotFound":
+            pass
+    try:
+        wr.timestream.delete_database(name)
+    except botocore.exceptions.ClientError as err:
+        if err.response["Error"]["Code"] == "ResourceNotFound":
+            pass
 
 
 @pytest.fixture(scope="function")
@@ -404,9 +409,8 @@ def random_glue_database():
 
 @pytest.fixture(scope="function")
 def redshift_con():
-    con = wr.redshift.connect("aws-sdk-pandas-redshift")
-    yield con
-    con.close()
+    with wr.redshift.connect("aws-sdk-pandas-redshift") as con:
+        yield con
 
 
 @pytest.fixture(scope="function")
@@ -414,6 +418,30 @@ def glue_ruleset() -> str:
     name = f"ruleset_{get_time_str_with_random_suffix()}"
     print(f"Ruleset name: {name}")
     yield name
+
+
+@pytest.fixture(scope="function")
+def emr_security_configuration():
+    name = f"emr_{get_time_str_with_random_suffix()}"
+    print(f"EMR Security Configuration: {name}")
+    security_configuration = {
+        "EncryptionConfiguration": {"EnableInTransitEncryption": False, "EnableAtRestEncryption": False},
+        "InstanceMetadataServiceConfiguration": {
+            "MinimumInstanceMetadataServiceVersion": 2,
+            "HttpPutResponseHopLimit": 1,
+        },
+    }
+    boto3.client("emr").create_security_configuration(
+        Name=name, SecurityConfiguration=json.dumps(security_configuration)
+    )
+    yield name
+    boto3.client("emr").delete_security_configuration(Name=name)
+    print(f"Security Configuration: {name} deleted.")
+
+
+@pytest.fixture(scope="session")
+def emr_serverless_execution_role_arn(cloudformation_outputs):
+    return cloudformation_outputs["EMRServerlessExecutionRoleArn"]
 
 
 @pytest.fixture(scope="session")
@@ -443,3 +471,12 @@ def awswrangler_import() -> Iterator[ModuleType]:
 
     # Reset for future tests
     awswrangler.config.reset()
+
+
+@pytest.fixture(scope="function")
+def data_gen_bucket() -> Optional[str]:
+    try:
+        ssm_parameter = boto3.client("ssm").get_parameter(Name="/SDKPandas/GlueRay/DataGenBucketName")
+    except botocore.exceptions.ClientError:
+        return None
+    return ssm_parameter["Parameter"]["Value"]  # type: ignore

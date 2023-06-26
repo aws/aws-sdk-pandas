@@ -1,23 +1,25 @@
+# mypy: disable-error-code=name-defined
 """Amazon PostgreSQL Module."""
 
 import logging
+import uuid
 from ssl import SSLContext
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast, overload
 
 import boto3
-import pandas as pd
-import pg8000
 import pyarrow as pa
 
-from awswrangler import _data_types
+import awswrangler.pandas as pd
+from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
-from awswrangler import exceptions
 from awswrangler._config import apply_configs
+
+pg8000 = _utils.import_optional_dependency("pg8000")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _validate_connection(con: pg8000.Connection) -> None:
+def _validate_connection(con: "pg8000.Connection") -> None:
     if not isinstance(con, pg8000.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -26,14 +28,14 @@ def _validate_connection(con: pg8000.Connection) -> None:
         )
 
 
-def _drop_table(cursor: pg8000.Cursor, schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "pg8000.Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f'"{schema}".' if schema else ""
     sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"'
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: pg8000.Cursor, schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "pg8000.Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     cursor.execute(
         f"SELECT true WHERE EXISTS ("
@@ -46,7 +48,7 @@ def _does_table_exist(cursor: pg8000.Cursor, schema: Optional[str], table: str) 
 
 def _create_table(
     df: pd.DataFrame,
-    cursor: pg8000.Cursor,
+    cursor: "pg8000.Cursor",
     table: str,
     schema: str,
     mode: str,
@@ -72,6 +74,51 @@ def _create_table(
     cursor.execute(sql)
 
 
+def _iterate_server_side_cursor(
+    sql: str,
+    con: Any,
+    chunksize: int,
+    index_col: Optional[Union[str, List[str]]],
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]],
+    safe: bool,
+    dtype: Optional[Dict[str, pa.DataType]],
+    timestamp_as_object: bool,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"],
+) -> Iterator[pd.DataFrame]:
+    """
+    Iterate through the results using server-side cursor.
+
+    Note: Pg8000 is not fully DB API 2.0 - compliant with fetchmany() fetching all result set. Using server-side cursor
+    allows fetching only specific amount of results reducing memory impact. Ultimately we'd like pg8000 to add full
+    support for fetchmany() or add SSCursor implementation similar to MySQL and revise this implementation in the future.
+    """
+    with con.cursor() as cursor:
+        sscursor_name: str = f"c_{uuid.uuid4().hex}"
+        cursor_args = _db_utils._convert_params(f"DECLARE {sscursor_name} CURSOR FOR {sql}", params)
+        cursor.execute(*cursor_args)
+
+        try:
+            while True:
+                cursor.execute(f"FETCH FORWARD {chunksize} FROM {sscursor_name}")
+                records = cursor.fetchall()
+
+                if not records:
+                    break
+
+                yield _db_utils._records2df(
+                    records=records,
+                    cols_names=_db_utils._get_cols_names(cursor.description),
+                    index=index_col,
+                    safe=safe,
+                    dtype=dtype,
+                    timestamp_as_object=timestamp_as_object,
+                    dtype_backend=dtype_backend,
+                )
+        finally:
+            cursor.execute(f"CLOSE {sscursor_name}")
+
+
+@_utils.check_optional_dependency(pg8000, "pg8000")
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
@@ -81,7 +128,7 @@ def connect(
     ssl_context: Optional[Union[bool, SSLContext]] = None,
     timeout: Optional[int] = None,
     tcp_keepalive: bool = True,
-) -> pg8000.Connection:
+) -> "pg8000.Connection":
     """Return a pg8000 connection from a Glue Catalog Connection.
 
     https://github.com/tlocke/pg8000
@@ -161,15 +208,64 @@ def connect(
     )
 
 
+@overload
 def read_sql_query(
     sql: str,
-    con: pg8000.Connection,
+    con: "pg8000.Connection",
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "pg8000.Connection",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "pg8000.Connection",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(pg8000, "pg8000")
+def read_sql_query(
+    sql: str,
+    con: "pg8000.Connection",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -195,6 +291,12 @@ def read_sql_query(
         Check for overflows or other unsafe data type conversions.
     timestamp_as_object : bool
         Cast non-nanosecond timestamps (np.datetime64) to objects.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
 
     Returns
     -------
@@ -215,21 +317,85 @@ def read_sql_query(
 
     """
     _validate_connection(con=con)
+    if chunksize is not None:
+        return _iterate_server_side_cursor(
+            sql=sql,
+            con=con,
+            chunksize=chunksize,
+            index_col=index_col,
+            params=params,
+            safe=safe,
+            dtype=dtype,
+            timestamp_as_object=timestamp_as_object,
+            dtype_backend=dtype_backend,
+        )
     return _db_utils.read_sql_query(
         sql=sql,
         con=con,
         index_col=index_col,
         params=params,
-        chunksize=chunksize,
+        chunksize=None,
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        dtype_backend=dtype_backend,
     )
 
 
+@overload
 def read_sql_table(
     table: str,
-    con: pg8000.Connection,
+    con: "pg8000.Connection",
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "pg8000.Connection",
+    *,
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "pg8000.Connection",
+    *,
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(pg8000, "pg8000")
+def read_sql_table(
+    table: str,
+    con: "pg8000.Connection",
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
@@ -237,6 +403,7 @@ def read_sql_table(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding the table.
 
@@ -265,6 +432,12 @@ def read_sql_table(
         Check for overflows or other unsafe data type conversions.
     timestamp_as_object : bool
         Cast non-nanosecond timestamps (np.datetime64) to objects.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
 
     Returns
     -------
@@ -295,16 +468,21 @@ def read_sql_table(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        dtype_backend=dtype_backend,
     )
 
 
+_ToSqlModeLiteral = Literal["append", "overwrite", "upsert"]
+
+
+@_utils.check_optional_dependency(pg8000, "pg8000")
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: pg8000.Connection,
+    con: "pg8000.Connection",
     table: str,
     schema: str,
-    mode: str = "append",
+    mode: _ToSqlModeLiteral = "append",
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
@@ -376,7 +554,7 @@ def to_sql(
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
-    mode = mode.strip().lower()
+    mode = cast(_ToSqlModeLiteral, mode.strip().lower())
     allowed_modes = ["append", "overwrite", "upsert"]
     _db_utils.validate_mode(mode=mode, allowed_modes=allowed_modes)
     if mode == "upsert" and not upsert_conflict_columns:
@@ -404,7 +582,7 @@ def to_sql(
                 insertion_columns = f"({', '.join(column_names)})"
             if mode == "upsert":
                 upsert_columns = ", ".join(f"{column}=EXCLUDED.{column}" for column in column_names)
-                conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore
+                conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore[arg-type]
                 upsert_str = f" ON CONFLICT ({conflict_columns}) DO UPDATE SET {upsert_columns}"
             if mode == "append" and insert_conflict_columns:
                 conflict_columns = ", ".join(insert_conflict_columns)

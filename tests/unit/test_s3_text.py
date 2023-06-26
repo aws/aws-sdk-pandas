@@ -4,13 +4,9 @@ import boto3
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
-from .._utils import is_ray_modin
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+from .._utils import is_pandas_2_x, is_ray_modin
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -31,9 +27,7 @@ pytestmark = pytest.mark.distributed
 def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_terminator, chunksize, use_threads):
     file_path = f"{path}0.csv"
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": strings})
-    wr.s3.to_csv(
-        df, file_path, index=False, encoding=encoding, line_terminator=line_terminator, use_threads=use_threads
-    )
+    wr.s3.to_csv(df, file_path, index=False, encoding=encoding, lineterminator=line_terminator, use_threads=use_threads)
     df2 = wr.s3.read_csv(
         file_path, encoding=encoding, lineterminator=line_terminator, use_threads=use_threads, chunksize=chunksize
     )
@@ -72,7 +66,7 @@ def test_read_partitioned_json_paths(path, use_threads, chunksize):
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
     paths = [f"{path}year={y}/month={m}/0.json" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
     for p in paths:
-        wr.s3.to_json(df, p, orient="records", lines=True)
+        wr.s3.to_json(df, path=p, orient="records", lines=True)
     df2 = wr.s3.read_json(path, dataset=True, use_threads=use_threads, chunksize=chunksize)
     if chunksize is None:
         assert df2.shape == (6, 4)
@@ -118,6 +112,9 @@ def test_read_partitioned_fwf(path, use_threads, chunksize):
             assert d.shape == (1, 4)
 
 
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+)
 def test_csv(path):
     session = boto3.Session()
     df = pd.DataFrame({"id": [1, 2, 3]})
@@ -215,7 +212,14 @@ def test_json_lines(path):
 
 def test_to_json_partitioned(path, glue_database, glue_table):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
-    partitions = wr.s3.to_json(df, path, dataset=True, database=glue_database, table=glue_table, partition_cols=["c0"])
+    partitions = wr.s3.to_json(
+        df,
+        path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["c0"],
+    )
     assert len(partitions["paths"]) == 3
     assert len(partitions["partitions_values"]) == 3
 
@@ -228,7 +232,7 @@ def test_to_text_filename_prefix(compare_filename_prefix, path, filename_prefix,
 
     # If Dataset is False, csv/json file should never start with prefix
     file_path = f"{path}0.json"
-    filename = wr.s3.to_json(df=df, path=file_path, use_threads=use_threads)[0].split("/")[-1]
+    filename = wr.s3.to_json(df=df, path=file_path, use_threads=use_threads)["paths"][0].split("/")[-1]
     assert not filename.startswith(test_prefix)
     file_path = f"{path}0.csv"
     filename = wr.s3.to_csv(
@@ -333,18 +337,19 @@ def test_csv_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threa
     assert df.equals(wr.s3.read_csv([path]))
     desc = wr.s3.describe_objects([path])[path]
     if s3_additional_kwargs is None:
-        assert desc.get("ServerSideEncryption") is None
+        # SSE enabled by default
+        assert desc.get("ServerSideEncryption") == "AES256"
     elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
         assert desc.get("ServerSideEncryption") == "aws:kms"
     elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
         assert desc.get("ServerSideEncryption") == "AES256"
 
 
-@pytest.mark.parametrize("line_terminator", ["\n", "\r", "\n\r"])
+@pytest.mark.parametrize("line_terminator", ["\n", "\r", "\r\n"])
 def test_csv_line_terminator(path, line_terminator):
     file_path = f"{path}0.csv"
     df = pd.DataFrame(data={"reading": ["col1", "col2"], "timestamp": [1601379427618, 1601379427625], "value": [1, 2]})
-    wr.s3.to_csv(df=df, path=file_path, index=False, line_terminator=line_terminator)
+    wr.s3.to_csv(df=df, path=file_path, index=False, lineterminator=line_terminator)
     df2 = wr.s3.read_csv(file_path)
     assert df.equals(df2)
 
@@ -387,34 +392,87 @@ def test_read_csv_versioned(path) -> None:
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
 
-def test_to_csv_schema_evolution(path, glue_database, glue_table) -> None:
-    path_file = f"{path}0.csv"
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_to_csv_schema_evolution(path, glue_database, glue_table, mode) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
-    wr.s3.to_csv(df=df, path=path_file, dataset=True, database=glue_database, table=glue_table)
+    wr.s3.to_csv(df=df, path=path, dataset=True, database=glue_database, table=glue_table, index=False)
+
     df["c2"] = [6, 7, 8]
     wr.s3.to_csv(
         df=df,
-        path=path_file,
+        path=path,
         dataset=True,
         database=glue_database,
         table=glue_table,
-        mode="overwrite",
+        mode=mode,
         schema_evolution=True,
+        index=False,
     )
+
+    column_types = wr.catalog.get_table_types(glue_database, glue_table)
+    assert len(column_types) == len(df.columns)
+
     df["c3"] = [9, 10, 11]
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_csv(df=df, path=path, dataset=True, database=glue_database, table=glue_table, schema_evolution=False)
+
+
+@pytest.mark.parametrize("schema_evolution", [False, True])
+def test_to_csv_schema_evolution_out_of_order(path, glue_database, glue_table, schema_evolution) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.s3.to_csv(df=df, path=path, dataset=True, database=glue_database, table=glue_table, index=False)
+
+    df["c2"] = [6, 7, 8]
+    df = df[["c0", "c2", "c1"]]
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_csv(
-            df=df, path=path_file, dataset=True, database=glue_database, table=glue_table, schema_evolution=False
+            df=df,
+            path=path,
+            dataset=True,
+            database=glue_database,
+            table=glue_table,
+            mode="append",
+            schema_evolution=schema_evolution,
+            index=False,
         )
 
 
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_to_json_schema_evolution(path, glue_database, glue_table, mode) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.s3.to_json(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        orient="split",
+        index=False,
+    )
+
+    df["c2"] = [6, 7, 8]
+    wr.s3.to_json(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        mode=mode,
+        schema_evolution=True,
+        orient="split",
+        index=False,
+    )
+
+    column_types = wr.catalog.get_table_types(glue_database, glue_table)
+    assert len(column_types) == len(df.columns)
+
+    df["c3"] = [9, 10, 11]
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_json(df=df, path=path, dataset=True, database=glue_database, table=glue_table, schema_evolution=False)
+
+
 def test_exceptions(path):
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_json(df=pd.DataFrame(), path=path)
-
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_csv(df=pd.DataFrame(), path=path)
-
     df = pd.DataFrame({"c0": [1, 2], "c1": ["a", "b"]})
     with pytest.raises(wr.exceptions.InvalidArgument):
         wr.s3.to_csv(df=df, path=path, pandas_kwargs={})
@@ -433,3 +491,36 @@ def test_exceptions(path):
 
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_csv(df=df, dataset=True)
+
+
+@pytest.mark.parametrize(
+    "format,write_function,read_function",
+    [
+        ("csv", wr.s3.to_csv, wr.s3.read_csv),
+        ("json", wr.s3.to_json, wr.s3.read_json),
+        ("excel", wr.s3.to_excel, wr.s3.read_excel),
+    ],
+)
+@pytest.mark.skipif(condition=not is_pandas_2_x, reason="not pandas 2.x")
+def test_s3_text_pyarrow_dtype_backend_roundtrip(path, format, write_function, read_function):
+    s3_path = f"{path}test.{format}"
+
+    df = pd.DataFrame(
+        {
+            "col0": [1, None, 3],
+            "col1": [0.0, None, 2.2],
+            "col2": [True, None, False],
+            "col3": ["Washington", None, "Seattle"],
+        }
+    )
+    # Cast to pyarrow backend types
+    df = df.convert_dtypes(dtype_backend="pyarrow")
+
+    write_function(
+        df,
+        path=s3_path,
+        index=False,
+    )
+    df1 = read_function(s3_path, dtype_backend="pyarrow")
+
+    assert df.equals(df1)

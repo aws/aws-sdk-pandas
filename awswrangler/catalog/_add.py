@@ -1,16 +1,17 @@
 """AWS Glue Catalog Delete Module."""
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import boto3
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, typing
 from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import (
     _check_column_type,
     _csv_partition_definition,
     _json_partition_definition,
+    _orc_partition_definition,
     _parquet_partition_definition,
     _update_table_definition,
 )
@@ -27,9 +28,9 @@ def _add_partitions(
     catalog_id: Optional[str] = None,
 ) -> None:
     chunks: List[List[Dict[str, Any]]] = _utils.chunkify(lst=inputs, max_length=100)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     for chunk in chunks:  # pylint: disable=too-many-nested-blocks
-        res: Dict[str, Any] = client_glue.batch_create_partition(
+        res = client_glue.batch_create_partition(
             **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableName=table, PartitionInputList=chunk)
         )
         if ("Errors" in res) and res["Errors"]:
@@ -45,7 +46,7 @@ def add_csv_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     sep: str = ",",
@@ -135,7 +136,7 @@ def add_json_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     serde_library: Optional[str] = None,
@@ -221,7 +222,7 @@ def add_parquet_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -295,6 +296,84 @@ def add_parquet_partitions(
 
 
 @apply_configs
+def add_orc_partitions(
+    database: str,
+    table: str,
+    partitions_values: Dict[str, List[str]],
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
+    catalog_id: Optional[str] = None,
+    compression: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+    columns_types: Optional[Dict[str, str]] = None,
+    partitions_parameters: Optional[Dict[str, str]] = None,
+) -> None:
+    """Add partitions (metadata) to a ORC Table in the AWS Glue Catalog.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    partitions_values: Dict[str, List[str]]
+        Dictionary with keys as S3 path locations and values as a list of partitions values as str
+        (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+    bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    compression: str, optional
+        Compression style (``None``, ``snappy``, ``zlib``, etc).
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    columns_types: Optional[Dict[str, str]]
+        Only required for Hive compability.
+        Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+        P.S. Only materialized columns please, not partition columns.
+    partitions_parameters: Optional[Dict[str, str]]
+        Dictionary with key-value pairs defining partition parameters.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.add_orc_partitions(
+    ...     database='default',
+    ...     table='my_table',
+    ...     partitions_values={
+    ...         's3://bucket/prefix/y=2020/m=10/': ['2020', '10'],
+    ...         's3://bucket/prefix/y=2020/m=11/': ['2020', '11'],
+    ...         's3://bucket/prefix/y=2020/m=12/': ['2020', '12']
+    ...     }
+    ... )
+
+    """
+    table = sanitize_table_name(table=table)
+    if partitions_values:
+        inputs: List[Dict[str, Any]] = [
+            _orc_partition_definition(
+                location=k,
+                values=v,
+                bucketing_info=bucketing_info,
+                compression=compression,
+                columns_types=columns_types,
+                partitions_parameters=partitions_parameters,
+            )
+            for k, v in partitions_values.items()
+        ]
+        _add_partitions(
+            database=database, table=table, boto3_session=boto3_session, inputs=inputs, catalog_id=catalog_id
+        )
+
+
+@apply_configs
 def add_column(
     database: str,
     table: str,
@@ -343,8 +422,8 @@ def add_column(
     ... )
     """
     if _check_column_type(column_type):
-        client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-        table_res: Dict[str, Any] = client_glue.get_table(
+        client_glue = _utils.client(service_name="glue", session=boto3_session)
+        table_res = client_glue.get_table(
             **_catalog_id(
                 catalog_id=catalog_id,
                 **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table),

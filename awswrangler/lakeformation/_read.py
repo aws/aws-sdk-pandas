@@ -1,32 +1,34 @@
 """Amazon Lake Formation Module gathering all read functions."""
 import itertools
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
 from pyarrow import NativeFile, RecordBatchStreamReader, Table
+from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, catalog
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
-from awswrangler._sql_formatter import _EngineType, _process_sql_params
-from awswrangler._threading import _get_executor
+from awswrangler._executor import _BaseExecutor, _get_executor
+from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from awswrangler.lakeformation._utils import commit_transaction, start_transaction, wait_query
+
+if TYPE_CHECKING:
+    from mypy_boto3_lakeformation.client import LakeFormationClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 @engine.dispatch_on_engine
 def _get_work_unit_results(
-    boto3_session: Optional[boto3.Session],
+    client_lakeformation: Optional["LakeFormationClient"],
     query_id: str,
     token_work_unit: Tuple[str, int],
 ) -> Table:
-    _logger.debug("Query id: %s Token work unit: %s", query_id, token_work_unit)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
-
+    client_lakeformation = client_lakeformation if client_lakeformation else _utils.client(service_name="lakeformation")
     token, work_unit = token_work_unit
     messages: NativeFile = client_lakeformation.get_work_unit_results(
         QueryId=query_id, WorkUnitToken=token, WorkUnitId=work_unit
@@ -37,10 +39,10 @@ def _get_work_unit_results(
 def _resolve_sql_query(
     query_id: str,
     use_threads: bool,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     arrow_kwargs: Dict[str, Any],
 ) -> pd.DataFrame:
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
     wait_query(query_id=query_id, boto3_session=boto3_session)
 
@@ -49,10 +51,10 @@ def _resolve_sql_query(
     # One Token can span multiple work units
     # PageSize determines the size of the "Units" array in each call
     scan_kwargs: Dict[str, Union[str, int]] = {"QueryId": query_id, "PageSize": 10}
-    next_token: str = "init_token"  # Dummy token
+    next_token: Optional[str] = "init_token"  # Dummy token
     token_work_units: List[Tuple[str, int]] = []
     while next_token:
-        response = client_lakeformation.get_work_units(**scan_kwargs)
+        response = client_lakeformation.get_work_units(**scan_kwargs)  # type: ignore[arg-type]
         token_work_units.extend(  # [(Token0, WorkUnitId0), (Token0, WorkUnitId1), (Token1, WorkUnitId2) ... ]
             [
                 (unit["WorkUnitToken"], unit_id)
@@ -61,13 +63,13 @@ def _resolve_sql_query(
             ]
         )
         next_token = response.get("NextToken", None)
-        scan_kwargs["NextToken"] = next_token
+        scan_kwargs["NextToken"] = next_token  # type: ignore[assignment]
 
-    executor = _get_executor(use_threads=use_threads)
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
 
     tables = executor.map(
         _get_work_unit_results,
-        boto3_session,
+        client_lakeformation,
         itertools.repeat(query_id),
         token_work_units,
     )
@@ -75,12 +77,16 @@ def _resolve_sql_query(
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "dtype_backend"],
+)
 def read_sql_query(
     sql: str,
     database: str,
     transaction_id: Optional[str] = None,
     query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     params: Optional[Dict[str, Any]] = None,
@@ -90,7 +96,7 @@ def read_sql_query(
 
     Note
     ----
-    ORDER BY operations are not honoured.
+    ORDER BY operations are not honored.
     i.e. sql="SELECT * FROM my_table ORDER BY my_column" is NOT valid
 
     Note
@@ -118,6 +124,12 @@ def read_sql_query(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         When enabled, os.cpu_count() is used as the max number of threads.
@@ -128,7 +140,7 @@ def read_sql_query(
         The dict must contain the information in the form {"name": "value"} and the SQL query must contain
         `:name`.
     pyarrow_additional_kwargs : Dict[str, Any], optional
-        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas dataframe.
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
@@ -162,40 +174,49 @@ def read_sql_query(
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
     commit_trans: bool = False
 
-    sql = _process_sql_params(sql, params, engine=_EngineType.PARTIQL)
+    sql = _process_sql_params(sql, params, engine_type="partiql")
 
     if not any([transaction_id, query_as_of_time]):
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
-        transaction_id = start_transaction(read_only=True, boto3_session=session)
+        transaction_id = start_transaction(read_only=True, boto3_session=boto3_session)
         commit_trans = True
     args: Dict[str, Optional[str]] = _catalog_id(
         catalog_id=catalog_id,
         **_transaction_id(transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database),
     )
-    query_id: str = client_lakeformation.start_query_planning(QueryString=sql, QueryPlanningContext=args)["QueryId"]
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
+    result = client_lakeformation.start_query_planning(
+        QueryString=sql,
+        QueryPlanningContext=args,  # type: ignore[arg-type]
+    )
+    query_id: str = result["QueryId"]
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(
+        use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
+    )
     df = _resolve_sql_query(
         query_id=query_id,
         use_threads=use_threads,
-        boto3_session=session,
+        boto3_session=boto3_session,
         arrow_kwargs=arrow_kwargs,
     )
     if commit_trans:
-        commit_transaction(transaction_id=transaction_id)  # type: ignore
+        commit_transaction(transaction_id=transaction_id, boto3_session=boto3_session)  # type: ignore[arg-type]
     return df
 
 
 @apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "dtype_backend"],
+)
 def read_sql_table(
     table: str,
     database: str,
     transaction_id: Optional[str] = None,
     query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -204,7 +225,7 @@ def read_sql_table(
 
     Note
     ----
-    ORDER BY operations are not honoured.
+    ORDER BY operations are not honored.
     i.e. sql="SELECT * FROM my_table ORDER BY my_column" is NOT valid
 
     Note
@@ -226,13 +247,19 @@ def read_sql_table(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         When enabled, os.cpu_count() is used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if boto3_session receives None.
     pyarrow_additional_kwargs : Dict[str, Any], optional
-        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas dataframe.
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
@@ -273,6 +300,7 @@ def read_sql_table(
         transaction_id=transaction_id,
         query_as_of_time=query_as_of_time,
         catalog_id=catalog_id,
+        dtype_backend=dtype_backend,
         use_threads=use_threads,
         boto3_session=boto3_session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,

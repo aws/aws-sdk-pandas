@@ -5,27 +5,27 @@ import itertools
 import json
 import logging
 import pprint
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
 import pyarrow as pa
+from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
+from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._describe import size_objects
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _get_path_ignore_suffix
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _RANGE_CHUNK_SIZE: int = int(1024 * 1024)
-
-
-def _flatten_list(elements: List[List[Any]]) -> List[Any]:
-    return [item for sublist in elements for item in sublist]
 
 
 def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) -> Iterator[Tuple[int, int]]:
@@ -39,14 +39,13 @@ def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) 
     ex=exceptions.S3SelectRequestIncomplete,
 )
 def _select_object_content(
-    boto3_session: Optional[boto3.Session],
+    s3_client: Optional["S3Client"],
     args: Dict[str, Any],
     scan_range: Optional[Tuple[int, int]] = None,
+    schema: Optional[pa.Schema] = None,
 ) -> pa.Table:
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-
+    client_s3: "S3Client" = s3_client if s3_client else _utils.client(service_name="s3")
     if scan_range:
-        _logger.debug("scan_range: %s, key: %s", scan_range, args["Key"])
         response = client_s3.select_object_content(**args, ScanRange={"Start": scan_range[0], "End": scan_range[1]})
     else:
         response = client_s3.select_object_content(**args)
@@ -56,14 +55,25 @@ def _select_object_content(
     request_complete: bool = False
     for event in response["Payload"]:
         if "Records" in event:
-            records = event["Records"]["Payload"].decode(encoding="utf-8", errors="ignore").split("\n")
+            records = (
+                event["Records"]["Payload"]  # type: ignore[index]
+                .decode(  # type: ignore[attr-defined]
+                    encoding="utf-8",
+                    errors="ignore",
+                )
+                .split("\n")
+            )
             records[0] = partial_record + records[0]
             # Record end can either be a partial record or a return char
             partial_record = records.pop()
             payload_records.extend([json.loads(record) for record in records])
         elif "End" in event:
             # End Event signals the request was successful
-            _logger.debug("Received End Event. Result is complete")
+            _logger.debug(
+                "Received End Event. Result is complete for S3 key: %s, Scan Range: %s",
+                args["Key"],
+                scan_range if scan_range else 0,
+            )
             request_complete = True
     # If the End Event is not received, the results may be incomplete
     if not request_complete:
@@ -71,23 +81,24 @@ def _select_object_content(
             f"S3 Select request for path {args['Key']} is incomplete as End Event was not received"
         )
 
-    return _utils.list_to_arrow_table(mapping=payload_records)
+    return _utils.list_to_arrow_table(mapping=payload_records, schema=schema)
 
 
 @engine.dispatch_on_engine
 def _select_query(
     path: str,
-    executor: Any,
+    executor: _BaseExecutor,
     sql: str,
     input_serialization: str,
     input_serialization_params: Dict[str, Union[bool, str]],
+    schema: Optional[pa.Schema] = None,
     compression: Optional[str] = None,
     scan_range_chunk_size: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[pa.Table]:
     bucket, key = _utils.parse_path(path)
-
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     args: Dict[str, Any] = {
         "Bucket": bucket,
         "Key": key,
@@ -106,7 +117,7 @@ def _select_query(
         args.update(s3_additional_kwargs)
     _logger.debug("args:\n%s", pprint.pformat(args))
 
-    obj_size: int = size_objects(  # type: ignore
+    obj_size: int = size_objects(  # type: ignore[assignment]
         path=[path],
         use_threads=False,
         boto3_session=boto3_session,
@@ -124,11 +135,20 @@ def _select_query(
         ]
     ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
         # and JSON objects (in LINES mode only)
-        scan_ranges = [None]  # type: ignore
+        scan_ranges = [None]  # type: ignore[assignment]
 
-    return executor.map(_select_object_content, boto3_session, itertools.repeat(args), scan_ranges)  # type: ignore
+    return executor.map(
+        _select_object_content,
+        s3_client,
+        itertools.repeat(args),
+        scan_ranges,
+        itertools.repeat(schema),
+    )
 
 
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session"],
+)
 def select_query(
     sql: str,
     path: Union[str, List[str]],
@@ -142,6 +162,7 @@ def select_query(
     use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -187,6 +208,12 @@ def select_query(
     last_modified_end : datetime, optional
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if none is provided.
     s3_additional_kwargs : Dict[str, Any], optional
@@ -194,7 +221,7 @@ def select_query(
         Valid values: "SSECustomerAlgorithm", "SSECustomerKey", "ExpectedBucketOwner".
         e.g. s3_additional_kwargs={'SSECustomerAlgorithm': 'md5'}.
     pyarrow_additional_kwargs : Dict[str, Any], optional
-        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas dataframe.
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
@@ -248,10 +275,10 @@ def select_query(
         raise exceptions.InvalidArgumentCombination(
             "'gzip' or 'bzip2' are only valid for input 'CSV' or 'JSON' objects."
         )
-
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     paths: List[str] = _path2list(
         path=path,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         suffix=path_suffix,
         ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
         ignore_empty=ignore_empty,
@@ -261,7 +288,6 @@ def select_query(
     )
     if len(paths) < 1:
         raise exceptions.NoFilesFound(f"No files Found: {path}.")
-    _logger.debug("paths:\n%s", paths)
 
     select_kwargs: Dict[str, Any] = {
         "sql": sql,
@@ -272,9 +298,15 @@ def select_query(
         "boto3_session": boto3_session,
         "s3_additional_kwargs": s3_additional_kwargs,
     }
-    _logger.debug("kwargs:\n%s", pprint.pformat(select_kwargs))
 
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
-    executor = _get_executor(use_threads=use_threads)
-    tables = _flatten_list(ray_get([_select_query(path=path, executor=executor, **select_kwargs) for path in paths]))
+    if pyarrow_additional_kwargs and "schema" in pyarrow_additional_kwargs:
+        select_kwargs["schema"] = pyarrow_additional_kwargs.pop("schema")
+
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(
+        use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
+    )
+    executor: _BaseExecutor = _get_executor(use_threads=use_threads)
+    tables = list(
+        itertools.chain(*ray_get([_select_query(path=path, executor=executor, **select_kwargs) for path in paths]))
+    )
     return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)

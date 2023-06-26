@@ -1,8 +1,7 @@
 """Modin on Ray S3 write text module (PRIVATE)."""
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-import boto3
 import modin.pandas as pd
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
@@ -18,6 +17,9 @@ from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_paramet
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -29,6 +31,7 @@ _CSV_SUPPORTED_PARAMS: Dict[str, ParamConfig] = {
     "quoting": ParamConfig(default=None, supported_values={None}),
     "escapechar": ParamConfig(default=None, supported_values={None}),
     "date_format": ParamConfig(default=None, supported_values={None}),
+    "columns": ParamConfig(default=None, supported_values={None}),
 }
 
 
@@ -54,22 +57,22 @@ def _parse_configuration(
     if file_format == "csv":
         return _parse_csv_configuration(pandas_kwargs)
 
-    raise exceptions.InvalidArgument()
+    raise exceptions.InvalidArgument(f"File is in the {file_format} format")
 
 
-def _datasource_for_format(read_format: str, can_use_arrow: bool) -> PandasFileBasedDatasource:
-    if read_format == "csv":
+def _datasource_for_format(write_format: str, can_use_arrow: bool) -> PandasFileBasedDatasource:
+    if write_format == "csv":
         return ArrowCSVDatasource() if can_use_arrow else PandasCSVDataSource()
-    if read_format == "json":
+    if write_format == "json":
         return PandasJSONDatasource()
-    raise exceptions.UnsupportedType("Unsupported read format")
+    raise exceptions.UnsupportedType(f"Unsupported write format {write_format}")
 
 
 def _to_text_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     file_format: str,
     use_threads: Union[bool, int],
-    boto3_session: Optional["boto3.Session"],
+    s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
@@ -78,7 +81,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
     **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
-        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+        _logger.warning("Empty DataFrame will be written.")
 
     if bucketing:
         # Add bucket id to the prefix
@@ -98,7 +101,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
     # Create Ray Dataset
     ds = _ray_dataset_from_df(df)
 
-    # Repartition into a single block if or writing into a single key or if bucketing is enabled
+    # Repartition into a single block if writing into a single key or if bucketing is enabled
     if ds.count() > 0 and path:
         ds = ds.repartition(1)
         _logger.warning(
@@ -128,7 +131,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
 
     mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
     ds.write_datasource(
-        datasource=datasource,
+        datasource,
         path=file_path,
         block_path_provider=(
             UserProvidedKeyBlockWritePathProvider()

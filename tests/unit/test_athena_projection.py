@@ -3,13 +3,9 @@ import logging
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
-from .._utils import dt, is_ray_modin, to_pandas, ts
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+from .._utils import dt, to_pandas, ts
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -25,8 +21,10 @@ def test_to_parquet_projection_integer(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2", "c3"],
-        regular_partitions=False,
-        projection_params={
+        glue_table_settings={
+            "regular_partitions": False,
+        },
+        athena_partition_projection_settings={
             "projection_types": {"c1": "integer", "c2": "integer", "c3": "integer"},
             "projection_ranges": {"c1": "0,2", "c2": "0,200", "c3": "0,2"},
             "projection_intervals": {"c2": "100"},
@@ -50,8 +48,10 @@ def test_to_parquet_projection_enum(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2"],
-        regular_partitions=False,
-        projection_params={
+        glue_table_settings={
+            "regular_partitions": False,
+        },
+        athena_partition_projection_settings={
             "projection_types": {"c1": "enum", "c2": "enum"},
             "projection_values": {"c1": "1,2,3", "c2": "foo,boo,bar"},
         },
@@ -77,8 +77,10 @@ def test_to_parquet_projection_date(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2"],
-        regular_partitions=False,
-        projection_params={
+        glue_table_settings={
+            "regular_partitions": False,
+        },
+        athena_partition_projection_settings={
             "projection_types": {"c1": "date", "c2": "date"},
             "projection_ranges": {"c1": "2020-01-01,2020-01-03", "c2": "2020-01-01 01:01:00,2020-01-01 01:01:03"},
         },
@@ -97,8 +99,10 @@ def test_to_parquet_projection_injected(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2"],
-        regular_partitions=False,
-        projection_params={
+        glue_table_settings={
+            "regular_partitions": False,
+        },
+        athena_partition_projection_settings={
             "projection_types": {"c1": "injected", "c2": "injected"},
         },
     )
@@ -125,7 +129,7 @@ def test_to_parquet_storage_location(glue_database, glue_table, path):
         table=glue_table,
         path=path,
         columns_types=column_types,
-        projection_params={
+        athena_partition_projection_settings={
             "projection_types": {"c1": "injected", "c2": "injected"},
             "projection_storage_location_template": f"{path}${{c1}}/${{c2}}",
         },

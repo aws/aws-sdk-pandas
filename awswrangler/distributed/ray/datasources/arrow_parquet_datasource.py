@@ -8,20 +8,19 @@ are documented in the comments and marked with (AWS SDK for pandas) prefix.
 # pylint: disable=redefined-outer-name,import-outside-toplevel,reimported
 
 import logging
-import time
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 
 import numpy as np
 
 # fs required to implicitly trigger S3 subsystem initialization
 import pyarrow.fs  # noqa: F401 pylint: disable=unused-import
-import ray
 from pyarrow.dataset import ParquetFileFragment
 from pyarrow.lib import Schema
 from ray import cloudpickle
+from ray.data._internal.output_buffer import BlockOutputBuffer
+from ray.data._internal.progress_bar import ProgressBar
 from ray.data.block import Block, BlockAccessor
 from ray.data.context import DatasetContext
-from ray.data.dataset import BlockOutputBuffer  # type: ignore
 from ray.data.datasource import Reader, ReadTask
 from ray.data.datasource.file_based_datasource import _resolve_paths_and_filesystem
 from ray.data.datasource.file_meta_provider import (
@@ -30,9 +29,10 @@ from ray.data.datasource.file_meta_provider import (
     _handle_read_os_error,
 )
 
+from awswrangler import exceptions
 from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray import ray_remote
-from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
+from awswrangler.distributed.ray.datasources.arrow_parquet_base_datasource import ArrowParquetBaseDatasource
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ PARQUET_ENCODING_RATIO_ESTIMATE_MAX_NUM_SAMPLES = 10
 PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS = 5
 
 
-class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
+class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abstract-method
     """(AWS SDK for pandas) Parquet datasource, for reading and writing Parquet files.
 
     The following are the changes to the original Ray implementation:
@@ -82,16 +82,14 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
        relative to the root S3 prefix.
     """
 
-    _FILE_EXTENSION = "parquet"
-
-    def create_reader(self, **kwargs: Dict[str, Any]) -> Reader[Any]:
+    def create_reader(self, **kwargs: Dict[str, Any]) -> Reader:
         """Return a Reader for the given read arguments."""
-        return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore
+        return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore[arg-type]
 
-    def _write_block(  # type: ignore  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
+    def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
         self,
         f: "pyarrow.NativeFile",
-        block: BlockAccessor[Any],
+        block: BlockAccessor,
         pandas_kwargs: Optional[Dict[str, Any]],
         **writer_args: Any,
     ) -> None:
@@ -113,7 +111,7 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
 
     def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
         if compression is not None:
-            return f"{_COMPRESSION_2_EXT.get(compression)[1:]}.{file_format}"  # type: ignore
+            return f"{_COMPRESSION_2_EXT.get(compression)[1:]}.{file_format}"  # type: ignore[index]
         return file_format
 
 
@@ -121,7 +119,7 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
 # raw pyarrow file fragment causes S3 network calls.
 class _SerializedPiece:
     def __init__(self, frag: ParquetFileFragment):
-        self._data = cloudpickle.dumps(  # type: ignore
+        self._data = cloudpickle.dumps(  # type: ignore[attr-defined]
             (frag.format, frag.path, frag.filesystem, frag.partition_expression)
         )
 
@@ -143,8 +141,8 @@ def _deserialize_pieces(
 # This retry helps when the upstream datasource is not able to handle
 # overloaded read request or failed with some retriable failures.
 # For example when reading data from HA hdfs service, hdfs might
-# lose connection for some unknown reason expecially when
-# simutaneously running many hyper parameter tuning jobs
+# lose connection for some unknown reason especially when
+# simultaneously running many hyper parameter tuning jobs
 # with ray.data parallelism setting at high value like the default 200
 # Such connection failure can be restored with some waiting and retry.
 def _deserialize_pieces_with_retry(
@@ -184,18 +182,19 @@ def _deserialize_pieces_with_retry(
             time.sleep(min_interval)
             min_interval = min_interval * 2
             final_exception = e
-    raise final_exception  # type: ignore
+    raise final_exception  # type: ignore[misc]
 
 
-class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-instance-attributes
+class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         paths: Union[str, List[str]],
+        local_uri: bool = False,
         filesystem: Optional["pyarrow.fs.FileSystem"] = None,
         columns: Optional[List[str]] = None,
         schema: Optional[Schema] = None,
         meta_provider: ParquetMetadataProvider = DefaultParquetMetadataProvider(),
-        _block_udf: Optional[Callable[[Block[Any]], Block[Any]]] = None,
+        _block_udf: Optional[Callable[[Block], Block]] = None,
         **reader_args: Any,
     ):
         import pyarrow as pa
@@ -204,6 +203,13 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         paths, filesystem = _resolve_paths_and_filesystem(paths, filesystem)
         if len(paths) == 1:
             paths = paths[0]
+
+        self._local_scheduling = None
+        if local_uri:
+            import ray
+            from ray.util.scheduling_strategies import NodeAffinitySchedulingStrategy
+
+            self._local_scheduling = NodeAffinitySchedulingStrategy(ray.get_runtime_context().get_node_id(), soft=False)  # type: ignore[attr-defined]
 
         dataset_kwargs = reader_args.pop("dataset_kwargs", {})
         try:
@@ -219,7 +225,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             # Try to infer dataset schema by passing dummy table through UDF.
             dummy_table = schema.empty_table()
             try:
-                inferred_schema = _block_udf(dummy_table).schema  # type: ignore
+                inferred_schema = _block_udf(dummy_table).schema  # type: ignore[union-attr]
                 inferred_schema = inferred_schema.with_metadata(schema.metadata)
             except Exception:  # pylint: disable=broad-except
                 _logger.debug(
@@ -232,9 +238,16 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             inferred_schema = schema
 
         try:
-            self._metadata = meta_provider.prefetch_file_metadata(pq_ds.pieces) or []
+            prefetch_remote_args = {}
+            if self._local_scheduling:
+                prefetch_remote_args["scheduling_strategy"] = self._local_scheduling
+            self._metadata = meta_provider.prefetch_file_metadata(pq_ds.pieces, **prefetch_remote_args) or []
         except OSError as e:
             _handle_read_os_error(e, paths)
+        except pyarrow.ArrowInvalid as ex:
+            if "Parquet file size is 0 bytes" in str(ex):
+                raise exceptions.InvalidFile(f"Invalid Parquet file. {str(ex)}")
+            raise
         self._pq_ds = pq_ds
         self._meta_provider = meta_provider
         self._inferred_schema = inferred_schema
@@ -251,14 +264,13 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             for row_group_idx in range(file_metadata.num_row_groups):
                 row_group_metadata = file_metadata.row_group(row_group_idx)
                 total_size += row_group_metadata.total_byte_size
-        return total_size * self._encoding_ratio  # type: ignore
+        return total_size * self._encoding_ratio  # type: ignore[return-value]
 
     def get_read_tasks(self, parallelism: int) -> List[ReadTask]:
         """Override the base class FileBasedDatasource.get_read_tasks().
 
         Required in order to leverage pyarrow's ParquetDataset abstraction,
-        which simplifies partitioning logic. We still use
-        FileBasedDatasource's write side (do_write), however.
+        which simplifies partitioning logic.
         """
         read_tasks = []
         block_udf, reader_args, columns, schema = (
@@ -285,7 +297,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
                 meta.size_bytes = int(meta.size_bytes * self._encoding_ratio)
             read_tasks.append(
                 ReadTask(
-                    lambda p=serialized_pieces: _read_pieces(  # type: ignore
+                    lambda p=serialized_pieces: _read_pieces(  # type: ignore[misc]
                         block_udf,
                         reader_args,
                         columns,
@@ -310,7 +322,6 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         # Launch tasks to sample multiple files remotely in parallel.
         # Evenly distributed to sample N rows in i-th row group in i-th file.
         # TODO(ekl/cheng) take into account column pruning.
-        start_time = time.perf_counter()
         num_files = len(self._pq_ds.pieces)
         num_samples = int(num_files * PARQUET_ENCODING_RATIO_ESTIMATE_SAMPLING_RATIO)
         min_num_samples = min(PARQUET_ENCODING_RATIO_ESTIMATE_MIN_NUM_SAMPLES, num_files)
@@ -324,36 +335,38 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         ]
 
         futures = []
-        for idx, sample in enumerate(file_samples):
-            # Sample i-th row group in i-th file.
+        sample_piece = ray_remote(scheduling_strategy=self._local_scheduling or "SPREAD")(_sample_piece)
+        for sample in file_samples:
+            # Sample the first rows batch in i-th file.
             # Use SPREAD scheduling strategy to avoid packing many sampling tasks on
             # same machine to cause OOM issue, as sampling can be memory-intensive.
-            futures.append(_sample_piece(_SerializedPiece(sample), idx))
-        sample_ratios = ray.get(futures)  # type: ignore[attr-defined]
+            serialized_sample = _SerializedPiece(sample)
+            futures.append(
+                sample_piece(
+                    self._reader_args,
+                    self._columns,
+                    self._schema,
+                    serialized_sample,
+                )
+            )
+        sample_bar = ProgressBar("Parquet Files Sample", len(futures))
+        sample_ratios = sample_bar.fetch_until_complete(futures)
+        sample_bar.close()  # type: ignore[no-untyped-call]
         ratio = np.mean(sample_ratios)
-
-        sampling_duration = time.perf_counter() - start_time
-        if sampling_duration > 5:
-            _logger.info("Parquet input size estimation took %s seconds.", round(sampling_duration, 2))
-        _logger.debug("Estimated Parquet encoding ratio from sampling is %s.", ratio)
-        return max(ratio, PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND)  # type: ignore
+        _logger.debug(f"Estimated Parquet encoding ratio from sampling is {ratio}.")
+        return max(ratio, PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND)  # type: ignore[no-any-return]
 
 
 # (AWS SDK for pandas) The following are the changes to the original ray implementation:
 # 1. Use _add_table_partitions to add partition columns. The behavior is controlled by Pandas SDK
 #    native `dataset` parameter. The partitions are loaded relative to the `path_root` prefix.
 def _read_pieces(
-    block_udf: Optional[Callable[[Block[Any]], Block[Any]]],
+    block_udf: Optional[Callable[[Block], Block]],
     reader_args: Any,
     columns: Optional[List[str]],
     schema: Optional[Union[type, "pyarrow.lib.Schema"]],
     serialized_pieces: List[_SerializedPiece],
 ) -> Iterator["pyarrow.Table"]:
-    # This import is necessary to load the tensor extension type.
-    from ray.data.extensions.tensor_extension import (  # type: ignore # noqa: F401, E501 # pylint: disable=import-outside-toplevel, unused-import
-        ArrowTensorType,
-    )
-
     # Deserialize after loading the filesystem class.
     pieces: List[ParquetFileFragment] = _deserialize_pieces_with_retry(serialized_pieces)
 
@@ -397,32 +410,44 @@ def _read_pieces(
         yield output_buffer.next()
 
 
-@ray_remote(scheduling_strategy="SPREAD")
 def _sample_piece(
+    reader_args: Any,
+    columns: Optional[List[str]],
+    schema: Optional[Union[type, "pyarrow.lib.Schema"]],
     file_piece: _SerializedPiece,
-    row_group_id: int,
 ) -> float:
-    # Sample the `row_group_id`-th row group from file piece `serialized_piece`.
+    # Sample the first rows batch from file piece `serialized_piece`.
     # Return the encoding ratio calculated from the sampled rows.
     piece = _deserialize_pieces_with_retry([file_piece])[0]
 
-    # If required row group index is out of boundary, sample the last row group.
-    row_group_id = min(piece.num_row_groups - 1, row_group_id)
-    assert (
-        0 <= row_group_id <= piece.num_row_groups - 1
-    ), f"Required row group id {row_group_id} is not in expected bound"
-
-    row_group = piece.subset(row_group_ids=[row_group_id])
-    metadata = row_group.metadata.row_group(0)
-    num_rows = min(PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS, metadata.num_rows)
-    assert num_rows > 0 and metadata.num_rows > 0, (
-        f"Sampled number of rows: {num_rows} and total number of rows: " f"{metadata.num_rows} should be positive"
+    # Only sample the first row group.
+    piece = piece.subset(row_group_ids=[0])
+    batch_size = max(min(piece.metadata.num_rows, PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS), 1)
+    # Use the batch_size calculated above, and ignore the one specified by user if set.
+    # This is to avoid sampling too few or too many rows.
+    reader_args.pop("batch_size", None)
+    reader_args.pop("path_root", None)
+    batches = piece.to_batches(
+        columns=columns,
+        schema=schema,
+        batch_size=batch_size,
+        **reader_args,
     )
-
-    parquet_size: float = metadata.total_byte_size / metadata.num_rows
-    # Set batch_size to num_rows will instruct Arrow Parquet reader to read exactly
-    # num_rows into memory, o.w. it will read more rows by default in batch manner.
-    in_memory_size: float = row_group.head(num_rows, batch_size=num_rows).nbytes / num_rows
-    ratio: float = in_memory_size / parquet_size
-    _logger.debug("Estimated Parquet encoding ratio is %s for piece %s.", ratio, piece)
-    return in_memory_size / parquet_size
+    # Use first batch in-memory size as ratio estimation.
+    try:
+        batch = next(batches)
+    except StopIteration:
+        ratio = PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND
+    else:
+        if batch.num_rows > 0:
+            in_memory_size = batch.nbytes / batch.num_rows
+            metadata = piece.metadata
+            total_size = 0
+            for idx in range(metadata.num_row_groups):
+                total_size += metadata.row_group(idx).total_byte_size
+            file_size = total_size / metadata.num_rows
+            ratio = in_memory_size / file_size
+        else:
+            ratio = PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND
+    _logger.debug(f"Estimated Parquet encoding ratio is {ratio} for piece {piece} " f"with batch size {batch_size}.")
+    return ratio

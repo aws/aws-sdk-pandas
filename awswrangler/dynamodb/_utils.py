@@ -1,13 +1,19 @@
 """Amazon DynamoDB Utils Module (PRIVATE)."""
 
 import logging
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Mapping, Optional, Union
 
 import boto3
+from boto3.dynamodb.conditions import ConditionExpressionBuilder
+from boto3.dynamodb.types import TypeSerializer
 from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
+
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.service_resource import Table
+    from mypy_boto3_dynamodb.type_defs import ExecuteStatementOutputTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -16,7 +22,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def get_table(
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
-) -> boto3.resource:
+) -> "Table":
     """Get DynamoDB table object for specified table name.
 
     Parameters
@@ -41,10 +47,10 @@ def get_table(
 def _execute_statement(
     kwargs: Dict[str, Union[str, bool, List[Any]]],
     boto3_session: Optional[boto3.Session],
-) -> Dict[str, Any]:
+) -> "ExecuteStatementOutputTypeDef":
     dynamodb_resource = _utils.resource(service_name="dynamodb", session=boto3_session)
     try:
-        response: Dict[str, Any] = dynamodb_resource.meta.client.execute_statement(**kwargs)
+        response = dynamodb_resource.meta.client.execute_statement(**kwargs)  # type: ignore[arg-type]
     except ClientError as err:
         if err.response["Error"]["Code"] == "ResourceNotFoundException":
             _logger.error("Couldn't execute PartiQL: '%s' because the table does not exist.", kwargs["Statement"])
@@ -62,12 +68,12 @@ def _execute_statement(
 def _read_execute_statement(
     kwargs: Dict[str, Union[str, bool, List[Any]]], boto3_session: Optional[boto3.Session]
 ) -> Iterator[Dict[str, Any]]:
-    next_token: str = "init_token"  # Dummy token
+    next_token: Optional[str] = "init_token"  # Dummy token
     while next_token:
         response = _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
         next_token = response.get("NextToken", None)
-        kwargs["NextToken"] = next_token
-        yield response["Items"]
+        kwargs["NextToken"] = next_token  # type: ignore[assignment]
+        yield response["Items"]  # type: ignore[misc]
 
 
 def execute_statement(
@@ -135,9 +141,46 @@ def execute_statement(
     return _read_execute_statement(kwargs=kwargs, boto3_session=boto3_session)
 
 
-def _validate_items(
-    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], dynamodb_table: boto3.resource
-) -> None:
+def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Serialize a DynamoDB input arguments dictionary.
+
+    Parameters
+    ----------
+    kwargs : Dict[str, Any]
+        Dictionary to serialize.
+
+    Returns
+    -------
+    Dict[str, Any]
+        Serialized dictionary.
+    """
+    names: Dict[str, Any] = {}
+    values: Dict[str, Any] = {}
+    serializer = TypeSerializer()
+
+    if "FilterExpression" in kwargs and not isinstance(kwargs["FilterExpression"], str):
+        builder = ConditionExpressionBuilder()
+        exp_string, names, values = builder.build_expression(kwargs["FilterExpression"], False)
+        kwargs["FilterExpression"] = exp_string
+
+    if "ExpressionAttributeNames" in kwargs:
+        kwargs["ExpressionAttributeNames"].update(names)
+    elif names:
+        kwargs["ExpressionAttributeNames"] = names
+
+    values = {k: serializer.serialize(v) for k, v in values.items()}
+    if "ExpressionAttributeValues" in kwargs:
+        kwargs["ExpressionAttributeValues"] = {
+            k: serializer.serialize(v) for k, v in kwargs["ExpressionAttributeValues"].items()
+        }
+        kwargs["ExpressionAttributeValues"].update(values)
+    elif values:
+        kwargs["ExpressionAttributeValues"] = values
+
+    return kwargs
+
+
+def _validate_items(items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], dynamodb_table: "Table") -> None:
     """Validate if all items have the required keys for the Amazon DynamoDB table.
 
     Parameters

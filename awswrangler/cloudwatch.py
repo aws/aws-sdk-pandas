@@ -6,9 +6,10 @@ import time
 from typing import Any, Dict, List, Optional, cast
 
 import boto3
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
+from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -28,8 +29,8 @@ def _validate_args(
 def start_query(
     query: str,
     log_group_names: List[str],
-    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
-    end_time: datetime.datetime = datetime.datetime.utcnow(),
+    start_time: Optional[datetime.datetime] = None,
+    end_time: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -67,10 +68,17 @@ def start_query(
 
     """
     _logger.debug("log_group_names: %s", log_group_names)
+
+    start_time = (
+        start_time if start_time else datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc)
+    )
+    end_time = end_time if end_time else datetime.datetime.utcnow()
+
     start_timestamp: int = int(1000 * start_time.timestamp())
     end_timestamp: int = int(1000 * end_time.timestamp())
     _logger.debug("start_timestamp: %s", start_timestamp)
     _logger.debug("end_timestamp: %s", end_timestamp)
+
     _validate_args(start_timestamp=start_timestamp, end_timestamp=end_timestamp)
     args: Dict[str, Any] = {
         "logGroupNames": log_group_names,
@@ -80,12 +88,17 @@ def start_query(
     }
     if limit is not None:
         args["limit"] = limit
-    client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
-    response: Dict[str, Any] = client_logs.start_query(**args)
-    return cast(str, response["queryId"])
+    client_logs = _utils.client(service_name="logs", session=boto3_session)
+    response = client_logs.start_query(**args)
+    return response["queryId"]
 
 
-def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
+@apply_configs
+def wait_query(
+    query_id: str,
+    boto3_session: Optional[boto3.Session] = None,
+    cloudwatch_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+) -> Dict[str, Any]:
     """Wait query ends.
 
     https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
@@ -96,6 +109,8 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
         Query ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    cloudwatch_query_wait_polling_delay: float, default: 0.2 seconds
+        Interval in seconds for how often the function will check if the CloudWatch query has completed.
 
     Returns
     -------
@@ -113,11 +128,11 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
 
     """
     final_states: List[str] = ["Complete", "Failed", "Cancelled"]
-    client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
-    response: Dict[str, Any] = client_logs.get_query_results(queryId=query_id)
-    status: str = response["status"]
+    client_logs = _utils.client(service_name="logs", session=boto3_session)
+    response = client_logs.get_query_results(queryId=query_id)
+    status = response["status"]
     while status not in final_states:
-        time.sleep(_QUERY_WAIT_POLLING_DELAY)
+        time.sleep(cloudwatch_query_wait_polling_delay)
         response = client_logs.get_query_results(queryId=query_id)
         status = response["status"]
     _logger.debug("status: %s", status)
@@ -125,14 +140,14 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
         raise exceptions.QueryFailed(f"query ID: {query_id}")
     if status == "Cancelled":
         raise exceptions.QueryCancelled(f"query ID: {query_id}")
-    return response
+    return cast(Dict[str, Any], response)
 
 
 def run_query(
     query: str,
     log_group_names: List[str],
-    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
-    end_time: datetime.datetime = datetime.datetime.utcnow(),
+    start_time: Optional[datetime.datetime] = None,
+    end_time: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[List[Dict[str, str]]]:
@@ -169,24 +184,23 @@ def run_query(
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     query_id: str = start_query(
         query=query,
         log_group_names=log_group_names,
         start_time=start_time,
         end_time=end_time,
         limit=limit,
-        boto3_session=session,
+        boto3_session=boto3_session,
     )
-    response: Dict[str, Any] = wait_query(query_id=query_id, boto3_session=session)
+    response: Dict[str, Any] = wait_query(query_id=query_id, boto3_session=boto3_session)
     return cast(List[List[Dict[str, str]]], response["results"])
 
 
 def read_logs(
     query: str,
     log_group_names: List[str],
-    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
-    end_time: datetime.datetime = datetime.datetime.utcnow(),
+    start_time: Optional[datetime.datetime] = None,
+    end_time: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
@@ -292,7 +306,7 @@ def describe_log_streams(
     ... )
 
     """
-    client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
+    client_logs = _utils.client(service_name="logs", session=boto3_session)
     args: Dict[str, Any] = {
         "logGroupName": log_group_name,
         "descending": descending,
@@ -306,15 +320,15 @@ def describe_log_streams(
             "Cannot call describe_log_streams with both `log_stream_name_prefix` and order_by equal 'LastEventTime'"
         )
     log_streams: List[Dict[str, Any]] = []
-    response: Dict[str, Any] = client_logs.describe_log_streams(**args)
+    response = client_logs.describe_log_streams(**args)
 
-    log_streams += response["logStreams"]
+    log_streams += cast(List[Dict[str, Any]], response["logStreams"])
     while "nextToken" in response:
         response = client_logs.describe_log_streams(
             **args,
             nextToken=response["nextToken"],
         )
-        log_streams += response["logStreams"]
+        log_streams += cast(List[Dict[str, Any]], response["logStreams"])
     if log_streams:
         df: pd.DataFrame = pd.DataFrame(log_streams)
         df["logGroupName"] = log_group_name
@@ -331,7 +345,7 @@ def _filter_log_events(
     limit: Optional[int] = 10000,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[Dict[str, Any]]:
-    client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
+    client_logs = _utils.client(service_name="logs", session=boto3_session)
     events: List[Dict[str, Any]] = []
     args: Dict[str, Any] = {
         "logGroupName": log_group_name,
@@ -344,14 +358,14 @@ def _filter_log_events(
         args["endTime"] = end_timestamp
     if filter_pattern:
         args["filterPattern"] = filter_pattern
-    response: Dict[str, Any] = client_logs.filter_log_events(**args)
-    events += response["events"]
+    response = client_logs.filter_log_events(**args)
+    events += cast(List[Dict[str, Any]], response["events"])
     while "nextToken" in response:
         response = client_logs.filter_log_events(
             **args,
             nextToken=response["nextToken"],
         )
-        events += response["events"]
+        events += cast(List[Dict[str, Any]], response["events"])
     return events
 
 

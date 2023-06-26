@@ -2,52 +2,90 @@ import os
 import random
 import re
 import time
-from datetime import datetime
+import uuid
+from datetime import date, datetime
 from decimal import Decimal
 from timeit import default_timer as timer
-from typing import Any, Dict, Iterator, Union
+from types import TracebackType
+from typing import Any, Dict, Iterator, List, Optional, Type, Union
 
 import boto3
 import botocore.exceptions
+import pyarrow as pa
+from packaging import version
 from pandas import DataFrame as PandasDataFrame
 from pandas import Series as PandasSeries
+from pandas.testing import assert_frame_equal, assert_series_equal
+from pytest import FixtureRequest
+from typing_extensions import Literal
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 from awswrangler._utils import try_it
 
 is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
+is_pandas_2_x = False
 
 if is_ray_modin:
-    import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
     from modin.pandas import Series as ModinSeries
 else:
-    import pandas as pd
+    import pandas as _pd
 
+    if version.parse(_pd.__version__) >= version.parse("2.0.0"):
+        is_pandas_2_x = True
 
-ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
-dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
 
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
 
 
 class ExecutionTimer:
-    def __init__(self, request: Any, name_override=None):
+    def __init__(
+        self,
+        request: FixtureRequest,
+        name_override: Optional[str] = None,
+        data_paths: Optional[Union[str, List[str]]] = None,
+    ):
         self.test = name_override or request.node.originalname
-        try:
-            self.scenario = re.search(r"\[(.+?)\]", request.node.name).group(1)
-        except AttributeError:
-            self.scenario = None
 
-    def __enter__(self):
+        self.scenario: Optional[str] = None
+        match = re.search(r"\[(.+?)\]", request.node.name)
+        if match:
+            self.scenario = match.group(1)
+
+        self.data_paths = data_paths
+
+    def _stringify_paths(self, data_paths: Optional[Union[str, List[str]]]) -> Optional[str]:
+        if data_paths is None:
+            return None
+
+        if isinstance(data_paths, list):
+            return ", ".join(data_paths)
+
+        return data_paths
+
+    def _calculate_data_size(self, data_paths: Optional[Union[str, List[str]]]) -> Optional[int]:
+        if data_paths is None:
+            return None
+
+        sizes = [size for size in wr.s3.size_objects(data_paths).values() if size]
+        return sum(sizes)
+
+    def __enter__(self) -> "ExecutionTimer":
         self.before = timer()
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(
+        self,
+        exception_type: Optional[Type[BaseException]],
+        exception_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
         self.elapsed_time = round((timer() - self.before), 3)
         print(f"Elapsed time ({self.test}[{self.scenario}]): {self.elapsed_time:.3f} sec")
         output_path = "load.csv"
+        is_success = exception_value is None
 
         pd.DataFrame(
             {
@@ -55,12 +93,27 @@ class ExecutionTimer:
                 "test": [self.test],
                 "scenario": [self.scenario],
                 "elapsed_time": [self.elapsed_time],
+                "is_success": [is_success],
+                "data_path": [self._stringify_paths(self.data_paths)],
+                "data_size": [self._calculate_data_size(self.data_paths)],
             }
         ).to_csv(output_path, mode="a", index=False, header=not os.path.exists(output_path))
         return None
 
 
-def get_df(governed=False):
+def _get_unique_suffix() -> str:
+    return str(uuid.uuid4())[:8]
+
+
+def ts(x: str) -> datetime:
+    return datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")
+
+
+def dt(x: str) -> date:
+    return datetime.strptime(x, "%Y-%m-%d").date()
+
+
+def get_df(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -94,7 +147,7 @@ def get_df(governed=False):
     return df
 
 
-def get_df_list(governed=False):
+def get_df_list(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -131,7 +184,7 @@ def get_df_list(governed=False):
     return df
 
 
-def get_df_cast(governed=False):
+def get_df_cast(governed: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [None, None, None],
@@ -157,7 +210,7 @@ def get_df_cast(governed=False):
     return df
 
 
-def get_df_csv():
+def get_df_csv() -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "id": [1, 2, 3],
@@ -178,7 +231,7 @@ def get_df_csv():
     return df
 
 
-def get_df_txt():
+def get_df_txt() -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "col_name": [
@@ -244,7 +297,7 @@ def get_df_category():
     return df
 
 
-def get_df_quicksight():
+def get_df_quicksight() -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "iint8": [1, None, 2],
@@ -274,7 +327,45 @@ def get_df_quicksight():
     return df
 
 
-def ensure_data_types(df, has_list=False):
+def get_df_dtype_backend(dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable") -> pd.DataFrame:
+    df = pd.DataFrame(
+        {
+            "int8_nullable": [1, None, 3],
+            "int16_nullable": [1, None, 3],
+            "int32_nullable": [1, None, 3],
+            "int64_nullable": [1, None, 3],
+            "float_nullable": [0.0, None, 2.2],
+            # "bool_nullable": [True, None, False],
+            "string_nullable": ["Washington", None, "Seattle"],
+            # "date_nullable": [dt("2020-01-01"), None, dt("2020-01-02")],
+            # "timestamp_nullable": [ts("2020-01-01 00:00:00.0"), None, ts("2020-01-02 00:00:01.0")],
+        }
+    )
+    if dtype_backend == "numpy_nullable":
+        df["int8_nullable"] = df["int8_nullable"].astype("Int8")
+        df["int16_nullable"] = df["int16_nullable"].astype("Int16")
+        df["int32_nullable"] = df["int32_nullable"].astype("Int32")
+        df["int64_nullable"] = df["int64_nullable"].astype("Int64")
+        df["float_nullable"] = df["float_nullable"].astype("Float64")
+        # df["bool_nullable"] = df["bool_nullable"].astype("boolean")
+        # df["date_nullable"] = df["date_nullable"].astype("string[python]")
+        df["string_nullable"] = df["string_nullable"].astype("string[python]")
+    elif dtype_backend == "pyarrow":
+        df["int8_nullable"] = df["int8_nullable"].astype(pd.ArrowDtype(pa.int8()))
+        df["int16_nullable"] = df["int16_nullable"].astype(pd.ArrowDtype(pa.int16()))
+        df["int32_nullable"] = df["int32_nullable"].astype(pd.ArrowDtype(pa.int32()))
+        df["int64_nullable"] = df["int64_nullable"].astype(pd.ArrowDtype(pa.int64()))
+        df["float_nullable"] = df["float_nullable"].astype(pd.ArrowDtype(pa.float64()))
+        # df["bool_nullable"] = df["bool_nullable"].astype(pd.ArrowDtype(pa.bool_()))
+        # df["date_nullable"] = df["date_nullable"].astype(pd.ArrowDtype(pa.string()))
+        df["string_nullable"] = df["string_nullable"].astype(pd.ArrowDtype(pa.string()))
+        # df["timestamp_nullable"] = df["timestamp_nullable"].astype("date64[ms][pyarrow]")
+    else:
+        raise ValueError(f"Unknown dtype_backend: {dtype_backend}")
+    return df
+
+
+def ensure_data_types(df: pd.DataFrame, has_list: bool = False, has_category: bool = True) -> None:
     if "iint8" in df.columns:
         assert str(df["iint8"].dtype).startswith("Int")
     assert str(df["iint16"].dtype).startswith("Int")
@@ -291,7 +382,8 @@ def ensure_data_types(df, has_list=False):
     assert str(df["bool"].dtype) in ("boolean", "Int64", "object")
     if "binary" in df.columns:
         assert str(df["binary"].dtype) == "object"
-    assert str(df["category"].dtype) == "float64"
+    if has_category:
+        assert str(df["category"].dtype) == "float64"
     if has_list is True:
         assert str(df["list"].dtype) == "object"
         assert str(df["list_list"].dtype) == "object"
@@ -311,7 +403,7 @@ def ensure_data_types(df, has_list=False):
             assert str(type(row["list_list"][0][0]).__name__) == "int64"
 
 
-def ensure_data_types_category(df):
+def ensure_data_types_category(df: pd.DataFrame) -> None:
     assert len(df.columns) in (7, 8)
     assert str(df["id"].dtype) in ("category", "Int64")
     assert str(df["string_object"].dtype) == "category"
@@ -324,7 +416,7 @@ def ensure_data_types_category(df):
     assert str(df["par1"].dtype) == "category"
 
 
-def ensure_data_types_csv(df, governed=False):
+def ensure_data_types_csv(df: pd.DataFrame, governed: bool = False) -> None:
     if "__index_level_0__" in df:
         assert str(df["__index_level_0__"].dtype).startswith("Int")
     assert str(df["id"].dtype).startswith("Int")
@@ -457,9 +549,7 @@ def create_workgroup(wkg_name, config):
 
 
 def to_pandas(df: Union[pd.DataFrame, pd.Series]) -> Union[PandasDataFrame, PandasSeries]:
-    """
-    Convert Modin data frames to pandas for comparison
-    """
+    """Convert Modin data frames to pandas for comparison."""
     if isinstance(df, (PandasDataFrame, PandasSeries)):
         return df
     elif wr.memory_format.get() == MemoryFormatEnum.MODIN and isinstance(df, (ModinDataFrame, ModinSeries)):
@@ -467,9 +557,18 @@ def to_pandas(df: Union[pd.DataFrame, pd.Series]) -> Union[PandasDataFrame, Pand
     raise ValueError("Unknown data frame type %s", type(df))
 
 
-def pandas_equals(df1: pd.DataFrame, df2: pd.DataFrame) -> bool:
-    """
-    Check data frames for equality converting them to pandas first
-    """
+def pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.DataFrame, pd.Series]) -> bool:
+    """Check data frames for equality converting them to pandas first."""
     df1, df2 = to_pandas(df1), to_pandas(df2)
     return df1.equals(df2)
+
+
+def assert_pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.DataFrame, pd.Series]) -> None:
+    df1, df2 = to_pandas(df1), to_pandas(df2)
+
+    if isinstance(df1, PandasDataFrame):
+        assert_frame_equal(df1, df2)
+    elif isinstance(df1, PandasSeries):
+        assert_series_equal(df1, df2)
+    else:
+        raise ValueError(f"Unsupported type {type(df1)}")

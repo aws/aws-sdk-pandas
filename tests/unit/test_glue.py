@@ -1,10 +1,13 @@
 import logging
 
-import pandas as pd
+import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 def test_parquet_crawler_columns(path):

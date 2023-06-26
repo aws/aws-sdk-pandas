@@ -1,15 +1,12 @@
 import logging
 
+import pyarrow as pa
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import is_ray_modin
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -56,7 +53,7 @@ def test_full_table(path, use_threads):
     assert df.shape == df3.shape
 
     # JSON
-    wr.s3.to_json(df, path, dataset=True, orient="records")
+    wr.s3.to_json(df, path=path, dataset=True, orient="records")
     df4 = wr.s3.select_query(
         sql="select * from s3object[*][*]",
         path=path,
@@ -87,7 +84,7 @@ def test_push_down(path, use_threads):
     assert df2.c0.sum() == 1
 
     file_path = f"{path}test_empty_file.gzip.parquet"
-    wr.s3.to_parquet(df, file_path, compression="gzip")
+    wr.s3.to_parquet(df, path=file_path, compression="gzip")
     df_empty = wr.s3.select_query(
         sql='select * from s3object s where s."c0" = 99',
         path=file_path,
@@ -98,7 +95,7 @@ def test_push_down(path, use_threads):
     assert df_empty.empty
 
     file_path = f"{path}test_csv_file.csv"
-    wr.s3.to_csv(df, file_path, header=False, index=False)
+    wr.s3.to_csv(df, path=file_path, header=False, index=False)
     df3 = wr.s3.select_query(
         sql='select s."_1" from s3object s limit 2',
         path=file_path,
@@ -142,7 +139,7 @@ def test_compression(path, compression):
 
     # JSON
     file_path = f"{path}test_json_file.json"
-    wr.s3.to_json(df, file_path, orient="records", compression=compression)
+    wr.s3.to_json(df, path=file_path, orient="records", compression=compression)
     df3 = wr.s3.select_query(
         sql="select * from s3object[*][*]",
         path=file_path,
@@ -157,7 +154,21 @@ def test_compression(path, compression):
 
 @pytest.mark.parametrize(
     "s3_additional_kwargs",
-    [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
+    [
+        None,
+        pytest.param(
+            {"ServerSideEncryption": "AES256"},
+            marks=pytest.mark.xfail(
+                is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+            ),
+        ),
+        pytest.param(
+            {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None},
+            marks=pytest.mark.xfail(
+                is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+            ),
+        ),
+    ],
 )
 def test_encryption(path, kms_key_id, s3_additional_kwargs):
     if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
@@ -200,3 +211,30 @@ def test_exceptions(path):
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         args.update({"compression": "gzip"})
         wr.s3.select_query(**args)
+
+
+def test_overflow_schema(path):
+    df = pd.DataFrame(
+        {
+            # The values below overflow pa.int64()
+            "c0": [9223372036854775807, 9223372036854775808, 9223372036854775809],
+            "c1": ["foo", "boo", "bar"],
+            "c2": [4.0, 5.0, 6.0],
+        }
+    )
+    schema = pa.schema([("c0", pa.uint64()), ("c1", pa.string()), ("c2", pa.float64())])
+    file_path = f"{path}test_parquet_file.snappy.parquet"
+    wr.s3.to_parquet(
+        df,
+        file_path,
+        compression="snappy",
+    )
+    df2 = wr.s3.select_query(
+        sql="select * from s3object",
+        path=file_path,
+        input_serialization="Parquet",
+        input_serialization_params={},
+        use_threads=False,
+        pyarrow_additional_kwargs={"types_mapper": None, "schema": schema},
+    )
+    assert df.equals(df2)

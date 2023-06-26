@@ -3,7 +3,7 @@ import logging
 import random
 import string
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any, Dict, Iterator, List, Optional, Type, Union
 
 import boto3
 import numpy as np
@@ -13,6 +13,7 @@ import redshift_connector
 from redshift_connector.error import ProgrammingError
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 from awswrangler import _utils
 
 from .._utils import (
@@ -27,28 +28,23 @@ from .._utils import (
     ts,
 )
 
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
-
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="function")
-def redshift_con():
-    con = wr.redshift.connect("aws-sdk-pandas-redshift")
-    yield con
-    con.close()
+def redshift_con() -> Iterator[redshift_connector.Connection]:
+    with wr.redshift.connect("aws-sdk-pandas-redshift") as con:
+        yield con
 
 
-def test_connection():
-    wr.redshift.connect("aws-sdk-pandas-redshift", timeout=10, force_lowercase=False).close()
+def test_connection() -> None:
+    with wr.redshift.connect("aws-sdk-pandas-redshift", timeout=10, force_lowercase=False):
+        pass
 
 
-def test_read_sql_query_simple(databases_parameters):
+def test_read_sql_query_simple(databases_parameters: Dict[str, Any]) -> None:
     con = redshift_connector.connect(
         host=databases_parameters["redshift"]["host"],
         port=int(databases_parameters["redshift"]["port"]),
@@ -56,25 +52,25 @@ def test_read_sql_query_simple(databases_parameters):
         user=databases_parameters["user"],
         password=databases_parameters["password"],
     )
-    df = wr.redshift.read_sql_query("SELECT 1", con=con)
-    con.close()
+    with con:
+        df = wr.redshift.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 
 
 @pytest.mark.parametrize("overwrite_method", [None, "drop", "cascade", "truncate", "delete"])
-def test_to_sql_simple(redshift_table, redshift_con, overwrite_method):
+def test_to_sql_simple(redshift_table: str, redshift_con: redshift_connector.Connection, overwrite_method: str) -> None:
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
     wr.redshift.to_sql(df, redshift_con, redshift_table, "public", "overwrite", overwrite_method, True)
 
 
-def test_empty_table(redshift_table, redshift_con):
+def test_empty_table(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     with redshift_con.cursor() as cursor:
         cursor.execute(f"CREATE TABLE public.{redshift_table}(c0 integer not null, c1 integer, primary key(c0));")
     df = wr.redshift.read_sql_table(table=redshift_table, con=redshift_con, schema="public")
     assert df.columns.values.tolist() == ["c0", "c1"]
 
 
-def test_sql_types(redshift_table, redshift_con):
+def test_sql_types(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     table = redshift_table
     df = get_df()
     df.drop(["binary"], axis=1, inplace=True)
@@ -113,25 +109,29 @@ def test_sql_types(redshift_table, redshift_con):
         ensure_data_types(df, has_list=False)
 
 
-def test_connection_temp(databases_parameters):
-    con = wr.redshift.connect_temp(cluster_identifier=databases_parameters["redshift"]["identifier"], user="test")
-    with con.cursor() as cursor:
-        cursor.execute("SELECT 1")
-        assert cursor.fetchall()[0][0] == 1
-    con.close()
+def test_connection_temp(databases_parameters: Dict[str, Any]) -> None:
+    con: redshift_connector.Connection = wr.redshift.connect_temp(
+        cluster_identifier=databases_parameters["redshift"]["identifier"], user="test"
+    )
+    with con:
+        with con.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            assert cursor.fetchall()[0][0] == 1
 
 
-def test_connection_temp2(databases_parameters):
-    con = wr.redshift.connect_temp(
+def test_connection_temp2(databases_parameters: Dict[str, Any]) -> None:
+    con: redshift_connector.Connection = wr.redshift.connect_temp(
         cluster_identifier=databases_parameters["redshift"]["identifier"], user="john_doe", duration=900, db_groups=[]
     )
-    with con.cursor() as cursor:
-        cursor.execute("SELECT 1")
-        assert cursor.fetchall()[0][0] == 1
-    con.close()
+    with con:
+        with con.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            assert cursor.fetchall()[0][0] == 1
 
 
-def test_copy_unload(path, redshift_table, redshift_con, databases_parameters):
+def test_copy_unload(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = get_df().drop(["binary"], axis=1, inplace=False)
     wr.redshift.copy(
         df=df,
@@ -264,11 +264,18 @@ def generic_test_copy_upsert(
     assert len(df.columns) == len(df4.columns)
 
 
-def test_copy_upsert(path, redshift_table, redshift_con, databases_parameters):
+def test_copy_upsert(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     generic_test_copy_upsert(path, redshift_table, redshift_con, databases_parameters)
 
 
-def test_copy_upsert_hyphenated_name(path, redshift_table_with_hyphenated_name, redshift_con, databases_parameters):
+def test_copy_upsert_hyphenated_name(
+    path: str,
+    redshift_table_with_hyphenated_name: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: Dict[str, Any],
+) -> None:
     generic_test_copy_upsert(path, redshift_table_with_hyphenated_name, redshift_con, databases_parameters)
 
 
@@ -284,8 +291,16 @@ def test_copy_upsert_hyphenated_name(path, redshift_table_with_hyphenated_name, 
     ],
 )
 def test_exceptions(
-    path, redshift_table, redshift_con, databases_parameters, diststyle, distkey, sortstyle, sortkey, exc
-):
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: Dict[str, Any],
+    diststyle: Optional[str],
+    distkey: Optional[str],
+    sortstyle: Optional[str],
+    sortkey: Optional[List[str]],
+    exc: Type[BaseException],
+) -> None:
     df = pd.DataFrame({"id": [1], "name": "joe"})
     with pytest.raises(exc):
         wr.redshift.copy(
@@ -304,7 +319,13 @@ def test_exceptions(
         )
 
 
-def test_spectrum(path, redshift_table, redshift_con, glue_database, redshift_external_schema):
+def test_spectrum(
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    glue_database: str,
+    redshift_external_schema: str,
+) -> None:
     df = pd.DataFrame({"id": [1, 2, 3, 4, 5], "col_str": ["foo", None, "bar", None, "xoo"], "par_int": [0, 1, 0, 1, 1]})
     wr.s3.to_parquet(
         df=df,
@@ -322,11 +343,12 @@ def test_spectrum(path, redshift_table, redshift_con, glue_database, redshift_ex
         assert len(rows) == len(df.index)
         for row in rows:
             assert len(row) == len(df.columns)
-    wr.catalog.delete_table_if_exists(database=glue_database, table=redshift_table)
 
 
 @pytest.mark.xfail(raises=NotImplementedError, reason="Unable to create pandas categorical from pyarrow table")
-def test_category(path, redshift_table, redshift_con, databases_parameters):
+def test_category(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.redshift.copy(
         df=df,
@@ -359,7 +381,14 @@ def test_category(path, redshift_table, redshift_con, databases_parameters):
         ensure_data_types_category(df2)
 
 
-def test_unload_extras(bucket, path, redshift_table, redshift_con, databases_parameters, kms_key_id):
+def test_unload_extras(
+    bucket: str,
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: Dict[str, Any],
+    kms_key_id: str,
+) -> None:
     table = redshift_table
     schema = databases_parameters["redshift"]["schema"]
     df = pd.DataFrame({"id": [1, 2], "name": ["foo", "boo"]})
@@ -394,8 +423,14 @@ def test_unload_extras(bucket, path, redshift_table, redshift_con, databases_par
 
 @pytest.mark.parametrize("unload_format", [None, "CSV", "PARQUET"])
 def test_unload_with_prefix(
-    bucket, path, redshift_table, redshift_con, databases_parameters, kms_key_id, unload_format
-):
+    bucket: str,
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: Dict[str, Any],
+    kms_key_id: str,
+    unload_format: Optional[str],
+) -> None:
     test_prefix = "my_prefix"
     table = redshift_table
     schema = databases_parameters["redshift"]["schema"]
@@ -426,7 +461,7 @@ def test_unload_with_prefix(
     assert object_prefix == test_prefix
 
 
-def test_to_sql_cast(redshift_table, redshift_con):
+def test_to_sql_cast(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     table = redshift_table
     df = pd.DataFrame(
         {
@@ -451,7 +486,7 @@ def test_to_sql_cast(redshift_table, redshift_con):
     assert df.equals(df2)
 
 
-def test_null(redshift_table, redshift_con):
+def test_null(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     table = redshift_table
     df = pd.DataFrame({"id": [1, 2, 3], "nothing": [None, None, None]})
     wr.redshift.to_sql(
@@ -476,7 +511,13 @@ def test_null(redshift_table, redshift_con):
     assert pandas_equals(pd.concat(objs=[df, df], ignore_index=True), df2)
 
 
-def test_spectrum_long_string(path, redshift_con, glue_table, glue_database, redshift_external_schema):
+def test_spectrum_long_string(
+    path: str,
+    redshift_con: redshift_connector.Connection,
+    glue_table: str,
+    glue_database: str,
+    redshift_external_schema: str,
+) -> None:
     df = pd.DataFrame(
         {
             "id": [1, 2],
@@ -497,7 +538,9 @@ def test_spectrum_long_string(path, redshift_con, glue_table, glue_database, red
             assert len(row) == len(df.columns)
 
 
-def test_copy_unload_long_string(path, redshift_table, redshift_con, databases_parameters):
+def test_copy_unload_long_string(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = pd.DataFrame(
         {
             "id": [1, 2],
@@ -527,8 +570,14 @@ def test_copy_unload_long_string(path, redshift_table, redshift_con, databases_p
     assert df2.shape == (2, 2)
 
 
-@pytest.mark.xfail(raises=AttributeError)
-def test_spectrum_decimal_cast(path, path2, glue_table, glue_database, redshift_external_schema, databases_parameters):
+def test_spectrum_decimal_cast(
+    path: str,
+    path2: str,
+    glue_table: str,
+    glue_database: str,
+    redshift_external_schema: str,
+    databases_parameters: Dict[str, Any],
+) -> None:
     df = pd.DataFrame(
         {"c0": [1, 2], "c1": [1, None], "c2": [2.22222, None], "c3": ["3.33333", None], "c4": [None, None]}
     )
@@ -544,48 +593,55 @@ def test_spectrum_decimal_cast(path, path2, glue_table, glue_database, redshift_
     # Athena
     df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert df2.shape == (2, 5)
-    df2 = df2.drop(df2[df2.c0 == 2].index)
-    assert df2.c1[0] == Decimal((0, (1, 0, 0, 0, 0, 0), -5))
-    assert df2.c2[0] == Decimal((0, (2, 2, 2, 2, 2, 2), -5))
-    assert df2.c3[0] == Decimal((0, (3, 3, 3, 3, 3, 3), -5))
+    df2 = df2[df2.c0 != 2].reset_index(drop=True)
+    assert df2.c1[0] == Decimal("1.00000")
+    assert df2.c2[0] == Decimal("2.22222")
+    assert df2.c3[0] == Decimal("3.33333")
     assert df2.c4[0] is None
 
     # Redshift Spectrum
-    con = wr.redshift.connect(connection="aws-sdk-pandas-redshift")
-    df2 = wr.redshift.read_sql_table(table=glue_table, schema=redshift_external_schema, con=con)
+    with wr.redshift.connect(connection="aws-sdk-pandas-redshift") as con:
+        df2 = wr.redshift.read_sql_table(table=glue_table, schema=redshift_external_schema, con=con)
     assert df2.shape == (2, 5)
-    df2 = df2.drop(df2[df2.c0 == 2].index)
-    assert df2.c1[0] == Decimal((0, (1, 0, 0, 0, 0, 0), -5))
-    assert df2.c2[0] == Decimal((0, (2, 2, 2, 2, 2, 2), -5))
-    assert df2.c3[0] == Decimal((0, (3, 3, 3, 3, 3, 3), -5))
+    df2 = df2[df2.c0 != 2].reset_index(drop=True)
+    assert df2.c1[0] == Decimal("1.00000")
+    assert df2.c2[0] == Decimal("2.22222")
+    assert df2.c3[0] == Decimal("3.33333")
     assert df2.c4[0] is None
-    con.close()
 
     # Redshift Spectrum Unload
-    con = wr.redshift.connect(connection="aws-sdk-pandas-redshift")
-    df2 = wr.redshift.unload(
-        sql=f"SELECT * FROM {redshift_external_schema}.{glue_table}",
-        con=con,
-        iam_role=databases_parameters["redshift"]["role"],
-        path=path2,
-    )
+    with wr.redshift.connect(connection="aws-sdk-pandas-redshift") as con:
+        df2 = wr.redshift.unload(
+            sql=f"SELECT * FROM {redshift_external_schema}.{glue_table}",
+            con=con,
+            iam_role=databases_parameters["redshift"]["role"],
+            path=path2,
+        )
     assert df2.shape == (2, 5)
-    df2 = df2.drop(df2[df2.c0 == 2].index)
-    assert df2.c1[0] == Decimal((0, (1, 0, 0, 0, 0, 0), -5))
-    assert df2.c2[0] == Decimal((0, (2, 2, 2, 2, 2, 2), -5))
-    assert df2.c3[0] == Decimal((0, (3, 3, 3, 3, 3, 3), -5))
+    df2 = df2[df2.c0 != 2].reset_index(drop=True)
+    assert df2.c1[0] == Decimal("1.00000")
+    assert df2.c2[0] == Decimal("2.22222")
+    assert df2.c3[0] == Decimal("3.33333")
     assert df2.c4[0] is None
-    con.close()
 
 
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+)
 @pytest.mark.parametrize(
     "s3_additional_kwargs",
     [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
 )
 @pytest.mark.parametrize("use_threads", [True, False])
 def test_copy_unload_kms(
-    path, redshift_table, redshift_con, databases_parameters, kms_key_id, use_threads, s3_additional_kwargs
-):
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: Dict[str, Any],
+    kms_key_id: str,
+    use_threads: bool,
+    s3_additional_kwargs: Optional[Dict[str, Any]],
+) -> None:
     df = pd.DataFrame({"id": [1, 2, 3]})
     if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
         s3_additional_kwargs["SSEKMSKeyId"] = kms_key_id
@@ -614,7 +670,14 @@ def test_copy_unload_kms(
 
 @pytest.mark.parametrize("parquet_infer_sampling", [1.0, 0.00000000000001])
 @pytest.mark.parametrize("use_threads", [True, False])
-def test_copy_extras(path, redshift_table, redshift_con, databases_parameters, use_threads, parquet_infer_sampling):
+def test_copy_extras(
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: Dict[str, Any],
+    use_threads: bool,
+    parquet_infer_sampling: float,
+) -> None:
     df = pd.DataFrame(
         {
             "int8": [-1, None, 2],
@@ -659,7 +722,7 @@ def test_copy_extras(path, redshift_table, redshift_con, databases_parameters, u
     assert df.int64.sum() * num == df2.int64.sum()
 
 
-def test_decimal_cast(redshift_table, redshift_con):
+def test_decimal_cast(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     df = pd.DataFrame(
         {
             "col0": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
@@ -680,7 +743,7 @@ def test_decimal_cast(redshift_table, redshift_con):
     assert df2.col2.sum() == 2
 
 
-def test_upsert(redshift_table, redshift_con):
+def test_upsert(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     df = pd.DataFrame({"id": list((range(10))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(10)])})
     df3 = pd.DataFrame({"id": list((range(10, 15))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(5)])})
 
@@ -728,7 +791,7 @@ def test_upsert(redshift_table, redshift_con):
     assert len(df.columns) == len(df4.columns)
 
 
-def test_upsert_precombine(redshift_table, redshift_con):
+def test_upsert_precombine(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     df = pd.DataFrame({"id": list((range(10))), "val": list([1.0 if i % 2 == 0 else 10.0 for i in range(10)])})
     df3 = pd.DataFrame({"id": list((range(6, 14))), "val": list([10.0 if i % 2 == 0 else 1.0 for i in range(8)])})
 
@@ -782,7 +845,7 @@ def test_upsert_precombine(redshift_table, redshift_con):
     assert np.array_equal(df_m.to_numpy(), df4.to_numpy())
 
 
-def test_read_retry(redshift_con):
+def test_read_retry(redshift_con: redshift_connector.Connection) -> None:
     try:
         wr.redshift.read_sql_query("ERROR", redshift_con)
     except:  # noqa
@@ -791,7 +854,7 @@ def test_read_retry(redshift_con):
     assert df.shape == (1, 1)
 
 
-def test_table_name(redshift_con):
+def test_table_name(redshift_con: redshift_connector.Connection) -> None:
     df = pd.DataFrame({"col0": [1]})
     wr.redshift.to_sql(df, redshift_con, "Test Name", "public", mode="overwrite")
     df = wr.redshift.read_sql_table(schema="public", con=redshift_con, table="Test Name")
@@ -801,14 +864,16 @@ def test_table_name(redshift_con):
     redshift_con.commit()
 
 
-def test_copy_from_files(path, redshift_table, redshift_con, databases_parameters):
+def test_copy_from_files(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
     bucket, key = wr._utils.parse_path(f"{path}test.csv")
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
     wr.redshift.copy_from_files(
         path=path,
-        path_suffix=[".parquet"],
+        path_suffix=".parquet",
         con=redshift_con,
         table=redshift_table,
         schema="public",
@@ -818,14 +883,16 @@ def test_copy_from_files(path, redshift_table, redshift_con, databases_parameter
     assert df2["counter"].iloc[0] == 3
 
 
-def test_copy_from_files_extra_params(path, redshift_table, redshift_con, databases_parameters):
+def test_copy_from_files_extra_params(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
     bucket, key = wr._utils.parse_path(f"{path}test.csv")
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
     wr.redshift.copy_from_files(
         path=path,
-        path_suffix=[".parquet"],
+        path_suffix=".parquet",
         con=redshift_con,
         table=redshift_table,
         schema="public",
@@ -836,7 +903,9 @@ def test_copy_from_files_extra_params(path, redshift_table, redshift_con, databa
     assert df2["counter"].iloc[0] == 3
 
 
-def test_get_paths_from_manifest(path):
+def test_get_paths_from_manifest(path: str) -> None:
+    from awswrangler.redshift._utils import _get_paths_from_manifest
+
     manifest_content = {
         "entries": [
             {"url": f"{path}test0.parquet", "mandatory": False},
@@ -848,14 +917,14 @@ def test_get_paths_from_manifest(path):
     boto3.client("s3").put_object(
         Body=bytes(json.dumps(manifest_content).encode("UTF-8")), Bucket=manifest_bucket, Key=manifest_key
     )
-    paths = wr.redshift._get_paths_from_manifest(
-        path=f"{path}manifest.json",
-    )
+    paths = _get_paths_from_manifest(path=f"{path}manifest.json")
 
     assert len(paths) == 3
 
 
-def test_copy_from_files_manifest(path, redshift_table, redshift_con, databases_parameters):
+def test_copy_from_files_manifest(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
     bucket, key = wr._utils.parse_path(f"{path}test.parquet")
@@ -879,14 +948,21 @@ def test_copy_from_files_manifest(path, redshift_table, redshift_con, databases_
     assert df2["counter"].iloc[0] == 3
 
 
-def test_copy_from_files_ignore(path, redshift_table, redshift_con, databases_parameters):
+@pytest.mark.parametrize("path_ignore_suffix", [".csv", [".csv"]])
+def test_copy_from_files_ignore(
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: Dict[str, Any],
+    path_ignore_suffix: Union[str, List[str]],
+) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
     bucket, key = wr._utils.parse_path(f"{path}test.csv")
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
     wr.redshift.copy_from_files(
         path=path,
-        path_ignore_suffix=[".csv"],
+        path_ignore_suffix=path_ignore_suffix,
         con=redshift_con,
         table=redshift_table,
         schema="public",
@@ -896,7 +972,9 @@ def test_copy_from_files_ignore(path, redshift_table, redshift_con, databases_pa
     assert df2["counter"].iloc[0] == 3
 
 
-def test_copy_from_files_empty(path, redshift_table, redshift_con, databases_parameters):
+def test_copy_from_files_empty(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
     bucket, key = wr._utils.parse_path(f"{path}test.csv")
@@ -912,7 +990,9 @@ def test_copy_from_files_empty(path, redshift_table, redshift_con, databases_par
     assert df2["counter"].iloc[0] == 3
 
 
-def test_copy_dirty_path(path, redshift_table, redshift_con, databases_parameters):
+def test_copy_dirty_path(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = pd.DataFrame({"col0": [0, 1, 2]})
 
     # previous file at same path
@@ -930,14 +1010,13 @@ def test_copy_dirty_path(path, redshift_table, redshift_con, databases_parameter
 
 
 @pytest.mark.parametrize("dbname", [None, "test"])
-def test_connect_secret_manager(dbname):
-    con = wr.redshift.connect(secret_id="aws-sdk-pandas/redshift", dbname=dbname)
-    df = wr.redshift.read_sql_query("SELECT 1", con=con)
-    con.close()
+def test_connect_secret_manager(dbname: Optional[str]) -> None:
+    with wr.redshift.connect(secret_id="aws-sdk-pandas/redshift", dbname=dbname) as con:
+        df = wr.redshift.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 
 
-def test_copy_unload_session(path, redshift_table, redshift_con):
+def test_copy_unload_session(path: str, redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     df = pd.DataFrame({"col0": [1, 2, 3]})
     wr.redshift.copy(df=df, path=path, con=redshift_con, schema="public", table=redshift_table, mode="overwrite")
     df2 = wr.redshift.unload(
@@ -973,7 +1052,7 @@ def test_copy_unload_session(path, redshift_table, redshift_con):
         assert len(chunk.columns) == 1
 
 
-def test_copy_unload_creds(path, redshift_table, redshift_con):
+def test_copy_unload_creds(path: str, redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     credentials = _utils.get_credentials_from_session()
     df = pd.DataFrame({"col0": [1, 2, 3]})
     wr.redshift.copy(
@@ -1032,7 +1111,9 @@ def test_copy_unload_creds(path, redshift_table, redshift_con):
         assert len(chunk.columns) == 1
 
 
-def test_column_length(path, redshift_table, redshift_con, databases_parameters):
+def test_column_length(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = pd.DataFrame({"a": ["foo"], "b": ["a" * 5000]}, dtype="string")
     wr.s3.to_parquet(df, f"{path}test.parquet")
     wr.redshift.copy_from_files(
@@ -1048,7 +1129,9 @@ def test_column_length(path, redshift_table, redshift_con, databases_parameters)
     assert pandas_equals(df, df2)
 
 
-def test_failed_keep_files(path, redshift_table, redshift_con, databases_parameters):
+def test_failed_keep_files(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = pd.DataFrame({"c0": [1], "c1": ["foo"]}, dtype="string")
     with pytest.raises(ProgrammingError):
         wr.redshift.copy(
@@ -1063,7 +1146,7 @@ def test_failed_keep_files(path, redshift_table, redshift_con, databases_paramet
     assert len(wr.s3.list_objects(path)) == 0
 
 
-def test_insert_with_column_names(redshift_table, redshift_con):
+def test_insert_with_column_names(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     create_table_sql = (
         f"CREATE TABLE public.{redshift_table} " "(c0 varchar(100), " "c1 integer default 42, " "c2 integer not null);"
     )
@@ -1093,7 +1176,9 @@ def test_insert_with_column_names(redshift_table, redshift_con):
 
 
 @pytest.mark.parametrize("chunksize", [1, 10, 500])
-def test_dfs_are_equal_for_different_chunksizes(redshift_table, redshift_con, chunksize):
+def test_dfs_are_equal_for_different_chunksizes(
+    redshift_table: str, redshift_con: redshift_connector.Connection, chunksize: int
+) -> None:
     df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
     wr.redshift.to_sql(df=df, con=redshift_con, schema="public", table=redshift_table, chunksize=chunksize)
 
@@ -1105,7 +1190,7 @@ def test_dfs_are_equal_for_different_chunksizes(redshift_table, redshift_con, ch
     assert df.equals(df2)
 
 
-def test_to_sql_multi_transaction(redshift_table, redshift_con):
+def test_to_sql_multi_transaction(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     df = pd.DataFrame({"id": list((range(10))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(10)])})
     df2 = pd.DataFrame({"id": list((range(10, 15))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(5)])})
 
@@ -1136,7 +1221,9 @@ def test_to_sql_multi_transaction(redshift_table, redshift_con):
     assert len(df.columns) == len(df3.columns)
 
 
-def test_copy_upsert_with_column_names(path, redshift_table, redshift_con, databases_parameters):
+def test_copy_upsert_with_column_names(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
     df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
     df3 = pd.DataFrame(
         {"id": list((range(1_000, 1_500))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])}
@@ -1215,3 +1302,56 @@ def test_copy_upsert_with_column_names(path, redshift_table, redshift_con, datab
     )
     assert len(df.index) + len(df3.index) == len(df4.index)
     assert len(df.columns) == len(df4.columns)
+
+
+def test_to_sql_with_identity_column(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
+    schema = "public"
+    with redshift_con.cursor() as cursor:
+        cursor.execute(
+            f"""
+            CREATE TABLE {schema}.{redshift_table} (
+                id BIGINT IDENTITY(1, 1),
+                foo VARCHAR(100),
+                PRIMARY KEY(id)
+            );
+            """
+        )
+
+    df = pd.DataFrame({"foo": ["a", "b", "c"]})
+    wr.redshift.to_sql(
+        df=df,
+        con=redshift_con,
+        table=redshift_table,
+        schema=schema,
+        use_column_names=True,
+        mode="append",
+    )
+
+    df_out = wr.redshift.read_sql_table(redshift_table, redshift_con)
+
+    assert len(df_out) == len(df)
+    assert df_out["id"].to_list() == list(range(1, len(df) + 1))
+    assert df_out["foo"].to_list() == df["foo"].to_list()
+
+
+def test_unload_escape_quotation_marks(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+) -> None:
+    df = get_df().drop(["binary"], axis=1, inplace=False)
+    schema = "public"
+
+    wr.redshift.to_sql(
+        df=df,
+        con=redshift_con,
+        table=redshift_table,
+        schema=schema,
+        mode="overwrite",
+    )
+    df2 = wr.redshift.unload(
+        sql=f"SELECT * FROM public.{redshift_table} WHERE string = 'Seattle'",
+        con=redshift_con,
+        iam_role=databases_parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df2) == 1

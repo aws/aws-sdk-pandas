@@ -1,3 +1,4 @@
+# mypy: disable-error-code=name-defined
 """Amazon OpenSearch Write Module (PRIVATE)."""
 
 import ast
@@ -8,18 +9,18 @@ from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Tupl
 
 import boto3
 import numpy as np
-import pandas as pd
-import progressbar
-from jsonpath_ng import parse
-from jsonpath_ng.exceptions import JsonPathParserError
-from opensearchpy import OpenSearch, TransportError
-from opensearchpy.exceptions import NotFoundError, RequestError
-from opensearchpy.helpers import bulk
 from pandas import notna
 
-from awswrangler import exceptions
+import awswrangler.pandas as pd
+from awswrangler import _utils, exceptions
 from awswrangler._utils import parse_path
 from awswrangler.opensearch._utils import _get_distribution, _get_version_major, _is_serverless
+
+progressbar = _utils.import_optional_dependency("progressbar")
+opensearchpy = _utils.import_optional_dependency("opensearchpy")
+if opensearchpy:
+    from jsonpath_ng import parse
+    from jsonpath_ng.exceptions import JsonPathParserError
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -113,35 +114,36 @@ def _get_documents_w_json_path(documents: List[Mapping[str, Any]], json_path: st
     return output_documents
 
 
-def _get_refresh_interval(client: OpenSearch, index: str) -> Any:
+def _get_refresh_interval(client: "opensearchpy.OpenSearch", index: str) -> Any:
     url = f"/{index}/_settings"
     try:
         response = client.transport.perform_request("GET", url)
-        index_settings = response.get(index, {}).get("index", {})  # type: ignore
+        index_settings = response.get(index, {}).get("index", {})
         refresh_interval = index_settings.get("refresh_interval", _DEFAULT_REFRESH_INTERVAL)
         return refresh_interval
-    except NotFoundError:
+    except opensearchpy.exceptions.NotFoundError:
         return _DEFAULT_REFRESH_INTERVAL
 
 
-def _set_refresh_interval(client: OpenSearch, index: str, refresh_interval: Optional[Any]) -> Any:
+def _set_refresh_interval(client: "opensearchpy.OpenSearch", index: str, refresh_interval: Optional[Any]) -> Any:
     url = f"/{index}/_settings"
     body = {"index": {"refresh_interval": refresh_interval}}
     try:
-        return client.transport.perform_request("PUT", url, headers={"Content-Type": "application/json"}, body=body)
-    except RequestError:
+        return client.transport.perform_request("PUT", url, headers={"content-type": "application/json"}, body=body)
+    except opensearchpy.exceptions.RequestError:
         return None
 
 
 def _disable_refresh_interval(
-    client: OpenSearch,
+    client: "opensearchpy.OpenSearch",
     index: str,
 ) -> Any:
     return _set_refresh_interval(client=client, index=index, refresh_interval="-1")
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def create_index(
-    client: OpenSearch,
+    client: "opensearchpy.OpenSearch",
     index: str,
     doc_type: Optional[str] = None,
     settings: Optional[Dict[str, Any]] = None,
@@ -197,15 +199,14 @@ def create_index(
     if mappings:
         if _get_distribution(client) == "opensearch" or _get_version_major(client) >= 7:
             body["mappings"] = mappings  # doc type deprecated
+        elif doc_type:
+            body["mappings"] = {doc_type: mappings}
         else:
-            if doc_type:
-                body["mappings"] = {doc_type: mappings}
-            else:
-                body["mappings"] = {index: mappings}
+            body["mappings"] = {index: mappings}
     if settings:
         body["settings"] = settings
     if not body:
-        body = None  # type: ignore
+        body = None  # type: ignore[assignment]
 
     # ignore 400 cause by IndexAlreadyExistsException when creating an index
     response: Dict[str, Any] = client.indices.create(index, body=body, ignore=400)
@@ -216,7 +217,8 @@ def create_index(
     return response
 
 
-def delete_index(client: OpenSearch, index: str) -> Dict[str, Any]:
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
+def delete_index(client: "opensearchpy.OpenSearch", index: str) -> Dict[str, Any]:
     """Delete an index.
 
     Parameters
@@ -250,15 +252,17 @@ def delete_index(client: OpenSearch, index: str) -> Dict[str, Any]:
     return response
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def index_json(
-    client: OpenSearch,
+    client: "opensearchpy.OpenSearch",
     path: str,
     index: str,
     doc_type: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = boto3.Session(),
     json_path: Optional[str] = None,
+    use_threads: Union[bool, int] = False,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> Any:
     """Index all documents from JSON file to OpenSearch index.
 
     The JSON file should be in a JSON-Lines text format (newline-delimited JSON) - https://jsonlines.org/
@@ -281,6 +285,10 @@ def index_json(
     boto3_session : boto3.Session(), optional
         Boto3 Session to be used to access s3 if s3 path is provided.
         The default boto3 Session will be used if boto3_session receive None.
+    use_threads : bool, int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     **kwargs :
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
@@ -321,17 +329,21 @@ def index_json(
         documents = list(_file_line_generator(path, is_json=True))
         if json_path:
             documents = _get_documents_w_json_path(documents, json_path)
-    return index_documents(client=client, documents=documents, index=index, doc_type=doc_type, **kwargs)
+    return index_documents(
+        client=client, documents=documents, index=index, doc_type=doc_type, use_threads=use_threads, **kwargs
+    )
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def index_csv(
-    client: OpenSearch,
+    client: "opensearchpy.OpenSearch",
     path: str,
     index: str,
     doc_type: Optional[str] = None,
     pandas_kwargs: Optional[Dict[str, Any]] = None,
+    use_threads: Union[bool, int] = False,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> Any:
     """Index all documents from a CSV file to OpenSearch index.
 
     Parameters
@@ -349,6 +361,10 @@ def index_csv(
         e.g. pandas_kwargs={'sep': '|', 'na_values': ['null', 'none']}
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
         Note: these params values are enforced: `skip_blank_lines=True`
+    use_threads : bool, int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     **kwargs :
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
@@ -392,12 +408,18 @@ def index_csv(
     }
     pandas_kwargs.update(enforced_pandas_params)
     df = pd.read_csv(path, **pandas_kwargs)
-    return index_df(client, df=df, index=index, doc_type=doc_type, **kwargs)
+    return index_df(client, df=df, index=index, doc_type=doc_type, use_threads=use_threads, **kwargs)
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def index_df(
-    client: OpenSearch, df: pd.DataFrame, index: str, doc_type: Optional[str] = None, **kwargs: Any
-) -> Dict[str, Any]:
+    client: "opensearchpy.OpenSearch",
+    df: pd.DataFrame,
+    index: str,
+    doc_type: Optional[str] = None,
+    use_threads: Union[bool, int] = False,
+    **kwargs: Any,
+) -> Any:
     """Index all documents from a DataFrame to OpenSearch index.
 
     Parameters
@@ -410,6 +432,10 @@ def index_df(
         Name of the index.
     doc_type : str, optional
         Name of the document type (for Elasticsearch versions 5.x and earlier).
+    use_threads : bool, int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     **kwargs :
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
@@ -433,11 +459,19 @@ def index_df(
     ...     index='sample-index1'
     ... )
     """
-    return index_documents(client=client, documents=_df_doc_generator(df), index=index, doc_type=doc_type, **kwargs)
+    return index_documents(
+        client=client,
+        documents=_df_doc_generator(df),
+        index=index,
+        doc_type=doc_type,
+        use_threads=use_threads,
+        **kwargs,
+    )
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def index_documents(
-    client: OpenSearch,
+    client: "opensearchpy.OpenSearch",
     documents: Iterable[Mapping[str, Any]],
     index: str,
     doc_type: Optional[str] = None,
@@ -447,12 +481,18 @@ def index_documents(
     bulk_size: int = 1000,
     chunk_size: Optional[int] = 500,
     max_chunk_bytes: Optional[int] = 100 * 1024 * 1024,
-    max_retries: Optional[int] = 5,
-    initial_backoff: Optional[int] = 2,
-    max_backoff: Optional[int] = 600,
+    max_retries: Optional[int] = None,
+    initial_backoff: Optional[int] = None,
+    max_backoff: Optional[int] = None,
+    use_threads: Union[bool, int] = False,
     **kwargs: Any,
 ) -> Dict[str, Any]:
     """Index all documents to OpenSearch index.
+
+    Note
+    ----
+    `max_retries`, `initial_backoff`, and `max_backoff` are not supported with parallel bulk
+     (when `use_threads`is set to True).
 
     Note
     ----
@@ -495,6 +535,10 @@ def index_documents(
         Any subsequent retries will be powers of ``initial_backoff*2**retry_number`` (default: 2)
     max_backoff: int, optional
         maximum number of seconds a retry will wait (default: 600)
+    use_threads : bool, int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     **kwargs :
         KEYWORD arguments forwarded to bulk operation
         elasticsearch >= 7.10.2 / opensearch: \
@@ -522,6 +566,11 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     if "refresh" in kwargs and _is_serverless(client):
         raise exceptions.NotSupported("Refresh policy not supported in OpenSearch Serverless.")
 
+    if use_threads and any([max_retries, initial_backoff, max_backoff]):
+        raise exceptions.InvalidArgumentCombination(
+            "`max_retries`, `initial_backoff`, and `max_backoff` are not supported when `use_threads` is set to True"
+        )
+
     if not isinstance(documents, list):
         documents = list(documents)
     total_documents = len(documents)
@@ -535,35 +584,49 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     errors: List[Any] = []
     refresh_interval = None
     try:
-        widgets = [
-            progressbar.Percentage(),
-            progressbar.SimpleProgress(format=" (%(value_s)s/%(max_value_s)s)"),
-            progressbar.Bar(),
-            progressbar.Timer(),
-        ]
-        progress_bar = progressbar.ProgressBar(widgets=widgets, max_value=total_documents, prefix="Indexing: ").start()
+        if progressbar:
+            widgets = [
+                progressbar.Percentage(),
+                progressbar.SimpleProgress(format=" (%(value_s)s/%(max_value_s)s)"),
+                progressbar.Bar(),
+                progressbar.Timer(),
+            ]
+            progress_bar = progressbar.ProgressBar(
+                widgets=widgets, max_value=total_documents, prefix="Indexing: "
+            ).start()
         for i, bulk_chunk_documents in enumerate(actions):
             if i == 1:  # second bulk iteration, in case the index didn't exist before
                 refresh_interval = _get_refresh_interval(client, index)
                 _disable_refresh_interval(client, index)
             _logger.debug("running bulk index of %s documents", len(bulk_chunk_documents))
-            _success, _errors = bulk(
-                client=client,
-                actions=bulk_chunk_documents,
-                ignore_status=ignore_status,
-                chunk_size=chunk_size,
-                max_chunk_bytes=max_chunk_bytes,
-                max_retries=max_retries,
-                initial_backoff=initial_backoff,
-                max_backoff=max_backoff,
-                request_timeout=30,
+            bulk_kwargs = {
+                "ignore_status": ignore_status,
+                "chunk_size": chunk_size,
+                "max_chunk_bytes": max_chunk_bytes,
+                "request_timeout": 30,
                 **kwargs,
-            )
-            success += _success
-            errors += _errors
+            }
+            _logger.debug("running bulk with kwargs: %s", bulk_kwargs)
+            if use_threads:
+                # Parallel bulk does not support max_retries, initial_backoff & max_backoff
+                for _success, _errors in opensearchpy.helpers.parallel_bulk(
+                    client, bulk_chunk_documents, **bulk_kwargs
+                ):
+                    success += _success
+                    errors += _errors
+            else:
+                # Defaults
+                bulk_kwargs["max_retries"] = 5 if not max_retries else max_retries
+                bulk_kwargs["initial_backoff"] = 2 if not initial_backoff else initial_backoff
+                bulk_kwargs["max_backoff"] = 600 if not max_backoff else max_backoff
+
+                _success, _errors = opensearchpy.helpers.bulk(client, bulk_chunk_documents, **bulk_kwargs)
+                success += _success
+                errors += _errors
             _logger.debug("indexed %s documents (%s/%s)", _success, success, total_documents)
-            progress_bar.update(success, force=True)
-    except TransportError as e:
+            if progressbar:
+                progress_bar.update(success, force=True)
+    except opensearchpy.TransportError as e:
         if str(e.status_code) == "429":  # Too Many Requests
             _logger.error(
                 "Error 429 (Too Many Requests):"

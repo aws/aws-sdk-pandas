@@ -5,9 +5,9 @@ import json
 import logging
 from typing import Any, Dict, Optional, Tuple, cast
 
-import pandas as pd
 import pyarrow as pa
 
+import awswrangler.pandas as pd
 from awswrangler._data_types import athena2pyarrow
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ def _extract_partitions_from_path(path_root: str, path: str) -> Dict[str, str]:
         raise Exception(f"Object {path} is not under the root path ({path_root}).")
     path_wo_filename: str = path.rpartition("/")[0] + "/"
     path_wo_prefix: str = path_wo_filename.replace(f"{path_root}/", "")
-    dirs: Tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if (x != "") and (x.count("=") > 0))
+    dirs: Tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if x and (x.count("=") > 0))
     if not dirs:
         return {}
     values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
@@ -45,6 +45,17 @@ def _add_table_partitions(
                     part_value,
                 )
     return table
+
+
+def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
+    """Ensure that all columns has the writeable flag True."""
+    for column in df.columns.to_list():
+        if hasattr(df[column].values, "flags") is True:
+            if df[column].values.flags.writeable is False:
+                s: pd.Series = df[column]
+                df[column] = None
+                df[column] = s
+    return df
 
 
 def _apply_timezone(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
@@ -78,6 +89,7 @@ def _table_to_df(
 
     df = table.to_pandas(**kwargs)
 
+    df = ensure_df_is_mutable(df=df)
     if metadata:
         _logger.debug("metadata: %s", metadata)
         df = _apply_timezone(df=df, metadata=metadata)

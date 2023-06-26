@@ -7,13 +7,9 @@ import boto3
 import pytest
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
-from .._utils import ensure_data_types_csv, get_df_csv, is_ray_modin
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+from .._utils import ensure_data_types_csv, get_df_csv
 
 logger = logging.getLogger("awswrangler")
 logger.setLevel(logging.DEBUG)
@@ -246,9 +242,6 @@ def test_catalog_get_databases(glue_database: str) -> None:
 
 
 def test_catalog_versioning(path: str, glue_database: str, glue_table: str, glue_table2: str) -> None:
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-    wr.s3.delete_objects(path=path)
-
     # Version 1 - Parquet
     df = pd.DataFrame({"c0": [1, 2]})
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite")[
@@ -342,7 +335,9 @@ def test_catalog_parameters(path: str, glue_database: str, glue_table: str) -> N
         database=glue_database,
         table=glue_table,
         mode="overwrite",
-        parameters={"a": "1", "b": "2"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            parameters={"a": "1", "b": "2"},
+        ),
     )
     pars = wr.catalog.get_table_parameters(database=glue_database, table=glue_table)
     assert pars["a"] == "1"
@@ -372,7 +367,9 @@ def test_catalog_parameters(path: str, glue_database: str, glue_table: str) -> N
         database=glue_database,
         table=glue_table,
         mode="append",
-        parameters={"e": "5"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            parameters={"e": "5"},
+        ),
     )
     pars = wr.catalog.get_table_parameters(database=glue_database, table=glue_table)
     assert pars.get("a") is None
@@ -425,8 +422,6 @@ def test_catalog_columns(path: str, glue_table: str, glue_database: str) -> None
     assert df2["id"].sum() == 9
     ensure_data_types_csv(df2)
 
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
-
 
 @pytest.mark.parametrize("use_catalog_id", [False, True])
 def test_create_database(random_glue_database: str, account_id: str, use_catalog_id: bool) -> None:
@@ -448,6 +443,17 @@ def test_create_database(random_glue_database: str, account_id: str, use_catalog
     r = glue_client.get_database(Name=random_glue_database)
     assert r["Database"]["Name"] == random_glue_database
     assert r["Database"]["Description"] == description
+
+    wr.catalog.create_database(
+        name=random_glue_database,
+        catalog_id=account_id,
+        description="additional arguments",
+        database_input_args={
+            "Parameters": {"foo": "bar"},
+        },
+        exist_ok=True,
+    )
+    assert glue_client.get_database(Name=random_glue_database)["Database"]["Parameters"] == {"foo": "bar"}
 
 
 def test_catalog_json(path: str, glue_database: str, glue_table: str) -> None:

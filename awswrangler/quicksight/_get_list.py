@@ -21,10 +21,9 @@ def _list(
     boto3_session: Optional[boto3.Session] = None,
     **kwargs: Any,
 ) -> List[Dict[str, Any]]:
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=session)
+        account_id = sts.get_account_id(boto3_session=boto3_session)
+    client = _utils.client(service_name="quicksight", session=boto3_session)
     func: Callable[..., Dict[str, Any]] = getattr(client, func_name)
     response: Dict[str, Any] = func(AwsAccountId=account_id, **kwargs)
     next_token: str = response.get("NextToken", None)
@@ -406,11 +405,10 @@ def list_ingestions(
     """
     if (dataset_name is None) and (dataset_id is None):
         raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=boto3_session)
     if (dataset_id is None) and (dataset_name is not None):
-        dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
+        dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=boto3_session)
     return _list(
         func_name="list_ingestions",
         attr_name="Ingestions",
@@ -477,7 +475,7 @@ def get_dashboard_ids(
     Returns
     -------
     List[str]
-        Dashboad IDs.
+        Dashboard IDs.
 
     Examples
     --------
@@ -504,7 +502,7 @@ def get_dashboard_id(name: str, account_id: Optional[str] = None, boto3_session:
     Returns
     -------
     str
-        Dashboad ID.
+        Dashboard ID.
 
     Examples
     --------
@@ -662,7 +660,7 @@ def get_template_ids(
     Returns
     -------
     List[str]
-        Tamplate IDs.
+        Template IDs.
 
     Examples
     --------

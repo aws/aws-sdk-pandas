@@ -9,8 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 import botocore.exceptions
-import pandas as pd
 
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -79,8 +79,7 @@ def _start_ruleset_evaluation_run(
     client_token: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
-    boto3_session = _utils.ensure_session(session=boto3_session)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
 
     if not database or not table:
         ruleset: Dict[str, Dict[str, str]] = _get_ruleset(ruleset_name=ruleset_names[0], boto3_session=boto3_session)
@@ -104,10 +103,10 @@ def _start_ruleset_evaluation_run(
     if additional_run_options:
         args["AdditionalRunOptions"] = additional_run_options
     _logger.debug("args: \n%s", pprint.pformat(args))
-    response: Dict[str, Any] = client_glue.start_data_quality_ruleset_evaluation_run(
+    response = client_glue.start_data_quality_ruleset_evaluation_run(
         **args,
     )
-    return cast(str, response["RunId"])
+    return response["RunId"]
 
 
 def _get_ruleset_run(
@@ -115,8 +114,7 @@ def _get_ruleset_run(
     run_type: str,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     f = (
         client_glue.get_data_quality_rule_recommendation_run
         if run_type == "recommendation"
@@ -137,12 +135,11 @@ def _wait_ruleset_run(
     run_type: str,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    response: Dict[str, Any] = _get_ruleset_run(run_id=run_id, run_type=run_type, boto3_session=session)
+    response: Dict[str, Any] = _get_ruleset_run(run_id=run_id, run_type=run_type, boto3_session=boto3_session)
     status: str = response["Status"]
     while status not in _RULESET_EVALUATION_FINAL_STATUSES:
         time.sleep(_RULESET_EVALUATION_WAIT_POLLING_DELAY)
-        response = _get_ruleset_run(run_id=run_id, run_type=run_type, boto3_session=session)
+        response = _get_ruleset_run(run_id=run_id, run_type=run_type, boto3_session=boto3_session)
         status = response["Status"]
     _logger.debug("status: %s", status)
     if status == "FAILED":
@@ -156,8 +153,7 @@ def _get_ruleset(
     ruleset_name: str,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
-    boto3_session = _utils.ensure_session(session=boto3_session)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     response = _utils.try_it(
         f=client_glue.get_data_quality_ruleset,
         ex=botocore.exceptions.ClientError,
@@ -172,16 +168,23 @@ def _get_data_quality_results(
     result_ids: List[str],
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
-    boto3_session = _utils.ensure_session(session=boto3_session)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
 
-    results: List[Dict[str, Any]] = client_glue.batch_get_data_quality_result(
+    results = client_glue.batch_get_data_quality_result(
         ResultIds=result_ids,
     )["Results"]
     rule_results: List[Dict[str, Any]] = []
     for result in results:
-        rules: List[Dict[str, str]] = result["RuleResults"]
-        for rule in rules:
-            rule["ResultId"] = result["ResultId"]
-        rule_results.extend(rules)
-    return cast(pd.DataFrame, pd.json_normalize(rule_results))
+        rule_results.extend(
+            cast(
+                List[Dict[str, Any]],
+                [
+                    dict(
+                        ((k, d[k]) for k in ("Name", "Description", "Result") if k in d),  # type: ignore[literal-required]
+                        **{"ResultId": result["ResultId"]},
+                    )
+                    for d in result["RuleResults"]
+                ],
+            )
+        )
+    return pd.json_normalize(rule_results)

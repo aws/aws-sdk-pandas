@@ -1,7 +1,12 @@
 """AWS Glue Catalog Delete Module."""
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+from awswrangler import typing
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -33,7 +38,7 @@ def _parquet_table_definition(
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Dict[str, str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
@@ -69,7 +74,7 @@ def _parquet_table_definition(
 def _parquet_partition_definition(
     location: str,
     values: List[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
     columns_types: Optional[Dict[str, str]],
     partitions_parameters: Optional[Dict[str, str]],
@@ -99,13 +104,85 @@ def _parquet_partition_definition(
     return definition
 
 
+def _orc_table_definition(
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    table_type: Optional[str],
+    partitions_types: Dict[str, str],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
+    compression: Optional[str],
+) -> Dict[str, Any]:
+    compressed: bool = compression is not None
+    return {
+        "Name": table,
+        "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
+        "TableType": "EXTERNAL_TABLE" if table_type is None else table_type,
+        "Parameters": {"classification": "orc", "compressionType": str(compression).lower(), "typeOfData": "file"},
+        "StorageDescriptor": {
+            "Columns": [{"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()],
+            "Location": path,
+            "InputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat",
+            "Compressed": compressed,
+            "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
+            "SerdeInfo": {
+                "SerializationLibrary": "org.apache.hadoop.hive.ql.io.orc.OrcSerde",
+                "Parameters": {"serialization.format": "1"},
+            },
+            "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
+            "StoredAsSubDirectories": False,
+            "SortColumns": [],
+            "Parameters": {
+                "CrawlerSchemaDeserializerVersion": "1.0",
+                "classification": "orc",
+                "compressionType": str(compression).lower(),
+                "typeOfData": "file",
+            },
+        },
+    }
+
+
+def _orc_partition_definition(
+    location: str,
+    values: List[str],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
+    compression: Optional[str],
+    columns_types: Optional[Dict[str, str]],
+    partitions_parameters: Optional[Dict[str, str]],
+) -> Dict[str, Any]:
+    compressed: bool = compression is not None
+    definition: Dict[str, Any] = {
+        "StorageDescriptor": {
+            "InputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat",
+            "Location": location,
+            "Compressed": compressed,
+            "SerdeInfo": {
+                "Parameters": {"serialization.format": "1"},
+                "SerializationLibrary": "org.apache.hadoop.hive.ql.io.orc.OrcSerde",
+            },
+            "StoredAsSubDirectories": False,
+            "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
+            "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
+        },
+        "Values": values,
+        "Parameters": {} if partitions_parameters is None else partitions_parameters,
+    }
+    if columns_types is not None:
+        definition["StorageDescriptor"]["Columns"] = [
+            {"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()
+        ]
+    return definition
+
+
 def _csv_table_definition(
     table: str,
     path: Optional[str],
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Dict[str, str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
     sep: str,
     skip_header_line_count: Optional[int],
@@ -153,7 +230,7 @@ def _csv_table_definition(
 def _csv_partition_definition(
     location: str,
     values: List[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
     sep: str,
     serde_library: Optional[str],
@@ -195,7 +272,7 @@ def _json_table_definition(
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Dict[str, str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
@@ -234,7 +311,7 @@ def _json_table_definition(
 def _json_partition_definition(
     location: str,
     values: List[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
@@ -273,7 +350,7 @@ def _check_column_type(column_type: str) -> bool:
     return True
 
 
-def _update_table_definition(current_definition: Dict[str, Any]) -> Dict[str, Any]:
+def _update_table_definition(current_definition: "GetTableResponseTypeDef") -> Dict[str, Any]:
     definition: Dict[str, Any] = {}
     keep_keys = [
         "Name",
@@ -292,5 +369,5 @@ def _update_table_definition(current_definition: Dict[str, Any]) -> Dict[str, An
     ]
     for key in current_definition["Table"]:
         if key in keep_keys:
-            definition[key] = current_definition["Table"][key]
+            definition[key] = current_definition["Table"][key]  # type: ignore[literal-required]
     return definition

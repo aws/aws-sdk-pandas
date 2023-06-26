@@ -40,7 +40,7 @@ def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: 
     ...     name='awswrangler_test'
     ... )
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     client_glue.delete_database(**_catalog_id(Name=name, catalog_id=catalog_id))
 
 
@@ -82,7 +82,7 @@ def delete_table_if_exists(
     False
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     try:
         client_glue.delete_table(
             **_catalog_id(
@@ -91,6 +91,7 @@ def delete_table_if_exists(
                 )
             )
         )
+        _logger.debug("Deleted catalog table: %s", table)
         return True
     except client_glue.exceptions.EntityNotFoundException:
         return False
@@ -135,7 +136,7 @@ def delete_partitions(
     ...     partitions_values=[['2020', '10', '25'], ['2020', '11', '16'], ['2020', '12', '19']]
     ... )
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     chunks: List[List[List[str]]] = _utils.chunkify(lst=partitions_values, max_length=25)
     for chunk in chunks:
         client_glue.batch_delete_partition(
@@ -179,10 +180,9 @@ def delete_all_partitions(
     ...     database='awswrangler_test',
     ... )
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     _logger.debug("Fetching existing partitions...")
     partitions_values: List[List[str]] = list(
-        _get_partitions(database=database, table=table, boto3_session=session, catalog_id=catalog_id).values()
+        _get_partitions(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id).values()
     )
     _logger.debug("Number of old partitions: %s", len(partitions_values))
     _logger.debug("Deleting existing partitions...")
@@ -237,8 +237,8 @@ def delete_column(
     ...     column_name='my_col',
     ... )
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    table_res: Dict[str, Any] = client_glue.get_table(
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
+    table_res = client_glue.get_table(
         **_catalog_id(
             catalog_id=catalog_id,
             **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table),

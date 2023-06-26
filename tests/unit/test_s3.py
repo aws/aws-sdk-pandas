@@ -10,13 +10,9 @@ import pytest
 import pytz
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import is_ray_modin
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 API_CALL = botocore.client.BaseClient._make_api_call
 
@@ -29,25 +25,40 @@ def test_list_buckets() -> None:
     assert len(wr.s3.list_buckets()) > 0
 
 
-@pytest.mark.parametrize("sanitize_columns,col", [(True, "fooboo"), (False, "FooBoo")])
-def test_sanitize_columns(path, sanitize_columns, col):
-    df = pd.DataFrame({"FooBoo": [1, 2, 3]})
-
-    # Parquet
-    file_path = f"{path}0.parquet"
-    wr.s3.to_parquet(df, path=file_path, sanitize_columns=sanitize_columns)
-    df = wr.s3.read_parquet(file_path)
+@pytest.mark.parametrize(
+    "format,write_function,read_function",
+    [
+        ("parquet", wr.s3.to_parquet, wr.s3.read_parquet),
+        ("csv", wr.s3.to_csv, wr.s3.read_csv),
+        ("json", wr.s3.to_json, wr.s3.read_json),
+    ],
+)
+@pytest.mark.parametrize(
+    "sanitize_columns,expected_cols",
+    [(True, ["barbuzz", "fizzfuzz", "fooboo"]), (False, ["BarBuzz", "FizzFuzz", "FooBoo"])],
+)
+@pytest.mark.parametrize("partition_cols", [None, ["FooBoo"]])
+@pytest.mark.parametrize("bucketing_info", [None, (["BarBuzz"], 1)])
+def test_sanitize_columns(
+    path, format, write_function, read_function, sanitize_columns, expected_cols, partition_cols, bucketing_info
+):
+    df = pd.DataFrame({"FooBoo": [1, 2, 3], "BarBuzz": [4, 5, 6], "FizzFuzz": [7, 8, 9]})
+    dataset = bool(partition_cols or bucketing_info)
+    file_path = f"{path}0.{format}" if not dataset else path
+    write_function(
+        df,
+        path=file_path,
+        sanitize_columns=sanitize_columns,
+        index=False if format != "json" else True,
+        dataset=dataset,
+        partition_cols=partition_cols,
+        bucketing_info=bucketing_info,
+    )
+    kwargs = {} if format != "json" else {"lines": False}
+    df = read_function(file_path, dataset=dataset, **kwargs)
     assert len(df.index) == 3
-    assert len(df.columns) == 1
-    assert df.columns == [col]
-
-    # CSV
-    file_path = f"{path}0.csv"
-    wr.s3.to_csv(df, path=file_path, sanitize_columns=sanitize_columns, index=False)
-    df = wr.s3.read_csv(file_path)
-    assert len(df.index) == 3
-    assert len(df.columns) == 1
-    assert df.columns == [col]
+    assert len(df.columns) == 3
+    assert sorted(list(df.columns)) == expected_cols
 
 
 def test_list_by_last_modified_date(path):
@@ -57,11 +68,11 @@ def test_list_by_last_modified_date(path):
 
     begin_utc = pytz.utc.localize(datetime.datetime.utcnow())
     time.sleep(5)
-    wr.s3.to_json(df, path0)
+    wr.s3.to_json(df, path=path0)
     time.sleep(5)
     mid_utc = pytz.utc.localize(datetime.datetime.utcnow())
     time.sleep(5)
-    wr.s3.to_json(df, path1)
+    wr.s3.to_json(df, path=path1)
     time.sleep(5)
     end_utc = pytz.utc.localize(datetime.datetime.utcnow())
 
@@ -122,12 +133,20 @@ def test_missing_or_wrong_path(path, glue_database, glue_table):
         wr.s3.to_parquet(df=df, path=wrong_path, dataset=True, database=glue_database, table=glue_table)
 
 
-def test_s3_empty_dfs():
+@pytest.mark.xfail(is_ray_modin, reason="Ray dataset cannot write empty DF")
+def test_s3_empty_dfs(path):
     df = pd.DataFrame()
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_parquet(df=df, path="")
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_csv(df=df, path="")
+    file_path = f"{path}empty"
+    assert df.empty
+
+    wr.s3.to_csv(df, f"{file_path}.csv")
+    wr.s3.to_json(df, f"{file_path}.json")
+
+    df_read_csv = wr.s3.read_csv(f"{file_path}.csv")
+    assert df_read_csv.empty
+
+    df_read_json = wr.s3.read_json(f"{file_path}.json")
+    assert df_read_json.empty
 
 
 def test_absent_object(path):
@@ -171,11 +190,25 @@ def test_merge(path, use_threads):
     assert len(wr.s3.merge_datasets(source_path=f"{path}empty/", target_path="bar")) == 0
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize(
     "s3_additional_kwargs",
-    [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
+    [
+        None,
+        pytest.param(
+            {"ServerSideEncryption": "AES256"},
+            marks=pytest.mark.xfail(
+                is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+            ),
+        ),
+        pytest.param(
+            {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None},
+            marks=pytest.mark.xfail(
+                is_ray_modin, raises=wr.exceptions.InvalidArgument, reason="kwargs not supported in distributed mode"
+            ),
+        ),
+    ],
 )
+@pytest.mark.parametrize("use_threads", [True, False])
 def test_merge_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
     if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
         s3_additional_kwargs["SSEKMSKeyId"] = kms_key_id
@@ -216,7 +249,8 @@ def test_merge_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_thr
     descs = wr.s3.describe_objects(paths, use_threads=use_threads)
     for desc in descs.values():
         if s3_additional_kwargs is None:
-            assert desc.get("ServerSideEncryption") is None
+            # SSE enabled by default
+            assert desc.get("ServerSideEncryption") == "AES256"
         elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
             assert desc.get("ServerSideEncryption") == "aws:kms"
         elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
@@ -266,7 +300,7 @@ def test_copy_additional_kwargs(path, path2, kms_key_id, s3_additional_kwargs, u
     assert df.equals(wr.s3.read_csv(file_path2))
     desc = wr.s3.describe_objects([file_path2])[file_path2]
     if s3_additional_kwargs is None:
-        assert desc.get("ServerSideEncryption") is None
+        assert desc.get("ServerSideEncryption") == "AES256"
     elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
         assert desc.get("ServerSideEncryption") == "aws:kms"
     elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
@@ -325,6 +359,11 @@ def test_prefix_cleanup():
     assert wr.s3._list._prefix_cleanup(glob.escape("foo[]boo")) == glob.escape("foo")
 
 
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=(AssertionError, wr.exceptions.InvalidArgument),
+    reason=("PyArrow s3fs does not support Unix wildcards or s3_additional_kwargs"),
+)
 @pytest.mark.parametrize(
     "s3_additional_kwargs",
     [None, {"FetchOwner": True}, {"PaginationConfig": {"PageSize": 100}}],

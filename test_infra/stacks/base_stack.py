@@ -4,6 +4,7 @@ from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
+from aws_cdk import aws_lakeformation as lf
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_ssm as ssm
@@ -20,6 +21,11 @@ class BaseStack(Stack):  # type: ignore
             cidr="11.19.224.0/19",
             enable_dns_hostnames=True,
             enable_dns_support=True,
+            gateway_endpoints={
+                "S3": {
+                    "service": ec2.GatewayVpcEndpointAwsService.S3,
+                },
+            },
         )
         Tags.of(self.vpc).add("Name", "aws-sdk-pandas")
 
@@ -75,6 +81,22 @@ class BaseStack(Stack):  # type: ignore
             ],
             versioned=True,
         )
+        lf.CfnResource(
+            self,
+            id="bucket-lf-registration",
+            resource_arn=self.bucket.bucket_arn,
+            use_service_linked_role=True,
+        )
+        inline_lf_policies = {
+            "GetDataAccess": iam.PolicyDocument(
+                statements=[
+                    iam.PolicyStatement(
+                        actions=["lakeformation:GetDataAccess"],
+                        resources=["*"],
+                    ),
+                ]
+            ),
+        }
         glue_data_quality_role = iam.Role(
             self,
             "aws-sdk-pandas-glue-data-quality-role",
@@ -84,16 +106,30 @@ class BaseStack(Stack):  # type: ignore
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
                 iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
             ],
-            inline_policies={
-                "GetDataAccess": iam.PolicyDocument(
-                    statements=[
-                        iam.PolicyStatement(
-                            actions=["lakeformation:GetDataAccess"],
-                            resources=["*"],
-                        ),
-                    ]
-                ),
-            },
+            inline_policies=inline_lf_policies,
+        )
+        emr_serverless_exec_role = iam.Role(
+            self,
+            "aws-sdk-pandas-emr-serverless-exec-role",
+            role_name="EMRServerlessExecutionRole",
+            assumed_by=iam.ServicePrincipal("emr-serverless.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
+            ],
+            inline_policies=inline_lf_policies,
+        )
+        athena_spark_exec_role = iam.Role(
+            self,
+            "aws-sdk-pandas-athena-spark-exec-role",
+            role_name="AthenaSparkExecutionRole",
+            assumed_by=iam.ServicePrincipal("athena.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonAthenaFullAccess"),
+            ],
+            inline_policies=inline_lf_policies,
         )
         glue_db = glue.Database(
             self,
@@ -127,46 +163,47 @@ class BaseStack(Stack):  # type: ignore
             self,
             "VPC",
             value=self.vpc.vpc_id,
-            export_name="aws-sdk-pandas-base-VPC",
         )
         CfnOutput(
             self,
             "PublicSubnet1",
             value=self.vpc.public_subnets[0].subnet_id,
-            export_name="aws-sdk-pandas-base-PublicSubnet1",
         )
         CfnOutput(
             self,
             "PublicSubnet2",
             value=self.vpc.public_subnets[1].subnet_id,
-            export_name="aws-sdk-pandas-base-PublicSubnet2",
         )
         CfnOutput(
             self,
             "PublicSubnet3",
             value=self.vpc.public_subnets[2].subnet_id,
-            export_name="aws-sdk-pandas-base-PublicSubnet3",
         )
         CfnOutput(
             self,
             "PrivateSubnet",
             value=self.vpc.private_subnets[0].subnet_id,
-            export_name="aws-sdk-pandas-base-PrivateSubnet",
         )
         CfnOutput(
             self,
             "KmsKeyArn",
             value=self.key.key_arn,
-            export_name="aws-sdk-pandas-base-KmsKeyArn",
         )
         CfnOutput(
             self,
             "BucketName",
             value=self.bucket.bucket_name,
-            export_name="aws-sdk-pandas-base-BucketName",
+        )
+        ssm.StringParameter(
+            self,
+            "SSM BucketName",
+            parameter_name="/sdk-pandas/base/BucketName",
+            string_value=self.bucket.bucket_name,
         )
         CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
         CfnOutput(self, "GlueDataQualityRole", value=glue_data_quality_role.role_arn)
+        CfnOutput(self, "EMRServerlessExecutionRoleArn", value=emr_serverless_exec_role.role_arn)
+        CfnOutput(self, "AthenaSparkExecutionRoleArn", value=athena_spark_exec_role.role_arn)
         CfnOutput(self, "LogGroupName", value=log_group.log_group_name)
         CfnOutput(self, "LogStream", value=log_stream.log_stream_name)
 

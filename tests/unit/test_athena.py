@@ -1,16 +1,20 @@
 import datetime
 import logging
 import string
+from typing import Any
 from unittest.mock import patch
 
 import boto3
+import botocore
 import numpy as np
 import pytest
 from pandas import DataFrame as PandasDataFrame
 
 import awswrangler as wr
+import awswrangler.pandas as pd
 
 from .._utils import (
+    assert_pandas_equals,
     ensure_athena_ctas_table,
     ensure_athena_query_metadata,
     ensure_data_types,
@@ -20,14 +24,9 @@ from .._utils import (
     get_df_list,
     get_df_txt,
     get_time_str_with_random_suffix,
-    is_ray_modin,
     pandas_equals,
+    ts,
 )
-
-if is_ray_modin:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -80,7 +79,9 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
         ctas_approach=True,
         chunksize=1,
         keep_files=False,
-        ctas_temp_table_name=glue_table2,
+        ctas_parameters=wr.typing.AthenaCTASSettings(
+            temp_table_name=glue_table2,
+        ),
         s3_output=path3,
     )
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table2) is False
@@ -99,7 +100,9 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
         ctas_approach=True,
         chunksize=2,
         keep_files=True,
-        ctas_temp_table_name=glue_table2,
+        ctas_parameters=wr.typing.AthenaCTASSettings(
+            temp_table_name=glue_table2,
+        ),
         s3_output=path3,
     )
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table2) is False
@@ -118,8 +121,10 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
         ctas_approach=True,
         chunksize=1,
         keep_files=False,
-        ctas_database=glue_ctas_database,
-        ctas_temp_table_name=glue_table2,
+        ctas_parameters=wr.typing.AthenaCTASSettings(
+            database=glue_ctas_database,
+            temp_table_name=glue_table2,
+        ),
         s3_output=path3,
     )
     assert wr.catalog.does_table_exist(database=glue_ctas_database, table=glue_table2) is False
@@ -144,9 +149,11 @@ def test_athena_read_sql_ctas_bucketing(path, path2, glue_table, glue_table2, gl
         sql=f"SELECT * FROM {glue_table}",
         ctas_approach=True,
         database=glue_database,
-        ctas_database=glue_ctas_database,
-        ctas_temp_table_name=glue_table2,
-        ctas_bucketing_info=(["c0"], 1),
+        ctas_parameters=wr.typing.AthenaCTASSettings(
+            database=glue_ctas_database,
+            temp_table_name=glue_table2,
+            bucketing_info=(["c0"], 1),
+        ),
         s3_output=path2,
     )
     df_no_ctas = wr.athena.read_sql_query(
@@ -213,9 +220,7 @@ def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_c
     ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
 
 
-@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -291,8 +296,83 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
     )
 
 
+def test_athena_orc(path, glue_database, glue_table):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "bar", "foo"], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["c1"] = df["c1"].astype("string")
+    df["par"] = df["par"].astype("string")
+
+    wr.s3.to_orc(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par"],
+    )
+    df_out = wr.athena.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        ctas_approach=False,
+        keep_files=False,
+    )
+    df_out = df_out.sort_values(by="c0", ascending=True).reset_index(drop=True)
+
+    assert_pandas_equals(df, df_out)
+
+
+@pytest.mark.parametrize(
+    "ctas_approach,unload_approach",
+    [
+        pytest.param(False, False, id="regular"),
+        pytest.param(True, False, id="ctas"),
+        pytest.param(False, True, id="unload"),
+    ],
+)
+@pytest.mark.parametrize(
+    "col_name,col_value", [("string", "Washington"), ("iint32", "1"), ("date", "DATE '2020-01-01'")]
+)
+def test_athena_paramstyle_qmark_parameters(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+    workgroup0: str,
+    ctas_approach: bool,
+    unload_approach: bool,
+    col_name: str,
+    col_value: Any,
+) -> None:
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+
+    df_out = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_table} WHERE {col_name} = ?",
+        database=glue_database,
+        ctas_approach=ctas_approach,
+        unload_approach=unload_approach,
+        workgroup=workgroup0,
+        params=[col_value],
+        paramstyle="qmark",
+        keep_files=False,
+        s3_output=path2,
+    )
+    ensure_data_types(df=df_out)
+    ensure_athena_query_metadata(df=df_out, ctas_approach=ctas_approach, encrypted=False)
+
+    assert len(df_out) == 1
+
+
 def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_database, glue_table, workgroup0):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -320,7 +400,6 @@ def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_databa
     [("string", "Seattle"), ("date", datetime.date(2020, 1, 1)), ("bool", True), ("category", 1.0)],
 )
 def test_read_sql_query_parameter_formatting(path, glue_database, glue_table, workgroup0, col_name, col_value):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -345,7 +424,6 @@ def test_read_sql_query_parameter_formatting(path, glue_database, glue_table, wo
 
 @pytest.mark.parametrize("col_name", [("string"), ("date"), ("bool"), ("category")])
 def test_read_sql_query_parameter_formatting_null(path, glue_database, glue_table, workgroup0, col_name):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -368,10 +446,10 @@ def test_read_sql_query_parameter_formatting_null(path, glue_database, glue_tabl
     assert len(df.index) == 1
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail(raises=botocore.exceptions.ClientError, reason="QueryId not found.")
 def test_athena_query_cancelled(glue_database):
     query_execution_id = wr.athena.start_query_execution(
-        sql="SELECT " + "rand(), " * 2000 + "rand()", database=glue_database
+        sql="SELECT " + "rand(), " * 10000 + "rand()", database=glue_database
     )
     wr.athena.stop_query_execution(query_execution_id=query_execution_id)
     with pytest.raises(wr.exceptions.QueryCancelled):
@@ -492,7 +570,7 @@ def test_athena_time_zone(glue_database):
     df = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=False)
     assert len(df.index) == 1
     assert len(df.columns) == 2
-    assert df["type"][0] == "timestamp with time zone"
+    assert df["type"][0] == "timestamp(3) with time zone"
     assert df["value"][0].year == datetime.datetime.utcnow().year
 
 
@@ -543,7 +621,6 @@ def test_category(path, glue_table, glue_database):
     )
     for df2 in dfs:
         ensure_data_types_category(df2)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
 @pytest.mark.parametrize("workgroup", [None, 0, 1, 2, 3])
@@ -591,7 +668,9 @@ def test_athena_encryption(
         workgroup=workgroup,
         kms_key=kms_key,
         keep_files=True,
-        ctas_temp_table_name=glue_table2,
+        ctas_parameters=wr.typing.AthenaCTASSettings(
+            temp_table_name=glue_table2,
+        ),
         s3_output=path2,
     )
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table2) is False
@@ -651,7 +730,6 @@ def test_athena_undefined_column(glue_database):
 
 
 def test_glue_database():
-
     # Round 1 - Create Database
     glue_database_name = f"database_{get_time_str_with_random_suffix()}"
     wr.catalog.create_database(name=glue_database_name, description="Database Description")
@@ -703,7 +781,7 @@ def test_read_sql_query_wo_results_chunked(path, glue_database, glue_table, ctas
     assert counter == 1
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail(raises=botocore.exceptions.ClientError)
 def test_read_sql_query_wo_results_ctas(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     sql = f"ALTER TABLE {glue_database}.{glue_table} SET LOCATION '{path}dir/'"
@@ -775,7 +853,6 @@ def test_bucketing_catalog_parquet_table(path, glue_database, glue_table):
     table = next(wr.catalog.get_tables(name_contains=glue_table))
     assert table["StorageDescriptor"]["NumberOfBuckets"] == nb_of_buckets
     assert table["StorageDescriptor"]["BucketColumns"] == bucket_cols
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
 
 
 @pytest.mark.parametrize("bucketing_data", [[0, 1, 2], [False, True, False], ["b", "c", "d"]])
@@ -864,7 +941,6 @@ def test_bucketing_catalog_csv_table(path, glue_database, glue_table):
     table = next(wr.catalog.get_tables(name_contains=glue_table))
     assert table["StorageDescriptor"]["NumberOfBuckets"] == nb_of_buckets
     assert table["StorageDescriptor"]["BucketColumns"] == bucket_cols
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
 
 
 @pytest.mark.parametrize("bucketing_data", [[0, 1, 2], [False, True, False], ["b", "c", "d"]])
@@ -1187,7 +1263,6 @@ def test_bucketing_combined_csv_saving(path, glue_database, glue_table):
 
 
 def test_start_query_execution_wait(path, glue_database, glue_table):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -1213,7 +1288,6 @@ def test_start_query_execution_wait(path, glue_database, glue_table):
 
 
 def test_get_query_results(path, glue_table, glue_database):
-
     sql = (
         "SELECT CAST("
         "    ROW(1, ROW(2, ROW(3, '4'))) AS"
@@ -1316,17 +1390,18 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
     assert query == create_query_partition
 
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-    query: str = "\n".join(
+    create_view: str = "\n".join(
         [
             f"""CREATE OR REPLACE VIEW "{glue_table}" AS """,
             (
                 "SELECT CAST(ROW (1, ROW (2, ROW (3, '4'))) AS "
-                "row(field0 bigint,field1 row(field2 bigint,field3 row(field4 bigint,field5 varchar)))) col0\n\n"
+                "ROW(field0 bigint, field1 ROW(field2 bigint, field3 ROW(field4 bigint, field5 varchar)))) col0\n\n"
             ),
         ]
     )
-    wr.athena.start_query_execution(sql=query, database=glue_database, wait=True)
-    assert query == wr.athena.generate_create_query(database=glue_database, table=glue_table)
+    wr.athena.start_query_execution(sql=create_view, database=glue_database, wait=True)
+    query: str = wr.athena.generate_create_query(database=glue_database, table=glue_table)
+    assert query == create_view
 
 
 def test_get_query_execution(workgroup0, workgroup1):
@@ -1350,7 +1425,6 @@ def test_get_query_execution(workgroup0, workgroup1):
 
 @pytest.mark.parametrize("compression", [None, "snappy", "gzip"])
 def test_read_sql_query_ctas_write_compression(path, glue_database, glue_table, compression):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -1370,10 +1444,75 @@ def test_read_sql_query_ctas_write_compression(path, glue_database, glue_table, 
             sql=f"SELECT * FROM {glue_table}",
             database=glue_database,
             ctas_approach=True,
-            ctas_write_compression=compression,
+            ctas_parameters={
+                "compression": compression,
+            },
         )
 
         mock_create_ctas_table.assert_called_once()
 
         if compression:
             assert mock_create_ctas_table.call_args[1]["write_compression"] == compression
+
+
+def test_athena_date_recovery(path, glue_database, glue_table):
+    df = pd.DataFrame(
+        {
+            # Valid datetime64 values
+            "date1": [datetime.date(2020, 1, 3), datetime.date(2020, 1, 4), pd.NaT],
+            # Object column because of None
+            "date2": [datetime.date(2021, 1, 3), datetime.date(2021, 1, 4), None],
+            # Object column because dates are out of bounds for pandas datetime types
+            "date3": [datetime.date(3099, 1, 3), datetime.date(3099, 1, 4), datetime.date(4080, 1, 5)],
+        }
+    )
+    df["date1"] = df["date1"].astype("datetime64[ns]")
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+    )
+    df2 = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_table}",
+        database=glue_database,
+        ctas_approach=False,
+    )
+    assert pandas_equals(df, df2)
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["name"], ["name", "day(ts)"]])
+@pytest.mark.parametrize(
+    "additional_table_properties",
+    [None, {"write_target_data_file_size_bytes": 536870912, "optimize_rewrite_delete_file_threshold": 10}],
+)
+def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_cols, additional_table_properties):
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "name": ["a", "b", "c"],
+            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+        }
+    )
+    df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
+    df["name"] = df["name"].astype("string")
+
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=partition_cols,
+        additional_table_properties=additional_table_properties,
+    )
+
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert df.equals(df_out)

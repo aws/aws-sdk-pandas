@@ -19,12 +19,15 @@ API Reference
 * `Amazon Timestream`_
 * `AWS Clean Rooms`_
 * `Amazon EMR`_
+* `Amazon EMR Serverless`_
 * `Amazon CloudWatch Logs`_
 * `Amazon QuickSight`_
 * `AWS STS`_
 * `AWS Secrets Manager`_
 * `Amazon Chime`_
+* `Typing`_
 * `Global Configurations`_
+* `Engine and Memory Format`_
 * `Distributed - Ray`_
 
 Amazon S3
@@ -45,15 +48,17 @@ Amazon S3
     list_directories
     list_objects
     merge_datasets
-    merge_upsert_table
     read_csv
-    read_deltalake
     read_excel
     read_fwf
     read_json
     read_parquet
     read_parquet_metadata
     read_parquet_table
+    read_orc
+    read_orc_metadata
+    read_orc_table
+    read_deltalake
     select_query
     size_objects
     store_parquet_metadata
@@ -61,6 +66,8 @@ Amazon S3
     to_excel
     to_json
     to_parquet
+    to_orc
+    to_deltalake
     upload
     wait_objects_exist
     wait_objects_not_exist
@@ -119,6 +126,7 @@ Amazon Athena
     :toctree: stubs
 
     create_athena_bucket
+    create_spark_session
     create_ctas_table
     generate_create_query
     get_query_columns_types
@@ -131,10 +139,15 @@ Amazon Athena
     read_sql_query
     read_sql_table
     repair_table
+    run_spark_calculation
     start_query_execution
     stop_query_execution
+    to_iceberg
     unload
     wait_query
+    create_prepared_statement
+    list_prepared_statements
+    delete_prepared_statement
 
 AWS Lake Formation
 ------------------
@@ -246,6 +259,7 @@ Data API RDS
     RdsDataApi
     connect
     read_sql_query
+    to_sql
 
 AWS Glue Data Quality
 ---------------------
@@ -270,6 +284,7 @@ OpenSearch
     :toctree: stubs
 
     connect
+    create_collection
     create_index
     delete_index
     index_csv
@@ -294,6 +309,8 @@ Amazon Neptune
     flatten_nested_df
     to_property_graph
     to_rdf_graph
+    bulk_load
+    bulk_load_from_files
 
 DynamoDB
 --------
@@ -304,14 +321,14 @@ DynamoDB
     :toctree: stubs
 
     delete_items
-    get_table
     execute_statement
-    read_partiql_query
-    read_items
+    get_table
     put_csv
     put_df
     put_items
     put_json
+    read_items
+    read_partiql_query
 
 Amazon Timestream
 -----------------
@@ -321,12 +338,19 @@ Amazon Timestream
 .. autosummary::
     :toctree: stubs
 
+    batch_load
+    batch_load_from_files
     create_database
     create_table
     delete_database
     delete_table
+    list_databases
+    list_tables
     query
+    wait_batch_load_task
     write
+    unload_to_files
+    unload
 
 AWS Clean Rooms
 -----------------
@@ -357,6 +381,18 @@ Amazon EMR
     submit_step
     submit_steps
     terminate_cluster
+
+Amazon EMR Serverless
+---------------------
+
+.. currentmodule:: awswrangler.emr_serverless
+
+.. autosummary::
+    :toctree: stubs
+
+    create_application
+    run_job
+    wait_job
 
 Amazon CloudWatch Logs
 ----------------------
@@ -453,6 +489,25 @@ Amazon Chime
 
     post_message
 
+Typing
+---------------------
+
+.. currentmodule:: awswrangler.typing
+
+.. autosummary::
+    :toctree: stubs
+    :template: typed-dict-template.rst
+
+    GlueTableSettings
+    AthenaCTASSettings
+    AthenaUNLOADSettings
+    AthenaCacheSettings
+    AthenaPartitionProjectionSettings
+    RaySettings
+    RayReadParquetSettings
+    _S3WriteDataReturnValue
+    _ReadTableMetadataReturnValue
+
 Global Configurations
 ---------------------
 
@@ -463,6 +518,17 @@ Global Configurations
 
     reset
     to_pandas
+
+Engine and Memory Format
+-------------------------
+
+.. currentmodule:: awswrangler._distributed
+
+.. autosummary::
+    :toctree: stubs
+
+    Engine
+    MemoryFormat
 
 Distributed - Ray
 ---------------------

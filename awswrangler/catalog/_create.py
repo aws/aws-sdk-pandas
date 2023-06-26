@@ -1,16 +1,24 @@
 """AWS Glue Catalog Module."""
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
 
 import boto3
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, typing
 from awswrangler._config import apply_configs
-from awswrangler.catalog._definitions import _csv_table_definition, _json_table_definition, _parquet_table_definition
+from awswrangler.catalog._definitions import (
+    _csv_table_definition,
+    _json_table_definition,
+    _orc_table_definition,
+    _parquet_table_definition,
+)
 from awswrangler.catalog._delete import delete_all_partitions, delete_table_if_exists
 from awswrangler.catalog._get import _get_table_input
 from awswrangler.catalog._utils import _catalog_id, _transaction_id, sanitize_column_name, sanitize_table_name
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue import GlueClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -38,7 +46,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
     partitions_types: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
     transaction_id: Optional[str],
-    projection_params: Optional[Dict[str, Any]],
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
     catalog_id: Optional[str],
 ) -> None:
     # Description
@@ -53,8 +61,8 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         mode = _update_if_necessary(dic=table_input["Parameters"], key=k, value=v, mode=mode)
 
     # Projection
-    projection_params = projection_params if projection_params else {}
-    if projection_params:
+    projection_params = athena_partition_projection_settings if athena_partition_projection_settings else {}
+    if athena_partition_projection_settings:
         table_input["Parameters"]["projection.enabled"] = "true"
         partitions_types = partitions_types if partitions_types else {}
         projection_types = projection_params.get("projection_types", {})
@@ -124,8 +132,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
 
     _logger.debug("table_input: %s", table_input)
 
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     skip_archive: bool = not catalog_versioning
     if mode not in ("overwrite", "append", "overwrite_partitions", "update"):
         raise exceptions.InvalidArgument(
@@ -144,7 +151,9 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         args["SkipArchive"] = skip_archive
         if mode == "overwrite":
             if table_type != "GOVERNED":
-                delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=session)
+                delete_all_partitions(
+                    table=table, database=database, catalog_id=catalog_id, boto3_session=boto3_session
+                )
             client_glue.update_table(**args)
         elif mode == "update":
             client_glue.update_table(**args)
@@ -169,7 +178,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
 
 
 def _overwrite_table(
-    client_glue: boto3.client,
+    client_glue: "GlueClient",
     catalog_id: Optional[str],
     database: str,
     table: str,
@@ -233,7 +242,7 @@ def _overwrite_table_parameters(
     boto3_session: Optional[boto3.Session],
 ) -> Dict[str, str]:
     table_input["Parameters"] = parameters
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     skip_archive: bool = not catalog_versioning
     client_glue.update_table(
         **_catalog_id(
@@ -246,6 +255,29 @@ def _overwrite_table_parameters(
     return parameters
 
 
+def _update_table_input(table_input: Dict[str, Any], columns_types: Dict[str, str], allow_reorder: bool = True) -> bool:
+    column_updated = False
+
+    catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
+
+    if not allow_reorder:
+        for catalog_key, frame_key in zip(catalog_cols, columns_types):
+            if catalog_key != frame_key:
+                raise exceptions.InvalidArgumentValue(f"Column {frame_key} is out of order.")
+
+    for c, t in columns_types.items():
+        if c not in catalog_cols:
+            _logger.debug("New column %s with type %s.", c, t)
+            table_input["StorageDescriptor"]["Columns"].append({"Name": c, "Type": t})
+            column_updated = True
+        elif t != catalog_cols[c]:  # Data type change detected!
+            raise exceptions.InvalidArgumentValue(
+                f"Data type change detected on column {c} (Old type: {catalog_cols[c]} / New type {t})."
+            )
+
+    return column_updated
+
+
 def _create_parquet_table(
     database: str,
     table: str,
@@ -253,7 +285,7 @@ def _create_parquet_table(
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     catalog_id: Optional[str],
     compression: Optional[str],
     description: Optional[str],
@@ -262,26 +294,21 @@ def _create_parquet_table(
     mode: str,
     catalog_versioning: bool,
     transaction_id: Optional[str],
-    projection_params: Optional[Dict[str, Any]],
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
     boto3_session: Optional[boto3.Session],
     catalog_table_input: Optional[Dict[str, Any]],
 ) -> None:
     table = sanitize_table_name(table=table)
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
+
     table_input: Dict[str, Any]
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = catalog_table_input
-        catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
-        for c, t in columns_types.items():
-            if c not in catalog_cols:
-                _logger.debug("New column %s with type %s.", c, t)
-                table_input["StorageDescriptor"]["Columns"].append({"Name": c, "Type": t})
-                mode = "update"
-            elif t != catalog_cols[c]:  # Data type change detected!
-                raise exceptions.InvalidArgumentValue(
-                    f"Data type change detected on column {c} (Old type: {catalog_cols[c]} / New type {t})."
-                )
+
+        is_table_updated = _update_table_input(table_input, columns_types)
+        if is_table_updated:
+            mode = "update"
     else:
         table_input = _parquet_table_definition(
             table=table,
@@ -308,7 +335,69 @@ def _create_parquet_table(
         table_exist=table_exist,
         partitions_types=partitions_types,
         transaction_id=transaction_id,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
+        catalog_id=catalog_id,
+    )
+
+
+def _create_orc_table(
+    database: str,
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    table_type: Optional[str],
+    partitions_types: Optional[Dict[str, str]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
+    catalog_id: Optional[str],
+    compression: Optional[str],
+    description: Optional[str],
+    parameters: Optional[Dict[str, str]],
+    columns_comments: Optional[Dict[str, str]],
+    mode: str,
+    catalog_versioning: bool,
+    transaction_id: Optional[str],
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
+    boto3_session: Optional[boto3.Session],
+    catalog_table_input: Optional[Dict[str, Any]],
+) -> None:
+    table = sanitize_table_name(table=table)
+    partitions_types = {} if partitions_types is None else partitions_types
+    _logger.debug("catalog_table_input: %s", catalog_table_input)
+
+    table_input: Dict[str, Any]
+    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+        table_input = catalog_table_input
+
+        is_table_updated = _update_table_input(table_input, columns_types)
+        if is_table_updated:
+            mode = "update"
+    else:
+        table_input = _orc_table_definition(
+            table=table,
+            path=path,
+            columns_types=columns_types,
+            table_type=table_type,
+            partitions_types=partitions_types,
+            bucketing_info=bucketing_info,
+            compression=compression,
+        )
+    table_exist: bool = catalog_table_input is not None
+    _logger.debug("table_exist: %s", table_exist)
+    _create_table(
+        database=database,
+        table=table,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+        mode=mode,
+        catalog_versioning=catalog_versioning,
+        boto3_session=boto3_session,
+        table_input=table_input,
+        table_type=table_type,
+        table_exist=table_exist,
+        partitions_types=partitions_types,
+        transaction_id=transaction_id,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
     )
 
@@ -320,7 +409,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     description: Optional[str],
     compression: Optional[str],
     parameters: Optional[Dict[str, str]],
@@ -334,18 +423,25 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
     boto3_session: Optional[boto3.Session],
-    projection_params: Optional[Dict[str, Any]],
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
     catalog_table_input: Optional[Dict[str, Any]],
     catalog_id: Optional[str],
 ) -> None:
     table = sanitize_table_name(table=table)
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
-    table_input: Dict[str, Any]
+
     if schema_evolution is False:
         _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
+
+    table_input: Dict[str, Any]
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = catalog_table_input
+
+        is_table_updated = _update_table_input(table_input, columns_types, allow_reorder=False)
+        if is_table_updated:
+            mode = "update"
+
     else:
         table_input = _csv_table_definition(
             table=table,
@@ -376,19 +472,19 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         table_exist=table_exist,
         partitions_types=partitions_types,
         transaction_id=transaction_id,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
     )
 
 
-def _create_json_table(  # pylint: disable=too-many-arguments
+def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
     database: str,
     table: str,
     path: str,
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     description: Optional[str],
     compression: Optional[str],
     parameters: Optional[Dict[str, str]],
@@ -400,7 +496,7 @@ def _create_json_table(  # pylint: disable=too-many-arguments
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
     boto3_session: Optional[boto3.Session],
-    projection_params: Optional[Dict[str, Any]],
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
     catalog_table_input: Optional[Dict[str, Any]],
     catalog_id: Optional[str],
 ) -> None:
@@ -412,6 +508,11 @@ def _create_json_table(  # pylint: disable=too-many-arguments
         _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = catalog_table_input
+
+        is_table_updated = _update_table_input(table_input, columns_types)
+        if is_table_updated:
+            mode = "update"
+
     else:
         table_input = _json_table_definition(
             table=table,
@@ -440,7 +541,7 @@ def _create_json_table(  # pylint: disable=too-many-arguments
         table_type=table_type,
         table_exist=table_exist,
         partitions_types=partitions_types,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
     )
 
@@ -489,16 +590,19 @@ def upsert_table_parameters(
     ...     table="...")
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     table_input: Optional[Dict[str, str]] = _get_table_input(
-        database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
+        database=database,
+        table=table,
+        boto3_session=boto3_session,
+        transaction_id=transaction_id,
+        catalog_id=catalog_id,
     )
     if table_input is None:
         raise exceptions.InvalidArgumentValue(f"Table {database}.{table} does not exist.")
     return _upsert_table_parameters(
         parameters=parameters,
         database=database,
-        boto3_session=session,
+        boto3_session=boto3_session,
         transaction_id=transaction_id,
         catalog_id=catalog_id,
         table_input=table_input,
@@ -550,9 +654,12 @@ def overwrite_table_parameters(
     ...     table="...")
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, transaction_id=transaction_id, catalog_id=catalog_id, boto3_session=session
+        database=database,
+        table=table,
+        transaction_id=transaction_id,
+        catalog_id=catalog_id,
+        boto3_session=boto3_session,
     )
     if table_input is None:
         raise exceptions.InvalidTable(f"Table {table} does not exist on database {database}.")
@@ -562,7 +669,7 @@ def overwrite_table_parameters(
         catalog_id=catalog_id,
         transaction_id=transaction_id,
         table_input=table_input,
-        boto3_session=session,
+        boto3_session=boto3_session,
         catalog_versioning=catalog_versioning,
     )
 
@@ -573,6 +680,7 @@ def create_database(
     description: Optional[str] = None,
     catalog_id: Optional[str] = None,
     exist_ok: bool = False,
+    database_input_args: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Create a database in AWS Glue Catalog.
@@ -582,13 +690,16 @@ def create_database(
     name : str
         Database name.
     description : str, optional
-        A Descrption for the Database.
+        A description for the Database.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
     exist_ok : bool
         If set to True will not raise an Exception if a Database with the same already exists.
         In this case the description will be updated if it is different from the current one.
+    database_input_args : dict[str, Any], optional
+        Additional metadata to pass to database creation. Supported arguments listed here:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.create_database
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -604,8 +715,8 @@ def create_database(
     ...     name='awswrangler_test'
     ... )
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    args: Dict[str, str] = {"Name": name}
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
+    args: Dict[str, Any] = {"Name": name, **database_input_args} if database_input_args else {"Name": name}
     if description is not None:
         args["Description"] = description
 
@@ -613,8 +724,10 @@ def create_database(
         r = client_glue.get_database(**_catalog_id(catalog_id=catalog_id, Name=name))
         if not exist_ok:
             raise exceptions.AlreadyExists(f"Database {name} already exists and <exist_ok> is set to False.")
-        if description and description != r["Database"].get("Description", ""):
-            client_glue.update_database(**_catalog_id(catalog_id=catalog_id, Name=name, DatabaseInput=args))
+        for k, v in args.items():
+            if v != r["Database"].get(k, ""):
+                client_glue.update_database(**_catalog_id(catalog_id=catalog_id, Name=name, DatabaseInput=args))
+                break
     except client_glue.exceptions.EntityNotFoundException:
         client_glue.create_database(**_catalog_id(catalog_id=catalog_id, DatabaseInput=args))
 
@@ -627,16 +740,16 @@ def create_parquet_table(
     columns_types: Dict[str, str],
     table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
-    mode: str = "overwrite",
+    mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     transaction_id: Optional[str] = None,
-    projection_params: Optional[Dict[str, Any]] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Create a Parquet Table (Metadata Only) in the AWS Glue Catalog.
@@ -678,8 +791,11 @@ def create_parquet_table(
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
-    projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
         Following projection parameters are supported:
 
         .. list-table:: Projection Parameters
@@ -749,9 +865,12 @@ def create_parquet_table(
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
+        database=database,
+        table=table,
+        boto3_session=boto3_session,
+        transaction_id=transaction_id,
+        catalog_id=catalog_id,
     )
     _create_parquet_table(
         database=database,
@@ -769,7 +888,169 @@ def create_parquet_table(
         mode=mode,
         catalog_versioning=catalog_versioning,
         transaction_id=transaction_id,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
+        boto3_session=boto3_session,
+        catalog_table_input=catalog_table_input,
+    )
+
+
+@apply_configs
+def create_orc_table(
+    database: str,
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    table_type: Optional[str] = None,
+    partitions_types: Optional[Dict[str, str]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
+    catalog_id: Optional[str] = None,
+    compression: Optional[str] = None,
+    description: Optional[str] = None,
+    parameters: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, str]] = None,
+    mode: Literal["overwrite", "append"] = "overwrite",
+    catalog_versioning: bool = False,
+    transaction_id: Optional[str] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Create a ORC Table (Metadata Only) in the AWS Glue Catalog.
+
+    'https://docs.aws.amazon.com/athena/latest/ug/data-types.html'
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    path : str
+        Amazon S3 path (e.g. s3://bucket/prefix/).
+    columns_types: Dict[str, str]
+        Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+    table_type: str, optional
+        The type of the Glue Table (EXTERNAL_TABLE, GOVERNED...). Set to EXTERNAL_TABLE if None
+    partitions_types: Dict[str, str], optional
+        Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
+    bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    compression: str, optional
+        Compression style (``None``, ``snappy``, ``gzip``, etc).
+    description: str, optional
+        Table description
+    parameters: Dict[str, str], optional
+        Key/value pairs to tag the table.
+    columns_comments: Dict[str, str], optional
+        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
+    mode: str
+        'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
+    transaction_id: str, optional
+        The ID of the transaction (i.e. used with GOVERNED tables).
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
+        Following projection parameters are supported:
+
+        .. list-table:: Projection Parameters
+           :header-rows: 1
+
+           * - Name
+             - Type
+             - Description
+           * - projection_types
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections types.
+               Valid types: "enum", "integer", "date", "injected"
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+           * - projection_ranges
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections ranges.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+           * - projection_values
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections values.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+           * - projection_intervals
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections intervals.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '1', 'col2_name': '5'})
+           * - projection_digits
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections digits.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '1', 'col2_name': '2'})
+           * - projection_formats
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections formats.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
+           * - projection_storage_location_template
+             - Optional[str]
+             - Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+               a typical `.../column=value/...` pattern.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+               (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.create_parquet_table(
+    ...     database='default',
+    ...     table='my_table',
+    ...     path='s3://bucket/prefix/',
+    ...     columns_types={'col0': 'bigint', 'col1': 'double'},
+    ...     partitions_types={'col2': 'date'},
+    ...     compression='snappy',
+    ...     description='My own table!',
+    ...     parameters={'source': 'postgresql'},
+    ...     columns_comments={'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}
+    ... )
+
+    """
+    catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
+        database=database,
+        table=table,
+        boto3_session=boto3_session,
+        transaction_id=transaction_id,
+        catalog_id=catalog_id,
+    )
+    _create_orc_table(
+        database=database,
+        table=table,
+        path=path,
+        columns_types=columns_types,
+        table_type=table_type,
+        partitions_types=partitions_types,
+        bucketing_info=bucketing_info,
+        catalog_id=catalog_id,
+        compression=compression,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+        mode=mode,
+        catalog_versioning=catalog_versioning,
+        transaction_id=transaction_id,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
     )
@@ -783,12 +1064,12 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     columns_types: Dict[str, str],
     table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
-    mode: str = "overwrite",
+    mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     sep: str = ",",
@@ -797,7 +1078,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     serde_parameters: Optional[Dict[str, str]] = None,
     transaction_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-    projection_params: Optional[Dict[str, Any]] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
     r"""Create a CSV Table (Metadata Only) in the AWS Glue Catalog.
@@ -836,7 +1117,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     mode : str
-        'overwrite' to recreate any possible axisting table or 'append' to keep any possible axisting table.
+        'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
@@ -857,8 +1138,11 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
-    projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
         Following projection parameters are supported:
 
         .. list-table:: Projection Parameters
@@ -931,9 +1215,12 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
+        database=database,
+        table=table,
+        boto3_session=boto3_session,
+        transaction_id=transaction_id,
+        catalog_id=catalog_id,
     )
     _create_csv_table(
         database=database,
@@ -952,7 +1239,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         catalog_versioning=catalog_versioning,
         transaction_id=transaction_id,
         schema_evolution=schema_evolution,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
         sep=sep,
@@ -970,19 +1257,19 @@ def create_json_table(  # pylint: disable=too-many-arguments
     columns_types: Dict[str, str],
     table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
-    mode: str = "overwrite",
+    mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     serde_library: Optional[str] = None,
     serde_parameters: Optional[Dict[str, str]] = None,
     transaction_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-    projection_params: Optional[Dict[str, Any]] = None,
+    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
     r"""Create a JSON Table (Metadata Only) in the AWS Glue Catalog.
@@ -1016,7 +1303,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     mode : str
-        'overwrite' to recreate any possible axisting table or 'append' to keep any possible axisting table.
+        'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
@@ -1033,8 +1320,11 @@ def create_json_table(  # pylint: disable=too-many-arguments
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
-    projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
+        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+
         Following projection parameters are supported:
 
         .. list-table:: Projection Parameters
@@ -1106,9 +1396,8 @@ def create_json_table(  # pylint: disable=too-many-arguments
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, boto3_session=session, catalog_id=catalog_id
+        database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id
     )
     _create_json_table(
         database=database,
@@ -1127,7 +1416,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
         catalog_versioning=catalog_versioning,
         transaction_id=transaction_id,
         schema_evolution=schema_evolution,
-        projection_params=projection_params,
+        athena_partition_projection_settings=athena_partition_projection_settings,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
         serde_library=serde_library,

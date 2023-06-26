@@ -1,4 +1,4 @@
-"""Amazon DynamoDB Write Module."""
+"""Amazon DynamoDB Module."""
 
 from awswrangler.dynamodb._delete import delete_items
 from awswrangler.dynamodb._read import read_items, read_partiql_query

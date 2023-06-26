@@ -1,13 +1,13 @@
+# mypy: disable-error-code=name-defined
 """Amazon OpenSearch Read Module (PRIVATE)."""
 
 from typing import Any, Collection, Dict, List, Mapping, Optional, Union
 
-import pandas as pd
-from opensearchpy import OpenSearch
-from opensearchpy.helpers import scan
-
-from awswrangler import exceptions
+import awswrangler.pandas as pd
+from awswrangler import _utils, exceptions
 from awswrangler.opensearch._utils import _get_distribution, _is_serverless
+
+opensearchpy = _utils.import_optional_dependency("opensearchpy")
 
 
 def _resolve_fields(row: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -41,8 +41,9 @@ def _search_response_to_df(response: Union[Mapping[str, Any], Any]) -> pd.DataFr
     return pd.DataFrame(_search_response_to_documents(response))
 
 
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def search(
-    client: OpenSearch,
+    client: "opensearchpy.OpenSearch",
     index: Optional[str] = "_all",
     search_body: Optional[Dict[str, Any]] = None,
     doc_type: Optional[str] = None,
@@ -50,7 +51,7 @@ def search(
     filter_path: Optional[Union[str, Collection[str]]] = None,
     **kwargs: Any,
 ) -> pd.DataFrame:
-    """Return results matching query DSL as pandas dataframe.
+    """Return results matching query DSL as pandas DataFrame.
 
     Parameters
     ----------
@@ -76,7 +77,7 @@ def search(
         KEYWORD arguments forwarded to `opensearchpy.OpenSearch.search \
 <https://opensearch-py.readthedocs.io/en/latest/api.html#opensearchpy.OpenSearch.search>`_
         and also to `opensearchpy.helpers.scan <https://opensearch-py.readthedocs.io/en/master/helpers.html#scan>`_
-         if `is_scroll=True`
+        if `is_scroll=True`
 
     Returns
     -------
@@ -116,7 +117,9 @@ def search(
         if isinstance(filter_path, str):
             filter_path = [filter_path]
         filter_path = ["_scroll_id", "_shards"] + list(filter_path)  # required for scroll
-        documents_generator = scan(client, index=index, query=search_body, filter_path=filter_path, **kwargs)
+        documents_generator = opensearchpy.helpers.scan(
+            client, index=index, query=search_body, filter_path=filter_path, **kwargs
+        )
         documents = [_hit_to_row(doc) for doc in documents_generator]
         df = pd.DataFrame(documents)
     else:
@@ -125,8 +128,9 @@ def search(
     return df
 
 
-def search_by_sql(client: OpenSearch, sql_query: str, **kwargs: Any) -> pd.DataFrame:
-    """Return results matching `SQL query <https://opensearch.org/docs/search-plugins/sql/index/>`_ as pandas dataframe.
+@_utils.check_optional_dependency(opensearchpy, "opensearchpy")
+def search_by_sql(client: "opensearchpy.OpenSearch", sql_query: str, **kwargs: Any) -> pd.DataFrame:
+    """Return results matching `SQL query <https://opensearch.org/docs/search-plugins/sql/index/>`_ as pandas DataFrame.
 
     Parameters
     ----------
@@ -170,7 +174,7 @@ def search_by_sql(client: OpenSearch, sql_query: str, **kwargs: Any) -> pd.DataF
             body["fetch_size"] = kwargs[size_att]
             del kwargs[size_att]  # unrecognized parameter
     response = client.transport.perform_request(
-        "POST", url, headers={"Content-Type": "application/json"}, body=body, params=kwargs
+        "POST", url, headers={"content-type": "application/json"}, body=body, params=kwargs
     )
     df = _search_response_to_df(response)
     return df

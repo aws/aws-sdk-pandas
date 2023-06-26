@@ -49,6 +49,14 @@ class QueryCancelled(Exception):
     """QueryCancelled exception."""
 
 
+class SessionFailed(Exception):
+    """SessionFailed exception."""
+
+
+class CalculationFailed(Exception):
+    """CalculationFailed exception."""
+
+
 class EmptyDataFrame(Exception):
     """EmptyDataFrame exception."""
 
@@ -135,3 +143,15 @@ class PolicyResourceConflict(Exception):
 
 class NotSupported(Exception):
     """NotSupported."""
+
+
+class TimestreamLoadError(Exception):
+    """TimestreamLoadError exception."""
+
+
+class NeptuneLoadError(Exception):
+    """NeptuneLoadError."""
+
+
+class EMRServerlessJobError(Exception):
+    """EMRServerlessJobError."""

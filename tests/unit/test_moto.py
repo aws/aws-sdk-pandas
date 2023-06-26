@@ -1,7 +1,7 @@
 import logging
 import os
 from unittest import mock
-from unittest.mock import ANY
+from unittest.mock import ANY, patch
 
 import boto3
 import botocore
@@ -11,7 +11,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
-from awswrangler.exceptions import EmptyDataFrame, InvalidArgumentCombination, InvalidArgumentValue
+from awswrangler.exceptions import InvalidArgumentCombination, InvalidArgumentValue
 
 from .._utils import ensure_data_types, get_df_csv, get_df_list
 
@@ -53,9 +53,9 @@ def moto_s3():
 def moto_glue():
     with moto.mock_glue():
         region_name = "us-east-1"
-        os.environ["AWS_DEFAULT_REGION"] = region_name
-        glue = boto3.client("glue", region_name=region_name)
-        yield glue
+        with patch.dict(os.environ, {"AWS_DEFAULT_REGION": region_name}):
+            glue = boto3.client("glue", region_name=region_name)
+            yield glue
 
 
 @pytest.fixture(scope="function")
@@ -343,16 +343,47 @@ def test_to_csv_invalid_argument_combination_raise_when_dataset_false_succeed(mo
         wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, partition_cols=["par0", "par1"])
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, database="default", table="test")
+        wr.s3.to_csv(
+            df=get_df_csv(),
+            path=path,
+            index=False,
+            dataset=False,
+            database="default",
+            table="test",
+        )
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, description="raise exception")
+        wr.s3.to_csv(
+            df=get_df_csv(),
+            path=path,
+            index=False,
+            dataset=False,
+            database=None,
+            table=None,
+            glue_table_settings=wr.typing.GlueTableSettings(description="raise exception"),
+        )
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, parameters={"key": "value"})
+        wr.s3.to_csv(
+            df=get_df_csv(),
+            path=path,
+            index=False,
+            dataset=False,
+            database=None,
+            table=None,
+            glue_table_settings=wr.typing.GlueTableSettings(parameters={"key": "value"}),
+        )
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, columns_comments={"col0": "test"})
+        wr.s3.to_csv(
+            df=get_df_csv(),
+            path=path,
+            index=False,
+            dataset=False,
+            database=None,
+            table=None,
+            glue_table_settings=wr.typing.GlueTableSettings(columns_comments={"col0": "test"}),
+        )
 
 
 def test_to_csv_valid_argument_combination_when_dataset_true_succeed(moto_s3):
@@ -362,17 +393,10 @@ def test_to_csv_valid_argument_combination_when_dataset_true_succeed(moto_s3):
 
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, mode="append")
 
-    wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, description="raise exception")
 
-    wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, parameters={"key": "value"})
-
-    wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, columns_comments={"col0": "test"})
-
-
-def test_to_csv_data_empty_raise_succeed(moto_s3):
+def test_to_csv_data_empty(moto_s3):
     path = "s3://bucket/test.csv"
-    with pytest.raises(EmptyDataFrame):
-        wr.s3.to_csv(df=pd.DataFrame(), path=path, index=False)
+    wr.s3.to_csv(df=pd.DataFrame(), path=path, index=False)
 
 
 def test_parquet(moto_s3):

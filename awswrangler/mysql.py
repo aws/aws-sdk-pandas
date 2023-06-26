@@ -1,19 +1,19 @@
+# mypy: disable-error-code=name-defined
 """Amazon MySQL Module."""
 
 import logging
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Type, Union, cast, overload
 
 import boto3
-import pandas as pd
 import pyarrow as pa
-import pymysql
-from pymysql.cursors import Cursor
 
-from awswrangler import _data_types
+import awswrangler.pandas as pd
+from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
-from awswrangler import exceptions
 from awswrangler._config import apply_configs
+
+pymysql = _utils.import_optional_dependency("pymysql")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -27,14 +27,14 @@ def _validate_connection(con: "pymysql.connections.Connection[Any]") -> None:
         )
 
 
-def _drop_table(cursor: Cursor, schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "pymysql.cursors.Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f"`{schema}`." if schema else ""
     sql = f"DROP TABLE IF EXISTS {schema_str}`{table}`"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: Cursor, schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "pymysql.cursors.Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE " f"{schema_str} TABLE_NAME = '{table}'")
     return len(cursor.fetchall()) > 0
@@ -42,7 +42,7 @@ def _does_table_exist(cursor: Cursor, schema: Optional[str], table: str) -> bool
 
 def _create_table(
     df: pd.DataFrame,
-    cursor: Cursor,
+    cursor: "pymysql.cursors.Cursor",
     table: str,
     schema: str,
     mode: str,
@@ -68,6 +68,7 @@ def _create_table(
     cursor.execute(sql)
 
 
+@_utils.check_optional_dependency(pymysql, "pymysql")
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
@@ -77,7 +78,7 @@ def connect(
     read_timeout: Optional[int] = None,
     write_timeout: Optional[int] = None,
     connect_timeout: int = 10,
-    cursorclass: Type[Cursor] = Cursor,
+    cursorclass: Optional[Type["pymysql.cursors.Cursor"]] = None,
 ) -> "pymysql.connections.Connection[Any]":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
@@ -163,14 +164,62 @@ def connect(
         password=attrs.password,
         port=attrs.port,
         host=attrs.host,
-        ssl=attrs.ssl_context,  # type: ignore
+        ssl=attrs.ssl_context,
         read_timeout=read_timeout,
         write_timeout=write_timeout,
         connect_timeout=connect_timeout,
-        cursorclass=cursorclass,
+        cursorclass=cursorclass or pymysql.cursors.Cursor,
     )
 
 
+@overload
+def read_sql_query(
+    sql: str,
+    con: "pymysql.connections.Connection[Any]",
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "pymysql.connections.Connection[Any]",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: "pymysql.connections.Connection[Any]",
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_query(
     sql: str,
     con: "pymysql.connections.Connection[Any]",
@@ -180,6 +229,7 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -205,6 +255,12 @@ def read_sql_query(
         Check for overflows or other unsafe data type conversions.
     timestamp_as_object : bool
         Cast non-nanosecond timestamps (np.datetime64) to objects.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
 
     Returns
     -------
@@ -234,9 +290,61 @@ def read_sql_query(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        dtype_backend=dtype_backend,
     )
 
 
+@overload
+def read_sql_table(
+    table: str,
+    con: "pymysql.connections.Connection[Any]",
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "pymysql.connections.Connection[Any]",
+    *,
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: "pymysql.connections.Connection[Any]",
+    *,
+    schema: Optional[str] = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_table(
     table: str,
     con: "pymysql.connections.Connection[Any]",
@@ -247,6 +355,7 @@ def read_sql_table(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding the table.
 
@@ -275,6 +384,12 @@ def read_sql_table(
         Check for overflows or other unsafe data type conversions.
     timestamp_as_object : bool
         Cast non-nanosecond timestamps (np.datetime64) to objects.
+    dtype_backend: str, optional
+        Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
+        nullable dtypes are used for all dtypes that have a nullable implementation when
+        “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
+
+        The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
 
     Returns
     -------
@@ -305,22 +420,29 @@ def read_sql_table(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        dtype_backend=dtype_backend,
     )
 
 
+_ToSqlModeLiteral = Literal[
+    "append", "overwrite", "upsert_replace_into", "upsert_duplicate_key", "upsert_distinct", "ignore"
+]
+
+
+@_utils.check_optional_dependency(pymysql, "pymysql")
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
     con: "pymysql.connections.Connection[Any]",
     table: str,
     schema: str,
-    mode: str = "append",
+    mode: _ToSqlModeLiteral = "append",
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
     chunksize: int = 200,
-    cursorclass: Type[Cursor] = Cursor,
+    cursorclass: Optional[Type["pymysql.cursors.Cursor"]] = None,
 ) -> None:
     """Write records stored in a DataFrame into MySQL.
 
@@ -335,7 +457,7 @@ def to_sql(
     schema : str
         Schema name
     mode : str
-        Append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct, ignore.
+        append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct, ignore.
             append: Inserts new records into table.
             overwrite: Drops table and recreates.
             upsert_duplicate_key: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
@@ -389,7 +511,7 @@ def to_sql(
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
-    mode = mode.strip().lower()
+    mode = cast(_ToSqlModeLiteral, mode.strip().lower())
     allowed_modes = [
         "append",
         "overwrite",
@@ -401,7 +523,7 @@ def to_sql(
     _db_utils.validate_mode(mode=mode, allowed_modes=allowed_modes)
     _validate_connection(con=con)
     try:
-        with con.cursor(cursor=cursorclass) as cursor:
+        with con.cursor(cursor=cursorclass or pymysql.cursors.Cursor) as cursor:
             _create_table(
                 df=df,
                 cursor=cursor,

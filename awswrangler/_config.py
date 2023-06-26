@@ -3,25 +3,30 @@
 import inspect
 import logging
 import os
+from functools import wraps
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar, Union, cast
 
 import botocore.config
 import pandas as pd
+from typing_extensions import Literal
 
 from awswrangler import exceptions
+from awswrangler.typing import AthenaCacheSettings
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_ConfigValueType = Union[str, bool, int, botocore.config.Config, None]
+_ConfigValueType = Union[str, bool, int, float, botocore.config.Config, dict]
 
 
 class _ConfigArg(NamedTuple):
-    dtype: Type[Union[str, bool, int, botocore.config.Config]]
+    dtype: Type[_ConfigValueType]
     nullable: bool
     enforced: bool = False
     loaded: bool = False
     default: Optional[_ConfigValueType] = None
+    parent_parameter_key: Optional[str] = None
+    is_parent: bool = False
 
 
 # Please, also add any new argument as a property in the _Config class
@@ -30,13 +35,22 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "concurrent_partitioning": _ConfigArg(dtype=bool, nullable=False),
     "ctas_approach": _ConfigArg(dtype=bool, nullable=False),
     "database": _ConfigArg(dtype=str, nullable=True),
-    "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False),
-    "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
-    "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False),
-    "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False),
+    "athena_cache_settings": _ConfigArg(dtype=dict, nullable=False, is_parent=True, loaded=True),
+    "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
+    "max_cache_seconds": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
+    "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
+    "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
+    "athena_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "cloudwatch_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "lakeformation_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "neptune_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "timestream_batch_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "emr_serverless_job_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
+    "suppress_warnings": _ConfigArg(dtype=bool, nullable=False, default=False, loaded=True),
+    "dtype_backend": _ConfigArg(dtype=str, nullable=True),
     # Endpoints URLs
     "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
@@ -71,22 +85,9 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     """AWS Wrangler's Configuration class."""
 
     def __init__(self) -> None:
-        self._loaded_values: Dict[str, _ConfigValueType] = {}
-        name: str
-        self.s3_endpoint_url = None
-        self.athena_endpoint_url = None
-        self.sts_endpoint_url = None
-        self.glue_endpoint_url = None
-        self.redshift_endpoint_url = None
-        self.kms_endpoint_url = None
-        self.emr_endpoint_url = None
-        self.lakeformation_endpoint_url = None
-        self.dynamodb_endpoint_url = None
-        self.secretsmanager_endpoint_url = None
-        self.timestream_write_endpoint_url = None
-        self.timestream_query_endpoint_url = None
+        self._loaded_values: Dict[str, Optional[_ConfigValueType]] = {}
         self.botocore_config = None
-        self.verify = None
+
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
 
@@ -132,12 +133,16 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         """
         args: List[Dict[str, Any]] = []
         for k, v in _CONFIG_ARGS.items():
+            if v.is_parent:
+                continue
+
             arg: Dict[str, Any] = {
                 "name": k,
-                "Env. Variable": f"WR_{k.upper()}",
+                "Env.Variable": f"WR_{k.upper()}",
                 "type": v.dtype,
                 "nullable": v.nullable,
                 "enforced": v.enforced,
+                "parent_parameter_name": v.parent_parameter_key,
             }
             if k in self._loaded_values:
                 arg["configured"] = True
@@ -148,45 +153,77 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             args.append(arg)
         return pd.DataFrame(args)
 
-    def _load_config(self, name: str) -> bool:
-        loaded_config: bool = False
+    def _load_config(self, name: str) -> None:
+        if _CONFIG_ARGS[name].is_parent:
+            if self._loaded_values.get(name) is None:
+                self._set_config_value(key=name, value={})
+            return
+
         if _CONFIG_ARGS[name].loaded:
             self._set_config_value(key=name, value=_CONFIG_ARGS[name].default)
-            loaded_config = True
+
         env_var: Optional[str] = os.getenv(f"WR_{name.upper()}")
         if env_var is not None:
             self._set_config_value(key=name, value=env_var)
-            loaded_config = True
-        return loaded_config
 
     def _set_config_value(self, key: str, value: Any) -> None:
         if key not in _CONFIG_ARGS:
             raise exceptions.InvalidArgumentValue(
                 f"{key} is not a valid configuration. Please use: {list(_CONFIG_ARGS.keys())}"
             )
-        value_casted: _ConfigValueType = self._apply_type(
-            name=key, value=value, dtype=_CONFIG_ARGS[key].dtype, nullable=_CONFIG_ARGS[key].nullable
+        value_casted: Optional[_ConfigValueType] = self._apply_type(
+            name=key,
+            value=value,
+            dtype=_CONFIG_ARGS[key].dtype,
+            nullable=_CONFIG_ARGS[key].nullable,
         )
-        self._loaded_values[key] = value_casted
 
-    def __getitem__(self, item: str) -> _ConfigValueType:
-        if item not in self._loaded_values:
+        parent_key = _CONFIG_ARGS[key].parent_parameter_key
+        if parent_key:
+            self._loaded_values[parent_key][key] = value_casted  # type: ignore[index]
+        else:
+            self._loaded_values[key] = value_casted
+
+    def __getitem__(self, item: str) -> Optional[_ConfigValueType]:
+        if issubclass(_CONFIG_ARGS[item].dtype, dict):
+            return self._loaded_values[item]
+
+        loaded_values: Dict[str, Optional[_ConfigValueType]]
+        parent_key = _CONFIG_ARGS[item].parent_parameter_key
+        if parent_key:
+            loaded_values = self[parent_key]  # type: ignore[assignment]
+        else:
+            loaded_values = self._loaded_values
+
+        if item not in loaded_values:
             raise AttributeError(f"{item} not configured yet.")
-        return self._loaded_values[item]
+
+        return loaded_values[item]
 
     def _reset_item(self, item: str) -> None:
-        if item in self._loaded_values:
-            if _CONFIG_ARGS[item].loaded:
-                self._loaded_values[item] = _CONFIG_ARGS[item].default
+        config_arg = _CONFIG_ARGS[item]
+        loaded_values: Dict[str, Optional[_ConfigValueType]]
+
+        if config_arg.parent_parameter_key:
+            loaded_values = self[config_arg.parent_parameter_key]  # type: ignore[assignment]
+        else:
+            loaded_values = self._loaded_values
+
+        if item in loaded_values:
+            if config_arg.is_parent:
+                loaded_values[item] = {}
+            elif config_arg.loaded:
+                loaded_values[item] = config_arg.default
             else:
-                del self._loaded_values[item]
+                del loaded_values[item]
+
         self._load_config(name=item)
 
     def _repr_html_(self) -> Any:
         return self.to_pandas().to_html()
 
     @staticmethod
-    def _apply_type(name: str, value: Any, dtype: Type[Union[str, bool, int]], nullable: bool) -> _ConfigValueType:
+    def _apply_type(name: str, value: Any, dtype: Type[_ConfigValueType], nullable: bool) -> Optional[_ConfigValueType]:
         if _Config._is_null(value=value):
             if nullable is True:
                 return None
@@ -199,7 +236,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.") from ex
 
     @staticmethod
-    def _is_null(value: _ConfigValueType) -> bool:
+    def _is_null(value: Optional[_ConfigValueType]) -> bool:
         if value is None:
             return True
         if isinstance(value, str) is True:
@@ -243,6 +280,11 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @database.setter
     def database(self, value: Optional[str]) -> None:
         self._set_config_value(key="database", value=value)
+
+    @property
+    def athena_cache_settings(self) -> AthenaCacheSettings:
+        """Property athena_cache_settings."""
+        return cast(AthenaCacheSettings, self["athena_cache_settings"])
 
     @property
     def max_cache_query_inspections(self) -> int:
@@ -292,6 +334,60 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="max_remote_cache_entries", value=value)
 
     @property
+    def athena_query_wait_polling_delay(self) -> float:
+        """Property athena_query_wait_polling_delay."""
+        return cast(float, self["athena_query_wait_polling_delay"])
+
+    @athena_query_wait_polling_delay.setter
+    def athena_query_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="athena_query_wait_polling_delay", value=value)
+
+    @property
+    def cloudwatch_query_wait_polling_delay(self) -> float:
+        """Property cloudwatch_query_wait_polling_delay."""
+        return cast(float, self["cloudwatch_query_wait_polling_delay"])
+
+    @cloudwatch_query_wait_polling_delay.setter
+    def cloudwatch_query_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="cloudwatch_query_wait_polling_delay", value=value)
+
+    @property
+    def lakeformation_query_wait_polling_delay(self) -> float:
+        """Property lakeformation_query_wait_polling_delay."""
+        return cast(float, self["lakeformation_query_wait_polling_delay"])
+
+    @lakeformation_query_wait_polling_delay.setter
+    def lakeformation_query_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="lakeformation_query_wait_polling_delay", value=value)
+
+    @property
+    def neptune_load_wait_polling_delay(self) -> float:
+        """Property neptune_load_wait_polling_delay."""
+        return cast(float, self["neptune_load_wait_polling_delay"])
+
+    @neptune_load_wait_polling_delay.setter
+    def neptune_load_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="neptune_load_wait_polling_delay", value=value)
+
+    @property
+    def timestream_batch_load_wait_polling_delay(self) -> float:
+        """Property timestream_batch_load_wait_polling_delay."""
+        return cast(float, self["timestream_batch_load_wait_polling_delay"])
+
+    @timestream_batch_load_wait_polling_delay.setter
+    def timestream_batch_load_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="timestream_batch_load_wait_polling_delay", value=value)
+
+    @property
+    def emr_serverless_job_wait_polling_delay(self) -> float:
+        """Property emr_serverless_job_wait_polling_delay."""
+        return cast(float, self["emr_serverless_job_wait_polling_delay"])
+
+    @emr_serverless_job_wait_polling_delay.setter
+    def emr_serverless_job_wait_polling_delay(self, value: float) -> None:
+        self._set_config_value(key="emr_serverless_job_wait_polling_delay", value=value)
+
+    @property
     def s3_block_size(self) -> int:
         """Property s3_block_size."""
         return cast(int, self["s3_block_size"])
@@ -317,6 +413,24 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @chunksize.setter
     def chunksize(self, value: int) -> None:
         self._set_config_value(key="chunksize", value=value)
+
+    @property
+    def suppress_warnings(self) -> bool:
+        """Property suppress_warnings."""
+        return cast(bool, self["suppress_warnings"])
+
+    @suppress_warnings.setter
+    def suppress_warnings(self, value: bool) -> None:
+        self._set_config_value(key="suppress_warnings", value=value)
+
+    @property
+    def dtype_backend(self) -> Literal["numpy_nullable", "pyarrow", None]:
+        """Property dtype_backend."""
+        return cast(Literal["numpy_nullable", "pyarrow", None], self["dtype_backend"])
+
+    @dtype_backend.setter
+    def dtype_backend(self, value: Literal["numpy_nullable", "pyarrow", None]) -> None:
+        self._set_config_value(key="dtype_backend", value=value)
 
     @property
     def s3_endpoint_url(self) -> Optional[str]:
@@ -437,7 +551,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="timestream_write_endpoint_url", value=value)
 
     @property
-    def botocore_config(self) -> botocore.config.Config:
+    def botocore_config(self) -> Optional[botocore.config.Config]:
         """Property botocore_config."""
         return cast(Optional[botocore.config.Config], self["botocore_config"])
 
@@ -573,6 +687,25 @@ def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -
     return _insert_str(text=doc, token="\n    Parameters", insert=insertion)
 
 
+def _assign_args_value(args: Dict[str, Any], name: str, value: Any) -> None:
+    if _CONFIG_ARGS[name].is_parent:
+        if name not in args:
+            args[name] = {}
+
+        nested_args = cast(Dict[str, Any], value)
+        for nested_arg_name, nested_arg_value in nested_args.items():
+            _assign_args_value(args[name], nested_arg_name, nested_arg_value)
+        return
+
+    if name not in args:
+        _logger.debug("Applying default config argument %s with value %s.", name, value)
+        args[name] = value
+
+    elif _CONFIG_ARGS[name].enforced is True:
+        _logger.debug("Applying ENFORCED config argument %s with value %s.", name, value)
+        args[name] = value
+
+
 FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
 
@@ -582,17 +715,14 @@ def apply_configs(function: FunctionType) -> FunctionType:
     args_names: Tuple[str, ...] = tuple(signature.parameters.keys())
     available_configs: Tuple[str, ...] = tuple(x for x in _CONFIG_ARGS if x in args_names)
 
+    @wraps(function)
     def wrapper(*args_raw: Any, **kwargs: Any) -> Any:
         args: Dict[str, Any] = signature.bind_partial(*args_raw, **kwargs).arguments
         for name in available_configs:
             if hasattr(config, name) is True:
-                value: _ConfigValueType = config[name]
-                if name not in args:
-                    _logger.debug("Applying default config argument %s with value %s.", name, value)
-                    args[name] = value
-                elif _CONFIG_ARGS[name].enforced is True:
-                    _logger.debug("Applying ENFORCED config argument %s with value %s.", name, value)
-                    args[name] = value
+                value = config[name]
+                _assign_args_value(args, name, value)
+
         for name, param in signature.parameters.items():
             if param.kind == param.VAR_KEYWORD and name in args:
                 if isinstance(args[name], dict) is False:
@@ -605,7 +735,7 @@ def apply_configs(function: FunctionType) -> FunctionType:
     wrapper.__doc__ = _inject_config_doc(doc=function.__doc__, available_configs=available_configs)
     wrapper.__name__ = function.__name__
     wrapper.__setattr__("__signature__", signature)  # pylint: disable=no-member
-    return wrapper  # type: ignore
+    return wrapper  # type: ignore[return-value]
 
 
 config: _Config = _Config()

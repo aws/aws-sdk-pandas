@@ -2,18 +2,21 @@ import logging
 import random
 import string
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
-import pandas as pd
 import pytest  # type: ignore
 from gremlin_python.process.traversal import Direction, T
 
 import awswrangler as wr
+import awswrangler.pandas as pd
+from awswrangler.neptune._client import BulkLoadParserConfiguration
 
 from .._utils import extract_cloudformation_outputs
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="session")
@@ -36,6 +39,11 @@ def neptune_iam_enabled(cloudformation_outputs) -> int:
     return cloudformation_outputs["NeptuneIAMEnabled"]
 
 
+@pytest.fixture(scope="session")
+def neptune_load_iam_role_arn(cloudformation_outputs: Dict[str, Any]) -> str:
+    return cloudformation_outputs["NeptuneBulkLoadRole"]
+
+
 def test_connection_neptune_https(neptune_endpoint, neptune_port, neptune_iam_enabled):
     client = wr.neptune.connect(host=neptune_endpoint, port=neptune_port, iam_enabled=neptune_iam_enabled)
     resp = client.status()
@@ -52,19 +60,15 @@ def test_opencypher_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     wr.neptune.execute_opencypher(client, "create (a:Foo { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
     df = wr.neptune.execute_opencypher(client, "MATCH (n) RETURN n LIMIT 1")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 1)
 
-    assert isinstance(df, pd.DataFrame)
     df = wr.neptune.execute_opencypher(client, "MATCH (n) RETURN n LIMIT 2")
     assert df.shape == (2, 1)
 
     df = wr.neptune.execute_opencypher(client, "MATCH p=(n)-[r]->(d) RETURN p LIMIT 1")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 1)
 
     df = wr.neptune.execute_opencypher(client, "MATCH (n) RETURN id(n), labels(n) LIMIT 1")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 2)
     row = df.iloc[0]
     assert row["id(n)"]
@@ -76,19 +80,16 @@ def test_flatten_df(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     wr.neptune.execute_opencypher(client, "create (a:Foo1 { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
     df = wr.neptune.execute_opencypher(client, "MATCH (n:Foo1) RETURN n LIMIT 1")
     df_test = wr.neptune.flatten_nested_df(df)
-    assert isinstance(df_test, pd.DataFrame)
     assert df_test.shape == (1, 6)
     row = df_test.iloc[0]
     assert row["n_~properties_name"]
 
     df_test = wr.neptune.flatten_nested_df(df, include_prefix=False)
-    assert isinstance(df_test, pd.DataFrame)
     assert df_test.shape == (1, 6)
     row = df_test.iloc[0]
     assert row["_~properties_name"]
 
-    df_test = wr.neptune.flatten_nested_df(df, seperator="|")
-    assert isinstance(df_test, pd.DataFrame)
+    df_test = wr.neptune.flatten_nested_df(df, separator="|")
     assert df_test.shape == (1, 6)
     row = df_test.iloc[0]
     assert row["n|~properties|name"]
@@ -129,11 +130,9 @@ def test_gremlin_query_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
 
     wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{uuid.uuid4()}')")
     df = wr.neptune.execute_gremlin(client, "g.V().limit(1)")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 2)
 
     df = wr.neptune.execute_gremlin(client, "g.V().limit(2)")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (2, 2)
 
 
@@ -142,11 +141,9 @@ def test_gremlin_query_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
     wr.neptune.execute_gremlin(client, "g.addE('bar').from(addV('foo')).to(addV('foo'))")
     df = wr.neptune.execute_gremlin(client, "g.E().limit(1)")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 4)
 
     df = wr.neptune.execute_gremlin(client, "g.E().limit(2)")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (2, 4)
 
 
@@ -154,7 +151,7 @@ def test_gremlin_query_no_results(neptune_endpoint, neptune_port) -> Dict[str, A
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
     df = wr.neptune.execute_gremlin(client, "g.V('foo').drop()")
-    assert isinstance(df, pd.DataFrame)
+    assert df.empty
 
 
 def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
@@ -162,11 +159,9 @@ def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     df = wr.neptune.execute_sparql(client, "INSERT DATA { <test> <test> <test>}")
     df = wr.neptune.execute_sparql(client, "INSERT DATA { <test1> <test1> <test1>}")
     df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 1")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 3)
 
     df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 2")
-    assert isinstance(df, pd.DataFrame)
     assert df.shape == (2, 3)
 
 
@@ -210,6 +205,95 @@ def test_gremlin_write_different_cols(neptune_endpoint, neptune_port) -> Dict[st
     assert saved_row["age"] == 55
 
 
+@pytest.mark.parametrize("use_threads", [False, True])
+@pytest.mark.parametrize("keep_files", [False, True])
+def test_gremlin_bulk_load(
+    neptune_endpoint: str,
+    neptune_port: int,
+    neptune_load_iam_role_arn: str,
+    path: str,
+    use_threads: bool,
+    keep_files: bool,
+) -> None:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+
+    label = f"foo_{uuid.uuid4()}"
+    data = [_create_dummy_vertex(label) for _ in range(10)]
+    input_df = pd.DataFrame(data)
+
+    wr.neptune.bulk_load(
+        client=client,
+        df=input_df,
+        path=path,
+        iam_role=neptune_load_iam_role_arn,
+        use_threads=use_threads,
+        keep_files=keep_files,
+    )
+    res_df = wr.neptune.execute_gremlin(client, f"g.V().hasLabel('{label}').valueMap().with(WithOptions.tokens)")
+
+    assert res_df.shape == input_df.shape
+
+    if keep_files:
+        assert len(wr.s3.list_objects(path)) > 0
+    else:
+        assert len(wr.s3.list_objects(path)) == 0
+
+
+def test_gremlin_bulk_load_error_when_files_present(
+    neptune_endpoint: str,
+    neptune_port: int,
+    neptune_load_iam_role_arn: str,
+    path: str,
+) -> None:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+
+    df = pd.DataFrame([_create_dummy_vertex() for _ in range(10)])
+    wr.s3.to_csv(df, path, dataset=True, index=False)
+
+    # The received path is not empty
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        wr.neptune.bulk_load(
+            client=client,
+            df=df,
+            path=path,
+            iam_role=neptune_load_iam_role_arn,
+        )
+
+
+DEFAULT_PARSER_CONFIGURATION = BulkLoadParserConfiguration(
+    namedGraphUri="http://aws.amazon.com/neptune/vocab/v01/DefaultNamedGraph",
+    baseUri="http://aws.amazon.com/neptune/default",
+    allowEmptyStrings=False,
+)
+
+
+@pytest.mark.parametrize("parser_config", [None, DEFAULT_PARSER_CONFIGURATION])
+def test_gremlin_bulk_load_from_files(
+    neptune_endpoint: str,
+    neptune_port: int,
+    neptune_load_iam_role_arn: str,
+    path: str,
+    parser_config: Optional[BulkLoadParserConfiguration],
+) -> None:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+
+    label = f"foo_{uuid.uuid4()}"
+    data = [_create_dummy_vertex(label) for _ in range(10)]
+    input_df = pd.DataFrame(data)
+
+    wr.s3.to_csv(input_df, path, dataset=True, index=False)
+
+    wr.neptune.bulk_load_from_files(
+        client=client,
+        path=path,
+        iam_role=neptune_load_iam_role_arn,
+        parser_configuration=parser_config,
+    )
+    res_df = wr.neptune.execute_gremlin(client, f"g.V().hasLabel('{label}').valueMap().with(WithOptions.tokens)")
+
+    assert res_df.shape == input_df.shape
+
+
 def test_gremlin_write_updates(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     id = uuid.uuid4()
@@ -245,8 +329,9 @@ def test_gremlin_write_updates(neptune_endpoint, neptune_port) -> Dict[str, Any]
 def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     wr.neptune.execute_gremlin(client, "g.addV('foo')")
+
     initial_cnt_df = wr.neptune.execute_gremlin(client, "g.V().hasLabel('foo').count()")
-    data = [_create_dummy_vertex(), _create_dummy_vertex(), _create_dummy_vertex()]
+    data = [_create_dummy_vertex() for _ in range(3)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
@@ -263,10 +348,7 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     assert final_cnt_df.iloc[0][0] == initial_cnt_df.iloc[0][0] + 3
 
     # check to make sure batch addition of vertices works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_vertex())
-
+    data = [_create_dummy_vertex() for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
@@ -310,7 +392,7 @@ def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
     initial_cnt_df = wr.neptune.execute_gremlin(client, "g.E().hasLabel('bar').count()")
 
-    data = [_create_dummy_edge(), _create_dummy_edge(), _create_dummy_edge()]
+    data = [_create_dummy_edge() for _ in range(3)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
@@ -329,10 +411,7 @@ def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert final_cnt_df.iloc[0][0] == initial_cnt_df.iloc[0][0] + 3
 
     # check to make sure batch addition of edges works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_edge())
-
+    data = [_create_dummy_edge() for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
@@ -358,85 +437,86 @@ def test_sparql_write_different_cols(neptune_endpoint, neptune_port) -> Dict[str
 
 
 def test_sparql_write_triples(neptune_endpoint, neptune_port) -> Dict[str, Any]:
-    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
-    initial_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    label = f"foo_{uuid.uuid4()}"
+    sparkql_query = f"SELECT ?p ?o WHERE {{ <{label}> ?p ?o .}}"
 
-    data = [_create_dummy_triple(), _create_dummy_triple(), _create_dummy_triple()]
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    initial_df = wr.neptune.execute_sparql(client, sparkql_query)
+
+    data = [_create_dummy_triple(s=label) for _ in range(3)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_rdf_graph(client, df)
     assert res
 
-    final_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    final_df = wr.neptune.execute_sparql(client, sparkql_query)
     assert len(final_df.index) == len(initial_df.index) + 3
 
     # check to make sure batch addition of edges works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_triple())
-
+    data = [_create_dummy_triple(s=label) for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_rdf_graph(client, df)
     assert res
 
-    batch_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    batch_df = wr.neptune.execute_sparql(client, sparkql_query)
     assert len(batch_df.index) == len(final_df.index) + 50
 
 
 def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
-    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
-    initial_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o FROM <bar> WHERE { <foo> ?p ?o .}")
+    label = f"foo_{uuid.uuid4()}"
+    sparkql_query = f"SELECT ?p ?o FROM <bar> WHERE {{ <{label}> ?p ?o .}}"
 
-    data = [_create_dummy_quad(), _create_dummy_quad(), _create_dummy_quad()]
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    initial_df = wr.neptune.execute_sparql(client, sparkql_query)
+
+    data = [_create_dummy_quad(s=label) for _ in range(3)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_rdf_graph(client, df)
     assert res
 
-    final_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o  FROM <bar> WHERE { <foo> ?p ?o .}")
+    final_df = wr.neptune.execute_sparql(client, sparkql_query)
     assert len(final_df.index) == len(initial_df.index) + 3
 
     # check to make sure batch addition of edges works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_quad())
-
+    data = [_create_dummy_quad(s=label) for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_rdf_graph(client, df)
     assert res
 
-    batch_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o FROM <bar> WHERE { <foo> ?p ?o .}")
+    batch_df = wr.neptune.execute_sparql(client, sparkql_query)
     assert len(batch_df.index) == len(final_df.index) + 50
 
 
-def _create_dummy_vertex() -> Dict[str, Any]:
-    data = dict()
-    data["~id"] = str(uuid.uuid4())
-    data["~label"] = "foo"
-    data["int"] = random.randint(0, 1000)
-    data["str"] = "".join(random.choice(string.ascii_lowercase) for i in range(10))
-    data["list"] = [random.randint(0, 1000), random.randint(0, 1000)]
-    return data
+def _create_dummy_vertex(label: str = "foo") -> Dict[str, Any]:
+    return {
+        "~id": str(uuid.uuid4()),
+        "~label": label,
+        "int": random.randint(0, 1000),
+        "str": "".join(random.choice(string.ascii_lowercase) for i in range(10)),
+        "list": [random.randint(0, 1000), random.randint(0, 1000)],
+    }
 
 
 def _create_dummy_edge() -> Dict[str, Any]:
-    data = dict()
-    data["~id"] = str(uuid.uuid4())
-    data["~label"] = "bar"
-    data["~to"] = str(uuid.uuid4())
-    data["~from"] = str(uuid.uuid4())
-    data["int"] = random.randint(0, 1000)
-    data["str"] = "".join(random.choice(string.ascii_lowercase) for i in range(10))
-    return data
+    return {
+        "~id": str(uuid.uuid4()),
+        "~label": "bar",
+        "~to": str(uuid.uuid4()),
+        "~from": str(uuid.uuid4()),
+        "int": random.randint(0, 1000),
+        "str": "".join(random.choice(string.ascii_lowercase) for i in range(10)),
+    }
 
 
-def _create_dummy_triple() -> Dict[str, Any]:
-    data = dict()
-    data["s"] = "foo"
-    data["p"] = str(uuid.uuid4())
-    data["o"] = random.randint(0, 1000)
-    return data
+def _create_dummy_triple(s: str = "foo") -> Dict[str, Any]:
+    return {
+        "s": s,
+        "p": str(uuid.uuid4()),
+        "o": random.randint(0, 1000),
+    }
 
 
-def _create_dummy_quad() -> Dict[str, Any]:
-    data = _create_dummy_triple()
-    data["g"] = "bar"
-    return data
+def _create_dummy_quad(s: str = "foo") -> Dict[str, Any]:
+    return {
+        **_create_dummy_triple(s=s),
+        "g": "bar",
+    }

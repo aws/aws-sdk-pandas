@@ -1,6 +1,7 @@
 """Internal (private) Utilities Module."""
 
-import copy
+import importlib
+import inspect
 import itertools
 import logging
 import math
@@ -9,29 +10,204 @@ import random
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
 from functools import partial, wraps
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Type, Union, cast
+from types import ModuleType
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 import boto3
-import botocore.config
+import botocore.credentials
 import numpy as np
-import pandas as pd
 import pyarrow as pa
+from botocore.config import Config
 
+import awswrangler.pandas as pd
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
-from awswrangler._config import apply_configs
-from awswrangler._distributed import engine
+from awswrangler._config import _insert_str, apply_configs
+from awswrangler._distributed import EngineEnum, engine
+
+if TYPE_CHECKING:
+    from boto3.resources.base import ServiceResource
+    from botocore.client import BaseClient
+    from mypy_boto3_athena import AthenaClient
+    from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
+    from mypy_boto3_ec2 import EC2Client
+    from mypy_boto3_emr.client import EMRClient
+    from mypy_boto3_emr_serverless import EMRServerlessClient
+    from mypy_boto3_glue import GlueClient
+    from mypy_boto3_kms.client import KMSClient
+    from mypy_boto3_lakeformation.client import LakeFormationClient
+    from mypy_boto3_logs.client import CloudWatchLogsClient
+    from mypy_boto3_opensearch.client import OpenSearchServiceClient
+    from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
+    from mypy_boto3_quicksight.client import QuickSightClient
+    from mypy_boto3_rds_data.client import RDSDataServiceClient
+    from mypy_boto3_redshift.client import RedshiftClient
+    from mypy_boto3_redshift_data.client import RedshiftDataAPIServiceClient
+    from mypy_boto3_s3 import S3Client, S3ServiceResource
+    from mypy_boto3_secretsmanager import SecretsManagerClient
+    from mypy_boto3_sts.client import STSClient
+    from mypy_boto3_timestream_query.client import TimestreamQueryClient
+    from mypy_boto3_timestream_write.client import TimestreamWriteClient
+    from typing_extensions import Literal
+
+    ServiceName = Literal[
+        "athena",
+        "dynamodb",
+        "ec2",
+        "emr",
+        "emr-serverless",
+        "glue",
+        "kms",
+        "lakeformation",
+        "logs",
+        "opensearch",
+        "opensearchserverless",
+        "quicksight",
+        "rds-data",
+        "redshift-data",
+        "redshift",
+        "s3",
+        "secretsmanager",
+        "sts",
+        "timestream-query",
+        "timestream-write",
+    ]
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 Boto3PrimitivesType = Dict[str, Optional[str]]
+FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
+
+# A mapping from import name to package name (on PyPI) for packages where
+# these two names are different.
+INSTALL_MAPPING = {
+    "redshift_connector": "redshift",
+    "pymysql": "mysql",
+    "pg8000": "postgres",
+    "pyodbc": "sqlserver",
+    "gremlin_python": "gremlin",
+    "opensearchpy": "opensearch",
+}
 
 
-def ensure_session(session: Union[None, boto3.Session, Boto3PrimitivesType] = None) -> boto3.Session:
+def check_optional_dependency(
+    module: Optional[ModuleType],
+    name: str,
+) -> Callable[[FunctionType], FunctionType]:
+    def decorator(func: FunctionType) -> FunctionType:
+        @wraps(func)
+        def inner(*args: Any, **kwargs: Any) -> Any:
+            if not module:
+                package_name = INSTALL_MAPPING.get(name)
+                install_name = package_name if package_name is not None else name
+                raise ModuleNotFoundError(
+                    f"Missing optional dependency '{name}'. " f"Use pip awswrangler[{install_name}] to install it."
+                )
+            return func(*args, **kwargs)
+
+        return cast(FunctionType, inner)
+
+    return decorator
+
+
+def import_optional_dependency(name: str) -> ModuleType:
+    """Import an optional dependency.
+
+    Parameters
+    ----------
+    name : str
+        The module name.
+
+    Returns
+    -------
+    maybe_module : Optional[ModuleType]
+        The imported module, when found.
+    """
+    try:
+        module = importlib.import_module(name)
+    except ImportError:
+        return None  # type: ignore[return-value]
+
+    return module
+
+
+def validate_kwargs(
+    condition_fn: Callable[..., bool] = lambda _: True,
+    unsupported_kwargs: Optional[List[str]] = None,
+    message: str = "Arguments not supported:",
+) -> Callable[[FunctionType], FunctionType]:
+    unsupported_kwargs = unsupported_kwargs if unsupported_kwargs else []
+
+    def decorator(func: FunctionType) -> FunctionType:
+        signature = inspect.signature(func)
+
+        @wraps(func)
+        def inner(*args: Any, **kwargs: Any) -> Any:
+            passed_unsupported_kwargs = set(unsupported_kwargs).intersection(  # type: ignore
+                set([key for key, value in kwargs.items() if value is not None])
+            )
+
+            # Allow kwargs that didn't modify the default value
+            passed_unsupported_kwargs = {
+                key for key in passed_unsupported_kwargs if kwargs[key] != signature.parameters[key].default
+            }
+
+            if condition_fn() and len(passed_unsupported_kwargs) > 0:
+                raise exceptions.InvalidArgument(f"{message} `{', '.join(passed_unsupported_kwargs)}`.")
+
+            return func(*args, **kwargs)
+
+        inner.__doc__ = _inject_kwargs_validation_doc(
+            doc=func.__doc__,
+            unsupported_kwargs=unsupported_kwargs,
+            message=message,
+        )
+        inner.__name__ = func.__name__
+        inner.__setattr__("__signature__", signature)  # pylint: disable=no-member
+
+        return cast(FunctionType, inner)
+
+    return decorator
+
+
+def _inject_kwargs_validation_doc(
+    doc: Optional[str],
+    unsupported_kwargs: Optional[List[str]],
+    message: str,
+) -> Optional[str]:
+    if not doc or "\n    Parameters" not in doc or not unsupported_kwargs:
+        return doc
+    header: str = f"\n\n    Note\n    ----\n    {message}\n\n"
+    kwargs_block: str = "\n".join(tuple(f"    - {x}\n" for x in unsupported_kwargs))
+    insertion: str = header + kwargs_block + "\n\n"
+    return _insert_str(text=doc, token="\n    Parameters", insert=insertion)
+
+
+validate_distributed_kwargs = partial(
+    validate_kwargs,
+    condition_fn=lambda: engine.get() == EngineEnum.RAY,
+    message=f"Following arguments are not supported in distributed mode with engine `{EngineEnum.RAY}`:",
+)
+
+
+def ensure_session(session: Union[None, boto3.Session] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
-    if isinstance(session, dict):  # Primitives received
-        return boto3_from_primitives(primitives=session)
     if session is not None:
         return session
     # Ensure the boto3's default session is used so that its parameters can be
@@ -54,27 +230,16 @@ def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Boto3P
     }
 
 
-def boto3_from_primitives(primitives: Optional[Boto3PrimitivesType] = None) -> boto3.Session:
-    """Convert Python primitives to Boto3 Session."""
-    if primitives is None:
-        return ensure_session()
-    _primitives: Boto3PrimitivesType = copy.deepcopy(primitives)
-    profile_name: Optional[str] = _primitives.get("profile_name", None)
-    _primitives["profile_name"] = None if profile_name in (None, "default") else profile_name
-    args: Dict[str, str] = {k: v for k, v in _primitives.items() if v is not None}
-    return boto3.Session(**args)
-
-
 def default_botocore_config() -> botocore.config.Config:
     """Botocore configuration."""
     retries_config: Dict[str, Union[str, int]] = {
         "max_attempts": int(os.getenv("AWS_MAX_ATTEMPTS", "5")),
     }
-    mode: Optional[str] = os.getenv("AWS_RETRY_MODE")
+    mode = os.getenv("AWS_RETRY_MODE")
     if mode:
         retries_config["mode"] = mode
-    return botocore.config.Config(
-        retries=retries_config,
+    return Config(
+        retries=retries_config,  # type: ignore[arg-type]
         connect_timeout=10,
         max_pool_connections=10,
         user_agent_extra=f"awswrangler/{__version__}",
@@ -111,13 +276,223 @@ def _get_endpoint_url(service_name: str) -> Optional[str]:
     return endpoint_url
 
 
+@overload
+def client(
+    service_name: 'Literal["athena"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "AthenaClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["lakeformation"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "LakeFormationClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["logs"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "CloudWatchLogsClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["dynamodb"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "DynamoDBClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["ec2"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "EC2Client":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["emr"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "EMRClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["emr-serverless"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "EMRServerlessClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["glue"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "GlueClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["kms"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "KMSClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["opensearch"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "OpenSearchServiceClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["opensearchserverless"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "OpenSearchServiceServerlessClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["quicksight"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "QuickSightClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["rds-data"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "RDSDataServiceClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["redshift"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "RedshiftClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["redshift-data"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "RedshiftDataAPIServiceClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["s3"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "S3Client":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["secretsmanager"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "SecretsManagerClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["sts"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "STSClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["timestream-query"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "TimestreamQueryClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["timestream-write"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "TimestreamWriteClient":
+    ...
+
+
+@overload
+def client(
+    service_name: "ServiceName",
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "BaseClient":
+    ...
+
+
 @apply_configs
 def client(
-    service_name: str,
+    service_name: "ServiceName",
     session: Optional[boto3.Session] = None,
-    botocore_config: Optional[botocore.config.Config] = None,
+    botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
-) -> boto3.client:
+) -> "BaseClient":
     """Create a valid boto3.client."""
     endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
     return ensure_session(session=session).client(
@@ -129,13 +504,33 @@ def client(
     )
 
 
+@overload
+def resource(
+    service_name: 'Literal["dynamodb"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "DynamoDBServiceResource":
+    ...
+
+
+@overload
+def resource(
+    service_name: 'Literal["s3"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "S3ServiceResource":
+    ...
+
+
 @apply_configs
 def resource(
-    service_name: str,
+    service_name: Union['Literal["dynamodb"]', 'Literal["s3"]'],
     session: Optional[boto3.Session] = None,
-    botocore_config: Optional[botocore.config.Config] = None,
+    botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
-) -> boto3.resource:
+) -> "ServiceResource":
     """Create a valid boto3.resource."""
     endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
     return ensure_session(session=session).resource(
@@ -221,13 +616,51 @@ def ensure_cpu_count(use_threads: Union[bool, int] = True) -> int:
     return cpus
 
 
-def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = None) -> List[List[Any]]:
+@engine.dispatch_on_engine
+def ensure_worker_or_thread_count(use_threads: Union[bool, int] = True) -> int:
+    """Get the number of CPU cores or Ray workers to be used.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of threads that could be spawned will be spawned from the OS
+    or the Ray cluster configuration.
+
+
+    Parameters
+    ----------
+    use_threads : Union[bool, int]
+            True to enable multi-core utilization, False to disable.
+            If given an int will simply return the input value.
+
+    Returns
+    -------
+    int
+        Number of workers of threads to be used.
+
+    Examples
+    --------
+    >>> from awswrangler._utils import ensure_worker_or_thread_count
+    >>> ensure_worker_or_thread_count(use_threads=True)
+    4
+    >>> ensure_worker_or_thread_count(use_threads=False)
+    1
+
+    """
+    return ensure_cpu_count(use_threads=use_threads)
+
+
+ChunkifyItemType = TypeVar("ChunkifyItemType")
+
+
+def chunkify(
+    lst: List[ChunkifyItemType], num_chunks: int = 1, max_length: Optional[int] = None
+) -> List[List[ChunkifyItemType]]:
     """Split a list in a List of List (chunks) with even sizes.
 
     Parameters
     ----------
     lst: List
-        List of anything to be splitted.
+        List of anything to be split up.
     num_chunks: int, optional
         Maximum number of chunks.
     max_length: int, optional
@@ -250,7 +683,7 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
     if not lst:
         return []
     n: int = num_chunks if max_length is None else int(math.ceil((float(len(lst)) / float(max_length))))
-    np_chunks = np.array_split(lst, n)
+    np_chunks = np.array_split(lst, n)  # type: ignore[arg-type,var-annotated]
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 
@@ -267,8 +700,8 @@ def get_directory(path: str) -> str:
 def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
     """Extract region from Subnet ID."""
     session: boto3.Session = ensure_session(session=boto3_session)
-    client_ec2: boto3.client = client(service_name="ec2", session=session)
-    return cast(str, client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:-1])
+    client_ec2 = client(service_name="ec2", session=session)
+    return client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:-1]
 
 
 def get_region_from_session(boto3_session: Optional[boto3.Session] = None, default_region: Optional[str] = None) -> str:
@@ -310,17 +743,6 @@ def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
     random_lst: List[Any] = random.sample(population=lst, k=num_samples)
     random_lst.sort()
     return random_lst
-
-
-def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
-    """Ensure that all columns has the writeable flag True."""
-    for column in df.columns.to_list():
-        if hasattr(df[column].values, "flags") is True:
-            if df[column].values.flags.writeable is False:
-                s: pd.Series = df[column]
-                df[column] = None
-                df[column] = s
-    return df
 
 
 def check_duplicated_columns(df: pd.DataFrame) -> Any:
@@ -366,15 +788,18 @@ def retry(
     return wrapper
 
 
+TryItOutputType = TypeVar("TryItOutputType")
+
+
 def try_it(
-    f: Callable[..., Any],
+    f: Callable[..., TryItOutputType],
     ex: Any,
     *args: Any,
     ex_code: Optional[str] = None,
     base: float = 1.0,
     max_num_tries: int = 3,
     **kwargs: Any,
-) -> Any:
+) -> TryItOutputType:
     """Run function with decorrelated Jitter.
 
     Reference: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
@@ -409,19 +834,19 @@ def get_even_chunks_sizes(total_size: int, chunk_size: int, upper_bound: bool) -
     return tuple(sizes)
 
 
-def get_running_futures(seq: Sequence[Future]) -> Tuple[Future, ...]:  # type: ignore
+def get_running_futures(seq: Sequence[Future]) -> Tuple[Future, ...]:  # type: ignore[type-arg]
     """Filter only running futures."""
     return tuple(f for f in seq if f.running())
 
 
-def wait_any_future_available(seq: Sequence[Future]) -> None:  # type: ignore
+def wait_any_future_available(seq: Sequence[Future]) -> None:  # type: ignore[type-arg]
     """Wait until any future became available."""
     wait(fs=seq, timeout=None, return_when=FIRST_COMPLETED)
 
 
-def block_waiting_available_thread(seq: Sequence[Future], max_workers: int) -> None:  # type: ignore
+def block_waiting_available_thread(seq: Sequence[Future], max_workers: int) -> None:  # type: ignore[type-arg]
     """Block until any thread became available."""
-    running: Tuple[Future, ...] = get_running_futures(seq=seq)  # type: ignore
+    running: Tuple[Future, ...] = get_running_futures(seq=seq)  # type: ignore[type-arg]
     while len(running) >= max_workers:
         wait_any_future_available(seq=running)
         running = get_running_futures(seq=running)
@@ -448,12 +873,12 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
 @engine.dispatch_on_engine
 def split_pandas_frame(df: pd.DataFrame, splits: int) -> List[pd.DataFrame]:
     """Split a DataFrame into n chunks."""
-    return [sub_df for sub_df in np.array_split(df, splits) if not sub_df.empty]  # type: ignore
+    return [sub_df for sub_df in np.array_split(df, splits) if not sub_df.empty]  # type: ignore[attr-defined]
 
 
 @engine.dispatch_on_engine
 def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataFrame:
-    """Build Pandas dataframe from list of PyArrow tables."""
+    """Build Pandas DataFrame from list of PyArrow tables."""
     return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)
 
 

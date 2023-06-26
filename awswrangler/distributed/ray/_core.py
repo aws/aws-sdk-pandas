@@ -2,7 +2,7 @@
 import logging
 import os
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, TypeVar, Union
 
 from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
@@ -11,6 +11,9 @@ if engine.get() == EngineEnum.RAY or TYPE_CHECKING:
     import ray
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
 
 class RayLogger:
@@ -31,10 +34,10 @@ class RayLogger:
 
 @apply_configs
 def ray_logger(
-    function: Callable[..., Any],
+    function: FunctionType,
     configure_logging: bool = True,
     logging_level: int = logging.INFO,
-) -> Callable[..., Any]:
+) -> FunctionType:
     """
     Decorate callable to add RayLogger.
 
@@ -57,7 +60,7 @@ def ray_logger(
     return wrapper
 
 
-def ray_remote(**options: Any) -> Callable[..., Any]:
+def ray_remote(**options: Any) -> Callable[[FunctionType], FunctionType]:
     """
     Decorate with @ray.remote providing .options().
 
@@ -71,7 +74,7 @@ def ray_remote(**options: Any) -> Callable[..., Any]:
     Callable[..., Any]
     """
 
-    def remote_decorator(function: Callable[..., Any]) -> Callable[..., Any]:
+    def remote_decorator(function: FunctionType) -> FunctionType:
         """
         Decorate callable to wrap within ray.remote.
 
@@ -92,7 +95,7 @@ def ray_remote(**options: Any) -> Callable[..., Any]:
             remote_fn = ray.remote(ray_logger(function))
             if options:
                 remote_fn = remote_fn.options(**options)
-            return remote_fn.remote(*args, **kwargs)  # type: ignore
+            return remote_fn.remote(*args, **kwargs)
 
         return wrapper
 
@@ -164,7 +167,7 @@ def initialize_ray(
             address = ray_address
 
         if address:
-            _logger.info("Connecting to a Ray cluster at: %s", address)
+            _logger.info("Connecting to a Ray instance at: %s", address)
             ray.init(
                 address=address,
                 include_dashboard=include_dashboard,
@@ -193,5 +196,5 @@ def initialize_ray(
                     "env_vars": {var: os.environ.get(var) for var in ray_runtime_env_vars if os.environ.get(var)}
                 },
             }
-            _logger.info("Starting a Ray cluster")
+            _logger.info("Initializing a Ray instance")
             ray.init(**ray_init_kwargs)
