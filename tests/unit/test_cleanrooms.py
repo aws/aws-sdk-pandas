@@ -41,15 +41,33 @@ def data(cleanrooms_s3_bucket_name: str, cleanrooms_glue_database_name: str) -> 
 
 
 def test_read_sql_query(data: None, cleanrooms_membership_id: str, cleanrooms_s3_bucket_name: str):
-    sql = """SELECT COUNT(p.purchase_id), SUM(p.sale_value), city
+    sql = """SELECT city, AVG(p.sale_value)
     FROM users u
-        INNER JOIN purchases p  ON u.user_id = p.user_id
+        INNER JOIN purchases p ON u.user_id = p.user_id
     GROUP BY city
     """
-    df_results = wr.cleanrooms.read_sql_query(
+    chunksize = 2
+    df_chunked = wr.cleanrooms.read_sql_query(
         sql=sql,
         membership_id=cleanrooms_membership_id,
         output_bucket=cleanrooms_s3_bucket_name,
         output_prefix="results",
+        chunksize=chunksize,
+        keep_files=False,
     )
-    assert df_results.shape == (2, 3)
+    for df in df_chunked:
+        assert df.shape == (chunksize, 2)
+
+    sql = """SELECT COUNT(p.purchase_id), SUM(p.sale_value), city
+    FROM users u
+        INNER JOIN purchases p ON u.user_id = p.user_id
+    GROUP BY city
+    """
+    df = wr.cleanrooms.read_sql_query(
+        sql=sql,
+        membership_id=cleanrooms_membership_id,
+        output_bucket=cleanrooms_s3_bucket_name,
+        output_prefix="results",
+        keep_files=False,
+    )
+    assert df.shape == (2, 3)
