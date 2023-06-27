@@ -394,6 +394,24 @@ def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_databa
     )
     assert len(df) == 2
 
+def test_get_partition_cols(path, glue_database, glue_table):
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=True,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+    partition_cols = wr.athena.get_partition_cols(
+        database=glue_database,
+        table=glue_table,
+    )
+    assert partition_cols == ["par0", "par1"]
+
 
 @pytest.mark.parametrize(
     "col_name,col_value",
