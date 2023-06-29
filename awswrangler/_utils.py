@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from boto3.resources.base import ServiceResource
     from botocore.client import BaseClient
     from mypy_boto3_athena import AthenaClient
+    from mypy_boto3_cleanrooms import CleanRoomsServiceClient
     from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_emr.client import EMRClient
@@ -68,6 +69,7 @@ if TYPE_CHECKING:
 
     ServiceName = Literal[
         "athena",
+        "cleanrooms",
         "dynamodb",
         "ec2",
         "emr",
@@ -283,6 +285,16 @@ def client(
     botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
 ) -> "AthenaClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["cleanrooms"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "CleanRoomsServiceClient":
     ...
 
 

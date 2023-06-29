@@ -489,7 +489,13 @@ def path_generator(bucket: str) -> Iterator[str]:
 def extract_cloudformation_outputs():
     outputs = {}
     client = boto3.client("cloudformation")
-    stacks = ["aws-sdk-pandas-base", "aws-sdk-pandas-databases", "aws-sdk-pandas-opensearch", "aws-sdk-pandas-glueray"]
+    stacks = [
+        "aws-sdk-pandas-base",
+        "aws-sdk-pandas-databases",
+        "aws-sdk-pandas-opensearch",
+        "aws-sdk-pandas-glueray",
+        "aws-sdk-pandas-cleanrooms",
+    ]
     response = try_it(client.describe_stacks, botocore.exceptions.ClientError, max_num_tries=5)
     for stack in response.get("Stacks"):
         if (stack["StackName"] in stacks) and (stack["StackStatus"] in CFN_VALID_STATUS):

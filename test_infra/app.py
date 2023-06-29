@@ -3,6 +3,7 @@ import os
 
 from aws_cdk import App, Environment
 from stacks.base_stack import BaseStack
+from stacks.cleanrooms_stack import CleanRoomsStack
 from stacks.databases_stack import DatabasesStack
 from stacks.glueray_stack import GlueRayStack
 from stacks.opensearch_stack import OpenSearchStack
@@ -39,6 +40,12 @@ GlueRayStack(
     app,
     "aws-sdk-pandas-glueray",
     base.get_bucket,
+    **env,
+)
+
+CleanRoomsStack(
+    app,
+    "aws-sdk-pandas-cleanrooms",
     **env,
 )
 
