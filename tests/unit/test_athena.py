@@ -1534,3 +1534,40 @@ def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_col
     )
 
     assert df.equals(df_out)
+
+def test_to_iceberg_cast(glue_table, glue_database):
+    df = pd.DataFrame(
+        {
+            "c0": [
+                datetime.date(4000, 1, 1),
+                datetime.datetime(2000, 1, 1, 10),
+                "2020",
+                "2020-01",
+                1,
+                None,
+                pd.NA,
+                pd.NaT,
+                np.nan,
+                np.inf,
+            ]
+        }
+    )
+    df_expected = pd.DataFrame(
+        {
+            "c0": [
+                datetime.date(4000, 1, 1),
+                datetime.date(2000, 1, 1),
+                datetime.date(2020, 1, 1),
+                datetime.date(2020, 1, 1),
+                datetime.date(1970, 1, 1),
+                None,
+                None,
+                None,
+                None,
+                None,
+            ]
+        }
+    )
+    wr.athena.to_iceberg(df=df, database=glue_database, table=glue_table, dtype={"c0": "date"})
+    df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table, ctas_approach=False)
+    assert pandas_equals(df_expected, df2)
