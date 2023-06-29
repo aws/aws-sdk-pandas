@@ -1410,6 +1410,7 @@ def unload(
         execution_params=execution_params,
     )
 
+
 @apply_configs
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
@@ -1445,8 +1446,8 @@ def get_partition_cols(
 
     """
     df = read_sql_query(
-        sql = f'SELECT * FROM "{table}$partitions" limit 1',
-        database = database,
-        boto3_session = boto3_session,
-        )
+        sql=f'SELECT * FROM "{table}$partitions" limit 1',
+        database=database,
+        boto3_session=boto3_session,
+    )
     return df.columns.to_list()

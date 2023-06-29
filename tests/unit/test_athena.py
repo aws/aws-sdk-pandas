@@ -394,6 +394,7 @@ def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_databa
     )
     assert len(df) == 2
 
+
 def test_get_partition_cols(path, glue_database, glue_table):
     wr.s3.to_parquet(
         df=get_df(),
@@ -1534,6 +1535,7 @@ def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_col
     )
 
     assert df.equals(df_out)
+
 
 def test_to_iceberg_cast(glue_table, glue_database):
     df = pd.DataFrame(
