@@ -30,15 +30,15 @@ def _fill_dynamodb_table(table_name: str, num_objects: int) -> None:
 
 
 def create_big_modin_df(table_size: int, num_blocks: Optional[int]) -> pd.DataFrame:
-    pandas_refs = ray.data.range_table(table_size).to_pandas_refs()
+    pandas_refs = ray.data.range(table_size).to_pandas_refs()
     dataset = ray.data.from_pandas_refs(pandas_refs)
 
     if num_blocks:
         dataset = dataset.repartition(num_blocks=num_blocks)
 
     frame = dataset.to_modin()
-    frame["foo"] = frame.value * 2
-    frame["bar"] = frame.value % 2
+    frame["foo"] = frame.id * 2
+    frame["bar"] = frame.id % 2
 
     return frame
 
@@ -72,9 +72,9 @@ def test_dynamodb_read(params: Dict[str, Any], dynamodb_table: str, request: pyt
     "params",
     [
         {
-            "KeySchema": [{"AttributeName": "value", "KeyType": "HASH"}],
+            "KeySchema": [{"AttributeName": "id", "KeyType": "HASH"}],
             "AttributeDefinitions": [
-                {"AttributeName": "value", "AttributeType": "N"},
+                {"AttributeName": "id", "AttributeType": "N"},
             ],
         }
     ],
