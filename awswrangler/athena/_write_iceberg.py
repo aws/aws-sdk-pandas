@@ -33,11 +33,12 @@ def _create_iceberg_table(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
+    dtype: Optional[Dict[str, str]] = None,
 ) -> None:
     if not path:
         raise exceptions.InvalidArgumentValue("Must specify table location to create the table.")
 
-    columns_types, _ = catalog.extract_athena_types(df=df, index=index)
+    columns_types, _ = catalog.extract_athena_types(df=df, index=index, dtype=dtype)
     cols_str: str = ", ".join([f"{k} {v}" for k, v in columns_types.items()])
     partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
     table_properties_str: str = (
@@ -197,6 +198,7 @@ def to_iceberg(
                 encryption=encryption,
                 kms_key=kms_key,
                 boto3_session=boto3_session,
+                dtype=dtype,
             )
 
         # Create temporary external table, write the results
