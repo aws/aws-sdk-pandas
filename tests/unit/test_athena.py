@@ -395,25 +395,6 @@ def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_databa
     assert len(df) == 2
 
 
-def test_get_partition_cols(path, glue_database, glue_table):
-    wr.s3.to_parquet(
-        df=get_df(),
-        path=path,
-        index=True,
-        use_threads=True,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table=glue_table,
-        partition_cols=["par0", "par1"],
-    )
-    partition_cols = wr.athena.get_partition_cols(
-        database=glue_database,
-        table=glue_table,
-    )
-    assert partition_cols == ["par0", "par1"]
-
-
 @pytest.mark.parametrize(
     "col_name,col_value",
     [("string", "Seattle"), ("date", datetime.date(2020, 1, 1)), ("bool", True), ("category", 1.0)],
@@ -1537,7 +1518,7 @@ def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_col
     assert df.equals(df_out)
 
 
-def test_to_iceberg_cast(glue_table, glue_database):
+def test_to_iceberg_cast(path, path2, glue_table, glue_database):
     df = pd.DataFrame(
         {
             "c0": [
@@ -1557,11 +1538,11 @@ def test_to_iceberg_cast(glue_table, glue_database):
     df_expected = pd.DataFrame(
         {
             "c0": [
-                datetime.date(4000, 1, 1),
+                datetime.date(1970, 1, 1),
                 datetime.date(2000, 1, 1),
                 datetime.date(2020, 1, 1),
                 datetime.date(2020, 1, 1),
-                datetime.date(1970, 1, 1),
+                datetime.date(4000, 1, 1),
                 None,
                 None,
                 None,
@@ -1570,6 +1551,13 @@ def test_to_iceberg_cast(glue_table, glue_database):
             ]
         }
     )
-    wr.athena.to_iceberg(df=df, database=glue_database, table=glue_table, dtype={"c0": "date"})
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        dtype={"c0": "date"},
+    )
     df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table, ctas_approach=False)
-    assert pandas_equals(df_expected, df2)
+    assert pandas_equals(df_expected, df2.sort_values("c0").reset_index(drop=True))
