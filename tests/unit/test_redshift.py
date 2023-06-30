@@ -17,6 +17,7 @@ import awswrangler.pandas as pd
 from awswrangler import _utils
 
 from .._utils import (
+    assert_pandas_equals,
     dt,
     ensure_data_types,
     ensure_data_types_category,
@@ -61,6 +62,21 @@ def test_read_sql_query_simple(databases_parameters: Dict[str, Any]) -> None:
 def test_to_sql_simple(redshift_table: str, redshift_con: redshift_connector.Connection, overwrite_method: str) -> None:
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
     wr.redshift.to_sql(df, redshift_con, redshift_table, "public", "overwrite", overwrite_method, True)
+
+
+def test_to_sql_with_hyphenated_primary_key(
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+) -> None:
+    schema = "public"
+    df = pd.DataFrame({"id-col": [1, 2, 3], "other-col": ["foo", "boo", "bar"]})
+    df["id-col"] = df["id-col"].astype("Int64")
+    df["other-col"] = df["other-col"].astype("string")
+    wr.redshift.to_sql(
+        df=df, con=redshift_con, table=redshift_table, schema=schema, mode="overwrite", primary_keys=["id-col"]
+    )
+    df_out = wr.redshift.read_sql_table(table=redshift_table, con=redshift_con, schema=schema)
+    assert_pandas_equals(df, df_out)
 
 
 def test_empty_table(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
