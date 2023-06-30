@@ -194,6 +194,7 @@ def _read_scan_chunked(
 
     deserializer = boto3.dynamodb.types.TypeDeserializer()
     next_token = "init_token"  # Dummy token
+    total_items = 0
 
     kwargs = dict(kwargs)
     if segment is not None:
@@ -208,7 +209,11 @@ def _read_scan_chunked(
             {k: v["B"] if list(v.keys())[0] == "B" else deserializer.deserialize(v) for k, v in d.items()}
             for d in response.get("Items", [])
         ]
+        total_items += len(items)
         yield _utils.list_to_arrow_table(mapping=items) if as_dataframe else items
+
+        if ("Limit" in kwargs) and (total_items >= kwargs["Limit"]):
+            break
 
         next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
         if next_token:
@@ -237,14 +242,22 @@ def _read_query_chunked(
     table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
 ) -> Iterator[_ItemsListType]:
     table = get_table(table_name=table_name, boto3_session=boto3_session)
-    response = table.query(**kwargs)
-    yield response.get("Items", [])
+    next_token = "init_token"  # Dummy token
+    total_items = 0
 
     # Handle pagination
-    while "LastEvaluatedKey" in response:
-        kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+    while next_token:
         response = table.query(**kwargs)
-        yield response.get("Items", [])
+        items = response.get("Items", [])
+        total_items += len(items)
+        yield items
+
+        if ("Limit" in kwargs) and (total_items >= kwargs["Limit"]):
+            break
+
+        next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
+        if next_token:
+            kwargs["ExclusiveStartKey"] = next_token
 
 
 @_handle_reserved_keyword_error
@@ -352,9 +365,10 @@ def _read_items(
     boto3_session: Optional[boto3.Session] = None,
     **kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame], _ItemsListType, Iterator[_ItemsListType]]:
-    # Extract 'Keys' and 'IndexName' from provided kwargs: if needed, will be reinserted later on
+    # Extract 'Keys', 'IndexName' and 'Limit' from provided kwargs: if needed, will be reinserted later on
     keys = kwargs.pop("Keys", None)
     index = kwargs.pop("IndexName", None)
+    limit = kwargs.pop("Limit", None)
 
     # Conditionally define optimal reading strategy
     use_get_item = (keys is not None) and (len(keys) == 1)
@@ -372,6 +386,11 @@ def _read_items(
         items = _read_batch_items(table_name, chunked, boto3_session, **kwargs)
 
     else:
+        if limit:
+            kwargs["Limit"] = limit
+            _logger.debug("`max_items_evaluated` argument detected, setting use_threads to False")
+            use_threads = False
+
         if index:
             kwargs["IndexName"] = index
 
@@ -438,6 +457,11 @@ def read_items(  # pylint: disable=too-many-branches
     of the table or index.
     See: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan
 
+    Note
+    ----
+    If `max_items_evaluated` is specified, then `use_threads=False` is enforced. This is because
+    it's not possible to limit the number of items in a Query/Scan operation across threads.
+
     Parameters
     ----------
     table_name : str
@@ -466,6 +490,7 @@ def read_items(  # pylint: disable=too-many-branches
         If True, allow full table scan without any filtering. Defaults to False.
     max_items_evaluated : int, optional
         Limit the number of items evaluated in case of query or scan operations. Defaults to None (all matching items).
+        When set, `use_threads` is enforced to False.
     dtype_backend: str, optional
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
