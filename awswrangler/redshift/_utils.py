@@ -349,7 +349,9 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
         primary_keys=primary_keys,
     )
     cols_str: str = "".join([f'"{k}" {v},\n' for k, v in redshift_types.items()])[:-2]
-    primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
+    primary_keys_str: str = (
+        ",\nPRIMARY KEY ({})".format(", ".join('"' + pk + '"' for pk in primary_keys)) if primary_keys else ""
+    )
     distkey_str: str = f"\nDISTKEY({distkey})" if distkey and diststyle == "KEY" else ""
     sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})" if sortkey else ""
     sql = (
