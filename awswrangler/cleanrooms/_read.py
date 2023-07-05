@@ -101,7 +101,7 @@ def read_sql_query(
     )["protectedQuery"]["id"]
 
     _logger.debug("query_id: %s", query_id)
-    path: str = wait_query(membership_id=membership_id, query_id=query_id)["protectedQuery"]["result"]["output"]["s3"][
+    path: str = wait_query(membership_id=membership_id, query_id=query_id,  boto3_session=boto3_session)["protectedQuery"]["result"]["output"]["s3"][
         "location"
     ]
 
