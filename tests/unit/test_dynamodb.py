@@ -274,14 +274,14 @@ def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_thre
 
     df2 = wr.dynamodb.read_items(
         table_name=dynamodb_table,
-        max_items_evaluated=5,
+        max_items_evaluated=2,
         pyarrow_additional_kwargs={"types_mapper": None},
         use_threads=use_threads,
         chunked=chunked,
     )
     if chunked:
         df2 = pd.concat(df2)
-    assert df2.shape == df.shape
+    assert df2.shape == (2, len(df.columns))
     assert df2.dtypes.to_list() == df.dtypes.to_list()
 
     df3 = wr.dynamodb.read_items(
@@ -377,11 +377,12 @@ def test_read_items_index(params: Dict[str, Any], dynamodb_table: str, use_threa
         table_name=dynamodb_table,
         key_condition_expression=Key("Category").eq("Suspense"),
         index_name="CategoryIndex",
+        max_items_evaluated=1,
         chunked=chunked,
     )
     if chunked:
         df2 = pd.concat(df2)
-    assert df2.shape == df.shape
+    assert df2.shape == (1, len(df.columns))
 
     df3 = wr.dynamodb.read_items(
         table_name=dynamodb_table, allow_full_scan=True, index_name="CategoryIndex", use_threads=1, chunked=chunked
@@ -456,3 +457,46 @@ def test_read_items_expression(params: Dict[str, Any], dynamodb_table: str, use_
         expression_attribute_values={":v": "Eido"},
     )
     assert df6.shape == (1, len(df.columns))
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "id", "KeyType": "HASH"}],
+            "AttributeDefinitions": [{"AttributeName": "id", "AttributeType": "N"}],
+        }
+    ],
+)
+@pytest.mark.parametrize("max_items_evaluated", [1, 3, 5])
+@pytest.mark.parametrize("chunked", [False, True])
+def test_read_items_limited(
+    params: Dict[str, Any], dynamodb_table: str, max_items_evaluated: int, chunked: bool
+) -> None:
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4],
+            "word": ["this", "is", "a", "test"],
+            "char_count": [4, 2, 1, 4],
+        }
+    )
+    wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
+
+    df2 = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        filter_expression=Attr("id").eq(1),
+        max_items_evaluated=max_items_evaluated,
+        chunked=chunked,
+    )
+    if chunked:
+        df2 = pd.concat(df2)
+    assert df2.shape == (1, len(df.columns))
+
+    df3 = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        max_items_evaluated=max_items_evaluated,
+        chunked=chunked,
+    )
+    if chunked:
+        df3 = pd.concat(df3)
+    assert df3.shape == (min(max_items_evaluated, len(df)), len(df.columns))
