@@ -49,11 +49,11 @@ def df_xl() -> pd.DataFrame:
 
 @pytest.fixture(scope="function")
 def big_modin_df() -> pd.DataFrame:
-    pandas_refs = ray.data.range_table(100_000).to_pandas_refs()
+    pandas_refs = ray.data.range(100_000).to_pandas_refs()
     dataset = ray.data.from_pandas_refs(pandas_refs)
 
     frame = dataset.to_modin()
-    frame["foo"] = frame.value * 2
-    frame["bar"] = frame.value % 2
+    frame["foo"] = frame.id * 2
+    frame["bar"] = frame.id % 2
 
     return frame
