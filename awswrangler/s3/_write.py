@@ -125,7 +125,7 @@ def _sanitize(
         bucketing_info = [
             catalog.sanitize_column_name(bucketing_col) for bucketing_col in bucketing_info[0]
         ], bucketing_info[1]
-    dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
+    dtype = {catalog.sanitize_column_name(k): v for k, v in dtype.items()}
     _utils.check_duplicated_columns(df=df)
     return _SanitizeResult(df, dtype, partition_cols, bucketing_info)
 
