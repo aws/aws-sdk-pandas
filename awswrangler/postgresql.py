@@ -4,7 +4,7 @@
 import logging
 import uuid
 from ssl import SSLContext
-from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast, overload
 
 import boto3
 import pyarrow as pa
@@ -14,7 +14,13 @@ from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
 
-pg8000 = _utils.import_optional_dependency("pg8000")
+if TYPE_CHECKING:
+    try:
+        import pg8000
+    except ImportError:
+        pass
+else:
+    pg8000 = _utils.import_optional_dependency("pg8000")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -29,18 +35,22 @@ def _validate_connection(con: "pg8000.Connection") -> None:
 
 
 def _drop_table(cursor: "pg8000.Cursor", schema: Optional[str], table: str) -> None:
-    schema_str = f'"{schema}".' if schema else ""
-    sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"'
+    from pg8000.native import identifier
+
+    schema_str = f"{identifier(schema)}." if schema else ""
+    sql = f"DROP TABLE IF EXISTS {schema_str}{identifier(table)}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
 def _does_table_exist(cursor: "pg8000.Cursor", schema: Optional[str], table: str) -> bool:
-    schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
+    from pg8000.native import literal
+
+    schema_str = f"TABLE_SCHEMA = {literal(schema)} AND" if schema else ""
     cursor.execute(
         f"SELECT true WHERE EXISTS ("
         f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
-        f"{schema_str} TABLE_NAME = '{table}'"
+        f"{schema_str} TABLE_NAME = {literal(table)}"
         f");"
     )
     return len(cursor.fetchall()) > 0
@@ -56,10 +66,13 @@ def _create_table(
     dtype: Optional[Dict[str, str]],
     varchar_lengths: Optional[Dict[str, int]],
 ) -> None:
+    from pg8000.native import identifier
+
     if mode == "overwrite":
         _drop_table(cursor=cursor, schema=schema, table=table)
     elif _does_table_exist(cursor=cursor, schema=schema, table=table):
         return
+
     postgresql_types: Dict[str, str] = _data_types.database_types_from_pandas(
         df=df,
         index=index,
@@ -69,7 +82,7 @@ def _create_table(
         converter_func=_data_types.pyarrow2postgresql,
     )
     cols_str: str = "".join([f'"{k}" {v},\n' for k, v in postgresql_types.items()])[:-2]
-    sql = f'CREATE TABLE IF NOT EXISTS "{schema}"."{table}" (\n{cols_str})'
+    sql = f"CREATE TABLE IF NOT EXISTS {identifier(schema)}.{identifier(table)} (\n{cols_str})"
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -92,6 +105,8 @@ def _iterate_server_side_cursor(
     allows fetching only specific amount of results reducing memory impact. Ultimately we'd like pg8000 to add full
     support for fetchmany() or add SSCursor implementation similar to MySQL and revise this implementation in the future.
     """
+    from pg8000.native import identifier, literal
+
     with con.cursor() as cursor:
         sscursor_name: str = f"c_{uuid.uuid4().hex}"
         cursor_args = _db_utils._convert_params(f"DECLARE {sscursor_name} CURSOR FOR {sql}", params)
@@ -99,7 +114,7 @@ def _iterate_server_side_cursor(
 
         try:
             while True:
-                cursor.execute(f"FETCH FORWARD {chunksize} FROM {sscursor_name}")
+                cursor.execute(f"FETCH FORWARD {literal(chunksize)} FROM {identifier(sscursor_name)}")
                 records = cursor.fetchall()
 
                 if not records:
@@ -115,7 +130,7 @@ def _iterate_server_side_cursor(
                     dtype_backend=dtype_backend,
                 )
         finally:
-            cursor.execute(f"CLOSE {sscursor_name}")
+            cursor.execute(f"CLOSE {identifier(sscursor_name)}")
 
 
 @_utils.check_optional_dependency(pg8000, "pg8000")
@@ -458,7 +473,13 @@ def read_sql_table(
     >>> con.close()
 
     """
-    sql: str = f'SELECT * FROM "{table}"' if schema is None else f'SELECT * FROM "{schema}"."{table}"'
+    from pg8000.native import identifier
+
+    sql: str = (
+        f"SELECT * FROM {identifier(table)}"
+        if schema is None
+        else f"SELECT * FROM {identifier(schema)}.{identifier(table)}"
+    )
     return read_sql_query(
         sql=sql,
         con=con,
@@ -551,6 +572,8 @@ def to_sql(
     >>> con.close()
 
     """
+    from pg8000.native import identifier
+
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
@@ -591,7 +614,7 @@ def to_sql(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
             for placeholders, parameters in placeholder_parameter_pair_generator:
-                sql: str = f'INSERT INTO "{schema}"."{table}" {insertion_columns} VALUES {placeholders}{upsert_str}'
+                sql: str = f"INSERT INTO {identifier(schema)}.{identifier(table)} {insertion_columns} VALUES {placeholders}{upsert_str}"
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
