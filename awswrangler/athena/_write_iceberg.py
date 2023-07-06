@@ -33,11 +33,12 @@ def _create_iceberg_table(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
+    dtype: Optional[Dict[str, str]] = None,
 ) -> None:
     if not path:
         raise exceptions.InvalidArgumentValue("Must specify table location to create the table.")
 
-    columns_types, _ = catalog.extract_athena_types(df=df, index=index)
+    columns_types, _ = catalog.extract_athena_types(df=df, index=index, dtype=dtype)
     cols_str: str = ", ".join([f"{k} {v}" for k, v in columns_types.items()])
     partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
     table_properties_str: str = (
@@ -86,6 +87,7 @@ def to_iceberg(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     additional_table_properties: Optional[Dict[str, Any]] = None,
+    dtype: Optional[Dict[str, str]] = None,
 ) -> None:
     """
     Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
@@ -133,6 +135,10 @@ def to_iceberg(
         e.g. additional_table_properties={'write_target_data_file_size_bytes': '536870912'}
 
         https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-table-properties
+    dtype: Optional[Dict[str, str]]
+        Dictionary of columns names and Athena/Glue types to be casted.
+        Useful when you have columns with undetermined or mixed data types.
+        e.g. {'col name': 'bigint', 'col2 name': 'int'}
 
     Returns
     -------
@@ -192,6 +198,7 @@ def to_iceberg(
                 encryption=encryption,
                 kms_key=kms_key,
                 boto3_session=boto3_session,
+                dtype=dtype,
             )
 
         # Create temporary external table, write the results
@@ -203,6 +210,7 @@ def to_iceberg(
             table=temp_table,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
+            dtype=dtype,
         )
 
         # Insert into iceberg table
