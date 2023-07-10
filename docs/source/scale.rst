@@ -182,6 +182,6 @@ As a result, passing ``boto3_session`` when using the Ray runtime is not support
 To learn more
 --------------
 
-Read our `blog post <https://aws.amazon.com/blogs/big-data/scale-aws-sdk-for-pandas-workloads-with-aws-glue-for-ray/>`_, then head to our latest `tutorials <https://aws-sdk-pandas.readthedocs.io/en/stable/tutorials.html>`_ to discover even more features.
+Read our blog posts `(1) <https://aws.amazon.com/blogs/big-data/scale-aws-sdk-for-pandas-workloads-with-aws-glue-for-ray/>`_ and `(2) <https://aws.amazon.com/blogs/big-data/advanced-patterns-with-aws-sdk-for-pandas-on-aws-glue-for-ray/>`_, then head to our latest `tutorials <https://aws-sdk-pandas.readthedocs.io/en/stable/tutorials.html>`_ to discover even more features.
 
 A runbook with common errors when running the library with Ray is available `here <https://github.com/aws/aws-sdk-pandas/discussions/1815>`_.
