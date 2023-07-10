@@ -597,8 +597,8 @@ class DatabasesStack(Stack):  # type: ignore
             ),
             scaling=rds.ServerlessScalingOptions(
                 auto_pause=Duration.minutes(5),
-                min_capacity=rds.AuroraCapacityUnit.ACU_1,
-                max_capacity=rds.AuroraCapacityUnit.ACU_1,
+                min_capacity=rds.AuroraCapacityUnit.ACU_2,
+                max_capacity=rds.AuroraCapacityUnit.ACU_2,
             ),
             backup_retention=Duration.days(1),
             vpc=self.vpc,
