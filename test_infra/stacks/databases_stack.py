@@ -45,6 +45,7 @@ class DatabasesStack(Stack):  # type: ignore
             self._setup_redshift_serverless()
         if databases_context["postgresql"]:
             self._setup_postgresql()
+            self._setup_postgresql_serverless()
         if databases_context["mysql"]:
             self._setup_mysql()
             self._setup_mysql_serverless()
@@ -576,6 +577,61 @@ class DatabasesStack(Stack):  # type: ignore
         CfnOutput(self, "MysqlServerlessPort", value=str(port))
         CfnOutput(self, "MysqlServerlessDatabase", value=database)
         CfnOutput(self, "MysqlServerlessSchema", value=schema)
+
+    def _setup_postgresql_serverless(self) -> None:
+        port = 5432
+        database = "test"
+        schema = "test"
+        aurora_postgresql = rds.ServerlessCluster(
+            self,
+            "aws-sdk-pandas-aurora-cluster-postgresql-serverless",
+            removal_policy=RemovalPolicy.DESTROY,
+            engine=rds.DatabaseClusterEngine.aurora_postgres(
+                version=rds.AuroraPostgresEngineVersion.VER_11_19,
+            ),
+            cluster_identifier="postgresql-serverless-cluster-sdk-pandas",
+            default_database_name=database,
+            credentials=rds.Credentials.from_password(
+                username=self.db_username,
+                password=self.db_password_secret,
+            ),
+            scaling=rds.ServerlessScalingOptions(
+                auto_pause=Duration.minutes(5),
+                min_capacity=rds.AuroraCapacityUnit.ACU_2,
+                max_capacity=rds.AuroraCapacityUnit.ACU_2,
+            ),
+            backup_retention=Duration.days(1),
+            vpc=self.vpc,
+            subnet_group=self.rds_subnet_group,
+            security_groups=[self.db_security_group],
+            enable_data_api=True,
+        )
+        secret = secrets.Secret(
+            self,
+            "aws-sdk-pandas-postgresql-serverless-secret",
+            secret_name="aws-sdk-pandas/postgresql-serverless",
+            description="PostgreSql serverless credentials",
+            generate_secret_string=secrets.SecretStringGenerator(
+                generate_string_key="dummy",
+                secret_string_template=json.dumps(
+                    {
+                        "username": self.db_username,
+                        "password": self.db_password,
+                        "engine": "postgresql",
+                        "host": aurora_postgresql.cluster_endpoint.hostname,
+                        "port": port,
+                        "dbClusterIdentifier": aurora_postgresql.cluster_identifier,
+                        "dbname": database,
+                    }
+                ),
+            ),
+        )
+        CfnOutput(self, "PostgresqlServerlessSecretArn", value=secret.secret_arn)
+        CfnOutput(self, "PostgresqlServerlessClusterArn", value=aurora_postgresql.cluster_arn)
+        CfnOutput(self, "PostgresqlServerlessAddress", value=aurora_postgresql.cluster_endpoint.hostname)
+        CfnOutput(self, "PostgresqlServerlessPort", value=str(port))
+        CfnOutput(self, "PostgresqlServerlessDatabase", value=database)
+        CfnOutput(self, "PostgresqlServerlessSchema", value=schema)
 
     def _setup_sqlserver(self) -> None:
         port = 1433
