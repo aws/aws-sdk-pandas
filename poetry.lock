@@ -4857,12 +4857,12 @@ networkx = ["networkx (>=2.0.0,<3.0.0)"]
 
 [[package]]
 name = "redshift-connector"
-version = "2.0.911"
+version = "2.0.912"
 description = "Redshift interface library"
 optional = true
 python-versions = ">=3.6"
 files = [
-    {file = "redshift_connector-2.0.911-py3-none-any.whl", hash = "sha256:4867be90b4c9dab13899144b8f7c9ec078106bbc02759598cac922d4071b80bf"},
+    {file = "redshift_connector-2.0.912-py3-none-any.whl", hash = "sha256:81c7876442416aebbb7255d9d81cffd7fef230fad97e37cad2f1cda80d1f0781"},
 ]
 
 [package.dependencies]
