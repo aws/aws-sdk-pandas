@@ -137,7 +137,14 @@ def workgroup3(bucket, kms_key):
 @pytest.fixture(scope="session")
 def databases_parameters(cloudformation_outputs, db_password):
     parameters = dict(
-        postgresql={}, mysql={}, redshift={}, sqlserver={}, mysql_serverless={}, oracle={}, redshift_serverless={}
+        postgresql={},
+        mysql={},
+        redshift={},
+        sqlserver={},
+        mysql_serverless={},
+        oracle={},
+        redshift_serverless={},
+        postgresql_serverless={},
     )
     parameters["postgresql"]["host"] = cloudformation_outputs.get("PostgresqlAddress")
     parameters["postgresql"]["port"] = cloudformation_outputs.get("PostgresqlPort")
