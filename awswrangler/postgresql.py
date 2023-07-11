@@ -37,11 +37,11 @@ def _drop_table(cursor: "pg8000.Cursor", schema: Optional[str], table: str) -> N
 
 
 def _does_table_exist(cursor: "pg8000.Cursor", schema: Optional[str], table: str) -> bool:
-    schema_str = f"TABLE_SCHEMA = '{pg8000_native.identifier(schema)}' AND" if schema else ""
+    schema_str = f"TABLE_SCHEMA = {pg8000_native.literal(schema)} AND" if schema else ""
     cursor.execute(
         f"SELECT true WHERE EXISTS ("
         f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
-        f"{schema_str} TABLE_NAME = '{pg8000_native.identifier(table)}'"
+        f"{schema_str} TABLE_NAME = {pg8000_native.literal(table)}"
         f");"
     )
     return len(cursor.fetchall()) > 0
