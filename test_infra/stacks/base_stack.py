@@ -55,12 +55,8 @@ class BaseStack(Stack):  # type: ignore
             assumed_by=iam.OpenIdConnectPrincipal(
                 open_id_connect_provider=openid_provider,
                 conditions={
-                    "StringLike": {
-                        "token.actions.githubusercontent.com:sub": "repo:aws/aws-sdk-pandas:*"
-                    },
-                    "StringEquals": {
-                        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-                    },
+                    "StringLike": {"token.actions.githubusercontent.com:sub": "repo:aws/aws-sdk-pandas:*"},
+                    "StringEquals": {"token.actions.githubusercontent.com:aud": "sts.amazonaws.com"},
                 },
             ),
         )
