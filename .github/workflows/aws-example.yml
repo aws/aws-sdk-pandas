@@ -1,0 +1,26 @@
+# Sample workflow to access AWS resources when workflow is tied to branch
+name: AWS Example Workflow
+on:
+  workflow_dispatch
+env:
+  AWS_REGION : us-east-1
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+
+jobs:
+  AWSExampleJob:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git clone the repository
+        uses: actions/checkout@v3
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::658066294590:role/GitHubAssumeRole
+          role-session-name: samplerolesession
+          aws-region: ${{ env.AWS_REGION }}
+      - name:  Show Caller Identity
+        run: |
+          echo `aws sts get-caller-identity`
