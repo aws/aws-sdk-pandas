@@ -40,27 +40,6 @@ class BaseStack(Stack):  # type: ignore
                 description=f"Elastic IP associated with public subnet {public_subnet.subnet_id}",
             )
 
-        # IAM Role for GitHub Open ID
-        openid_provider = iam.OpenIdConnectProvider(
-            self,
-            id="GitHub OpenID Provider",
-            url="https://token.actions.githubusercontent.com",
-            client_ids=["sts.amazonaws.com"],
-        )
-
-        self.github_assume_role = iam.Role(
-            self,
-            id="GitHub Assume Role",
-            role_name="GitHubAssumeRole",
-            assumed_by=iam.OpenIdConnectPrincipal(
-                open_id_connect_provider=openid_provider,
-                conditions={
-                    "StringLike": {"token.actions.githubusercontent.com:sub": "repo:aws/aws-sdk-pandas:*"},
-                    "StringEquals": {"token.actions.githubusercontent.com:aud": "sts.amazonaws.com"},
-                },
-            ),
-        )
-
         self.key = kms.Key(
             self,
             id="aws-sdk-pandas-key",
