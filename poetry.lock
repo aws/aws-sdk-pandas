@@ -2733,13 +2733,13 @@ unidist = ["unidist[mpi] (>=0.2.1)"]
 
 [[package]]
 name = "moto"
-version = "4.1.11"
+version = "4.1.13"
 description = ""
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "moto-4.1.11-py2.py3-none-any.whl", hash = "sha256:5003126c46ce70fe351ff1cb67dc8d9a5983f403fae13b7628b0fb503d19039e"},
-    {file = "moto-4.1.11.tar.gz", hash = "sha256:f3e966ba1460751e19eab5356545813b29c05478b47eb0da445d688949339be2"},
+    {file = "moto-4.1.13-py2.py3-none-any.whl", hash = "sha256:9650d05d89b6f97043695548fbc0d8fb293f4177daaebbcee00bb0d171367f1a"},
+    {file = "moto-4.1.13.tar.gz", hash = "sha256:dd3e2ad920ab8b058c4f62fa7c195b788bd1f018cc701a1868ff5d5c4de6ed47"},
 ]
 
 [package.dependencies]
