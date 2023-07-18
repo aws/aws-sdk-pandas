@@ -5978,4 +5978,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "d3e1410850086b9f5eca34edcbf49efb33fa31a5a1a81e7d10f31d2f63aea912"
+content-hash = "3d241343d24cde077ee7242e4b8505dc64d8d0c18e5a562161564efb97cb1e55"
