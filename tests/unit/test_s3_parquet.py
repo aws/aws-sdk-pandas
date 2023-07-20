@@ -674,12 +674,17 @@ def test_ignore_files(path: str, use_threads: Union[bool, int]) -> None:
         "(ExecutionPlan)[https://github.com/ray-project/ray/blob/ray-2.0.1/python/ray/data/_internal/plan.py#L253]"
     ),
 )
-def test_empty_parquet(path):
+@pytest.mark.parametrize("chunked", [True, False])
+def test_empty_parquet(path, chunked):
     path = f"{path}file.parquet"
     s = pa.schema([pa.field("a", pa.int64())])
     pq.write_table(s.empty_table(), path)
 
-    df = wr.s3.read_parquet(path)
+    df = wr.s3.read_parquet(path, chunked=chunked)
+
+    if chunked:
+        df = pd.concat(list(df))
+
     assert len(df) == 0
     assert len(df.columns) > 0
 
