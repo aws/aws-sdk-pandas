@@ -334,7 +334,7 @@ def _read_items_scan(
 
     if chunked:
         _logger.debug("Scanning DynamoDB table %s and returning results in an iterator", table_name)
-        scan_iterator = _read_scan_chunked(dynamodb_client, as_dataframe, schema, kwargs)
+        scan_iterator = _read_scan_chunked(dynamodb_client, as_dataframe, kwargs, schema)
         if as_dataframe:
             return (_utils.table_refs_to_df([items], arrow_kwargs) for items in scan_iterator)
 
