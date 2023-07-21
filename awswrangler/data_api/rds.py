@@ -165,7 +165,7 @@ class RdsDataApi(_connector.DataApiConnector):
         def function(sql: str) -> "ExecuteStatementResponseTypeDef":
             return self.client.execute_statement(
                 resourceArn=self.resource_arn,
-                database=database,  # type: ignore[arg-type]
+                database=database,
                 sql=sql,
                 secretArn=self.secret_arn,
                 includeResultMetadata=True,
@@ -196,7 +196,7 @@ class RdsDataApi(_connector.DataApiConnector):
         def function(sql: str) -> "BatchExecuteStatementResponseTypeDef":
             return self.client.batch_execute_statement(
                 resourceArn=self.resource_arn,
-                database=database,  # type: ignore[arg-type]
+                database=database,
                 sql=sql,
                 secretArn=self.secret_arn,
                 **additional_kwargs,

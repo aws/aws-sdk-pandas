@@ -15,7 +15,6 @@ from typing import (
     List,
     NamedTuple,
     Optional,
-    Sequence,
     Tuple,
     TypedDict,
     Union,
@@ -36,7 +35,7 @@ from . import _executions
 from ._cache import _cache_manager, _LocalMetadataCacheManager
 
 if TYPE_CHECKING:
-    from mypy_boto3_glue.type_defs import ColumnTypeDef
+    from mypy_boto3_glue.type_defs import ColumnOutputTypeDef
 
 _QUERY_FINAL_STATES: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
 _QUERY_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
@@ -964,7 +963,7 @@ def generate_create_query(
 
     """
 
-    def parse_columns(columns_description: Sequence["ColumnTypeDef"]) -> str:
+    def parse_columns(columns_description: List["ColumnOutputTypeDef"]) -> str:
         columns_str: List[str] = []
         for column in columns_description:
             column_str = f"  `{column['Name']}` {column['Type']}"
