@@ -2706,13 +2706,13 @@ files = [
 
 [[package]]
 name = "modin"
-version = "0.22.2"
+version = "0.22.3"
 description = "Modin: Make your pandas code run faster by changing one line of code."
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "modin-0.22.2-py3-none-any.whl", hash = "sha256:fa897dc59d5b9a8496be044185689fdd337b9f26cc81c4144b217a2a94d029bc"},
-    {file = "modin-0.22.2.tar.gz", hash = "sha256:532fe0bfb2dcf06c0ad2d467721ef489fd58bb3ef7150bcf4a7ddd1069be1e4d"},
+    {file = "modin-0.22.3-py3-none-any.whl", hash = "sha256:e438ead6eb8dc536dbf8c74365e007d88d6187196f2d0756b77d6551bf35a686"},
+    {file = "modin-0.22.3.tar.gz", hash = "sha256:95b385de9ca8c84de7f6fd126fc1884e0e86f24878bc9613b6067bc335f4eff1"},
 ]
 
 [package.dependencies]
@@ -2723,9 +2723,9 @@ pandas = "1.5.3"
 psutil = "*"
 
 [package.extras]
-all = ["boto3", "cloudpickle", "dask (>=2.22.0)", "distributed (>=2.22.0)", "modin-spreadsheet (>=0.1.0)", "pyarrow", "ray[default] (>=1.13.0)", "rpyc (==4.1.5)", "unidist[mpi] (>=0.2.1)"]
+all = ["boto3", "cloudpickle", "dask (>=2.22.0)", "distributed (>=2.22.0)", "modin-spreadsheet (>=0.1.0)", "pyarrow", "pydantic (<2)", "ray[default] (>=1.13.0,!=2.5.0)", "rpyc (==4.1.5)", "unidist[mpi] (>=0.2.1)"]
 dask = ["dask (>=2.22.0)", "distributed (>=2.22.0)"]
-ray = ["pyarrow", "ray[default] (>=1.13.0)"]
+ray = ["pyarrow", "pydantic (<2)", "ray[default] (>=1.13.0,!=2.5.0)"]
 remote = ["boto3", "cloudpickle", "rpyc (==4.1.5)"]
 spreadsheet = ["modin-spreadsheet (>=0.1.0)"]
 sql = ["dfsql (>=0.4.2)", "pyparsing (<=2.4.7)"]
