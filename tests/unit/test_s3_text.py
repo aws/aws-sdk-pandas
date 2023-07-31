@@ -375,7 +375,7 @@ def test_read_json_versioned(path) -> None:
         version_ids.append(version_id)
 
     for df, version_id in zip(dfs, version_ids):
-        df_temp = wr.s3.read_json(path_file, version_id=version_id, ray_args={"parallelism": 1})
+        df_temp = wr.s3.read_json(path_file, version_id=version_id).reset_index(drop=True)
         assert df_temp.equals(df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
