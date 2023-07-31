@@ -26,7 +26,7 @@ class _RayExecutor(_BaseExecutor):
         return list(func(*arg) for arg in zip(itertools.repeat(None), *args))
 
 
-@ray.remote  # type: ignore[attr-defined]
+@ray.remote
 class AsyncActor:
     async def run_concurrent(self, func: Callable[..., MapOutputType], *args: Any) -> MapOutputType:
         return func(*args)

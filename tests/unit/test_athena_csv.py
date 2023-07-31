@@ -372,6 +372,7 @@ def test_athena_csv_types(path, glue_database, glue_table):
     ensure_data_types_csv(df2)
 
 
+@pytest.mark.modin_index
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("ctas_approach", [True, False])
 @pytest.mark.parametrize("line_count", [1, 2])
@@ -388,7 +389,7 @@ def test_skip_header(path, glue_database, glue_table, use_threads, ctas_approach
         skip_header_line_count=line_count,
     )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads, ctas_approach=ctas_approach)
-    assert df.iloc[line_count - 1 :].reset_index(drop=True).equals(df2)
+    assert df.iloc[line_count - 1 :].reset_index(drop=True).equals(df2.reset_index(drop=True))
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
