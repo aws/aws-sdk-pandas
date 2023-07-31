@@ -1,7 +1,7 @@
 Install
 =======
 
-**AWS SDK for pandas** runs on Python ``3.8``, ``3.9`` and ``3.10``,
+**AWS SDK for pandas** runs on Python ``3.8``, ``3.9``, ``3.10`` and ``3.11``,
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
@@ -119,6 +119,10 @@ This option provides the ability to use semantic versions (i.e. library version)
    * - aws-sdk-pandas-layer-py3-10
      - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-10
      - Layer for ``Python 3.10.x`` runtimes
+   * - aws-sdk-pandas-layer-py3-11
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-11
+     - Layer for ``Python 3.11.x`` runtimes
+
 
 Here is an example of how to create and use the AWS SDK for pandas Lambda layer in your CDK app:
 
