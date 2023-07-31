@@ -188,6 +188,12 @@ def test_csv_dataset_header_modes(path, mode, glue_database, glue_table):
         assert df_res.equals(dfs[-1])
 
 
+@pytest.mark.modin_index
+@pytest.mark.xfail(
+    raises=AssertionError,
+    reason="https://github.com/ray-project/ray/issues/37771",
+    condition=is_ray_modin,
+)
 def test_json(path):
     df0 = pd.DataFrame({"id": [1, 2, 3]})
     path0 = f"{path}test_json0.json"
@@ -354,6 +360,7 @@ def test_csv_line_terminator(path, line_terminator):
     assert df.equals(df2)
 
 
+@pytest.mark.modin_index
 def test_read_json_versioned(path) -> None:
     path_file = f"{path}0.json"
     dfs = [
@@ -368,7 +375,7 @@ def test_read_json_versioned(path) -> None:
         version_ids.append(version_id)
 
     for df, version_id in zip(dfs, version_ids):
-        df_temp = wr.s3.read_json(path_file, version_id=version_id)
+        df_temp = wr.s3.read_json(path_file, version_id=version_id).reset_index(drop=True)
         assert df_temp.equals(df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 

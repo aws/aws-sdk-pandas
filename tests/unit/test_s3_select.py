@@ -67,6 +67,11 @@ def test_full_table(path, use_threads):
     assert df.shape == df4.shape
 
 
+@pytest.mark.xfail(
+    raises=AssertionError,
+    reason="https://github.com/ray-project/ray/issues/37928",
+    condition=is_ray_modin,
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_push_down(path, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"], "c2": [4.0, 5.0, 6.0]})
