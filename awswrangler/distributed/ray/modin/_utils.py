@@ -68,7 +68,8 @@ def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Optional[Dic
     ref_rows: List[bool] = ray_get([_is_not_empty(arrow_ref) for arrow_ref in arrow_refs])
     refs: List[Callable[..., Any]] = [ref for ref_rows, ref in zip(ref_rows, arrow_refs) if ref_rows]
     return _to_modin(
-        dataset=ray.data.from_arrow_refs(refs if len(refs) > 0 else [pa.Table.from_arrays([])]), to_pandas_kwargs=kwargs
+        dataset=ray.data.from_arrow_refs(refs) if len(refs) > 0 else ray.data.from_arrow([pa.Table.from_arrays([])]),
+        to_pandas_kwargs=kwargs,
     )
 
 
