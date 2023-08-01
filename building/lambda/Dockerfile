@@ -6,6 +6,8 @@ FROM ${base_image} AS base
 RUN yum install -y \
     boost-devel \
     jemalloc-devel \
+    libxml2-devel \
+    libxslt-devel \
     bison \
     make \
     gcc \
