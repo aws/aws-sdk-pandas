@@ -6,6 +6,7 @@ import logging
 from typing import Any, Dict, Optional, Tuple, cast
 
 import pyarrow as pa
+import pytz
 
 import awswrangler.pandas as pd
 from awswrangler._data_types import athena2pyarrow
@@ -71,7 +72,8 @@ def _apply_timezone(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
             _logger.debug("applying timezone (%s) on column %s", timezone, col_name)
             if hasattr(df[col_name].dtype, "tz") is False:
                 df[col_name] = df[col_name].dt.tz_localize(tz="UTC")
-            df[col_name] = df[col_name].dt.tz_convert(tz=timezone)
+            if timezone is not None and timezone != pytz.UTC and hasattr(df[col_name].dt, "tz_convert"):
+                df[col_name] = df[col_name].dt.tz_convert(tz=timezone)
     return df
 
 
