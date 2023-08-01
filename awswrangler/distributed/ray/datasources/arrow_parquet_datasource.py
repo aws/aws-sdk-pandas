@@ -209,7 +209,7 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
             import ray
             from ray.util.scheduling_strategies import NodeAffinitySchedulingStrategy
 
-            self._local_scheduling = NodeAffinitySchedulingStrategy(ray.get_runtime_context().get_node_id(), soft=False)  # type: ignore[attr-defined]
+            self._local_scheduling = NodeAffinitySchedulingStrategy(ray.get_runtime_context().get_node_id(), soft=False)
 
         dataset_kwargs = reader_args.pop("dataset_kwargs", {})
         try:
@@ -225,7 +225,7 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
             # Try to infer dataset schema by passing dummy table through UDF.
             dummy_table = schema.empty_table()
             try:
-                inferred_schema = _block_udf(dummy_table).schema  # type: ignore[union-attr]
+                inferred_schema = _block_udf(dummy_table).schema
                 inferred_schema = inferred_schema.with_metadata(schema.metadata)
             except Exception:  # pylint: disable=broad-except
                 _logger.debug(
