@@ -12,6 +12,7 @@ rm -rf dist arrow
 
 export ARROW_HOME=$(pwd)/dist
 export LD_LIBRARY_PATH=$(pwd)/dist/lib:$LD_LIBRARY_PATH
+export CMAKE_PREFIX_PATH=$ARROW_HOME:$CMAKE_PREFIX_PATH
 
 git clone \
   --depth 1 \
@@ -84,10 +85,6 @@ pip3 install . -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyx
 
 rm -rf python/pyarrow*
 rm -rf python/boto*
-
-rm -f /aws-sdk-pandas/dist/pyarrow_files/pyarrow/libarrow.so
-rm -f /aws-sdk-pandas/dist/pyarrow_files/pyarrow/libparquet.so
-rm -f /aws-sdk-pandas/dist/pyarrow_files/pyarrow/libarrow_python.so
 
 cp -r /aws-sdk-pandas/dist/pyarrow_files/pyarrow* python/
 
