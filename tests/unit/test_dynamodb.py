@@ -4,12 +4,15 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict
 
+import pyarrow as pa
 import pytest
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
 import awswrangler.pandas as pd
+
+from .._utils import is_ray_modin
 
 pytestmark = pytest.mark.distributed
 
@@ -500,3 +503,37 @@ def test_read_items_limited(
     if chunked:
         df3 = pd.concat(df3)
     assert df3.shape == (min(max_items_evaluated, len(df)), len(df.columns))
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "id", "KeyType": "HASH"}],
+            "AttributeDefinitions": [{"AttributeName": "id", "AttributeType": "N"}],
+        }
+    ],
+)
+@pytest.mark.parametrize("chunked", [False, True])
+def test_read_items_schema(params, dynamodb_table: str, chunked: bool):
+    df = pd.DataFrame(
+        {
+            "id": [Decimal("123.4"), Decimal("226.49"), Decimal("320.320"), Decimal("425.0753")],
+            "word": ["this", "is", "a", "test"],
+            "char_count": [4, 2, 1, 4],
+        }
+    )
+    wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
+
+    if not is_ray_modin:
+        with pytest.raises(pa.ArrowInvalid):
+            wr.dynamodb.read_items(table_name=dynamodb_table, allow_full_scan=True)
+
+    schema = pa.schema([("id", pa.decimal128(7, 4)), ("word", pa.string()), ("char_count", pa.int8())])
+    kwargs = {
+        "table_name": dynamodb_table,
+        "chunked": chunked,
+        "pyarrow_additional_kwargs": {"schema": schema},
+    }
+    wr.dynamodb.read_items(allow_full_scan=True, **kwargs)
+    wr.dynamodb.read_items(filter_expression=Attr("id").eq(1), **kwargs)

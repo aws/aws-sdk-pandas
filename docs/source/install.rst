@@ -1,7 +1,7 @@
 Install
 =======
 
-**AWS SDK for pandas** runs on Python ``3.8``, ``3.9`` and ``3.10``,
+**AWS SDK for pandas** runs on Python ``3.8``, ``3.9``, ``3.10`` and ``3.11``,
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
@@ -28,7 +28,7 @@ At scale
 
 AWS SDK for pandas can also run your workflows at scale by leveraging `modin <https://modin.readthedocs.io/en/stable/>`_ and `ray <https://www.ray.io/>`_.
 
-    >>> pip install "awswrangler[modin,ray]==3.2.1"
+    >>> pip install "awswrangler[modin,ray]"
 
 As a result existing scripts can run on significantly larger datasets with no code rewrite.
 
@@ -119,6 +119,10 @@ This option provides the ability to use semantic versions (i.e. library version)
    * - aws-sdk-pandas-layer-py3-10
      - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-10
      - Layer for ``Python 3.10.x`` runtimes
+   * - aws-sdk-pandas-layer-py3-11
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-11
+     - Layer for ``Python 3.11.x`` runtimes
+
 
 Here is an example of how to create and use the AWS SDK for pandas Lambda layer in your CDK app:
 
@@ -189,7 +193,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for the above Job parameter as follows:
 
-* Value: ``pyarrow==7,pandas==1.5.3,awswrangler==3.2.1``
+* Value: ``pyarrow==7,pandas==1.5.3,awswrangler==3.3.0``
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 

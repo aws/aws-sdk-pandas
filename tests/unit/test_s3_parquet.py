@@ -433,6 +433,12 @@ def test_range_index_recovery_simple(path, use_threads):
     assert_pandas_equals(df.reset_index(level=0), df2.reset_index(level=0))
 
 
+@pytest.mark.modin_index
+@pytest.mark.xfail(
+    raises=AssertionError,
+    reason="https://github.com/ray-project/ray/issues/37771",
+    condition=is_ray_modin,
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 def test_range_index_recovery_pandas(path, use_threads, name):
@@ -478,8 +484,9 @@ def test_multi_index_recovery_nameless(path, use_threads):
     assert_pandas_equals(df.reset_index(), df2.reset_index())
 
 
+@pytest.mark.modin_index
 @pytest.mark.xfail(
-    raises=wr.exceptions.InvalidArgumentCombination,
+    raises=(wr.exceptions.InvalidArgumentCombination, AssertionError),
     reason="Named index not working when partitioning to a single file",
     condition=is_ray_modin,
 )
@@ -544,23 +551,27 @@ def test_to_parquet_dataset_sanitize(path):
     assert df2.par.to_list() == ["a", "b"]
 
 
+@pytest.mark.modin_index
 @pytest.mark.parametrize("use_threads", [False, True, 2])
 def test_timezone_file(path, use_threads):
     file_path = f"{path}0.parquet"
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()]})
     df["c0"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
     df.to_parquet(file_path)
-    df2 = wr.s3.read_parquet(path, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": True})
     assert_pandas_equals(df, df2)
 
 
+@pytest.mark.modin_index
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_timezone_file_columns(path, use_threads):
     file_path = f"{path}0.parquet"
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "c1": [1.1, 2.2]})
     df["c0"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
     df.to_parquet(file_path)
-    df2 = wr.s3.read_parquet(path, columns=["c1"], use_threads=use_threads)
+    df2 = wr.s3.read_parquet(
+        path, columns=["c1"], use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": True}
+    )
     assert_pandas_equals(df[["c1"]], df2)
 
 
@@ -620,12 +631,13 @@ def test_mixed_types_column(path) -> None:
         wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
 
 
+@pytest.mark.modin_index
 @pytest.mark.parametrize("compression", [None, "snappy", "gzip", "zstd"])
 def test_parquet_compression(path, compression) -> None:
     df = pd.DataFrame({"id": [1, 2, 3]}, dtype="Int64")
     path_file = f"{path}0.parquet"
     wr.s3.to_parquet(df=df, path=path_file, compression=compression)
-    df2 = wr.s3.read_parquet([path_file])
+    df2 = wr.s3.read_parquet([path_file], pyarrow_additional_kwargs={"ignore_metadata": True})
     assert_pandas_equals(df, df2)
 
 
@@ -674,12 +686,17 @@ def test_ignore_files(path: str, use_threads: Union[bool, int]) -> None:
         "(ExecutionPlan)[https://github.com/ray-project/ray/blob/ray-2.0.1/python/ray/data/_internal/plan.py#L253]"
     ),
 )
-def test_empty_parquet(path):
+@pytest.mark.parametrize("chunked", [True, False])
+def test_empty_parquet(path, chunked):
     path = f"{path}file.parquet"
     s = pa.schema([pa.field("a", pa.int64())])
     pq.write_table(s.empty_table(), path)
 
-    df = wr.s3.read_parquet(path)
+    df = wr.s3.read_parquet(path, chunked=chunked)
+
+    if chunked:
+        df = pd.concat(list(df))
+
     assert len(df) == 0
     assert len(df.columns) > 0
 

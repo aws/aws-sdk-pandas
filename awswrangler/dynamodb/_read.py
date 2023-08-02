@@ -2,6 +2,7 @@
 
 import itertools
 import logging
+import warnings
 from functools import wraps
 from typing import (
     TYPE_CHECKING,
@@ -164,7 +165,8 @@ def _convert_items(
                     mapping=[
                         {k: v.value if isinstance(v, Binary) else v for k, v in d.items()}  # type: ignore[attr-defined]
                         for d in items
-                    ]
+                    ],
+                    schema=arrow_kwargs.pop("schema", None),
                 )
             ],
             arrow_kwargs,
@@ -187,6 +189,7 @@ def _read_scan_chunked(
     dynamodb_client: Optional["DynamoDBClient"],
     as_dataframe: bool,
     kwargs: Dict[str, Any],
+    schema: Optional[pa.Schema] = None,
     segment: Optional[int] = None,
 ) -> Union[Iterator[pa.Table], Iterator[_ItemsListType]]:
     # SEE: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan
@@ -210,7 +213,7 @@ def _read_scan_chunked(
             for d in response.get("Items", [])
         ]
         total_items += len(items)
-        yield _utils.list_to_arrow_table(mapping=items) if as_dataframe else items
+        yield _utils.list_to_arrow_table(mapping=items, schema=schema) if as_dataframe else items
 
         if ("Limit" in kwargs) and (total_items >= kwargs["Limit"]):
             break
@@ -229,13 +232,14 @@ def _read_scan(
     dynamodb_client: Optional["DynamoDBClient"],
     as_dataframe: bool,
     kwargs: Dict[str, Any],
+    schema: Optional[pa.Schema],
     segment: int,
 ) -> Union[pa.Table, _ItemsListType]:
-    items_iterator: Iterator[_ItemsListType] = _read_scan_chunked(dynamodb_client, False, kwargs, segment)
+    items_iterator: Iterator[_ItemsListType] = _read_scan_chunked(dynamodb_client, False, kwargs, None, segment)
 
     items = list(itertools.chain.from_iterable(items_iterator))
 
-    return _utils.list_to_arrow_table(mapping=items) if as_dataframe else items
+    return _utils.list_to_arrow_table(mapping=items, schema=schema) if as_dataframe else items
 
 
 def _read_query_chunked(
@@ -326,10 +330,11 @@ def _read_items_scan(
 
     kwargs = _serialize_kwargs(kwargs)
     kwargs["TableName"] = table_name
+    schema = arrow_kwargs.pop("schema", None)
 
     if chunked:
         _logger.debug("Scanning DynamoDB table %s and returning results in an iterator", table_name)
-        scan_iterator = _read_scan_chunked(dynamodb_client, as_dataframe, kwargs)
+        scan_iterator = _read_scan_chunked(dynamodb_client, as_dataframe, kwargs, schema)
         if as_dataframe:
             return (_utils.table_refs_to_df([items], arrow_kwargs) for items in scan_iterator)
 
@@ -347,6 +352,7 @@ def _read_items_scan(
         dynamodb_client,
         itertools.repeat(as_dataframe),
         itertools.repeat(kwargs),
+        itertools.repeat(schema),
         range(total_segments),
     )
 
@@ -400,6 +406,10 @@ def _read_items(
             items = _read_query(table_name, chunked, boto3_session, **kwargs)
         else:
             # Last resort use Scan
+            warnings.warn(
+                f"Attempting DynamoDB Scan operation with arguments:\n{kwargs}",
+                UserWarning,
+            )
             return _read_items_scan(
                 table_name=table_name,
                 as_dataframe=as_dataframe,
@@ -449,6 +459,11 @@ def read_items(  # pylint: disable=too-many-branches
 
     Under the hood, it wraps all the four available read actions: `get_item`, `batch_get_item`,
     `query` and `scan`.
+
+    Warning
+    -------
+    To avoid a potentially costly Scan operation, please make sure to pass arguments such as
+    `partition_values` or `max_items_evaluated`. Note that `filter_expression` is applied AFTER a Scan
 
     Note
     ----
@@ -581,6 +596,7 @@ def read_items(  # pylint: disable=too-many-branches
     ... )
 
     Reading items matching a FilterExpression expressed with boto3.dynamodb.conditions.Attr
+    Note that FilterExpression is applied AFTER a Scan operation
 
     >>> import awswrangler as wr
     >>> from boto3.dynamodb.conditions import Attr

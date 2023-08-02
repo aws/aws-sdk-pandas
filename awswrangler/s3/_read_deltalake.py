@@ -33,7 +33,7 @@ def _set_default_storage_options_kwargs(
 @_utils.check_optional_dependency(deltalake, "deltalake")
 @apply_configs
 def read_deltalake(
-    path: Optional[str] = None,
+    path: str,
     version: Optional[int] = None,
     partitions: Optional[List[Tuple[str, str, Any]]] = None,
     columns: Optional[List[str]] = None,
@@ -54,7 +54,7 @@ def read_deltalake(
 
     Parameters
     ----------
-    path: Optional[str]
+    path: str
         The path of the DeltaTable.
     version: Optional[int]
         The version of the DeltaTable.
