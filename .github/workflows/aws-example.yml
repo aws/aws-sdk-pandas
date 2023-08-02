@@ -1,12 +1,12 @@
-# Sample workflow to access AWS resources when workflow is tied to branch
 name: AWS Example Workflow
 on:
   workflow_dispatch
 env:
-  AWS_REGION : us-east-1
+  AWS_REGION: us-east-1
 
 permissions:
-  contents: read    # This is required for actions/checkout
+  contents: read
+  id-token: write
 
 jobs:
   AWSExampleJob:
