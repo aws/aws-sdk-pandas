@@ -54,7 +54,7 @@ def _create_iceberg_table(
         f"TBLPROPERTIES ('table_type' ='ICEBERG', 'format'='parquet'{table_properties_str})"
     )
 
-    query_id: str = _start_query_execution(
+    query_execution_id: str = _start_query_execution(
         sql=create_sql,
         workgroup=workgroup,
         wg_config=wg_config,
@@ -64,7 +64,7 @@ def _create_iceberg_table(
         kms_key=kms_key,
         boto3_session=boto3_session,
     )
-    wait_query(query_execution_id=query_id, boto3_session=boto3_session)
+    wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
 
 
 @apply_configs
