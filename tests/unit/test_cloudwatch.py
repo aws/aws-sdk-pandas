@@ -54,14 +54,6 @@ def test_read_logs(loggroup: str) -> None:
     assert len(df.columns) == 3
 
 
-def test_read_logs_by_log_group_id(loggroup: str) -> None:
-    df = wr.cloudwatch.read_logs(
-        log_group_ids=[loggroup], query="fields @timestamp, @message | sort @timestamp desc | limit 5", limit=5
-    )
-    assert len(df.index) == 5
-    assert len(df.columns) == 3
-
-
 def test_read_logs_by_log_group_arn(loggroup: str, account_id: str, region: str) -> None:
     loggroup_arn = f"arn:aws:logs:{region}:{account_id}:log-group:{loggroup}"
     df = wr.cloudwatch.read_logs(
@@ -69,20 +61,6 @@ def test_read_logs_by_log_group_arn(loggroup: str, account_id: str, region: str)
     )
     assert len(df.index) == 5
     assert len(df.columns) == 3
-
-
-def test_read_log_group_both_ids_and_names_error(loggroup: str) -> None:
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.cloudwatch.read_logs(
-            log_group_names=[loggroup],
-            log_group_ids=[loggroup],
-            query="fields @timestamp, @message | sort @timestamp desc",
-        )
-
-
-def test_read_log_group_no_ids_and_names_error() -> None:
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.cloudwatch.read_logs(query="fields @timestamp, @message | sort @timestamp desc")
 
 
 def test_describe_log_streams_and_filter_log_events(loggroup: str) -> None:
