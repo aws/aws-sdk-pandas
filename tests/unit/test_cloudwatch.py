@@ -57,7 +57,7 @@ def test_read_logs(loggroup: str) -> None:
 def test_read_logs_by_log_group_arn(loggroup: str, account_id: str, region: str) -> None:
     loggroup_arn = f"arn:aws:logs:{region}:{account_id}:log-group:{loggroup}"
     df = wr.cloudwatch.read_logs(
-        log_group_ids=[loggroup_arn], query="fields @timestamp, @message | sort @timestamp desc | limit 5", limit=5
+        log_group_names=[loggroup_arn], query="fields @timestamp, @message | sort @timestamp desc | limit 5", limit=5
     )
     assert len(df.index) == 5
     assert len(df.columns) == 3
