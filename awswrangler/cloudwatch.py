@@ -17,9 +17,17 @@ _QUERY_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 
 def _validate_args(
+    log_group_names: Optional[List[str]],
+    log_group_ids: Optional[List[str]],
     start_timestamp: int,
     end_timestamp: int,
 ) -> None:
+    if log_group_names is None and log_group_ids is None:
+        raise exceptions.InvalidArgumentCombination("Either `log_group_names` or `log_group_ids` must be provided.")
+    if log_group_names is not None and log_group_ids is not None:
+        raise exceptions.InvalidArgumentCombination(
+            "Must provide either `log_group_names` or `log_group_ids`, but not both."
+        )
     if start_timestamp < 0:
         raise exceptions.InvalidArgument("`start_time` cannot be a negative value.")
     if start_timestamp >= end_timestamp:
@@ -28,7 +36,8 @@ def _validate_args(
 
 def start_query(
     query: str,
-    log_group_names: List[str],
+    log_group_names: Optional[List[str]] = None,
+    log_group_ids: Optional[List[str]] = None,
     start_time: Optional[datetime.datetime] = None,
     end_time: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
@@ -38,19 +47,25 @@ def start_query(
 
     https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
 
+    Note
+    ----
+    Cannot call ``start_query`` with both ``log_group_names`` and ``log_group_ids``.
+
     Parameters
     ----------
-    query : str
+    query: str
         The query string.
-    log_group_names : str
-        The list of log groups to be queried. You can include up to 20 log groups.
-    start_time : datetime.datetime
+    log_group_names: List[str], optional
+        The list of log group names to be queried. You can include up to 50 log groups.
+    log_group_ids: List[str], optional
+        The list of log groups IDs to query. You can include up to 50 log groups.
+    start_time: datetime.datetime
         The beginning of the time range to query.
-    end_time : datetime.datetime
+    end_time: datetime.datetime
         The end of the time range to query.
-    limit : Optional[int]
+    limit: Optional[int]
         The maximum number of log events to return in the query.
-    boto3_session : boto3.Session(), optional
+    boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
@@ -79,15 +94,26 @@ def start_query(
     _logger.debug("start_timestamp: %s", start_timestamp)
     _logger.debug("end_timestamp: %s", end_timestamp)
 
-    _validate_args(start_timestamp=start_timestamp, end_timestamp=end_timestamp)
+    _validate_args(
+        log_group_names=log_group_names,
+        log_group_ids=log_group_ids,
+        start_timestamp=start_timestamp,
+        end_timestamp=end_timestamp,
+    )
     args: Dict[str, Any] = {
-        "logGroupNames": log_group_names,
         "startTime": start_timestamp,
         "endTime": end_timestamp,
         "queryString": query,
     }
+
+    if log_group_ids:
+        args["logGroupIdentifiers"] = log_group_ids
+    else:
+        args["logGroupNames"] = log_group_names
+
     if limit is not None:
         args["limit"] = limit
+
     client_logs = _utils.client(service_name="logs", session=boto3_session)
     response = client_logs.start_query(**args)
     return response["queryId"]
@@ -145,7 +171,8 @@ def wait_query(
 
 def run_query(
     query: str,
-    log_group_names: List[str],
+    log_group_names: Optional[List[str]] = None,
+    log_group_ids: Optional[List[str]] = None,
     start_time: Optional[datetime.datetime] = None,
     end_time: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
@@ -155,12 +182,18 @@ def run_query(
 
     https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
 
+    Note
+    ----
+    Cannot call ``run_query`` with both ``log_group_names`` and ``log_group_ids``.
+
     Parameters
     ----------
     query : str
         The query string.
-    log_group_names : str
-        The list of log groups to be queried. You can include up to 20 log groups.
+    log_group_names : List[str], optional
+        The list of log group names to be queried. You can include up to 50 log groups.
+    log_group_ids: List[str], optional
+        The list of log groups IDs to query. You can include up to 50 log groups.
     start_time : datetime.datetime
         The beginning of the time range to query.
     end_time : datetime.datetime
@@ -187,6 +220,7 @@ def run_query(
     query_id: str = start_query(
         query=query,
         log_group_names=log_group_names,
+        log_group_ids=log_group_ids,
         start_time=start_time,
         end_time=end_time,
         limit=limit,
@@ -198,7 +232,8 @@ def run_query(
 
 def read_logs(
     query: str,
-    log_group_names: List[str],
+    log_group_names: Optional[List[str]] = None,
+    log_group_ids: Optional[List[str]] = None,
     start_time: Optional[datetime.datetime] = None,
     end_time: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
@@ -208,19 +243,25 @@ def read_logs(
 
     https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
 
+    Note
+    ----
+    Cannot call ``read_logs`` with both ``log_group_names`` and ``log_group_ids``.
+
     Parameters
     ----------
-    query : str
+    query: str
         The query string.
-    log_group_names : str
-        The list of log groups to be queried. You can include up to 20 log groups.
-    start_time : datetime.datetime
+    log_group_names: List[str], optional
+        The list of log group names to be queried. You can include up to 50 log groups.
+    log_group_ids: List[str], optional
+        The list of log groups IDs to query. You can include up to 50 log groups.
+    start_time: datetime.datetime
         The beginning of the time range to query.
-    end_time : datetime.datetime
+    end_time: datetime.datetime
         The end of the time range to query.
-    limit : Optional[int]
+    limit: Optional[int]
         The maximum number of log events to return in the query.
-    boto3_session : boto3.Session(), optional
+    boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
@@ -240,6 +281,7 @@ def read_logs(
     results: List[List[Dict[str, str]]] = run_query(
         query=query,
         log_group_names=log_group_names,
+        log_group_ids=log_group_ids,
         start_time=start_time,
         end_time=end_time,
         limit=limit,
@@ -384,15 +426,15 @@ def filter_log_events(
 
     Note
     ----
-    Cannot call filter_log_events with both log_stream_names and log_stream_name_prefix.
+    Cannot call ``filter_log_events`` with more than one of either ``log_stream_names``, ``log_stream_name_prefix`` or ``log_group_ids``.
 
     Parameters
     ----------
-    log_group_name : str
+    log_group_name: str
         The name of the log group.
-    log_stream_name_prefix : str
+    log_stream_name_prefix: str, optional
         Filters the results to include only events from log streams that have names starting with this prefix.
-    log_stream_names: List[str]
+    log_stream_names: List[str], optional
         Filters the results to only logs from the log streams in this list.
     filter_pattern : str
         The filter pattern to use. If not provided, all the events are matched.
