@@ -29,7 +29,7 @@ def _block_to_df(
     return _table_to_df(table=block._table, kwargs=to_pandas_kwargs)  # pylint: disable=protected-access
 
 
-def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset[Any]:
+def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset:
     """Create Ray dataset from supported types of data frames."""
     if isinstance(df, modin_pd.DataFrame):
         return from_modin(df)  # type: ignore[no-any-return]
@@ -39,7 +39,7 @@ def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset
 
 
 def _to_modin(
-    dataset: Union[ray.data.Dataset[Any], ray.data.Dataset[pd.DataFrame]],
+    dataset: Dataset,
     to_pandas_kwargs: Optional[Dict[str, Any]] = None,
     ignore_index: Optional[bool] = True,
 ) -> modin_pd.DataFrame:
@@ -68,7 +68,8 @@ def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Optional[Dic
     ref_rows: List[bool] = ray_get([_is_not_empty(arrow_ref) for arrow_ref in arrow_refs])
     refs: List[Callable[..., Any]] = [ref for ref_rows, ref in zip(ref_rows, arrow_refs) if ref_rows]
     return _to_modin(
-        dataset=ray.data.from_arrow_refs(refs if len(refs) > 0 else [pa.Table.from_arrays([])]), to_pandas_kwargs=kwargs
+        dataset=ray.data.from_arrow_refs(refs) if len(refs) > 0 else ray.data.from_arrow([pa.Table.from_arrays([])]),
+        to_pandas_kwargs=kwargs,
     )
 
 

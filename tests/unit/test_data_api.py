@@ -8,7 +8,7 @@ import awswrangler.pandas as pd
 from awswrangler.data_api.rds import RdsDataApi
 from awswrangler.data_api.redshift import RedshiftDataApi
 
-from .._utils import assert_pandas_equals, get_df, get_time_str_with_random_suffix
+from .._utils import assert_pandas_equals, get_df, get_time_str_with_random_suffix, is_ray_modin
 
 pytestmark = pytest.mark.distributed
 
@@ -35,6 +35,13 @@ def create_rds_connector(rds_type: str, parameters: Dict[str, Any]) -> "RdsDataA
 @pytest.fixture
 def mysql_serverless_connector(databases_parameters: Dict[str, Any]) -> "RdsDataApi":
     con = create_rds_connector("mysql_serverless", databases_parameters)
+    with con:
+        yield con
+
+
+@pytest.fixture
+def postgresql_serverless_connector(databases_parameters: Dict[str, Any]) -> "RdsDataApi":
+    con = create_rds_connector("postgresql_serverless", databases_parameters)
     with con:
         yield con
 
@@ -66,6 +73,16 @@ def mysql_serverless_table(mysql_serverless_connector: "RdsDataApi") -> Iterator
         yield name
     finally:
         mysql_serverless_connector.execute(f"DROP TABLE IF EXISTS test.{name}")
+
+
+@pytest.fixture(scope="function")
+def postgresql_serverless_table(postgresql_serverless_connector: "RdsDataApi") -> Iterator[str]:
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Table name: {name}")
+    try:
+        yield name
+    finally:
+        postgresql_serverless_connector.execute(f"DROP TABLE IF EXISTS test.{name}")
 
 
 def test_data_api_redshift_columnless_query(redshift_connector: "RedshiftDataApi") -> None:
@@ -211,9 +228,55 @@ def test_data_api_mysql_to_sql_mode(
     else:
         expected_frame = pd.concat([frame, frame2], axis=0).reset_index(drop=True)
 
-    assert_pandas_equals(out_frame.astype(expected_frame.dtypes), expected_frame)
+    # Cast types
+    out_frame = out_frame.astype(expected_frame.dtypes)
+    # Modin upcasts to float64 now
+    if is_ray_modin:
+        out_frame["float"] = out_frame["float"].astype("float32")
+
+    assert_pandas_equals(out_frame, expected_frame)
 
 
 def test_data_api_exception(mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str) -> None:
     with pytest.raises(boto3.client("rds-data").exceptions.BadRequestException):
         wr.data_api.rds.read_sql_query("CUPCAKE", con=mysql_serverless_connector)
+
+
+def test_data_api_mysql_ansi(mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str) -> None:
+    database = "test"
+    frame = pd.DataFrame([[42, "test"]], columns=["id", "name"])
+
+    mysql_serverless_connector.execute("SET SESSION sql_mode='ANSI_QUOTES';")
+
+    wr.data_api.rds.to_sql(
+        df=frame,
+        con=mysql_serverless_connector,
+        table=mysql_serverless_table,
+        database=database,
+        sql_mode="ansi",
+    )
+
+    out_frame = wr.data_api.rds.read_sql_query(
+        f"SELECT name FROM {mysql_serverless_table} WHERE id = 42", con=mysql_serverless_connector
+    )
+    expected_dataframe = pd.DataFrame([["test"]], columns=["name"])
+    assert_pandas_equals(out_frame, expected_dataframe)
+
+
+def test_data_api_postgresql(postgresql_serverless_connector: "RdsDataApi", postgresql_serverless_table: str) -> None:
+    database = "test"
+    frame = pd.DataFrame([[42, "test"]], columns=["id", "name"])
+
+    wr.data_api.rds.to_sql(
+        df=frame,
+        con=postgresql_serverless_connector,
+        table=postgresql_serverless_table,
+        database=database,
+        sql_mode="ansi",
+    )
+
+    out_frame = wr.data_api.rds.read_sql_query(
+        f"SELECT name FROM {postgresql_serverless_table} WHERE id = 42", con=postgresql_serverless_connector
+    )
+    expected_dataframe = pd.DataFrame([["test"]], columns=["name"])
+    assert_pandas_equals(out_frame, expected_dataframe)

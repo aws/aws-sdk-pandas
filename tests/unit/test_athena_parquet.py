@@ -580,6 +580,7 @@ def test_schema_evolution_disabled(path, glue_table, glue_database):
     assert df2.c0.sum() == 3
 
 
+@pytest.mark.modin_index
 def test_date_cast(path, glue_table, glue_database):
     df = pd.DataFrame(
         {
@@ -614,9 +615,14 @@ def test_date_cast(path, glue_table, glue_database):
         }
     )
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, dtype={"c0": "date"})
-    df2 = wr.s3.read_parquet(path=path)
+    df2 = wr.s3.read_parquet(path=path, pyarrow_additional_kwargs={"ignore_metadata": True})
     assert pandas_equals(df_expected, df2)
-    df3 = wr.athena.read_sql_table(database=glue_database, table=glue_table, ctas_approach=False)
+    df3 = wr.athena.read_sql_table(
+        database=glue_database,
+        table=glue_table,
+        ctas_approach=False,
+        pyarrow_additional_kwargs={"ignore_metadata": True},
+    )
     assert pandas_equals(df_expected, df3)
 
 

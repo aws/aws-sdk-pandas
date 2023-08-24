@@ -1,6 +1,7 @@
 """RDS Data API Connector."""
 import datetime as dt
 import logging
+import re
 import time
 import uuid
 from decimal import Decimal
@@ -227,6 +228,19 @@ class RdsDataApi(_connector.DataApiConnector):
         return dataframe
 
 
+def escape_identifier(identifier: str, sql_mode: str = "mysql") -> str:
+    """Escape identifiers. Uses MySQL-compatible backticks by default."""
+    if not isinstance(identifier, str):
+        raise TypeError("SQL identifier must be a string")
+    if re.search(r"\W", identifier):
+        raise TypeError(f"SQL identifier contains invalid characters: {identifier}")
+    if sql_mode == "mysql":
+        return f"`{identifier}`"
+    elif sql_mode == "ansi":
+        return f'"{identifier}"'
+    raise ValueError(f"Unknown SQL MODE: {sql_mode}")
+
+
 def connect(
     resource_arn: str, database: str, secret_arn: str = "", boto3_session: Optional[boto3.Session] = None, **kwargs: Any
 ) -> RdsDataApi:
@@ -271,8 +285,8 @@ def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) ->
     return con.execute(sql, database=database)
 
 
-def _drop_table(con: RdsDataApi, table: str, database: str, transaction_id: str) -> None:
-    sql = f"DROP TABLE IF EXISTS `{table}`"
+def _drop_table(con: RdsDataApi, table: str, database: str, transaction_id: str, sql_mode: str) -> None:
+    sql = f"DROP TABLE IF EXISTS {escape_identifier(table, sql_mode=sql_mode)}"
     _logger.debug("Drop table query:\n%s", sql)
     con.execute(sql, database=database, transaction_id=transaction_id)
 
@@ -292,9 +306,10 @@ def _create_table(
     index: bool,
     dtype: Optional[Dict[str, str]],
     varchar_lengths: Optional[Dict[str, int]],
+    sql_mode: str,
 ) -> None:
     if mode == "overwrite":
-        _drop_table(con=con, table=table, database=database, transaction_id=transaction_id)
+        _drop_table(con=con, table=table, database=database, transaction_id=transaction_id, sql_mode=sql_mode)
     elif _does_table_exist(con=con, table=table, database=database, transaction_id=transaction_id):
         return
 
@@ -306,8 +321,8 @@ def _create_table(
         varchar_lengths=varchar_lengths,
         converter_func=_data_types.pyarrow2mysql,
     )
-    cols_str: str = "".join([f"`{k}` {v},\n" for k, v in mysql_types.items()])[:-2]
-    sql = f"CREATE TABLE IF NOT EXISTS `{table}` (\n{cols_str})"
+    cols_str: str = "".join([f"{escape_identifier(k, sql_mode=sql_mode)} {v},\n" for k, v in mysql_types.items()])[:-2]
+    sql = f"CREATE TABLE IF NOT EXISTS {escape_identifier(table, sql_mode=sql_mode)} (\n{cols_str})"
 
     _logger.debug("Create table query:\n%s", sql)
     con.execute(sql, database=database, transaction_id=transaction_id)
@@ -388,6 +403,7 @@ def to_sql(
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
     chunksize: int = 200,
+    sql_mode: str = "mysql",
 ) -> None:
     """
     Insert data using an SQL query on a Data API connection.
@@ -439,19 +455,22 @@ def to_sql(
             index=index,
             dtype=dtype,
             varchar_lengths=varchar_lengths,
+            sql_mode=sql_mode,
         )
 
         if index:
             df = df.reset_index(level=df.index.names)
 
         if use_column_names:
-            insertion_columns = "(" + ", ".join([f"`{col}`" for col in df.columns]) + ")"
+            insertion_columns = (
+                "(" + ", ".join([f"{escape_identifier(col, sql_mode=sql_mode)}" for col in df.columns]) + ")"
+            )
         else:
             insertion_columns = ""
 
         placeholders = ", ".join([f":{col}" for col in df.columns])
 
-        sql = f"""INSERT INTO `{table}` {insertion_columns} VALUES ({placeholders})"""
+        sql = f"INSERT INTO {escape_identifier(table, sql_mode=sql_mode)} {insertion_columns} VALUES ({placeholders})"
         parameter_sets = _generate_parameter_sets(df)
 
         for parameter_sets_chunk in _utils.chunkify(parameter_sets, max_length=chunksize):

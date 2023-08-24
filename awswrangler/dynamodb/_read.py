@@ -2,6 +2,7 @@
 
 import itertools
 import logging
+import warnings
 from functools import wraps
 from typing import (
     TYPE_CHECKING,
@@ -164,7 +165,8 @@ def _convert_items(
                     mapping=[
                         {k: v.value if isinstance(v, Binary) else v for k, v in d.items()}  # type: ignore[attr-defined]
                         for d in items
-                    ]
+                    ],
+                    schema=arrow_kwargs.pop("schema", None),
                 )
             ],
             arrow_kwargs,
@@ -187,6 +189,7 @@ def _read_scan_chunked(
     dynamodb_client: Optional["DynamoDBClient"],
     as_dataframe: bool,
     kwargs: Dict[str, Any],
+    schema: Optional[pa.Schema] = None,
     segment: Optional[int] = None,
 ) -> Union[Iterator[pa.Table], Iterator[_ItemsListType]]:
     # SEE: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan
@@ -194,6 +197,7 @@ def _read_scan_chunked(
 
     deserializer = boto3.dynamodb.types.TypeDeserializer()
     next_token = "init_token"  # Dummy token
+    total_items = 0
 
     kwargs = dict(kwargs)
     if segment is not None:
@@ -208,7 +212,11 @@ def _read_scan_chunked(
             {k: v["B"] if list(v.keys())[0] == "B" else deserializer.deserialize(v) for k, v in d.items()}
             for d in response.get("Items", [])
         ]
-        yield _utils.list_to_arrow_table(mapping=items) if as_dataframe else items
+        total_items += len(items)
+        yield _utils.list_to_arrow_table(mapping=items, schema=schema) if as_dataframe else items
+
+        if ("Limit" in kwargs) and (total_items >= kwargs["Limit"]):
+            break
 
         next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
         if next_token:
@@ -224,27 +232,36 @@ def _read_scan(
     dynamodb_client: Optional["DynamoDBClient"],
     as_dataframe: bool,
     kwargs: Dict[str, Any],
+    schema: Optional[pa.Schema],
     segment: int,
 ) -> Union[pa.Table, _ItemsListType]:
-    items_iterator: Iterator[_ItemsListType] = _read_scan_chunked(dynamodb_client, False, kwargs, segment)
+    items_iterator: Iterator[_ItemsListType] = _read_scan_chunked(dynamodb_client, False, kwargs, None, segment)
 
     items = list(itertools.chain.from_iterable(items_iterator))
 
-    return _utils.list_to_arrow_table(mapping=items) if as_dataframe else items
+    return _utils.list_to_arrow_table(mapping=items, schema=schema) if as_dataframe else items
 
 
 def _read_query_chunked(
     table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
 ) -> Iterator[_ItemsListType]:
     table = get_table(table_name=table_name, boto3_session=boto3_session)
-    response = table.query(**kwargs)
-    yield response.get("Items", [])
+    next_token = "init_token"  # Dummy token
+    total_items = 0
 
     # Handle pagination
-    while "LastEvaluatedKey" in response:
-        kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+    while next_token:
         response = table.query(**kwargs)
-        yield response.get("Items", [])
+        items = response.get("Items", [])
+        total_items += len(items)
+        yield items
+
+        if ("Limit" in kwargs) and (total_items >= kwargs["Limit"]):
+            break
+
+        next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
+        if next_token:
+            kwargs["ExclusiveStartKey"] = next_token
 
 
 @_handle_reserved_keyword_error
@@ -313,10 +330,11 @@ def _read_items_scan(
 
     kwargs = _serialize_kwargs(kwargs)
     kwargs["TableName"] = table_name
+    schema = arrow_kwargs.pop("schema", None)
 
     if chunked:
         _logger.debug("Scanning DynamoDB table %s and returning results in an iterator", table_name)
-        scan_iterator = _read_scan_chunked(dynamodb_client, as_dataframe, kwargs)
+        scan_iterator = _read_scan_chunked(dynamodb_client, as_dataframe, kwargs, schema)
         if as_dataframe:
             return (_utils.table_refs_to_df([items], arrow_kwargs) for items in scan_iterator)
 
@@ -334,6 +352,7 @@ def _read_items_scan(
         dynamodb_client,
         itertools.repeat(as_dataframe),
         itertools.repeat(kwargs),
+        itertools.repeat(schema),
         range(total_segments),
     )
 
@@ -352,9 +371,10 @@ def _read_items(
     boto3_session: Optional[boto3.Session] = None,
     **kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame], _ItemsListType, Iterator[_ItemsListType]]:
-    # Extract 'Keys' and 'IndexName' from provided kwargs: if needed, will be reinserted later on
+    # Extract 'Keys', 'IndexName' and 'Limit' from provided kwargs: if needed, will be reinserted later on
     keys = kwargs.pop("Keys", None)
     index = kwargs.pop("IndexName", None)
+    limit = kwargs.pop("Limit", None)
 
     # Conditionally define optimal reading strategy
     use_get_item = (keys is not None) and (len(keys) == 1)
@@ -372,6 +392,11 @@ def _read_items(
         items = _read_batch_items(table_name, chunked, boto3_session, **kwargs)
 
     else:
+        if limit:
+            kwargs["Limit"] = limit
+            _logger.debug("`max_items_evaluated` argument detected, setting use_threads to False")
+            use_threads = False
+
         if index:
             kwargs["IndexName"] = index
 
@@ -381,6 +406,10 @@ def _read_items(
             items = _read_query(table_name, chunked, boto3_session, **kwargs)
         else:
             # Last resort use Scan
+            warnings.warn(
+                f"Attempting DynamoDB Scan operation with arguments:\n{kwargs}",
+                UserWarning,
+            )
             return _read_items_scan(
                 table_name=table_name,
                 as_dataframe=as_dataframe,
@@ -431,12 +460,22 @@ def read_items(  # pylint: disable=too-many-branches
     Under the hood, it wraps all the four available read actions: `get_item`, `batch_get_item`,
     `query` and `scan`.
 
+    Warning
+    -------
+    To avoid a potentially costly Scan operation, please make sure to pass arguments such as
+    `partition_values` or `max_items_evaluated`. Note that `filter_expression` is applied AFTER a Scan
+
     Note
     ----
     Number of Parallel Scan segments is based on the `use_threads` argument.
     A parallel scan with a large number of workers could consume all the provisioned throughput
     of the table or index.
     See: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan
+
+    Note
+    ----
+    If `max_items_evaluated` is specified, then `use_threads=False` is enforced. This is because
+    it's not possible to limit the number of items in a Query/Scan operation across threads.
 
     Parameters
     ----------
@@ -466,6 +505,7 @@ def read_items(  # pylint: disable=too-many-branches
         If True, allow full table scan without any filtering. Defaults to False.
     max_items_evaluated : int, optional
         Limit the number of items evaluated in case of query or scan operations. Defaults to None (all matching items).
+        When set, `use_threads` is enforced to False.
     dtype_backend: str, optional
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
@@ -556,6 +596,7 @@ def read_items(  # pylint: disable=too-many-branches
     ... )
 
     Reading items matching a FilterExpression expressed with boto3.dynamodb.conditions.Attr
+    Note that FilterExpression is applied AFTER a Scan operation
 
     >>> import awswrangler as wr
     >>> from boto3.dynamodb.conditions import Attr

@@ -4,6 +4,7 @@ import time
 from typing import (
     Any,
     Dict,
+    List,
     Optional,
     Union,
     cast,
@@ -11,15 +12,16 @@ from typing import (
 
 import boto3
 import botocore
+from typing_extensions import Literal
 
 from awswrangler import _utils, exceptions, typing
 from awswrangler._config import apply_configs
-from awswrangler._sql_formatter import _process_sql_params
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results
 from ._utils import (
     _QUERY_FINAL_STATES,
     _QUERY_WAIT_POLLING_DELAY,
+    _apply_formatter,
     _get_workgroup_config,
     _start_query_execution,
     _WorkGroupConfig,
@@ -36,7 +38,8 @@ def start_query_execution(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
-    params: Optional[Dict[str, Any]] = None,
+    params: Union[Dict[str, Any], List[str], None] = None,
+    paramstyle: Literal["qmark", "named"] = "named",
     boto3_session: Optional[boto3.Session] = None,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
@@ -64,10 +67,25 @@ def start_query_execution(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
-    params: Dict[str, any], optional
-        Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
-        The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
+    params: Dict[str, any] | List[str], optional
+        Parameters that will be used for constructing the SQL query.
+        Only named or question mark parameters are supported.
+        The parameter style needs to be specified in the ``paramstyle`` parameter.
+
+        For ``paramstyle="named"``, this value needs to be a dictionary.
+        The dict needs to contain the information in the form ``{'name': 'value'}`` and the SQL query needs to contain
+        ``:name``.
+        The formatter will be applied client-side in this scenario.
+
+        For ``paramstyle="qmark"``, this value needs to be a list of strings.
+        The formatter will be applied server-side.
+        The values are applied sequentially to the parameters in the query in the order in which the parameters occur.
+    paramstyle: str, optional
+        Determines the style of ``params``.
+        Possible values are:
+
+        - ``named``
+        - ``qmark``
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     athena_cache_settings: typing.AthenaCacheSettings, optional
@@ -103,7 +121,8 @@ def start_query_execution(
     >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...', data_source='...')
 
     """
-    sql = _process_sql_params(sql, params)
+    # Substitute query parameters if applicable
+    sql, execution_params = _apply_formatter(sql, params, paramstyle)
     _logger.debug("Executing query:\n%s", sql)
 
     athena_cache_settings = athena_cache_settings if athena_cache_settings else {}
@@ -139,6 +158,7 @@ def start_query_execution(
             workgroup=workgroup,
             encryption=encryption,
             kms_key=kms_key,
+            execution_params=execution_params,
             boto3_session=boto3_session,
         )
     if wait:

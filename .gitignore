@@ -153,9 +153,12 @@ building/lambda/arrow
 *.swp
 
 # CDK
+node_modules
+*package.json
 *package-lock.json
 *.cdk.staging
 *cdk.out
+*cdk.context.json
 
 # ruff
 .ruff_cache/

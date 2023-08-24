@@ -137,40 +137,51 @@ def workgroup3(bucket, kms_key):
 @pytest.fixture(scope="session")
 def databases_parameters(cloudformation_outputs, db_password):
     parameters = dict(
-        postgresql={}, mysql={}, redshift={}, sqlserver={}, mysql_serverless={}, oracle={}, redshift_serverless={}
+        postgresql={},
+        mysql={},
+        redshift={},
+        sqlserver={},
+        mysql_serverless={},
+        oracle={},
+        redshift_serverless={},
+        postgresql_serverless={},
     )
     parameters["postgresql"]["host"] = cloudformation_outputs.get("PostgresqlAddress")
-    parameters["postgresql"]["port"] = 3306
-    parameters["postgresql"]["schema"] = "public"
-    parameters["postgresql"]["database"] = "postgres"
+    parameters["postgresql"]["port"] = cloudformation_outputs.get("PostgresqlPort")
+    parameters["postgresql"]["schema"] = cloudformation_outputs.get("PostgresqlSchema")
+    parameters["postgresql"]["database"] = cloudformation_outputs.get("PostgresqlDatabase")
     parameters["mysql"]["host"] = cloudformation_outputs.get("MysqlAddress")
-    parameters["mysql"]["port"] = 3306
-    parameters["mysql"]["schema"] = "test"
-    parameters["mysql"]["database"] = "test"
+    parameters["mysql"]["port"] = cloudformation_outputs.get("MysqlPort")
+    parameters["mysql"]["schema"] = cloudformation_outputs.get("MysqlDatabase")
+    parameters["mysql"]["database"] = cloudformation_outputs.get("MysqlSchema")
     parameters["redshift"]["secret_arn"] = cloudformation_outputs.get("RedshiftSecretArn")
     parameters["redshift"]["host"] = cloudformation_outputs.get("RedshiftAddress")
     parameters["redshift"]["port"] = cloudformation_outputs.get("RedshiftPort")
     parameters["redshift"]["identifier"] = cloudformation_outputs.get("RedshiftIdentifier")
-    parameters["redshift"]["schema"] = "public"
-    parameters["redshift"]["database"] = "test"
+    parameters["redshift"]["schema"] = cloudformation_outputs.get("RedshiftSchema")
+    parameters["redshift"]["database"] = cloudformation_outputs.get("RedshiftDatabase")
     parameters["redshift"]["role"] = cloudformation_outputs.get("RedshiftRole")
     parameters["password"] = db_password
     parameters["user"] = "test"
     parameters["sqlserver"]["host"] = cloudformation_outputs.get("SqlServerAddress")
-    parameters["sqlserver"]["port"] = 1433
-    parameters["sqlserver"]["schema"] = "dbo"
-    parameters["sqlserver"]["database"] = "test"
+    parameters["sqlserver"]["port"] = cloudformation_outputs.get("SqlServerPort")
+    parameters["sqlserver"]["schema"] = cloudformation_outputs.get("SqlServerSchema")
+    parameters["sqlserver"]["database"] = cloudformation_outputs.get("SqlServerDatabase")
     parameters["mysql_serverless"]["secret_arn"] = cloudformation_outputs.get("MysqlServerlessSecretArn")
-    parameters["mysql_serverless"]["schema"] = "test"
-    parameters["mysql_serverless"]["database"] = "test"
+    parameters["mysql_serverless"]["schema"] = cloudformation_outputs.get("MysqlServerlessSchema")
+    parameters["mysql_serverless"]["database"] = cloudformation_outputs.get("MysqlServerlessDatabase")
     parameters["mysql_serverless"]["arn"] = cloudformation_outputs.get("MysqlServerlessClusterArn")
+    parameters["postgresql_serverless"]["secret_arn"] = cloudformation_outputs.get("PostgresqlServerlessSecretArn")
+    parameters["postgresql_serverless"]["schema"] = cloudformation_outputs.get("PostgresqlServerlessSchema")
+    parameters["postgresql_serverless"]["database"] = cloudformation_outputs.get("PostgresqlServerlessDatabase")
+    parameters["postgresql_serverless"]["arn"] = cloudformation_outputs.get("PostgresqlServerlessClusterArn")
     parameters["oracle"]["host"] = cloudformation_outputs.get("OracleAddress")
-    parameters["oracle"]["port"] = 1521
-    parameters["oracle"]["schema"] = "TEST"
-    parameters["oracle"]["database"] = "ORCL"
+    parameters["oracle"]["port"] = cloudformation_outputs.get("OraclePort")
+    parameters["oracle"]["schema"] = cloudformation_outputs.get("OracleSchema")
+    parameters["oracle"]["database"] = cloudformation_outputs.get("OracleDatabase")
     parameters["redshift_serverless"]["secret_arn"] = cloudformation_outputs.get("RedshiftServerlessSecretArn")
     parameters["redshift_serverless"]["workgroup"] = cloudformation_outputs.get("RedshiftServerlessWorkgroup")
-    parameters["redshift_serverless"]["database"] = "test"
+    parameters["redshift_serverless"]["database"] = cloudformation_outputs.get("RedshiftServerlessDatabase")
     return parameters
 
 
@@ -447,6 +458,21 @@ def emr_serverless_execution_role_arn(cloudformation_outputs):
 @pytest.fixture(scope="session")
 def glue_data_quality_role(cloudformation_outputs):
     return cloudformation_outputs["GlueDataQualityRole"]
+
+
+@pytest.fixture(scope="session")
+def cleanrooms_membership_id(cloudformation_outputs):
+    return cloudformation_outputs["CleanRoomsMembershipId"]
+
+
+@pytest.fixture(scope="session")
+def cleanrooms_glue_database_name(cloudformation_outputs):
+    return cloudformation_outputs["CleanRoomsGlueDatabaseName"]
+
+
+@pytest.fixture(scope="session")
+def cleanrooms_s3_bucket_name(cloudformation_outputs):
+    return cloudformation_outputs["CleanRoomsS3BucketName"]
 
 
 @pytest.fixture(scope="function")

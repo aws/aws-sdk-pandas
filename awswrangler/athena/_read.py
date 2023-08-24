@@ -16,9 +16,9 @@ from typing_extensions import Literal
 from awswrangler import _utils, catalog, exceptions, s3, typing
 from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
-from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.athena._utils import (
     _QUERY_WAIT_POLLING_DELAY,
+    _apply_formatter,
     _apply_query_metadata,
     _empty_dataframe_response,
     _get_query_metadata,
@@ -319,6 +319,7 @@ def _resolve_query_without_cache_ctas(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: Optional[boto3.Session],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    execution_params: Optional[List[str]] = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ctas_query_info: Dict[str, Union[str, _QueryMetadata]] = create_ctas_table(
@@ -336,6 +337,7 @@ def _resolve_query_without_cache_ctas(
         wait=True,
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         boto3_session=boto3_session,
+        execution_params=execution_params,
     )
     fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
     ctas_query_metadata = cast(_QueryMetadata, ctas_query_info["ctas_query_metadata"])
@@ -374,6 +376,7 @@ def _resolve_query_without_cache_unload(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: Optional[boto3.Session],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    execution_params: Optional[List[str]] = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     query_metadata = _unload(
@@ -390,6 +393,7 @@ def _resolve_query_without_cache_unload(
         boto3_session=boto3_session,
         data_source=data_source,
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        execution_params=execution_params,
     )
     if file_format == "PARQUET":
         return _fetch_parquet_result(
@@ -421,6 +425,7 @@ def _resolve_query_without_cache_regular(
     athena_query_wait_polling_delay: float,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: Optional[boto3.Session],
+    execution_params: Optional[List[str]] = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
@@ -436,6 +441,7 @@ def _resolve_query_without_cache_regular(
         workgroup=workgroup,
         encryption=encryption,
         kms_key=kms_key,
+        execution_params=execution_params,
         boto3_session=boto3_session,
     )
     _logger.debug("Query id: %s", query_id)
@@ -482,6 +488,7 @@ def _resolve_query_without_cache(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: Optional[boto3.Session],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    execution_params: Optional[List[str]] = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """
@@ -515,6 +522,7 @@ def _resolve_query_without_cache(
                 s3_additional_kwargs=s3_additional_kwargs,
                 boto3_session=boto3_session,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+                execution_params=execution_params,
                 dtype_backend=dtype_backend,
             )
         finally:
@@ -542,6 +550,7 @@ def _resolve_query_without_cache(
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            execution_params=execution_params,
             dtype_backend=dtype_backend,
         )
     return _resolve_query_without_cache_regular(
@@ -559,6 +568,7 @@ def _resolve_query_without_cache(
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
+        execution_params=execution_params,
         dtype_backend=dtype_backend,
     )
 
@@ -577,6 +587,7 @@ def _unload(
     boto3_session: Optional[boto3.Session],
     data_source: Optional[str],
     athena_query_wait_polling_delay: float,
+    execution_params: Optional[List[str]],
 ) -> _QueryMetadata:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output: str = _get_s3_output(s3_output=path, wg_config=wg_config, boto3_session=boto3_session)
@@ -608,6 +619,7 @@ def _unload(
             encryption=encryption,
             kms_key=kms_key,
             boto3_session=boto3_session,
+            execution_params=execution_params,
         )
     except botocore.exceptions.ClientError as ex:
         msg: str = str(ex)
@@ -767,7 +779,8 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
     data_source: Optional[str] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-    params: Optional[Dict[str, Any]] = None,
+    params: Union[Dict[str, Any], List[str], None] = None,
+    paramstyle: Literal["qmark", "named"] = "named",
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -776,11 +789,11 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.1.1/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.3.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.1.1/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.3.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.1.1/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.3.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -844,7 +857,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.1.1/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.3.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -937,10 +950,25 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
-    params: Dict[str, any], optional
-        Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
-        The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
+    params: Dict[str, any] | List[str], optional
+        Parameters that will be used for constructing the SQL query.
+        Only named or question mark parameters are supported.
+        The parameter style needs to be specified in the ``paramstyle`` parameter.
+
+        For ``paramstyle="named"``, this value needs to be a dictionary.
+        The dict needs to contain the information in the form ``{'name': 'value'}`` and the SQL query needs to contain
+        ``:name``.
+        The formatter will be applied client-side in this scenario.
+
+        For ``paramstyle="qmark"``, this value needs to be a list of strings.
+        The formatter will be applied server-side.
+        The values are applied sequentially to the parameters in the query in the order in which the parameters occur.
+    paramstyle: str, optional
+        Determines the style of ``params``.
+        Possible values are:
+
+        - ``named``
+        - ``qmark``
     dtype_backend: str, optional
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
@@ -996,14 +1024,14 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         raise exceptions.InvalidArgumentCombination("Only PARQUET file format is supported if unload_approach=True")
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
 
+    # Substitute query parameters if applicable
+    sql, execution_params = _apply_formatter(sql, params, paramstyle)
+
     athena_cache_settings = athena_cache_settings if athena_cache_settings else {}
     max_cache_seconds = athena_cache_settings.get("max_cache_seconds", 0)
     max_cache_query_inspections = athena_cache_settings.get("max_cache_query_inspections", 50)
     max_remote_cache_entries = athena_cache_settings.get("max_remote_cache_entries", 50)
     max_local_cache_entries = athena_cache_settings.get("max_local_cache_entries", 100)
-
-    # Substitute query parameters
-    sql = _process_sql_params(sql, params)
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
@@ -1064,6 +1092,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        execution_params=execution_params,
         dtype_backend=dtype_backend,
     )
 
@@ -1098,11 +1127,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.1.1/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.3.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.1.1/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.3.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.1.1/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.3.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -1166,7 +1195,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.1.1/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.3.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -1320,7 +1349,8 @@ def unload(
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     data_source: Optional[str] = None,
-    params: Optional[Dict[str, Any]] = None,
+    params: Union[Dict[str, Any], List[str], None] = None,
+    paramstyle: Literal["qmark", "named"] = "named",
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> _QueryMetadata:
     """Write query results from a SELECT statement to the specified data format using UNLOAD.
@@ -1357,10 +1387,25 @@ def unload(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
-    params: Dict[str, any], optional
-        Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
-        The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
+    params: Dict[str, any] | List[str], optional
+        Parameters that will be used for constructing the SQL query.
+        Only named or question mark parameters are supported.
+        The parameter style needs to be specified in the ``paramstyle`` parameter.
+
+        For ``paramstyle="named"``, this value needs to be a dictionary.
+        The dict needs to contain the information in the form ``{'name': 'value'}`` and the SQL query needs to contain
+        ``:name``.
+        The formatter will be applied client-side in this scenario.
+
+        For ``paramstyle="qmark"``, this value needs to be a list of strings.
+        The formatter will be applied server-side.
+        The values are applied sequentially to the parameters in the query in the order in which the parameters occur.
+    paramstyle: str, optional
+        Determines the style of ``params``.
+        Possible values are:
+
+        - ``named``
+        - ``qmark``
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
 
@@ -1378,8 +1423,8 @@ def unload(
     ... )
 
     """
-    # Substitute query parameters
-    sql = _process_sql_params(sql, params)
+    # Substitute query parameters if applicable
+    sql, execution_params = _apply_formatter(sql, params, paramstyle)
     return _unload(
         sql=sql,
         path=path,
@@ -1394,4 +1439,5 @@ def unload(
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         boto3_session=boto3_session,
         data_source=data_source,
+        execution_params=execution_params,
     )

@@ -17,6 +17,7 @@ API Reference
 * `Amazon Neptune`_
 * `DynamoDB`_
 * `Amazon Timestream`_
+* `AWS Clean Rooms`_
 * `Amazon EMR`_
 * `Amazon EMR Serverless`_
 * `Amazon CloudWatch Logs`_
@@ -144,6 +145,9 @@ Amazon Athena
     to_iceberg
     unload
     wait_query
+    create_prepared_statement
+    list_prepared_statements
+    delete_prepared_statement
 
 AWS Lake Formation
 ------------------
@@ -347,6 +351,17 @@ Amazon Timestream
     write
     unload_to_files
     unload
+
+AWS Clean Rooms
+-----------------
+
+.. currentmodule:: awswrangler.cleanrooms
+
+.. autosummary::
+    :toctree: stubs
+
+    read_sql_query
+    wait_query
 
 Amazon EMR
 ----------

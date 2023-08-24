@@ -17,7 +17,7 @@ def test_timestream_write(
 ) -> None:
     name = timestream_database_and_table
     df_timestream["time"] = datetime.now()
-    df_timestream.reset_index(inplace=True, drop=False)
+    df_timestream["index"] = range(0, len(df_timestream))
     df_cpu = df_timestream[df_timestream.measure_kind == "cpu_utilization"]
     df_memory = df_timestream[df_timestream.measure_kind == "memory_utilization"]
     kwargs = {
@@ -44,7 +44,7 @@ def test_timestream_batch_load(
 ) -> None:
     name = timestream_database_and_table
     df_timestream["time"] = round(time.time()) * 1_000
-    df_timestream.reset_index(inplace=True, drop=False)
+    df_timestream["index"] = range(0, len(df_timestream))
     df_cpu = df_timestream[df_timestream.measure_kind == "cpu_utilization"]
     df_memory = df_timestream[df_timestream.measure_kind == "memory_utilization"]
     error_bucket, error_prefix = wr._utils.parse_path(path2)

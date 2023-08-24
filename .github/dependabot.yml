@@ -6,7 +6,8 @@ updates:
       interval: "weekly"
       time: "09:00"
       timezone: "Europe/London"
-    commit-message:
-      prefix: "[skip ci] pip"
-      prefix-development: "[skip ci] pip"
-      include: "scope"
+    groups:
+        production-dependencies:
+          dependency-type: "production"
+        development-dependencies:
+          dependency-type: "development"
