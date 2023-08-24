@@ -1,8 +1,8 @@
+import geopandas
 import pandas as pd
+import shapely
 
 import awswrangler as wr
-import geopandas
-import shapely
 
 
 def test_athena_geospatial(path, glue_table, glue_database):
