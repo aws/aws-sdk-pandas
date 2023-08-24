@@ -12,7 +12,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 pytestmark = pytest.mark.distributed
 
 
-def test_query_cancelled(loggroup):
+def test_query_cancelled(loggroup: str) -> None:
     client_logs = boto3.client("logs")
     with pytest.raises(exceptions.QueryCancelled):
         while True:
@@ -28,7 +28,7 @@ def test_query_cancelled(loggroup):
         wr.cloudwatch.wait_query(query_id=query_id)
 
 
-def test_start_and_wait_query(loggroup):
+def test_start_and_wait_query(loggroup: str) -> None:
     query_id = wr.cloudwatch.start_query(
         log_group_names=[loggroup], query="fields @timestamp, @message | sort @timestamp desc | limit 5"
     )
@@ -38,7 +38,7 @@ def test_start_and_wait_query(loggroup):
     assert len(results[0]) == 3
 
 
-def test_query(loggroup):
+def test_query(loggroup: str) -> None:
     results = wr.cloudwatch.run_query(
         log_group_names=[loggroup], query="fields @timestamp, @message | sort @timestamp desc | limit 5"
     )
@@ -46,7 +46,7 @@ def test_query(loggroup):
     assert len(results[0]) == 3
 
 
-def test_read_logs(loggroup):
+def test_read_logs(loggroup: str) -> None:
     df = wr.cloudwatch.read_logs(
         log_group_names=[loggroup], query="fields @timestamp, @message | sort @timestamp desc | limit 5", limit=5
     )
@@ -54,7 +54,16 @@ def test_read_logs(loggroup):
     assert len(df.columns) == 3
 
 
-def test_describe_log_streams_and_filter_log_events(loggroup):
+def test_read_logs_by_log_group_arn(loggroup: str, account_id: str, region: str) -> None:
+    loggroup_arn = f"arn:aws:logs:{region}:{account_id}:log-group:{loggroup}"
+    df = wr.cloudwatch.read_logs(
+        log_group_names=[loggroup_arn], query="fields @timestamp, @message | sort @timestamp desc | limit 5", limit=5
+    )
+    assert len(df.index) == 5
+    assert len(df.columns) == 3
+
+
+def test_describe_log_streams_and_filter_log_events(loggroup: str) -> None:
     cloudwatch_log_client = boto3.client("logs")
     log_stream_names = [
         "aws_sdk_pandas_log_stream_one",

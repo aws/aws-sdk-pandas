@@ -40,17 +40,17 @@ def start_query(
 
     Parameters
     ----------
-    query : str
+    query: str
         The query string.
-    log_group_names : str
-        The list of log groups to be queried. You can include up to 20 log groups.
-    start_time : datetime.datetime
+    log_group_names: List[str]
+        The list of log group names or ARNs to be queried. You can include up to 50 log groups.
+    start_time: datetime.datetime
         The beginning of the time range to query.
-    end_time : datetime.datetime
+    end_time: datetime.datetime
         The end of the time range to query.
-    limit : Optional[int]
+    limit: Optional[int]
         The maximum number of log events to return in the query.
-    boto3_session : boto3.Session(), optional
+    boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
@@ -79,15 +79,19 @@ def start_query(
     _logger.debug("start_timestamp: %s", start_timestamp)
     _logger.debug("end_timestamp: %s", end_timestamp)
 
-    _validate_args(start_timestamp=start_timestamp, end_timestamp=end_timestamp)
+    _validate_args(
+        start_timestamp=start_timestamp,
+        end_timestamp=end_timestamp,
+    )
     args: Dict[str, Any] = {
-        "logGroupNames": log_group_names,
+        "logGroupIdentifiers": log_group_names,
         "startTime": start_timestamp,
         "endTime": end_timestamp,
         "queryString": query,
     }
     if limit is not None:
         args["limit"] = limit
+
     client_logs = _utils.client(service_name="logs", session=boto3_session)
     response = client_logs.start_query(**args)
     return response["queryId"]
@@ -159,8 +163,8 @@ def run_query(
     ----------
     query : str
         The query string.
-    log_group_names : str
-        The list of log groups to be queried. You can include up to 20 log groups.
+    log_group_names: List[str]
+        The list of log group names or ARNs to be queried. You can include up to 50 log groups.
     start_time : datetime.datetime
         The beginning of the time range to query.
     end_time : datetime.datetime
@@ -210,17 +214,17 @@ def read_logs(
 
     Parameters
     ----------
-    query : str
+    query: str
         The query string.
-    log_group_names : str
-        The list of log groups to be queried. You can include up to 20 log groups.
-    start_time : datetime.datetime
+    log_group_names: List[str]
+        The list of log group names or ARNs to be queried. You can include up to 50 log groups.
+    start_time: datetime.datetime
         The beginning of the time range to query.
-    end_time : datetime.datetime
+    end_time: datetime.datetime
         The end of the time range to query.
-    limit : Optional[int]
+    limit: Optional[int]
         The maximum number of log events to return in the query.
-    boto3_session : boto3.Session(), optional
+    boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
@@ -384,15 +388,15 @@ def filter_log_events(
 
     Note
     ----
-    Cannot call filter_log_events with both log_stream_names and log_stream_name_prefix.
+    Cannot call ``filter_log_events`` with both ``log_stream_names`` and ``log_stream_name_prefix``.
 
     Parameters
     ----------
-    log_group_name : str
+    log_group_name: str
         The name of the log group.
-    log_stream_name_prefix : str
+    log_stream_name_prefix: str, optional
         Filters the results to include only events from log streams that have names starting with this prefix.
-    log_stream_names: List[str]
+    log_stream_names: List[str], optional
         Filters the results to only logs from the log streams in this list.
     filter_pattern : str
         The filter pattern to use. If not provided, all the events are matched.
@@ -432,7 +436,7 @@ def filter_log_events(
     """
     if log_stream_name_prefix and log_stream_names:
         raise exceptions.InvalidArgumentCombination(
-            "Cannot call filter_log_events with both log_stream_names and log_stream_name_prefix"
+            "Cannot call `filter_log_events` with both `log_stream_names` and `log_stream_name_prefix`"
         )
     _logger.debug("log_group_name: %s", log_group_name)
 
