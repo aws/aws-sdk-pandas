@@ -8,7 +8,7 @@ import awswrangler as wr
 def test_athena_geospatial(path, glue_table, glue_database):
     df = wr.athena.read_sql_query(
         """
-        SELECT 
+        SELECT
             1 AS value
             , ST_Point(-121.7602, 46.8527) AS point
             , ST_LineFromText('LINESTRING(1 2, 3 4)') AS line
