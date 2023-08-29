@@ -19,7 +19,7 @@ RUN yum install -y \
     ninja-build
 
 # Upgrade OpenSSL to avoid https://github.com/urllib3/urllib3/issues/2168
-RUN sudo yum update -y openssl
+RUN yum update -y openssl
 
 WORKDIR /root
 
