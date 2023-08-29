@@ -16,10 +16,8 @@ RUN yum install -y \
     autoconf \
     zip \
     git \
-    ninja-build
-
-# Upgrade OpenSSL to avoid https://github.com/urllib3/urllib3/issues/2168
-RUN yum update -y openssl
+    ninja-build \
+    openssl
 
 WORKDIR /root
 
