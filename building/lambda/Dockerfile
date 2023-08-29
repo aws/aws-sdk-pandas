@@ -17,7 +17,7 @@ RUN yum install -y \
     zip \
     git \
     ninja-build \
-    openssl
+    openssl11
 
 WORKDIR /root
 
