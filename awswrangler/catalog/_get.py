@@ -988,7 +988,7 @@ def get_columns_comments(
     Returns
     -------
     Dict[str, Optional[str]]
-        Columns comments. e.g. {"col1": "foo boo bar"}.
+        Columns comments. e.g. {"col1": "foo boo bar", "col2": None}.
 
     Examples
     --------
