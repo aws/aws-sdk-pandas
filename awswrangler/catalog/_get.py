@@ -961,7 +961,7 @@ def get_columns_comments(
     query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, str]:
+) -> Dict[str, Optional[str]]:
     """Get all columns comments.
 
     Note
@@ -987,7 +987,7 @@ def get_columns_comments(
 
     Returns
     -------
-    Dict[str, str]
+    Dict[str, Optional[str]]
         Columns comments. e.g. {"col1": "foo boo bar"}.
 
     Examples
@@ -1005,7 +1005,7 @@ def get_columns_comments(
             ),
         )
     )
-    comments: Dict[str, str] = {}
+    comments: Dict[str, Optional[str]] = {}
     for c in response["Table"]["StorageDescriptor"]["Columns"]:
         comments[c["Name"]] = c.get("Comment")
     if "PartitionKeys" in response["Table"]:
