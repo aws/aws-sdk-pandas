@@ -390,7 +390,9 @@ def test_store_metadata_ignore_null_columns_partitions(glue_database, glue_table
     num_files = 10
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2_null": [None, None, None], "c3_null": [None, None, None]})
     for _ in range(num_files):
-        wr.s3.to_parquet(df=df, path=path, dataset=True, partition_cols=partition_cols)
+        wr.s3.to_parquet(
+            df=df, path=path, dataset=True, dtype={"c2_null": "int", "c3_null": "int"}, partition_cols=partition_cols
+        )
     wr.s3.store_parquet_metadata(
         path=path,
         database=glue_database,
