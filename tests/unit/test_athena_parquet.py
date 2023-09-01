@@ -385,8 +385,9 @@ def test_store_metadata_ignore_null_columns(glue_database, glue_table, path):
     )
 
 
-@pytest.mark.parametrize("partition_cols", [None, ["c2_null"], ["c1", "c2_null"]])
+@pytest.mark.parametrize("partition_cols", [None, ["c0"], ["c0", "c1"]])
 def test_store_metadata_ignore_null_columns_partitions(glue_database, glue_table, path, partition_cols):
+    # only partition on non-null columns
     num_files = 10
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2_null": [None, None, None], "c3_null": [None, None, None]})
     for _ in range(num_files):
