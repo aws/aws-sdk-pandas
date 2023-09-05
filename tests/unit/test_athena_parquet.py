@@ -373,6 +373,38 @@ def test_store_metadata_partitions_sample_dataset(glue_database, glue_table, pat
     assert df.c2.sum() * num_files == df2.c2.sum()
 
 
+def test_store_metadata_ignore_null_columns(glue_database, glue_table, path):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2_null": [None, None, None], "c3_null": [None, None, None]})
+    wr.s3.to_parquet(df=df, path=path, dataset=True, dtype={"c2_null": "int", "c3_null": "int"})
+    wr.s3.store_parquet_metadata(
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        ignore_null=True,
+        dataset=True,
+        dtype={"c2_null": "int", "c3_null": "int"},
+    )
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["c0"], ["c0", "c1"]])
+def test_store_metadata_ignore_null_columns_partitions(glue_database, glue_table, path, partition_cols):
+    # only partition on non-null columns
+    num_files = 10
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2_null": [None, None, None], "c3_null": [None, None, None]})
+    for _ in range(num_files):
+        wr.s3.to_parquet(
+            df=df, path=path, dataset=True, dtype={"c2_null": "int", "c3_null": "int"}, partition_cols=partition_cols
+        )
+    wr.s3.store_parquet_metadata(
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        ignore_null=True,
+        dtype={"c2_null": "int", "c3_null": "int"},
+        dataset=True,
+    )
+
+
 @pytest.mark.parametrize("partition_cols", [None, ["c1"], ["c2"], ["c1", "c2"], ["c2", "c1"]])
 def test_to_parquet_reverse_partitions(glue_database, glue_table, path, partition_cols):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
