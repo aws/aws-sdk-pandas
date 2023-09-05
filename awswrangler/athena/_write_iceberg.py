@@ -88,6 +88,7 @@ def to_iceberg(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     additional_table_properties: Optional[Dict[str, Any]] = None,
     dtype: Optional[Dict[str, str]] = None,
+    catalog_id: Optional[str] = None,
 ) -> None:
     """
     Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
@@ -139,6 +140,9 @@ def to_iceberg(
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         e.g. {'col name': 'bigint', 'col2 name': 'int'}
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default
 
     Returns
     -------
@@ -183,7 +187,9 @@ def to_iceberg(
 
     try:
         # Create Iceberg table if it doesn't exist
-        if not catalog.does_table_exist(database=database, table=table, boto3_session=boto3_session):
+        if not catalog.does_table_exist(
+            database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id
+        ):
             _create_iceberg_table(
                 df=df,
                 database=database,
@@ -211,10 +217,11 @@ def to_iceberg(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             dtype=dtype,
+            catalog_id=catalog_id,
         )
 
         # Insert into iceberg table
-        query_id: str = _start_query_execution(
+        query_execution_id: str = _start_query_execution(
             sql=f'INSERT INTO "{database}"."{table}" SELECT * FROM "{database}"."{temp_table}"',
             workgroup=workgroup,
             wg_config=wg_config,
@@ -224,14 +231,16 @@ def to_iceberg(
             kms_key=kms_key,
             boto3_session=boto3_session,
         )
-        wait_query(query_id)
+        wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
 
     except Exception as ex:
         _logger.error(ex)
 
         raise
     finally:
-        catalog.delete_table_if_exists(database=database, table=temp_table, boto3_session=boto3_session)
+        catalog.delete_table_if_exists(
+            database=database, table=temp_table, boto3_session=boto3_session, catalog_id=catalog_id
+        )
 
         if keep_files is False:
             s3.delete_objects(
