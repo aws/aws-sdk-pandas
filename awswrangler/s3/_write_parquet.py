@@ -432,9 +432,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
-        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
-        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
-        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+        Parameters of the Athena Partition Projection
+        (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as
+        an instance of AthenaPartitionProjectionSettings or as a regular Python dict.
 
         Following projection parameters are supported:
 
@@ -758,6 +759,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
     ignore_empty: bool = True,
+    ignore_null: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
@@ -810,6 +812,8 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
         Suffix or List of suffixes for S3 keys to be ignored.
     ignore_empty: bool
         Ignore files with 0 bytes.
+    ignore_null: bool
+        Ignore columns with null type.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined data types as partitions columns.
@@ -844,9 +848,10 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
         Keep enabled even when working with projections is useful to keep
         Redshift Spectrum working with the regular partitions.
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
-        Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
-        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
-        instance of AthenaPartitionProjectionSettings or as a regular Python dict.
+        Parameters of the Athena Partition Projection
+        (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
+        AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as
+        an instance of AthenaPartitionProjectionSettings or as a regular Python dict.
 
         Following projection parameters are supported:
 
@@ -934,7 +939,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
         ignore_empty=ignore_empty,
-        ignore_null=False,
+        ignore_null=ignore_null,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
