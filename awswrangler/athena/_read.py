@@ -32,7 +32,23 @@ from awswrangler.athena._utils import (
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results
 
+shapely_wkt = _utils.import_optional_dependency("shapely.wkt")
+geopandas = _utils.import_optional_dependency("geopandas")
+
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+@_utils.check_optional_dependency(shapely_wkt, "shapely")
+@_utils.check_optional_dependency(geopandas, "geopandas")
+def _cast_geometry(df: pd.DataFrame, parse_geometry: List[str] = None):
+    def load_geom_wkt(x):
+        """Load geometry from well-known text."""
+        return shapely_wkt.loads(x)
+
+    for col in parse_geometry:
+        df[col] = geopandas.GeoSeries(df[col].apply(load_geom_wkt))
+
+    return geopandas.GeoDataFrame(df)
 
 
 def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
@@ -46,11 +62,11 @@ def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Sessio
 
 
 def _fix_csv_types_generator(
-    dfs: Iterator[pd.DataFrame], parse_dates: List[str], binaries: List[str]
+    dfs: Iterator[pd.DataFrame], parse_dates: List[str], binaries: List[str], parse_geometry: List[str]
 ) -> Iterator[pd.DataFrame]:
     """Apply data types cast to a Pandas DataFrames Generator."""
     for df in dfs:
-        yield _fix_csv_types(df=df, parse_dates=parse_dates, binaries=binaries)
+        yield _fix_csv_types(df=df, parse_dates=parse_dates, binaries=binaries, parse_geometry=parse_geometry)
 
 
 def _add_query_metadata_generator(
@@ -62,7 +78,9 @@ def _add_query_metadata_generator(
         yield df
 
 
-def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]) -> pd.DataFrame:
+def _fix_csv_types(
+    df: pd.DataFrame, parse_dates: List[str], binaries: List[str], parse_geometry: List[str]
+) -> pd.DataFrame:
     """Apply data types cast to a Pandas DataFrames."""
     if len(df.index) > 0:
         for col in parse_dates:
@@ -74,6 +92,10 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
                 )
         for col in binaries:
             df[col] = df[col].str.encode(encoding="utf-8")
+
+    if geopandas and parse_geometry:
+        df = _cast_geometry(df, parse_geometry=parse_geometry)
+
     return df
 
 
@@ -197,7 +219,12 @@ def _fetch_csv_result(
     )
     _logger.debug("Start type casting...")
     if _chunksize is None:
-        df = _fix_csv_types(df=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
+        df = _fix_csv_types(
+            df=ret,
+            parse_dates=query_metadata.parse_dates,
+            binaries=query_metadata.binaries,
+            parse_geometry=query_metadata.parse_geometry,
+        )
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         if keep_files is False:
             s3.delete_objects(
@@ -207,7 +234,12 @@ def _fetch_csv_result(
                 s3_additional_kwargs=s3_additional_kwargs,
             )
         return df
-    dfs = _fix_csv_types_generator(dfs=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
+    dfs = _fix_csv_types_generator(
+        dfs=ret,
+        parse_dates=query_metadata.parse_dates,
+        binaries=query_metadata.binaries,
+        parse_geometry=query_metadata.parse_geometry,
+    )
     dfs = _add_query_metadata_generator(dfs=dfs, query_metadata=query_metadata)
     if keep_files is False:
         return _delete_after_iterate(

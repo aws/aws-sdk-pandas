@@ -371,6 +371,8 @@ def athena2pandas(dtype: str, dtype_backend: Optional[str] = None) -> str:  # py
         return "bytes" if dtype_backend != "pyarrow" else "binary[pyarrow]"
     if dtype in ("array", "row", "map"):
         return "object"
+    if dtype == "geometry":
+        return "string"
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
