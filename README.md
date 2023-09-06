@@ -22,7 +22,7 @@ Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, Q
 
 | Source | Downloads | Installation Command |
 |--------|-----------|----------------------|
-| **[PyPi](https://pypi.org/project/awswrangler/)**  | [![PyPI Downloads](https://pepy.tech/badge/awswrangler)](https://pypi.org/project/awswrangler/) | `pip install awswrangler` |
+| **[PyPi](https://pypi.org/project/awswrangler/)**  | [![PyPI Downloads](https://img.shields.io/pypi/dm/awswrangler)](https://pypi.org/project/awswrangler/) | `pip install awswrangler` |
 | **[Conda](https://anaconda.org/conda-forge/awswrangler)** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
 > ⚠️ **Starting version 3.0, optional modules must be installed explicitly:**<br>
