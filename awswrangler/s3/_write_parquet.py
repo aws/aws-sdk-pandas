@@ -64,6 +64,8 @@ def _new_writer(
         pyarrow_additional_kwargs["use_dictionary"] = True
     if not pyarrow_additional_kwargs.get("write_statistics"):
         pyarrow_additional_kwargs["write_statistics"] = True
+    if not pyarrow_additional_kwargs.get("schema"):
+        pyarrow_additional_kwargs["schema"] = schema
 
     with open_s3_object(
         path=file_path,
@@ -76,7 +78,6 @@ def _new_writer(
             writer = pyarrow.parquet.ParquetWriter(
                 where=f,
                 compression="NONE" if compression is None else compression,
-                schema=schema,
                 **pyarrow_additional_kwargs,
             )
             yield writer
