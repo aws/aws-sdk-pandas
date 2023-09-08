@@ -78,7 +78,6 @@ def _new_writer(
             writer = pyarrow.parquet.ParquetWriter(
                 where=f,
                 compression="NONE" if compression is None else compression,
-                schema=schema,
                 **pyarrow_additional_kwargs,
             )
             yield writer
