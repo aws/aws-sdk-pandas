@@ -64,6 +64,8 @@ def _new_writer(
         pyarrow_additional_kwargs["use_dictionary"] = True
     if not pyarrow_additional_kwargs.get("write_statistics"):
         pyarrow_additional_kwargs["write_statistics"] = True
+    if schema:
+        pyarrow_additional_kwargs["schema"] = schema
 
     with open_s3_object(
         path=file_path,
