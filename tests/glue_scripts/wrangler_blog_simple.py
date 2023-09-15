@@ -13,7 +13,7 @@ df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2017/")
 # Drop vendor_id column
 df.drop("vendor_id", axis=1, inplace=True)
 
-# Filter trips with 1 passenger
+# Filter trips over 1 mile
 df1 = df[df["trip_distance"] > 1]
 
 # Write partitioned trips to S3 in Parquet format
