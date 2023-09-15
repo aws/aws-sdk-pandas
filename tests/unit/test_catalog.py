@@ -201,6 +201,20 @@ def test_catalog(
         )
 
 
+def test_catalog_table_comments(glue_database: str, glue_table: str, path: str) -> None:
+    wr.catalog.create_parquet_table(
+        database=glue_database,
+        table=glue_table,
+        path=path,
+        columns_types={"col0": "bigint", "col1": "double", "col with spaces": "double"},
+        columns_comments={"col0": "first description", "col1": "second description", "col with spaces": "third description"},
+        description="My own table!",
+    )
+    desc = wr.catalog.table(database=glue_database, table=glue_table)
+
+    assert desc["Comment"].all()
+
+
 def test_catalog_partitions(glue_database: str, glue_table: str, path: str, account_id: str) -> None:
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is False
     wr.catalog.create_parquet_table(
