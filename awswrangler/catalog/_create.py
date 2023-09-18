@@ -299,6 +299,7 @@ def _create_parquet_table(
     catalog_table_input: Optional[Dict[str, Any]],
 ) -> None:
     table = sanitize_table_name(table=table)
+    columns_types = {sanitize_column_name(k): v for k, v in columns_types.items()}
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
 
@@ -361,6 +362,7 @@ def _create_orc_table(
     catalog_table_input: Optional[Dict[str, Any]],
 ) -> None:
     table = sanitize_table_name(table=table)
+    columns_types = {sanitize_column_name(k): v for k, v in columns_types.items()}
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
 
@@ -428,6 +430,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     catalog_id: Optional[str],
 ) -> None:
     table = sanitize_table_name(table=table)
+    columns_types = {sanitize_column_name(k): v for k, v in columns_types.items()}
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
 
@@ -501,8 +504,10 @@ def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
     catalog_id: Optional[str],
 ) -> None:
     table = sanitize_table_name(table=table)
+    columns_types = {sanitize_column_name(k): v for k, v in columns_types.items()}
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
+
     table_input: Dict[str, Any]
     if schema_evolution is False:
         _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
