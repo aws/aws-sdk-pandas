@@ -109,7 +109,7 @@ def test_redshift_copy_unload(
 
 @pytest.mark.parametrize("benchmark_time", [40])
 def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_database: str, request) -> None:
-    df = wr.s3.read_parquet(path="s3://amazon-reviews-pds/parquet/product_category=Toys/", dataset=True)
+    df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2017/", dataset=True)
 
     wr.s3.to_parquet(
         df,
@@ -117,7 +117,7 @@ def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_dat
         dataset=True,
         table=glue_table,
         database=glue_database,
-        partition_cols=["year", "marketplace"],
+        partition_cols=["passenger_count", "payment_type"],
     )
 
     with ExecutionTimer(request) as timer:
@@ -136,7 +136,7 @@ def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_dat
 
 @pytest.mark.parametrize("benchmark_time", [80])
 def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glue_database: str, request) -> None:
-    df = wr.s3.read_parquet(path="s3://amazon-reviews-pds/parquet/product_category=Home/", dataset=True)
+    df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2017/", dataset=True)
 
     wr.s3.to_parquet(
         df,
@@ -145,7 +145,7 @@ def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glu
         dataset=True,
         table=glue_table,
         database=glue_database,
-        partition_cols=["year", "marketplace"],
+        partition_cols=["passenger_count", "payment_type"],
         glue_table_settings={
             "table_type": "GOVERNED",
         },

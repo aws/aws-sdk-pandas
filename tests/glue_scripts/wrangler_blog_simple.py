@@ -7,37 +7,33 @@ output_path = os.environ["output-path"]
 glue_database = os.environ["glue-database"]
 glue_table = os.environ["glue-table"]
 
-category = "toys"
+# Read 1.5 Gb Parquet data
+df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2017/")
 
-# Read Parquet data (1.2 Gb parquet compressed)
-df = wr.s3.read_parquet(
-    path=f"s3://amazon-reviews-pds/parquet/product_category={category.title()}/",
-)
+# Drop vendor_id column
+df.drop("vendor_id", axis=1, inplace=True)
 
-# Drop customer_id column
-df.drop("customer_id", axis=1, inplace=True)
+# Filter trips over 1 mile
+df1 = df[df["trip_distance"] > 1]
 
-# Filter reviews with 5-star rating
-df5 = df[df["star_rating"] == 5]
-
-# Write partitioned five stars reviews to S3 in Parquet format
+# Write partitioned trips to S3 in Parquet format
 wr.s3.to_parquet(
-    df5,
-    path=f"{output_path}output/{category}/",
-    partition_cols=["year", "marketplace"],
+    df1,
+    path=f"{output_path}output/{glue_table}/",
+    partition_cols=["passenger_count", "payment_type"],
     dataset=True,
     database=glue_database,
     table=glue_table,
 )
 
 # Read the data back to a modin df via Athena
-df5_athena = wr.athena.read_sql_query(
+df1_athena = wr.athena.read_sql_query(
     f"SELECT * FROM {glue_table}",
     database=glue_database,
     ctas_approach=False,
     unload_approach=True,
     workgroup=workgroup_name,
-    s3_output=f"{output_path}unload/{category}/",
+    s3_output=f"{output_path}unload/{glue_table}/",
 )
 
 # Delete table (required due to LF)

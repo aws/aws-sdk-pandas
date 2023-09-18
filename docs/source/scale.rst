@@ -37,18 +37,16 @@ In distributed mode, the same ``awswrangler`` APIs can now handle much larger da
 
 .. code-block:: python
 
-    # Read Parquet data (1.2 Gb Parquet compressed)
-    df = wr.s3.read_parquet(
-        path=f"s3://amazon-reviews-pds/parquet/product_category=Toys/",
-    )
+    # Read 1.6 Gb Parquet data
+    df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2017/")
 
-    # Drop the customer_id column
-    df.drop("customer_id", axis=1, inplace=True)
+    # Drop vendor_id column
+    df.drop("vendor_id", axis=1, inplace=True)
 
-    # Filter reviews with 5-star rating
-    df5 = df[df["star_rating"] == 5]
+    # Filter trips over 1 mile
+    df1 = df[df["trip_distance"] > 1]
 
-In the example above, Amazon product data is read from Amazon S3 into a distributed `Modin data frame <https://modin.readthedocs.io/en/stable/getting_started/why_modin/pandas.html>`_.
+In the example above, New York City Taxi data is read from Amazon S3 into a distributed `Modin data frame <https://modin.readthedocs.io/en/stable/getting_started/why_modin/pandas.html>`_.
 Modin is a drop-in replacement for Pandas. It exposes the same APIs but enables you to use all of the cores on your machine, or all of the workers in an entire cluster, leading to improved performance and scale.
 To use it, make sure to replace your pandas import statement with modin:
 
