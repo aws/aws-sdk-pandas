@@ -2,12 +2,12 @@
 
 import logging
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set, TypedDict
 
 import boto3
 import pandas as pd
 
-from awswrangler import _utils, catalog, exceptions, s3
+from awswrangler import _data_types, _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler.athena._executions import wait_query
 from awswrangler.athena._utils import (
@@ -67,6 +67,106 @@ def _create_iceberg_table(
     wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
 
 
+class _SchemaChanges(TypedDict):
+    to_add: Dict[str, str]
+    to_change: Dict[str, str]
+    to_remove: Set[str]
+
+
+def _determine_differences(
+    df: pd.DataFrame,
+    database: str,
+    table: str,
+    index: bool,
+    partition_cols: Optional[List[str]],
+    boto3_session: Optional[boto3.Session],
+    dtype: Optional[Dict[str, str]],
+    catalog_id: Optional[str],
+) -> _SchemaChanges:
+    frame_columns_types, frame_partitions_types = _data_types.athena_types_from_pandas_partitioned(
+        df=df, index=index, partition_cols=partition_cols, dtype=dtype
+    )
+    frame_columns_types.update(frame_partitions_types)
+
+    catalog_column_types = catalog.get_table_types(
+        database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session
+    )
+
+    original_columns = set(catalog_column_types)
+    new_columns = set(frame_columns_types)
+
+    to_add = {col: frame_columns_types[col] for col in new_columns - original_columns}
+    to_remove = original_columns - new_columns
+
+    columns_to_change = [
+        col for col in original_columns.intersection(new_columns) if frame_columns_types[col] != catalog_column_types[col]
+    ]
+    to_change = {col: frame_columns_types[col] for col in columns_to_change}
+
+    return _SchemaChanges(to_add=to_add, to_change=to_change, to_remove=to_remove)
+
+
+def _alter_iceberg_table(
+    database: str,
+    table: str,
+    schema_changes: _SchemaChanges,
+    wg_config: _WorkGroupConfig,
+    data_source: Optional[str] = None,
+    workgroup: Optional[str] = None,
+    encryption: Optional[str] = None,
+    kms_key: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    if schema_changes["to_add"]:
+        _alter_iceberg_table_add_columns(
+            database=database,
+            table=table,
+            columns_to_add=schema_changes["to_add"],
+            wg_config=wg_config,
+            data_source=data_source,
+            workgroup=workgroup,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=boto3_session,
+        )
+
+    if schema_changes["to_change"]:
+        raise exceptions.InvalidArgumentCombination(
+            "Updating column types of Iceberg tables is not currently supported."
+        )
+
+    if schema_changes["to_remove"]:
+        raise exceptions.InvalidArgumentCombination("Removing columns of Iceberg tables is not currently supported.")
+
+
+def _alter_iceberg_table_add_columns(
+    database: str,
+    table: str,
+    columns_to_add: Dict[str, str],
+    wg_config: _WorkGroupConfig,
+    data_source: Optional[str] = None,
+    workgroup: Optional[str] = None,
+    encryption: Optional[str] = None,
+    kms_key: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    add_cols_str = ", ".join([f"{col_name} {columns_to_add[col_name]}" for col_name in columns_to_add])
+
+    alter_sql = f"ALTER TABLE {table} ADD COLUMNS ({add_cols_str})"
+
+    query_execution_id: str = _start_query_execution(
+        sql=alter_sql,
+        workgroup=workgroup,
+        wg_config=wg_config,
+        database=database,
+        data_source=data_source,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=boto3_session,
+    )
+    wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
+
+
 @apply_configs
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
@@ -89,6 +189,7 @@ def to_iceberg(
     additional_table_properties: Optional[Dict[str, Any]] = None,
     dtype: Optional[Dict[str, str]] = None,
     catalog_id: Optional[str] = None,
+    schema_evolution: bool = True,
 ) -> None:
     """
     Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
@@ -205,6 +306,31 @@ def to_iceberg(
                 kms_key=kms_key,
                 boto3_session=boto3_session,
                 dtype=dtype,
+            )
+        else:
+            schema_differences = _determine_differences(
+                df=df,
+                database=database,
+                table=table,
+                index=index,
+                partition_cols=partition_cols,
+                boto3_session=boto3_session,
+                dtype=dtype,
+                catalog_id=catalog_id,
+            )
+            if schema_evolution is False and any([schema_differences[x] for x in schema_differences]):
+                raise exceptions.InvalidArgumentValue(f"Schema change detected: {schema_differences}")
+
+            _alter_iceberg_table(
+                database=database,
+                table=table,
+                schema_changes=schema_differences,
+                wg_config=wg_config,
+                data_source=data_source,
+                workgroup=workgroup,
+                encryption=encryption,
+                kms_key=kms_key,
+                boto3_session=boto3_session,
             )
 
         # Create temporary external table, write the results

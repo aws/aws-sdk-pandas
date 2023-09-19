@@ -1525,6 +1525,96 @@ def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_col
     assert df.equals(df_out)
 
 
+def test_athena_to_iceberg_schema_evolution_add_columns(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        schema_evolution=True,
+    )
+
+    df["c2"] = [6, 7, 8]
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        schema_evolution=True,
+    )
+
+    column_types = wr.catalog.get_table_types(glue_database, glue_table)
+    assert len(column_types) == len(df.columns)
+
+    df["c3"] = [9, 10, 11]
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.athena.to_iceberg(
+            df=df,
+            database=glue_database,
+            table=glue_table,
+            table_location=path,
+            temp_path=path2,
+            schema_evolution=False,
+        )
+
+
+def test_athena_to_iceberg_schema_evolution_modify_column(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    # Version 1
+    df = pd.DataFrame({"c1": [1.0, 2.0]})
+    df["c1"] = df["c1"].astype("float64")
+
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        schema_evolution=True,
+    )
+
+    df_out = wr.athena.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert len(df_out.index) == 2
+    assert len(df_out.columns) == 1
+    assert str(df_out["c1"].dtype).startswith("float")
+
+    # Version 2
+    df2 = pd.DataFrame({"c1": [False, True]})
+    df2["c1"] = df2["c1"].astype("boolean")
+
+    wr.athena.to_iceberg(
+        df=df2,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        schema_evolution=True,
+    )
+
+    df2_out = wr.athena.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert len(df2_out.index) == 2
+    assert len(df2_out.columns) == 1
+    assert str(df2_out["c1"].dtype).startswith("boolean")
+
+
 def test_to_iceberg_cast(path, path2, glue_table, glue_database):
     df = pd.DataFrame(
         {
