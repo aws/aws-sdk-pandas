@@ -201,6 +201,32 @@ def test_catalog(
         )
 
 
+@pytest.mark.parametrize("format", ["parquet", "orc", "csv", "json"])
+def test_catalog_table_comments(glue_database: str, glue_table: str, path: str, format: str) -> None:
+    format2func = {
+        "parquet": wr.catalog.create_parquet_table,
+        "orc": wr.catalog.create_orc_table,
+        "csv": wr.catalog.create_csv_table,
+        "json": wr.catalog.create_json_table,
+    }
+
+    format2func[format](
+        database=glue_database,
+        table=glue_table,
+        path=path,
+        columns_types={"col0": "bigint", "col1": "double", "col with spaces": "double"},
+        columns_comments={
+            "col0": "first description",
+            "col1": "second description",
+            "col with spaces": "third description",
+        },
+        description="My own table!",
+    )
+    desc = wr.catalog.table(database=glue_database, table=glue_table)
+
+    assert desc["Comment"].all()
+
+
 def test_catalog_partitions(glue_database: str, glue_table: str, path: str, account_id: str) -> None:
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is False
     wr.catalog.create_parquet_table(
