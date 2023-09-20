@@ -1,6 +1,7 @@
 """Amazon Athena Module containing all to_* write functions."""
 
 import logging
+import typing
 import uuid
 from typing import Any, Dict, List, Optional, Set, TypedDict
 
@@ -88,8 +89,9 @@ def _determine_differences(
     )
     frame_columns_types.update(frame_partitions_types)
 
-    catalog_column_types = catalog.get_table_types(
-        database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session
+    catalog_column_types = typing.cast(
+        Dict[str, str],
+        catalog.get_table_types(database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session),
     )
 
     original_columns = set(catalog_column_types)
@@ -322,7 +324,7 @@ def to_iceberg(
                 dtype=dtype,
                 catalog_id=catalog_id,
             )
-            if schema_evolution is False and any([schema_differences[x] for x in schema_differences]):
+            if schema_evolution is False and any([schema_differences[x] for x in schema_differences]):  # type: ignore[literal-required]
                 raise exceptions.InvalidArgumentValue(f"Schema change detected: {schema_differences}")
 
             _alter_iceberg_table(
