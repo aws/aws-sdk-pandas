@@ -1526,7 +1526,7 @@ def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_col
 
 
 def test_athena_to_iceberg_schema_evolution_add_columns(
-    path: str, path2: str, glue_database: str, glue_table: str
+    path: str, path2: str, path3: str, glue_database: str, glue_table: str
 ) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
     wr.athena.to_iceberg(
@@ -1544,12 +1544,20 @@ def test_athena_to_iceberg_schema_evolution_add_columns(
         database=glue_database,
         table=glue_table,
         table_location=path,
-        temp_path=path2,
+        temp_path=path3,
         schema_evolution=True,
     )
 
     column_types = wr.catalog.get_table_types(glue_database, glue_table)
     assert len(column_types) == len(df.columns)
+
+    df_out = wr.athena.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+    assert len(df_out) == len(df) * 2
 
     df["c3"] = [9, 10, 11]
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
@@ -1558,17 +1566,18 @@ def test_athena_to_iceberg_schema_evolution_add_columns(
             database=glue_database,
             table=glue_table,
             table_location=path,
-            temp_path=path2,
+            temp_path=path3,
             schema_evolution=False,
         )
 
 
-def test_athena_to_iceberg_schema_evolution_modify_column(
-    path: str, path2: str, glue_database: str, glue_table: str
+def test_athena_to_iceberg_schema_evolution_modify_columns(
+    path: str, path2: str, path3: str, glue_database: str, glue_table: str
 ) -> None:
     # Version 1
-    df = pd.DataFrame({"c1": [1.0, 2.0]})
-    df["c1"] = df["c1"].astype("float64")
+    df = pd.DataFrame({"c1": [1.0, 2.0], "c2": [-1, -2]})
+    df["c1"] = df["c1"].astype("float32")
+    df["c2"] = df["c2"].astype("int32")
 
     wr.athena.to_iceberg(
         df=df,
@@ -1586,20 +1595,22 @@ def test_athena_to_iceberg_schema_evolution_modify_column(
         unload_approach=False,
     )
 
-    assert len(df_out.index) == 2
-    assert len(df_out.columns) == 1
-    assert str(df_out["c1"].dtype).startswith("float")
+    assert len(df_out) == 2
+    assert len(df_out.columns) == 2
+    assert str(df_out["c1"].dtype).startswith("float32")
+    assert str(df_out["c2"].dtype).startswith("Int32")
 
     # Version 2
-    df2 = pd.DataFrame({"c1": [False, True]})
-    df2["c1"] = df2["c1"].astype("boolean")
+    df2 = pd.DataFrame({"c1": [3.0, 4.0], "c2": [-3, -4]})
+    df2["c1"] = df2["c1"].astype("float64")
+    df2["c2"] = df2["c2"].astype("int64")
 
     wr.athena.to_iceberg(
         df=df2,
         database=glue_database,
         table=glue_table,
         table_location=path,
-        temp_path=path2,
+        temp_path=path3,
         schema_evolution=True,
     )
 
@@ -1610,9 +1621,10 @@ def test_athena_to_iceberg_schema_evolution_modify_column(
         unload_approach=False,
     )
 
-    assert len(df2_out.index) == 2
-    assert len(df2_out.columns) == 1
-    assert str(df2_out["c1"].dtype).startswith("boolean")
+    assert len(df2_out) == 4
+    assert len(df2_out.columns) == 2
+    assert str(df2_out["c1"].dtype).startswith("float64")
+    assert str(df2_out["c2"].dtype).startswith("Int64")
 
 
 def test_to_iceberg_cast(path, path2, glue_table, glue_database):

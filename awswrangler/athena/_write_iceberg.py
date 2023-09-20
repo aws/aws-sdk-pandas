@@ -99,7 +99,9 @@ def _determine_differences(
     to_remove = original_columns - new_columns
 
     columns_to_change = [
-        col for col in original_columns.intersection(new_columns) if frame_columns_types[col] != catalog_column_types[col]
+        col
+        for col in original_columns.intersection(new_columns)
+        if frame_columns_types[col] != catalog_column_types[col]
     ]
     to_change = {col: frame_columns_types[col] for col in columns_to_change}
 
@@ -117,54 +119,56 @@ def _alter_iceberg_table(
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
+    sql_statements: List[str] = []
+
     if schema_changes["to_add"]:
-        _alter_iceberg_table_add_columns(
-            database=database,
+        sql_statements += _alter_iceberg_table_add_columns_sql(
             table=table,
             columns_to_add=schema_changes["to_add"],
-            wg_config=wg_config,
-            data_source=data_source,
-            workgroup=workgroup,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=boto3_session,
         )
 
     if schema_changes["to_change"]:
-        raise exceptions.InvalidArgumentCombination(
-            "Updating column types of Iceberg tables is not currently supported."
+        sql_statements += _alter_iceberg_table_change_columns_sql(
+            table=table,
+            columns_to_change=schema_changes["to_change"],
         )
 
     if schema_changes["to_remove"]:
         raise exceptions.InvalidArgumentCombination("Removing columns of Iceberg tables is not currently supported.")
 
+    for statement in sql_statements:
+        query_execution_id: str = _start_query_execution(
+            sql=statement,
+            workgroup=workgroup,
+            wg_config=wg_config,
+            database=database,
+            data_source=data_source,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=boto3_session,
+        )
+        wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
 
-def _alter_iceberg_table_add_columns(
-    database: str,
+
+def _alter_iceberg_table_add_columns_sql(
     table: str,
     columns_to_add: Dict[str, str],
-    wg_config: _WorkGroupConfig,
-    data_source: Optional[str] = None,
-    workgroup: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> None:
+) -> List[str]:
     add_cols_str = ", ".join([f"{col_name} {columns_to_add[col_name]}" for col_name in columns_to_add])
 
-    alter_sql = f"ALTER TABLE {table} ADD COLUMNS ({add_cols_str})"
+    return [f"ALTER TABLE {table} ADD COLUMNS ({add_cols_str})"]
 
-    query_execution_id: str = _start_query_execution(
-        sql=alter_sql,
-        workgroup=workgroup,
-        wg_config=wg_config,
-        database=database,
-        data_source=data_source,
-        encryption=encryption,
-        kms_key=kms_key,
-        boto3_session=boto3_session,
-    )
-    wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
+
+def _alter_iceberg_table_change_columns_sql(
+    table: str,
+    columns_to_change: Dict[str, str],
+) -> List[str]:
+    sql_statements = []
+
+    for col_name, col_type in columns_to_change.items():
+        sql_statements.append(f"ALTER TABLE {table} CHANGE COLUMN {col_name} {col_name} {col_type}")
+
+    return sql_statements
 
 
 @apply_configs
@@ -189,7 +193,7 @@ def to_iceberg(
     additional_table_properties: Optional[Dict[str, Any]] = None,
     dtype: Optional[Dict[str, str]] = None,
     catalog_id: Optional[str] = None,
-    schema_evolution: bool = True,
+    schema_evolution: bool = False,
 ) -> None:
     """
     Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
