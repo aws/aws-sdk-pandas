@@ -48,7 +48,7 @@ def _create_iceberg_table(
     )
 
     create_sql: str = (
-        f"CREATE TABLE IF NOT EXISTS {table} ({cols_str}) "
+        f"CREATE TABLE IF NOT EXISTS `{table}` ({cols_str}) "
         f"{partition_cols_str} "
         f"LOCATION '{path}' "
         f"TBLPROPERTIES ('table_type' ='ICEBERG', 'format'='parquet'{table_properties_str})"
