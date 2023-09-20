@@ -1587,7 +1587,7 @@ def test_athena_to_iceberg_with_hyphenated_table_name(
     )
 
     df_out = wr.athena.read_sql_query(
-        sql=f"SELECT * FROM \"{glue_table_with_hyphenated_name}\"",
+        sql=f'SELECT * FROM "{glue_table_with_hyphenated_name}"',
         database=glue_database,
         ctas_approach=False,
         unload_approach=False,
