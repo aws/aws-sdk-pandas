@@ -1526,7 +1526,7 @@ def test_athena_to_iceberg(path, path2, glue_database, glue_table, partition_col
 
 
 def test_athena_to_iceberg_schema_evolution_add_columns(
-    path: str, path2: str, path3: str, glue_database: str, glue_table: str
+    path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
     wr.athena.to_iceberg(
@@ -1535,6 +1535,7 @@ def test_athena_to_iceberg_schema_evolution_add_columns(
         table=glue_table,
         table_location=path,
         temp_path=path2,
+        keep_files=False,
         schema_evolution=True,
     )
 
@@ -1544,7 +1545,8 @@ def test_athena_to_iceberg_schema_evolution_add_columns(
         database=glue_database,
         table=glue_table,
         table_location=path,
-        temp_path=path3,
+        temp_path=path2,
+        keep_files=False,
         schema_evolution=True,
     )
 
@@ -1566,13 +1568,14 @@ def test_athena_to_iceberg_schema_evolution_add_columns(
             database=glue_database,
             table=glue_table,
             table_location=path,
-            temp_path=path3,
+            temp_path=path2,
+            keep_files=False,
             schema_evolution=False,
         )
 
 
 def test_athena_to_iceberg_schema_evolution_modify_columns(
-    path: str, path2: str, path3: str, glue_database: str, glue_table: str
+    path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
     # Version 1
     df = pd.DataFrame({"c1": [1.0, 2.0], "c2": [-1, -2]})
@@ -1585,6 +1588,7 @@ def test_athena_to_iceberg_schema_evolution_modify_columns(
         table=glue_table,
         table_location=path,
         temp_path=path2,
+        keep_files=False,
         schema_evolution=True,
     )
 
@@ -1610,7 +1614,8 @@ def test_athena_to_iceberg_schema_evolution_modify_columns(
         database=glue_database,
         table=glue_table,
         table_location=path,
-        temp_path=path3,
+        temp_path=path2,
+        keep_files=False,
         schema_evolution=True,
     )
 
