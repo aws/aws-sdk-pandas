@@ -250,6 +250,8 @@ def to_iceberg(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default
+    schema_evolution: bool
+        If True allows schema evolution for new columns or changes in column types.
 
     Returns
     -------
