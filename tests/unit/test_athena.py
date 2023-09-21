@@ -1675,3 +1675,30 @@ def test_to_iceberg_cast(path, path2, glue_table, glue_database):
     )
     df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table, ctas_approach=False)
     assert pandas_equals(df_expected, df2.sort_values("c0").reset_index(drop=True))
+
+
+def test_athena_to_iceberg_with_hyphenated_table_name(
+    path: str, path2: str, glue_database: str, glue_table_with_hyphenated_name: str
+):
+    df = pd.DataFrame({"c0": [1, 2, 3, 4], "c1": ["foo", "bar", "baz", "boo"]})
+    df["c0"] = df["c0"].astype("int")
+    df["c1"] = df["c1"].astype("string")
+
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table_with_hyphenated_name,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table_with_hyphenated_name}"',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert len(df) == len(df_out)
+    assert len(df.columns) == len(df_out.columns)
