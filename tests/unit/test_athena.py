@@ -1578,9 +1578,7 @@ def test_athena_to_iceberg_schema_evolution_modify_columns(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
     # Version 1
-    df = pd.DataFrame({"c1": [1.0, 2.0], "c2": [-1, -2]})
-    df["c1"] = df["c1"].astype("float32")
-    df["c2"] = df["c2"].astype("int32")
+    df = pd.DataFrame({"c1": pd.Series([1.0, 2.0], dtype="float32"), "c2": pd.Series([-1, -2], dtype="int32")})
 
     wr.athena.to_iceberg(
         df=df,
@@ -1605,9 +1603,7 @@ def test_athena_to_iceberg_schema_evolution_modify_columns(
     assert str(df_out["c2"].dtype).startswith("Int32")
 
     # Version 2
-    df2 = pd.DataFrame({"c1": [3.0, 4.0], "c2": [-3, -4]})
-    df2["c1"] = df2["c1"].astype("float64")
-    df2["c2"] = df2["c2"].astype("int64")
+    df2 = pd.DataFrame({"c1": pd.Series([3.0, 4.0], dtype="float64"), "c2": pd.Series([-3, -4], dtype="int64")})
 
     wr.athena.to_iceberg(
         df=df2,
