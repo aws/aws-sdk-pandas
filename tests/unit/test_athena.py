@@ -1628,6 +1628,34 @@ def test_athena_to_iceberg_schema_evolution_modify_columns(
     assert str(df2_out["c2"].dtype).startswith("Int64")
 
 
+def test_athena_to_iceberg_schema_evolution_remove_columns_error(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+        schema_evolution=True,
+    )
+
+    df = pd.DataFrame({"c0": [6, 7, 8]})
+
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.to_iceberg(
+            df=df,
+            database=glue_database,
+            table=glue_table,
+            table_location=path,
+            temp_path=path2,
+            keep_files=False,
+            schema_evolution=True,
+        )
+
+
 def test_to_iceberg_cast(path, path2, glue_table, glue_database):
     df = pd.DataFrame(
         {
