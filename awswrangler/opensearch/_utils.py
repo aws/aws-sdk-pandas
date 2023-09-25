@@ -174,10 +174,10 @@ def _build_aws4_auth(
     region: str, service: str, creds: botocore.credentials.ReadOnlyCredentials
 ) -> "requests_aws4auth.AWS4Auth":
     return requests_aws4auth.AWS4Auth(
-        access_id=creds.access_key,
-        secret_key=creds.secret_key,
-        region=region,
-        service=service,
+        creds.access_key,
+        creds.secret_key,
+        region,
+        service,
         session_token=creds.token,
     )
 
