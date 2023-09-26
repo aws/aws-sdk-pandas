@@ -177,7 +177,7 @@ def _check_for_cached_results(
 
     If so, returns a dict with Athena's `query_execution_info` and the data format.
     """
-    athena_cache_settings = athena_cache_settings if athena_cache_settings else {}
+    athena_cache_settings = athena_cache_settings or {}
 
     max_cache_seconds = athena_cache_settings.get("max_cache_seconds", 0)
     max_cache_query_inspections = athena_cache_settings.get("max_cache_query_inspections", 50)
