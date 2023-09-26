@@ -175,6 +175,9 @@ def test_local_cache(wr, path, glue_database, glue_table):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", database=glue_database, table=glue_table)
 
+    # Set max cache size because it is supposed to be set in the patched method below
+    wr.athena._cache._cache_manager.max_cache_size = 1
+
     with patch(
         "awswrangler.athena._read._check_for_cached_results",
         return_value=wr.athena._read._CacheInfo(has_valid_cache=False),
@@ -189,7 +192,7 @@ def test_local_cache(wr, path, glue_database, glue_table):
         assert df.shape == df2.shape
         assert df.c0.sum() == df2.c0.sum()
         first_query_id = df2.query_metadata["QueryExecutionId"]
-        assert first_query_id in wr.athena._read._cache_manager
+        assert first_query_id in wr.athena._cache._cache_manager
 
         df3 = wr.athena.read_sql_query(
             f"SELECT * FROM {glue_table}",
@@ -202,8 +205,8 @@ def test_local_cache(wr, path, glue_database, glue_table):
         assert df.c0.sum() == df3.c0.sum()
         second_query_id = df3.query_metadata["QueryExecutionId"]
 
-        assert first_query_id not in wr.athena._read._cache_manager
-        assert second_query_id in wr.athena._read._cache_manager
+        assert first_query_id not in wr.athena._cache._cache_manager
+        assert second_query_id in wr.athena._cache._cache_manager
 
 
 def test_paginated_remote_cache(wr, path, glue_database, glue_table, workgroup1):
