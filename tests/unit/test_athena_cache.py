@@ -260,3 +260,30 @@ def test_cache_start_query(wr, path, glue_database, glue_table, data_source):
         )
         internal_start_query.assert_not_called()
         assert query_id == query_id_2
+
+
+def test_start_query_client_request_token(wr, path, glue_database, glue_table):
+    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
+
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+    )
+
+    client_request_token = f"token-{glue_database}-{glue_table}-1"
+    query_id_1 = wr.athena.start_query_execution(
+        sql=f"SELECT * FROM {glue_table}",
+        database=glue_database,
+        client_request_token=client_request_token,
+    )
+    query_id_2 = wr.athena.start_query_execution(
+        sql=f"SELECT * FROM {glue_table}",
+        database=glue_database,
+        client_request_token=client_request_token,
+    )
+
+    assert query_id_1 == query_id_2
