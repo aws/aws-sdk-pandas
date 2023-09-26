@@ -1048,22 +1048,11 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     sql, execution_params = _apply_formatter(sql, params, paramstyle)
 
     if not client_request_token:
-        athena_cache_settings = athena_cache_settings if athena_cache_settings else {}
-        max_cache_seconds = athena_cache_settings.get("max_cache_seconds", 0)
-        max_cache_query_inspections = athena_cache_settings.get("max_cache_query_inspections", 50)
-        max_remote_cache_entries = athena_cache_settings.get("max_remote_cache_entries", 50)
-        max_local_cache_entries = athena_cache_settings.get("max_local_cache_entries", 100)
-
-        max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
-
-        _cache_manager.max_cache_size = max_local_cache_entries
         cache_info: _CacheInfo = _check_for_cached_results(
             sql=sql,
             boto3_session=boto3_session,
             workgroup=workgroup,
-            max_cache_seconds=max_cache_seconds,
-            max_cache_query_inspections=max_cache_query_inspections,
-            max_remote_cache_entries=max_remote_cache_entries,
+            athena_cache_settings=athena_cache_settings,
         )
         _logger.debug("Cache info:\n%s", cache_info)
         if cache_info.has_valid_cache is True:
