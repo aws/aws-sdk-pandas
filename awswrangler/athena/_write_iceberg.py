@@ -35,6 +35,7 @@ def _create_iceberg_table(
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     dtype: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, str]] = None,
 ) -> None:
     if not path:
         raise exceptions.InvalidArgumentValue("Must specify table location to create the table.")
@@ -196,6 +197,7 @@ def to_iceberg(
     dtype: Optional[Dict[str, str]] = None,
     catalog_id: Optional[str] = None,
     schema_evolution: bool = False,
+    columns_comments: Optional[Dict[str, str]] = None,
 ) -> None:
     """
     Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
@@ -314,6 +316,7 @@ def to_iceberg(
                 kms_key=kms_key,
                 boto3_session=boto3_session,
                 dtype=dtype,
+                columns_comments=columns_comments,
             )
         else:
             schema_differences = _determine_differences(
