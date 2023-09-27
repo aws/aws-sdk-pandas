@@ -13,9 +13,21 @@ import botocore
 from awswrangler import _utils, exceptions
 from awswrangler.annotations import Experimental
 
-opensearchpy = _utils.import_optional_dependency("opensearchpy")
-if opensearchpy:
-    from requests_aws4auth import AWS4Auth
+if TYPE_CHECKING:
+    try:
+        import requests_aws4auth
+    except ImportError:
+        pass
+else:
+    requests_aws4auth = _utils.import_optional_dependency("requests_aws4auth")
+
+if TYPE_CHECKING:
+    try:
+        import opensearchpy
+    except ImportError:
+        pass
+else:
+    opensearchpy = _utils.import_optional_dependency("opensearchpy")
 
 if TYPE_CHECKING:
     from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
@@ -157,6 +169,19 @@ def _create_data_policy(
         raise error
 
 
+@_utils.check_optional_dependency(requests_aws4auth, "requests_aws4auth")
+def _build_aws4_auth(
+    region: str, service: str, creds: botocore.credentials.ReadOnlyCredentials
+) -> "requests_aws4auth.AWS4Auth":
+    return requests_aws4auth.AWS4Auth(
+        creds.access_key,
+        creds.secret_key,
+        region,
+        service,
+        session_token=creds.token,
+    )
+
+
 @_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def connect(
     host: str,
@@ -233,7 +258,11 @@ def connect(
                 "given. Unable to find ACCESS_KEY_ID and SECRET_ACCESS_KEY in boto3 "
                 "session."
             )
-        http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, service, session_token=creds.token)
+        http_auth = _build_aws4_auth(
+            region=region,
+            service=service,
+            creds=creds,
+        )
     try:
         es = opensearchpy.OpenSearch(
             host=_strip_endpoint(host),
@@ -247,7 +276,7 @@ def connect(
             retry_on_timeout=retry_on_timeout,
             retry_on_status=retry_on_status,
         )
-        es._serverless = service == "aoss"  # pylint: disable=protected-access
+        es._serverless = service == "aoss"  # type: ignore[attr-defined]  # pylint: disable=protected-access
     except Exception as e:
         _logger.error("Error connecting to Opensearch cluster. Please verify authentication details")
         raise e
