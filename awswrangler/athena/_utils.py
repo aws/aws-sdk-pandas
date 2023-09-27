@@ -86,6 +86,7 @@ def _start_query_execution(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     execution_params: Optional[List[str]] = None,
+    client_request_token: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     args: Dict[str, Any] = {"QueryString": sql}
@@ -115,6 +116,9 @@ def _start_query_execution(
     # workgroup
     if workgroup is not None:
         args["WorkGroup"] = workgroup
+
+    if client_request_token:
+        args["ClientRequestToken"] = client_request_token
 
     if execution_params:
         args["ExecutionParameters"] = execution_params

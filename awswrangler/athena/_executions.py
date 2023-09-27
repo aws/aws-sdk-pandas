@@ -17,7 +17,7 @@ from typing_extensions import Literal
 from awswrangler import _utils, exceptions, typing
 from awswrangler._config import apply_configs
 
-from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results
+from ._cache import _CacheInfo, _check_for_cached_results
 from ._utils import (
     _QUERY_FINAL_STATES,
     _QUERY_WAIT_POLLING_DELAY,
@@ -41,6 +41,7 @@ def start_query_execution(
     params: Union[Dict[str, Any], List[str], None] = None,
     paramstyle: Literal["qmark", "named"] = "named",
     boto3_session: Optional[boto3.Session] = None,
+    client_request_token: Optional[str] = None,
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     data_source: Optional[str] = None,
@@ -88,6 +89,13 @@ def start_query_execution(
         - ``qmark``
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    client_request_token : str, optional
+        A unique case-sensitive string used to ensure the request to create the query is idempotent (executes only once).
+        If another StartQueryExecution request is received, the same response is returned and another query is not created.
+        If a parameter has changed, for example, the QueryString , an error is returned.
+        If you pass the same client_request_token value with different parameters the query fails with error
+        message "Idempotent parameters do not match". Use this only with ctas_approach=False and unload_approach=False
+        and disabled cache.
     athena_cache_settings: typing.AthenaCacheSettings, optional
         Parameters of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
         max_remote_cache_entries, and max_local_cache_entries.
@@ -125,26 +133,16 @@ def start_query_execution(
     sql, execution_params = _apply_formatter(sql, params, paramstyle)
     _logger.debug("Executing query:\n%s", sql)
 
-    athena_cache_settings = athena_cache_settings if athena_cache_settings else {}
-    max_cache_seconds = athena_cache_settings.get("max_cache_seconds", 0)
-    max_cache_query_inspections = athena_cache_settings.get("max_cache_query_inspections", 50)
-    max_remote_cache_entries = athena_cache_settings.get("max_remote_cache_entries", 50)
-    max_local_cache_entries = athena_cache_settings.get("max_local_cache_entries", 100)
+    if not client_request_token:
+        cache_info: _CacheInfo = _check_for_cached_results(
+            sql=sql,
+            boto3_session=boto3_session,
+            workgroup=workgroup,
+            athena_cache_settings=athena_cache_settings,
+        )
+        _logger.debug("Cache info:\n%s", cache_info)
 
-    max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
-
-    _cache_manager.max_cache_size = max_local_cache_entries
-    cache_info: _CacheInfo = _check_for_cached_results(
-        sql=sql,
-        boto3_session=boto3_session,
-        workgroup=workgroup,
-        max_cache_seconds=max_cache_seconds,
-        max_cache_query_inspections=max_cache_query_inspections,
-        max_remote_cache_entries=max_remote_cache_entries,
-    )
-    _logger.debug("Cache info:\n%s", cache_info)
-
-    if cache_info.has_valid_cache and cache_info.query_execution_id is not None:
+    if not client_request_token and cache_info.has_valid_cache and cache_info.query_execution_id is not None:
         query_execution_id = cache_info.query_execution_id
         _logger.debug("Valid cache found. Retrieving...")
     else:
@@ -159,6 +157,7 @@ def start_query_execution(
             encryption=encryption,
             kms_key=kms_key,
             execution_params=execution_params,
+            client_request_token=client_request_token,
             boto3_session=boto3_session,
         )
     if wait:

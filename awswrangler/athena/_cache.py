@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Match, NamedTuple, Optional, 
 
 import boto3
 
-from awswrangler import _utils
+from awswrangler import _utils, typing
 
 if TYPE_CHECKING:
     from mypy_boto3_athena.type_defs import QueryExecutionTypeDef
@@ -170,15 +170,23 @@ def _check_for_cached_results(
     sql: str,
     boto3_session: Optional[boto3.Session],
     workgroup: Optional[str],
-    max_cache_seconds: int,
-    max_cache_query_inspections: int,
-    max_remote_cache_entries: int,
+    athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
 ) -> _CacheInfo:
     """
     Check whether `sql` has been run before, within the `max_cache_seconds` window, by the `workgroup`.
 
     If so, returns a dict with Athena's `query_execution_info` and the data format.
     """
+    athena_cache_settings = athena_cache_settings or {}
+
+    max_cache_seconds = athena_cache_settings.get("max_cache_seconds", 0)
+    max_cache_query_inspections = athena_cache_settings.get("max_cache_query_inspections", 50)
+    max_remote_cache_entries = athena_cache_settings.get("max_remote_cache_entries", 50)
+    max_local_cache_entries = athena_cache_settings.get("max_local_cache_entries", 100)
+    max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
+
+    _cache_manager.max_cache_size = max_local_cache_entries
+
     if max_cache_seconds <= 0:
         return _CacheInfo(has_valid_cache=False)
     num_executions_inspected: int = 0
