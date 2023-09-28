@@ -94,8 +94,12 @@ class RedshiftDataApi(_connector.DataApiConnector):
 
     def _validate_auth_method(self) -> None:
         if not self.workgroup_name and not self.secret_arn and not self.db_user and not self.cluster_id:
-            raise ValueError(
+            raise exceptions.InvalidArgumentCombination(
                 "Either `secret_arn`, `workgroup_name`, `db_user`, or `cluster_id` must be set for authentication."
+            )
+        if self.db_user and self.secret_arn:
+            raise exceptions.InvalidArgumentCombination(
+                "Only one of `secret_arn` or `db_user` is allowed."
             )
 
     def _execute_statement(
