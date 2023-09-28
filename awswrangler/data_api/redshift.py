@@ -98,9 +98,7 @@ class RedshiftDataApi(_connector.DataApiConnector):
                 "Either `secret_arn`, `workgroup_name`, `db_user`, or `cluster_id` must be set for authentication."
             )
         if self.db_user and self.secret_arn:
-            raise exceptions.InvalidArgumentCombination(
-                "Only one of `secret_arn` or `db_user` is allowed."
-            )
+            raise exceptions.InvalidArgumentCombination("Only one of `secret_arn` or `db_user` is allowed.")
 
     def _execute_statement(
         self,
