@@ -93,8 +93,12 @@ class RedshiftDataApi(_connector.DataApiConnector):
             raise ValueError("Either `cluster_id` or `workgroup_name`(Redshift Serverless) must be set for connection")
 
     def _validate_auth_method(self) -> None:
-        if not self.workgroup_name and not self.secret_arn and not self.db_user:
-            raise ValueError("Either `secret_arn` or `db_user` must be set for authentication")
+        if not self.workgroup_name and not self.secret_arn and not self.db_user and not self.cluster_id:
+            raise exceptions.InvalidArgumentCombination(
+                "Either `secret_arn`, `workgroup_name`, `db_user`, or `cluster_id` must be set for authentication."
+            )
+        if self.db_user and self.secret_arn:
+            raise exceptions.InvalidArgumentCombination("Only one of `secret_arn` or `db_user` is allowed.")
 
     def _execute_statement(
         self,
@@ -110,26 +114,25 @@ class RedshiftDataApi(_connector.DataApiConnector):
 
         self._validate_redshift_target()
         self._validate_auth_method()
-        credentials = {}
+        args = {}
         if self.secret_arn:
-            credentials = {"SecretArn": self.secret_arn}
-        elif self.db_user:
-            credentials = {"DbUser": self.db_user}
+            args["SecretArn"] = self.secret_arn
+        if self.db_user:
+            args["DbUser"] = self.db_user
 
         if database is None:
             database = self.database
 
         if self.cluster_id:
-            redshift_target = {"ClusterIdentifier": self.cluster_id}
-        elif self.workgroup_name:
-            redshift_target = {"WorkgroupName": self.workgroup_name}
+            args["ClusterIdentifier"] = self.cluster_id
+        if self.workgroup_name:
+            args["WorkgroupName"] = self.workgroup_name
 
         _logger.debug("Executing %s", sql)
         response = self.client.execute_statement(
-            **redshift_target,  # type: ignore[arg-type]
             Database=database,
             Sql=sql,
-            **credentials,  # type: ignore[arg-type]
+            **args,  # type: ignore[arg-type]
         )
         return response["Id"]
 
