@@ -54,6 +54,23 @@ def test_connect_redshift_serverless_iam_role(databases_parameters: Dict[str, An
     assert df.shape == (1, 1)
 
 
+def test_connect_redshift_cluster_iam_role(databases_parameters: Dict[str, Any]) -> None:
+    cluster_id = databases_parameters["redshift"]["identifier"]
+    database = databases_parameters["redshift"]["database"]
+    con = wr.data_api.redshift.connect(cluster_id=cluster_id, database=database, boto3_session=None)
+    df = wr.data_api.redshift.read_sql_query("SELECT 1", con=con)
+    assert df.shape == (1, 1)
+
+
+def test_connect_redshift_cluster_db_user(databases_parameters: Dict[str, Any]) -> None:
+    cluster_id = databases_parameters["redshift"]["identifier"]
+    database = databases_parameters["redshift"]["database"]
+    db_user = databases_parameters["user"]
+    con = wr.data_api.redshift.connect(cluster_id=cluster_id, database=database, db_user=db_user, boto3_session=None)
+    df = wr.data_api.redshift.read_sql_query("SELECT 1", con=con)
+    assert df.shape == (1, 1)
+
+
 def test_connect_redshift_serverless_secrets_manager(databases_parameters: Dict[str, Any]) -> None:
     workgroup_name = databases_parameters["redshift_serverless"]["workgroup"]
     database = databases_parameters["redshift_serverless"]["database"]
