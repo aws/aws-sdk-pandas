@@ -41,7 +41,12 @@ def _create_iceberg_table(
         raise exceptions.InvalidArgumentValue("Must specify table location to create the table.")
 
     columns_types, _ = catalog.extract_athena_types(df=df, index=index, dtype=dtype)
-    cols_str: str = ", ".join([f"{k} {v}" for k, v in columns_types.items()])
+    cols_str: str = ", ".join(
+        [
+            f"{k} {v}" if columns_comments.get(k) is None else f"{k} {v} COMMENT \'{columns_comments.get(k)}\'"
+            for k, v in columns_types.items()
+        ]
+    )
     partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
     table_properties_str: str = (
         ", " + ", ".join([f"'{key}'='{value}'" for key, value in additional_table_properties.items()])
@@ -254,6 +259,8 @@ def to_iceberg(
         If none is provided, the AWS account ID is used by default
     schema_evolution: bool
         If True allows schema evolution for new columns or changes in column types.
+    columns_comments: Optional[Dict[str, str]]
+        Glue/Athena catalog: Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'})
 
     Returns
     -------
@@ -355,6 +362,7 @@ def to_iceberg(
             s3_additional_kwargs=s3_additional_kwargs,
             dtype=dtype,
             catalog_id=catalog_id,
+            glue_table_settings={"columns_comments": columns_comments}
         )
 
         # Insert into iceberg table
