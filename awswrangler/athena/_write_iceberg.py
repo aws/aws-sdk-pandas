@@ -3,7 +3,7 @@
 import logging
 import typing
 import uuid
-from typing import Any, Dict, List, Optional, Set, TypedDict
+from typing import Any, Dict, List, Optional, Set, TypedDict, Union
 
 import boto3
 import pandas as pd
@@ -16,6 +16,7 @@ from awswrangler.athena._utils import (
     _start_query_execution,
     _WorkGroupConfig,
 )
+from awswrangler.typing import GlueTableSettings
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -35,13 +36,20 @@ def _create_iceberg_table(
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     dtype: Optional[Dict[str, str]] = None,
-    columns_comments: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, Any]] = None,
 ) -> None:
     if not path:
         raise exceptions.InvalidArgumentValue("Must specify table location to create the table.")
 
     columns_types, _ = catalog.extract_athena_types(df=df, index=index, dtype=dtype)
-    cols_str: str = ", ".join([f"{k} {v}" for k, v in columns_types.items()])
+    cols_str: str = ", ".join(
+        [
+            f"{k} {v}"
+            if (columns_comments is None or columns_comments[k] is None)
+            else f"{k} {v} COMMENT '{columns_comments[k]}'"
+            for k, v in columns_types.items()
+        ]
+    )
     partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
     table_properties_str: str = (
         ", " + ", ".join([f"'{key}'='{value}'" for key, value in additional_table_properties.items()])
@@ -254,6 +262,8 @@ def to_iceberg(
         If none is provided, the AWS account ID is used by default
     schema_evolution: bool
         If True allows schema evolution for new columns or changes in column types.
+    columns_comments: Optional[Dict[str, str]]
+        Glue/Athena catalog: Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'})
 
     Returns
     -------
@@ -295,6 +305,10 @@ def to_iceberg(
         raise exceptions.InvalidArgumentCombination(
             "Either path or workgroup path must be specified to store the temporary results."
         )
+
+    glue_table_settings: Union[GlueTableSettings, None] = None
+    if columns_comments is not None:
+        glue_table_settings = GlueTableSettings(columns_comments=columns_comments)
 
     try:
         # Create Iceberg table if it doesn't exist
@@ -355,6 +369,7 @@ def to_iceberg(
             s3_additional_kwargs=s3_additional_kwargs,
             dtype=dtype,
             catalog_id=catalog_id,
+            glue_table_settings=glue_table_settings,
         )
 
         # Insert into iceberg table
