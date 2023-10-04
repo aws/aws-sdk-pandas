@@ -58,7 +58,7 @@ class _LocalMetadataCacheManager:
             cache_oversize = len(self._cache) + len(items) - self._max_cache_size
             for _ in range(cache_oversize):
                 _, query_execution_id = heappop(self._pqueue)
-                del self._cache[query_execution_id]
+                self._cache.pop(query_execution_id, None)
 
             for item in items[: self._max_cache_size]:
                 heappush(self._pqueue, (item["Status"]["SubmissionDateTime"], item["QueryExecutionId"]))
