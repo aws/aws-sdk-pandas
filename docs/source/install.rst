@@ -95,7 +95,7 @@ Find all layers for a version of the library within a region.
 
 **CDK:**
 
-.. code-block:: python 
+.. code-block:: python
 
     sdk_for_pandas_layer_arn = ssm.StringParameter.from_string_parameter_attributes(self, "MyValue",
       parameter_name="/aws/service/aws-sdk-pandas/3.4.0/us-west-2/py3.10/x86_64/layer-arn"
