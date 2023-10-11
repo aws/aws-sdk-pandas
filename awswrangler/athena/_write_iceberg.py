@@ -3,7 +3,7 @@
 import logging
 import typing
 import uuid
-from typing import Any, Dict, List, Optional, Set, TypedDict
+from typing import Any, Dict, List, Optional, Set, TypedDict, cast
 
 import boto3
 import pandas as pd
@@ -16,6 +16,7 @@ from awswrangler.athena._utils import (
     _start_query_execution,
     _WorkGroupConfig,
 )
+from awswrangler.typing import GlueTableSettings
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -35,12 +36,20 @@ def _create_iceberg_table(
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     dtype: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, Any]] = None,
 ) -> None:
     if not path:
         raise exceptions.InvalidArgumentValue("Must specify table location to create the table.")
 
     columns_types, _ = catalog.extract_athena_types(df=df, index=index, dtype=dtype)
-    cols_str: str = ", ".join([f"{k} {v}" for k, v in columns_types.items()])
+    cols_str: str = ", ".join(
+        [
+            f"{k} {v}"
+            if (columns_comments is None or columns_comments.get(k) is None)
+            else f"{k} {v} COMMENT '{columns_comments[k]}'"
+            for k, v in columns_types.items()
+        ]
+    )
     partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
     table_properties_str: str = (
         ", " + ", ".join([f"'{key}'='{value}'" for key, value in additional_table_properties.items()])
@@ -196,6 +205,7 @@ def to_iceberg(
     dtype: Optional[Dict[str, str]] = None,
     catalog_id: Optional[str] = None,
     schema_evolution: bool = False,
+    glue_table_settings: Optional[GlueTableSettings] = None,
 ) -> None:
     """
     Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
@@ -252,6 +262,10 @@ def to_iceberg(
         If none is provided, the AWS account ID is used by default
     schema_evolution: bool
         If True allows schema evolution for new columns or changes in column types.
+    columns_comments: Optional[GlueTableSettings]
+        Glue/Athena catalog: Settings for writing to the Glue table.
+        Currently only the 'columns_comments' attribute is supported for this function.
+        Columns comments can only be added with this function when creating a new table.
 
     Returns
     -------
@@ -294,6 +308,11 @@ def to_iceberg(
             "Either path or workgroup path must be specified to store the temporary results."
         )
 
+    glue_table_settings = cast(
+        GlueTableSettings,
+        glue_table_settings if glue_table_settings else {},
+    )
+
     try:
         # Create Iceberg table if it doesn't exist
         if not catalog.does_table_exist(
@@ -314,6 +333,7 @@ def to_iceberg(
                 kms_key=kms_key,
                 boto3_session=boto3_session,
                 dtype=dtype,
+                columns_comments=glue_table_settings.get("columns_comments"),
             )
         else:
             schema_differences = _determine_differences(
@@ -352,6 +372,7 @@ def to_iceberg(
             s3_additional_kwargs=s3_additional_kwargs,
             dtype=dtype,
             catalog_id=catalog_id,
+            glue_table_settings=glue_table_settings,
         )
 
         # Insert into iceberg table

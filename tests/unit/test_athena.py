@@ -1726,3 +1726,26 @@ def test_athena_to_iceberg_with_hyphenated_table_name(
 
     assert len(df) == len(df_out)
     assert len(df.columns) == len(df_out.columns)
+
+
+def test_athena_to_iceberg_column_comments(path: str, path2: str, glue_database: str, glue_table: str) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    column_comments = {
+        "c0": "comment 0",
+        "c1": "comment 1",
+    }
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+        glue_table_settings={
+            "columns_comments": column_comments,
+        },
+    )
+
+    column_comments_actual = wr.catalog.get_columns_comments(glue_database, glue_table)
+
+    assert column_comments_actual == column_comments
