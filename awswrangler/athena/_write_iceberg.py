@@ -3,7 +3,7 @@
 import logging
 import typing
 import uuid
-from typing import Any, Dict, List, Optional, Set, TypedDict, Union
+from typing import Any, Dict, List, Optional, Set, TypedDict, cast
 
 import boto3
 import pandas as pd
@@ -45,7 +45,7 @@ def _create_iceberg_table(
     cols_str: str = ", ".join(
         [
             f"{k} {v}"
-            if (columns_comments is None or columns_comments[k] is None)
+            if (columns_comments is None or columns_comments.get(k) is None)
             else f"{k} {v} COMMENT '{columns_comments[k]}'"
             for k, v in columns_types.items()
         ]
@@ -205,7 +205,7 @@ def to_iceberg(
     dtype: Optional[Dict[str, str]] = None,
     catalog_id: Optional[str] = None,
     schema_evolution: bool = False,
-    columns_comments: Optional[Dict[str, str]] = None,
+    glue_table_settings: Optional[GlueTableSettings] = None,
 ) -> None:
     """
     Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
@@ -262,8 +262,10 @@ def to_iceberg(
         If none is provided, the AWS account ID is used by default
     schema_evolution: bool
         If True allows schema evolution for new columns or changes in column types.
-    columns_comments: Optional[Dict[str, str]]
-        Glue/Athena catalog: Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'})
+    columns_comments: Optional[GlueTableSettings]
+        Glue/Athena catalog: Settings for writing to the Glue table.
+        Currently only the 'columns_comments' attribute is supported for this function.
+        Columns comments can only be added with this function when creating a new table.
 
     Returns
     -------
@@ -306,9 +308,10 @@ def to_iceberg(
             "Either path or workgroup path must be specified to store the temporary results."
         )
 
-    glue_table_settings: Union[GlueTableSettings, None] = None
-    if columns_comments is not None:
-        glue_table_settings = GlueTableSettings(columns_comments=columns_comments)
+    glue_table_settings = cast(
+        GlueTableSettings,
+        glue_table_settings if glue_table_settings else {},
+    )
 
     try:
         # Create Iceberg table if it doesn't exist
@@ -330,7 +333,7 @@ def to_iceberg(
                 kms_key=kms_key,
                 boto3_session=boto3_session,
                 dtype=dtype,
-                columns_comments=columns_comments,
+                columns_comments=glue_table_settings.get("columns_comments"),
             )
         else:
             schema_differences = _determine_differences(
