@@ -41,13 +41,17 @@ def moto_subnet_id() -> str:
 
         vpc_id = ec2_client.create_vpc(
             CidrBlock="10.0.0.0/16",
-        )["Vpc"]["VpcId"]
+        )[
+            "Vpc"
+        ]["VpcId"]
 
         subnet_id = ec2_client.create_subnet(
             VpcId=vpc_id,
             CidrBlock="10.0.0.0/24",
             AvailabilityZone="us-west-1a",
-        )["Subnet"]["SubnetId"]
+        )[
+            "Subnet"
+        ]["SubnetId"]
 
         yield subnet_id
 
@@ -373,7 +377,9 @@ def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3_client: "S3Client"
 
 @mock.patch("pandas.read_csv")
 @mock.patch("pandas.concat")
-def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_concat, mock_read_csv, moto_s3_client: "S3Client") -> None:
+def test_read_csv_pass_pandas_arguments_and_encoding_succeed(
+    mock_concat, mock_read_csv, moto_s3_client: "S3Client"
+) -> None:
     bucket = "bucket"
     key = "foo/foo.csv"
     path = "s3://{}/{}".format(bucket, key)

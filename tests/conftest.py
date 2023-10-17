@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from importlib import reload
 from types import ModuleType
-from typing import Iterator, Optional
+from typing import TYPE_CHECKING, Iterator, Optional
 
 import boto3
 import botocore.exceptions
@@ -13,6 +13,9 @@ import pytest
 import awswrangler as wr
 
 from ._utils import create_workgroup, extract_cloudformation_outputs, get_time_str_with_random_suffix, path_generator
+
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.client import DynamoDBClient
 
 
 @pytest.fixture(scope="session")
@@ -212,16 +215,20 @@ def db_password():
 
 
 @pytest.fixture(scope="function")
-def dynamodb_table(params) -> None:
+def dynamodb_table(params) -> str:
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
+
     params.update({"TableName": name, "BillingMode": "PAY_PER_REQUEST"})
-    dynamodb_resource = boto3.resource("dynamodb")
-    table = dynamodb_resource.create_table(**params)
-    table.wait_until_exists()
+    dynamodb_client = boto3.client("dynamodb")
+    dynamodb_client.create_table(**params)
+
+    dynamodb_client.get_waiter("table_exists").wait(TableName=name)
+
     yield name
-    table.delete()
-    table.wait_until_not_exists()
+
+    dynamodb_client.delete_table(TableName=name)
+    dynamodb_client.get_waiter("table_not_exists").wait(TableName=name)
     print(f"Table {name} deleted.")
 
 
