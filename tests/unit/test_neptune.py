@@ -165,7 +165,7 @@ def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
     df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 2")
     assert df.shape == (2, 3)
-    
+
     df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 0")
     assert df.shape == (0, 3)
 
