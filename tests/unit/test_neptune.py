@@ -12,7 +12,7 @@ import awswrangler as wr
 import awswrangler.pandas as pd
 from awswrangler.neptune._client import BulkLoadParserConfiguration
 
-from .._utils import extract_cloudformation_outputs
+from .._utils import extract_cloudformation_outputs, assert_columns_in_pandas_data_frame
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -160,14 +160,15 @@ def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     df = wr.neptune.execute_sparql(client, "INSERT DATA { <test1> <test1> <test1>}")
     df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 1")
     assert df.shape == (1, 3)
-    for col in ["s", "p", "o"]:
-        assert col in df.columns
+    assert_columns_in_pandas_data_frame(df, ["s", "p", "o"])
 
     df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 2")
     assert df.shape == (2, 3)
+    assert_columns_in_pandas_data_frame(df, ["s", "p", "o"])
 
     df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 0")
     assert df.shape == (0, 3)
+    assert_columns_in_pandas_data_frame(df, ["s", "p", "o"])
 
 
 def test_write_vertex_property_nan(neptune_endpoint, neptune_port) -> Dict[str, Any]:
