@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, patch
 
@@ -14,6 +15,9 @@ import awswrangler as wr
 from awswrangler.exceptions import InvalidArgumentCombination, InvalidArgumentValue
 
 from .._utils import ensure_data_types, get_df_csv, get_df_list
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -31,22 +35,29 @@ def moto_sts():
 
 
 @pytest.fixture(scope="module")
-def moto_subnet():
+def moto_subnet_id() -> str:
     with moto.mock_ec2():
-        ec2 = boto3.resource("ec2", region_name="us-west-1")
-        vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
-        subnet = ec2.create_subnet(VpcId=vpc.id, CidrBlock="10.0.0.0/24", AvailabilityZone="us-west-1a")
-        yield subnet.id
+        ec2_client = boto3.client("ec2", region_name="us-west-1")
+
+        vpc_id = ec2_client.create_vpc(
+            CidrBlock="10.0.0.0/16",
+        )["Vpc"]["VpcId"]
+
+        subnet_id = ec2_client.create_subnet(
+            VpcId=vpc_id,
+            CidrBlock="10.0.0.0/24",
+            AvailabilityZone="us-west-1a",
+        )["Subnet"]["SubnetId"]
+
+        yield subnet_id
 
 
 @pytest.fixture(scope="function")
-def moto_s3():
+def moto_s3_client() -> "S3Client":
     with moto.mock_s3():
-        s3 = boto3.resource("s3", region_name="us-east-1")
-        s3.create_bucket(
-            Bucket="bucket",
-        )
-        yield s3
+        s3_client = boto3.client("s3", region_name="us-east-1")
+        s3_client.create_bucket(Bucket="bucket")
+        yield s3_client
 
 
 @pytest.fixture(scope="module")
@@ -59,16 +70,16 @@ def moto_glue():
 
 
 @pytest.fixture(scope="function")
-def moto_dynamodb():
+def moto_dynamodb_client():
     with moto.mock_dynamodb():
-        dynamodb = boto3.resource("dynamodb")
-        dynamodb.create_table(
+        dynamodb_client = boto3.client("dynamodb")
+        dynamodb_client.create_table(
             TableName="table",
             KeySchema=[{"AttributeName": "key", "KeyType": "HASH"}],
             AttributeDefinitions=[{"AttributeName": "key", "AttributeType": "N"}],
             BillingMode="PAY_PER_REQUEST",
         )
-        yield dynamodb
+        yield dynamodb_client
 
 
 def get_content_md5(desc: dict):
@@ -76,29 +87,35 @@ def get_content_md5(desc: dict):
     return result
 
 
-def test_get_bucket_region_succeed(moto_s3):
+def test_get_bucket_region_succeed(moto_s3_client: "S3Client") -> None:
     region = wr.s3.get_bucket_region("bucket", boto3_session=boto3.Session())
     assert region == "us-east-1"
 
 
-def test_object_not_exist_succeed(moto_s3):
+def test_object_not_exist_succeed(moto_s3_client: "S3Client") -> None:
     result = wr.s3.does_object_exist("s3://bucket/test.csv")
     assert result is False
 
 
-def test_object_exist_succeed(moto_s3):
+def test_object_exist_succeed(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
     result = wr.s3.does_object_exist(path)
     assert result is True
 
 
-def test_list_directories_succeed(moto_s3):
+def test_list_directories_succeed(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket"
-    s3_object1 = moto_s3.Object("bucket", "foo/foo.tmp")
-    s3_object2 = moto_s3.Object("bucket", "bar/bar.tmp")
-    s3_object1.put(Body=b"foo")
-    s3_object2.put(Body=b"bar")
+    moto_s3_client.put_object(
+        Bucket="bucket",
+        Key="foo/foo.tmp",
+        Body=b"foo",
+    )
+    moto_s3_client.put_object(
+        Bucket="bucket",
+        Key="bar/bar.tmp",
+        Body=b"bar",
+    )
 
     dirs = wr.s3.list_directories(path)
     files = wr.s3.list_objects(path)
@@ -107,18 +124,21 @@ def test_list_directories_succeed(moto_s3):
     assert sorted(files) == sorted(["s3://bucket/foo/foo.tmp", "s3://bucket/bar/bar.tmp"])
 
 
-def test_describe_no_object_succeed(moto_s3):
+def test_describe_no_object_succeed(moto_s3_client: "S3Client") -> None:
     desc = wr.s3.describe_objects("s3://bucket")
 
     assert isinstance(desc, dict)
     assert desc == {}
 
 
-def test_describe_one_object_succeed(moto_s3):
+def test_describe_one_object_succeed(moto_s3_client: "S3Client") -> None:
     bucket = "bucket"
     key = "foo/foo.tmp"
-    s3_object = moto_s3.Object(bucket, key)
-    s3_object.put(Body=b"foo")
+    moto_s3_client.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=b"foo",
+    )
 
     desc = wr.s3.describe_objects("s3://{}/{}".format(bucket, key))
 
@@ -126,13 +146,16 @@ def test_describe_one_object_succeed(moto_s3):
     assert list(desc.keys()) == ["s3://bucket/foo/foo.tmp"]
 
 
-def test_describe_list_of_objects_succeed(moto_s3):
+def test_describe_list_of_objects_succeed(moto_s3_client: "S3Client") -> None:
     bucket = "bucket"
     keys = ["foo/foo.tmp", "bar/bar.tmp"]
 
     for key in keys:
-        s3_object = moto_s3.Object(bucket, key)
-        s3_object.put(Body=b"test")
+        moto_s3_client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=b"test",
+        )
 
     desc = wr.s3.describe_objects(["s3://{}/{}".format(bucket, key) for key in keys])
 
@@ -140,13 +163,16 @@ def test_describe_list_of_objects_succeed(moto_s3):
     assert sorted(list(desc.keys())) == sorted(["s3://bucket/foo/foo.tmp", "s3://bucket/bar/bar.tmp"])
 
 
-def test_describe_list_of_objects_under_same_prefix_succeed(moto_s3):
+def test_describe_list_of_objects_under_same_prefix_succeed(moto_s3_client: "S3Client") -> None:
     bucket = "bucket"
     keys = ["foo/foo.tmp", "bar/bar.tmp"]
 
     for key in keys:
-        s3_object = moto_s3.Object(bucket, key)
-        s3_object.put(Body=b"test")
+        moto_s3_client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=b"test",
+        )
 
     desc = wr.s3.describe_objects("s3://{}".format(bucket))
 
@@ -154,19 +180,25 @@ def test_describe_list_of_objects_under_same_prefix_succeed(moto_s3):
     assert sorted(list(desc.keys())) == sorted(["s3://bucket/foo/foo.tmp", "s3://bucket/bar/bar.tmp"])
 
 
-def test_size_objects_without_object_succeed(moto_s3):
+def test_size_objects_without_object_succeed(moto_s3_client: "S3Client") -> None:
     size = wr.s3.size_objects("s3://bucket")
 
     assert isinstance(size, dict)
     assert size == {}
 
 
-def test_size_list_of_objects_succeed(moto_s3):
+def test_size_list_of_objects_succeed(moto_s3_client: "S3Client") -> None:
     bucket = "bucket"
-    s3_object1 = moto_s3.Object(bucket, "foo/foo.tmp")
-    s3_object2 = moto_s3.Object(bucket, "bar/bar.tmp")
-    s3_object1.put(Body=b"foofoo")
-    s3_object2.put(Body=b"bar")
+    moto_s3_client.put_object(
+        Bucket=bucket,
+        Key="foo/foo.tmp",
+        Body=b"foofoo",
+    )
+    moto_s3_client.put_object(
+        Bucket=bucket,
+        Key="bar/bar.tmp",
+        Body=b"bar",
+    )
 
     size = wr.s3.size_objects("s3://{}".format(bucket))
 
@@ -174,11 +206,14 @@ def test_size_list_of_objects_succeed(moto_s3):
     assert size == {"s3://bucket/foo/foo.tmp": 6, "s3://bucket/bar/bar.tmp": 3}
 
 
-def test_copy_one_object_without_replace_filename_succeed(moto_s3):
+def test_copy_one_object_without_replace_filename_succeed(moto_s3_client: "S3Client") -> None:
     bucket = "bucket"
     key = "foo/foo.tmp"
-    s3_object = moto_s3.Object(bucket, key)
-    s3_object.put(Body=b"foo")
+    moto_s3_client.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=b"foo",
+    )
 
     wr.s3.copy_objects(
         paths=["s3://{}/{}".format(bucket, key)],
@@ -194,11 +229,14 @@ def test_copy_one_object_without_replace_filename_succeed(moto_s3):
     )
 
 
-def test_copy_one_object_with_replace_filename_succeed(moto_s3):
+def test_copy_one_object_with_replace_filename_succeed(moto_s3_client: "S3Client") -> None:
     bucket = "bucket"
     key = "foo/foo.tmp"
-    s3_object = moto_s3.Object(bucket, key)
-    s3_object.put(Body=b"foo")
+    moto_s3_client.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=b"foo",
+    )
 
     wr.s3.copy_objects(
         paths=["s3://{}/{}".format(bucket, key)],
@@ -215,13 +253,16 @@ def test_copy_one_object_with_replace_filename_succeed(moto_s3):
     )
 
 
-def test_copy_objects_without_replace_filename_succeed(moto_s3):
+def test_copy_objects_without_replace_filename_succeed(moto_s3_client: "S3Client") -> None:
     bucket = "bucket"
     keys = ["foo/foo1.tmp", "foo/foo2.tmp", "foo/foo3.tmp"]
 
     for key in keys:
-        s3_object = moto_s3.Object(bucket, key)
-        s3_object.put(Body=b"foo")
+        moto_s3_client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=b"foo",
+        )
 
     wr.s3.copy_objects(
         paths=["s3://{}/{}".format(bucket, key) for key in keys],
@@ -240,7 +281,7 @@ def test_copy_objects_without_replace_filename_succeed(moto_s3):
     )
 
 
-def test_csv(moto_s3):
+def test_csv(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
     df = wr.s3.read_csv(path=path)
@@ -248,13 +289,16 @@ def test_csv(moto_s3):
     assert len(df.columns) == 10
 
 
-def test_download_file(moto_s3, tmp_path):
+def test_download_file(moto_s3_client: "S3Client", tmp_path: str) -> None:
     bucket = "bucket"
     key = "foo.tmp"
     content = b"foo"
 
-    s3_object = moto_s3.Object(bucket, key)
-    s3_object.put(Body=content)
+    moto_s3_client.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=content,
+    )
 
     path = "s3://{}/{}".format(bucket, key)
     local_file = tmp_path / key
@@ -262,13 +306,16 @@ def test_download_file(moto_s3, tmp_path):
     assert local_file.read_bytes() == content
 
 
-def test_download_fileobj(moto_s3, tmp_path):
+def test_download_fileobj(moto_s3_client: "S3Client", tmp_path: str) -> None:
     bucket = "bucket"
     key = "foo.tmp"
     content = b"foo"
 
-    s3_object = moto_s3.Object(bucket, key)
-    s3_object.put(Body=content)
+    moto_s3_client.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=content,
+    )
 
     path = "s3://{}/{}".format(bucket, key)
     local_file = tmp_path / key
@@ -278,7 +325,7 @@ def test_download_fileobj(moto_s3, tmp_path):
     assert local_file.read_bytes() == content
 
 
-def test_upload_file(moto_s3, tmp_path):
+def test_upload_file(moto_s3_client: "S3Client", tmp_path: str) -> None:
     bucket = "bucket"
     key = "foo.tmp"
     content = b"foo"
@@ -289,11 +336,14 @@ def test_upload_file(moto_s3, tmp_path):
     local_file.write_bytes(content)
     wr.s3.upload(local_file=str(local_file), path=path)
 
-    s3_object = moto_s3.Object(bucket, key)
-    assert s3_object.get()["Body"].read() == content
+    response = moto_s3_client.get_object(
+        Bucket=bucket,
+        Key=key,
+    )
+    assert response["Body"].read() == content
 
 
-def test_upload_fileobj(moto_s3, tmp_path):
+def test_upload_fileobj(moto_s3_client: "S3Client", tmp_path: str) -> None:
     bucket = "bucket"
     key = "foo.tmp"
     content = b"foo"
@@ -305,11 +355,14 @@ def test_upload_fileobj(moto_s3, tmp_path):
     with open(local_file, "rb") as local_f:
         wr.s3.upload(local_file=local_f, path=path)
 
-    s3_object = moto_s3.Object(bucket, key)
-    assert s3_object.get()["Body"].read() == content
+    response = moto_s3_client.get_object(
+        Bucket=bucket,
+        Key=key,
+    )
+    assert response["Body"].read() == content
 
 
-def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3):
+def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
     dfs = [dfs for dfs in wr.s3.read_csv(path=path, chunksize=1, usecols=["id", "string"])]
@@ -320,17 +373,20 @@ def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3):
 
 @mock.patch("pandas.read_csv")
 @mock.patch("pandas.concat")
-def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_concat, mock_read_csv, moto_s3):
+def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_concat, mock_read_csv, moto_s3_client: "S3Client") -> None:
     bucket = "bucket"
     key = "foo/foo.csv"
     path = "s3://{}/{}".format(bucket, key)
-    s3_object = moto_s3.Object(bucket, key)
-    s3_object.put(Body=b"foo")
+    moto_s3_client.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=b"foo",
+    )
     wr.s3.read_csv(path=path, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
     mock_read_csv.assert_called_with(ANY, compression=None, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
 
 
-def test_to_csv_invalid_argument_combination_raise_when_dataset_false_succeed(moto_s3):
+def test_to_csv_invalid_argument_combination_raise_when_dataset_false_succeed(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.csv"
 
     with pytest.raises(InvalidArgumentCombination):
@@ -386,7 +442,7 @@ def test_to_csv_invalid_argument_combination_raise_when_dataset_false_succeed(mo
         )
 
 
-def test_to_csv_valid_argument_combination_when_dataset_true_succeed(moto_s3):
+def test_to_csv_valid_argument_combination_when_dataset_true_succeed(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
@@ -394,12 +450,12 @@ def test_to_csv_valid_argument_combination_when_dataset_true_succeed(moto_s3):
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, mode="append")
 
 
-def test_to_csv_data_empty(moto_s3):
+def test_to_csv_data_empty(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=pd.DataFrame(), path=path, index=False)
 
 
-def test_parquet(moto_s3):
+def test_parquet(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.parquet"
     wr.s3.to_parquet(df=get_df_list(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
     df = wr.s3.read_parquet(path=path, dataset=True)
@@ -407,7 +463,7 @@ def test_parquet(moto_s3):
     assert df.shape == (3, 19)
 
 
-def test_parquet_with_size(moto_s3):
+def test_parquet_with_size(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.parquet"
     df = get_df_list()
     df = pd.concat([df for _ in range(21)])
@@ -417,7 +473,7 @@ def test_parquet_with_size(moto_s3):
     assert df.shape == (63, 19)
 
 
-def test_s3_delete_object_success(moto_s3):
+def test_s3_delete_object_success(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.parquet"
     wr.s3.to_parquet(df=get_df_list(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
     df = wr.s3.read_parquet(path=path, dataset=True)
@@ -427,7 +483,7 @@ def test_s3_delete_object_success(moto_s3):
         wr.s3.read_parquet(path=path, dataset=True)
 
 
-def test_s3_raise_delete_object_exception_success(moto_s3):
+def test_s3_raise_delete_object_exception_success(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.parquet"
     wr.s3.to_parquet(df=get_df_list(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
     df = wr.s3.read_parquet(path=path, dataset=True)
@@ -446,13 +502,13 @@ def test_s3_raise_delete_object_exception_success(moto_s3):
             wr.s3.delete_objects(path=path)
 
 
-def test_emr(moto_s3, moto_emr, moto_sts, moto_subnet):
+def test_emr(moto_s3_client: "S3Client", moto_emr, moto_sts, moto_subnet_id: str) -> None:
     session = boto3.Session(region_name="us-west-1")
     cluster_id = wr.emr.create_cluster(
         cluster_name="wrangler_cluster",
         logging_s3_path="s3://bucket/emr-logs/",
         emr_release="emr-5.29.0",
-        subnet_id=moto_subnet,
+        subnet_id=moto_subnet_id,
         emr_ec2_role="EMR_EC2_DefaultRole",
         emr_role="EMR_DefaultRole",
         instance_type_master="m5.xlarge",
@@ -529,7 +585,7 @@ def test_glue_get_partition(moto_glue):
     assert parquet_partition_value == values
 
 
-def test_dynamodb_basic_usage(moto_dynamodb):
+def test_dynamodb_basic_usage(moto_dynamodb_client):
     table_name = "table"
     items = [{"key": 1}, {"key": 2, "my_value": "Hello"}]
 
@@ -542,7 +598,7 @@ def test_dynamodb_basic_usage(moto_dynamodb):
     assert table.item_count == 0
 
 
-def test_dynamodb_fail_on_invalid_items(moto_dynamodb):
+def test_dynamodb_fail_on_invalid_items(moto_dynamodb_client):
     table_name = "table"
     items = [{"key": 1}, {"id": 2}]
 

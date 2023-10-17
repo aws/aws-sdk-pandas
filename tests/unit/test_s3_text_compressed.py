@@ -40,25 +40,34 @@ def test_csv_read(bucket: str, path: str, compression: str) -> None:
         buffer = BytesIO()
         with gzip.GzipFile(mode="w", fileobj=buffer) as zipped_file:
             df.to_csv(TextIOWrapper(zipped_file, "utf8"), index=False, header=None)
-        s3_resource = boto3.resource("s3")
-        s3_object = s3_resource.Object(bucket, f"{key_prefix}test.csv.gz")
-        s3_object.put(Body=buffer.getvalue())
+        s3_client = boto3.client("s3")
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=f"{key_prefix}test.csv.gz",
+            Body=buffer.getvalue(),
+        )
         file_path = f"{path}test.csv.gz"
     elif compression == "bz2":
         buffer = BytesIO()
         with bz2.BZ2File(mode="w", filename=buffer) as zipped_file:
             df.to_csv(TextIOWrapper(zipped_file, "utf8"), index=False, header=None)
-        s3_resource = boto3.resource("s3")
-        s3_object = s3_resource.Object(bucket, f"{key_prefix}test.csv.bz2")
-        s3_object.put(Body=buffer.getvalue())
+        s3_client = boto3.client("s3")
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=f"{key_prefix}test.csv.bz2",
+            Body=buffer.getvalue(),
+        )
         file_path = f"{path}test.csv.bz2"
     elif compression == "xz":
         buffer = BytesIO()
         with lzma.LZMAFile(mode="w", filename=buffer) as zipped_file:
             df.to_csv(TextIOWrapper(zipped_file, "utf8"), index=False, header=None)
-        s3_resource = boto3.resource("s3")
-        s3_object = s3_resource.Object(bucket, f"{key_prefix}test.csv.xz")
-        s3_object.put(Body=buffer.getvalue())
+        s3_client = boto3.client("s3")
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=f"{key_prefix}test.csv.xz",
+            Body=buffer.getvalue(),
+        )
         file_path = f"{path}test.csv.xz"
     else:
         file_path = f"{path}test.csv"
