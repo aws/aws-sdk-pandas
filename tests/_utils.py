@@ -578,3 +578,9 @@ def assert_pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.Data
         assert_series_equal(df1, df2)
     else:
         raise ValueError(f"Unsupported type {type(df1)}")
+
+
+def assert_columns_in_pandas_data_frame(df: pd.DataFrame, columns: List[str]) -> None:
+    """Check data frame for columns"""
+    for col in columns:
+        assert col in df.columns
