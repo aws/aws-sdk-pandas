@@ -187,7 +187,7 @@ def to_property_graph(
         else:
             g = _build_gremlin_insert_vertices(g, row.to_dict(), use_header_cardinality)
         # run the query
-        if index > 0 and index % batch_size == 0:
+        if index > 0 and index + 1 % batch_size == 0:
             res = _run_gremlin_insert(client, g)
             if res:
                 g = gremlin.Graph().traversal()
