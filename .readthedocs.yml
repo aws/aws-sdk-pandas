@@ -4,7 +4,7 @@ formats: all
 build:
   os: ubuntu-22.04
   tools:
-    python: mambaforge-22.9
+    python: mambaforge-4.10
 
 conda:
   environment: docs/environment.yml
