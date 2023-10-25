@@ -6,6 +6,11 @@ build:
   tools:
     python: mambaforge-4.10
 
+python:
+  install:
+    - method: pip
+      path: .
+
 conda:
   environment: docs/environment.yml
 
