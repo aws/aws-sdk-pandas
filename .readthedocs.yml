@@ -1,5 +1,13 @@
 version: 2
 formats: all
 
+build:
+  os: ubuntu-22.04
+  tools:
+    python: miniconda3-4.7
+
 conda:
   environment: docs/environment.yml
+
+sphinx:
+  configuration: docs/source/conf.py
