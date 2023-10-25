@@ -4,12 +4,7 @@ formats: all
 build:
   os: ubuntu-22.04
   tools:
-    python: mambaforge-4.10
-
-python:
-  install:
-    - method: pip
-      path: .
+    python: miniconda3-4.7
 
 conda:
   environment: docs/environment.yml
