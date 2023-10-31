@@ -649,6 +649,7 @@ def test_spectrum_decimal_cast(
     [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
 )
 @pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("parallel", [True, False])
 def test_copy_unload_kms(
     path: str,
     redshift_table: str,
@@ -656,6 +657,7 @@ def test_copy_unload_kms(
     databases_parameters: Dict[str, Any],
     kms_key_id: str,
     use_threads: bool,
+    parallel: bool,
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
     df = pd.DataFrame({"id": [1, 2, 3]})
@@ -678,6 +680,7 @@ def test_copy_unload_kms(
         iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
+        parallel=parallel,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
     )
