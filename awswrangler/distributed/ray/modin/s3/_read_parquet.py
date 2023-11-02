@@ -49,6 +49,7 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
         paths=paths,
         schema=schema,
         columns=columns,
+        path_root=path_root,
         dataset_kwargs=dataset_kwargs,
     )
     return _to_modin(
