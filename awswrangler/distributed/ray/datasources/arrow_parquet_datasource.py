@@ -32,7 +32,7 @@ from ray.data.datasource.file_meta_provider import (
 )
 
 from awswrangler import exceptions
-from awswrangler._arrow import _df_to_table
+from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray import ray_remote
 from awswrangler.distributed.ray.datasources.arrow_parquet_base_datasource import ArrowParquetBaseDatasource
 from awswrangler.s3._write import _COMPRESSION_2_EXT
@@ -349,7 +349,7 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
             meta = self._meta_provider(
                 paths,
                 self._inferred_schema,
-                num_fragments=len(fragments),
+                num_pieces=len(fragments),
                 prefetched_metadata=metadata,
             )
             # If there is a filter operation, reset the calculated row count,
@@ -475,6 +475,7 @@ def _read_fragments(
 
     _logger.debug(f"Reading {len(fragments)} parquet fragments")
     use_threads = reader_args.pop("use_threads", False)
+    path_root = reader_args.pop("path_root", None)
     batch_size = reader_args.pop("batch_size", default_read_batch_size_rows)
     for fragment in fragments:
         part = _get_partition_keys(fragment.partition_expression)
@@ -486,14 +487,11 @@ def _read_fragments(
             **reader_args,
         )
         for batch in batches:
-            table = pa.Table.from_batches([batch], schema=schema)
-            if part:
-                for col, value in part.items():
-                    table = table.set_column(
-                        table.schema.get_field_index(col),
-                        col,
-                        pa.array([value] * len(table)),
-                    )
+            table = _add_table_partitions(
+                table=pa.Table.from_batches([batch], schema=schema),
+                path=f"s3://{fragment.path}",
+                path_root=path_root,
+            )
             # If the table is empty, drop it.
             if table.num_rows > 0:
                 if block_udf is not None:
