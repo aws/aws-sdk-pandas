@@ -35,7 +35,7 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
         *,
         filesystem: Optional["pyarrow.fs.FileSystem"] = None,
         dataset_uuid: Optional[str] = None,
-        block: Optional[Block] = None,
+        task_index: Optional[int] = None,
         block_index: Optional[int] = None,
         file_format: Optional[str] = None,
     ) -> str:
@@ -67,6 +67,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     def do_write(  # pylint: disable=arguments-differ
         self,
         blocks: List[ObjectRef[pd.DataFrame]],
+        ctx: TaskContext,
         metadata: List[BlockMetadata],
         path: str,
         dataset_uuid: str,
@@ -132,7 +133,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
                 path,
                 filesystem=filesystem,
                 dataset_uuid=dataset_uuid,
-                block=block,
+                task_index=ctx.task_idx,
                 block_index=block_idx,
                 file_format=file_suffix,
             )
@@ -198,7 +199,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
             path,
             filesystem=filesystem,
             dataset_uuid=dataset_uuid,
-            block=block,
+            task_index=ctx.task_idx,
             block_index=ctx.task_idx,
             file_format=file_suffix,
         )
