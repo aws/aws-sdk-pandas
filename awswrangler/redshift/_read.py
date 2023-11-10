@@ -346,7 +346,6 @@ def unload_to_files(
             f"{max_file_size_str}"
             f"{manifest_str};"
         )
-        _logger.debug("Executing unload query:\n%s", unload_sql)
         cursor.execute(unload_sql)
 
 
