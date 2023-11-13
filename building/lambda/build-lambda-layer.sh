@@ -16,7 +16,7 @@ export CMAKE_PREFIX_PATH=$ARROW_HOME:$CMAKE_PREFIX_PATH
 
 git clone \
   --depth 1 \
-  --branch apache-arrow-12.0.0 \
+  --branch apache-arrow-14.0.1 \
   --single-branch \
   https://github.com/apache/arrow.git
 
