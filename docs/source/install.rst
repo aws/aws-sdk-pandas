@@ -90,11 +90,13 @@ Layer ARNs can also be obtained from SSM public parameters.
 Find all layers for a version of the library.
 
 .. code-block:: sh
+
     aws ssm describe-parameters --parameter-filters "Key=Name, Option=BeginsWith, Values=/aws/service/aws-sdk-pandas/3.4.0/"
 
 **CDK:**
 
 .. code-block:: python
+
     sdk_for_pandas_layer_arn = ssm.StringParameter.from_string_parameter_attributes(self, "MyValue",
       parameter_name="/aws/service/aws-sdk-pandas/3.4.0/py3.10/x86_64/layer-arn"
     ).string_value
