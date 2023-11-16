@@ -5,6 +5,7 @@ from decimal import Decimal
 import pg8000
 import pyarrow as pa
 import pytest
+from packaging import version
 from pg8000.dbapi import ProgrammingError
 
 import awswrangler as wr
@@ -522,6 +523,7 @@ def test_insert_ignore_duplicate_multiple_columns(postgresql_table, postgresql_c
     assert pandas_equals(df6, df7)
 
 
+@pytest.mark.skipif(version.parse(pa.__version__) > version.parse("14.0.0"), reason="Fixed in pyarrow 14+")
 def test_timestamp_overflow(postgresql_table, postgresql_con):
     df = pd.DataFrame({"c0": [datetime.strptime("1677-01-01 00:00:00.0", "%Y-%m-%d %H:%M:%S.%f")]})
     wr.postgresql.to_sql(df=df, con=postgresql_con, schema="public", table=postgresql_table)

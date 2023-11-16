@@ -110,8 +110,8 @@ def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
     data = client.read_sparql(query)
     df = None
     if "results" in data and "bindings" in data["results"]:
-        df = pd.DataFrame(data["results"]["bindings"])
-        df.applymap(lambda x: x["value"])
+        df = pd.DataFrame(data["results"]["bindings"], columns=data.get("head", {}).get("vars"))
+        df = df.applymap(lambda d: d["value"] if "value" in d else None)
     else:
         df = pd.DataFrame(data)
 
@@ -187,7 +187,7 @@ def to_property_graph(
         else:
             g = _build_gremlin_insert_vertices(g, row.to_dict(), use_header_cardinality)
         # run the query
-        if index > 0 and index % batch_size == 0:
+        if index > 0 and index + 1 % batch_size == 0:
             res = _run_gremlin_insert(client, g)
             if res:
                 g = gremlin.Graph().traversal()

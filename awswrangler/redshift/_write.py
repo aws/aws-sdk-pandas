@@ -58,7 +58,6 @@ def _copy(
     if sql_copy_extra_params:
         for param in sql_copy_extra_params:
             sql += f"\n{param}"
-    _logger.debug("Executing copy query:\n%s", sql)
     cursor.execute(sql)
 
 

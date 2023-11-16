@@ -377,8 +377,8 @@ def ensure_data_types(df: pd.DataFrame, has_list: bool = False, has_category: bo
     if "string_object" in df.columns:
         assert str(df["string_object"].dtype) == "string"
     assert str(df["string"].dtype) == "string"
-    assert str(df["date"].dtype) in ("object", "O", "datetime64[ns]")
-    assert str(df["timestamp"].dtype) in ("object", "O", "datetime64[ns]")
+    assert str(df["date"].dtype) in ("object", "O") or str(df["date"].dtype).startswith("datetime64")
+    assert str(df["timestamp"].dtype) in ("object", "O") or str(df["timestamp"].dtype).startswith("datetime64")
     assert str(df["bool"].dtype) in ("boolean", "Int64", "object")
     if "binary" in df.columns:
         assert str(df["binary"].dtype) == "object"
@@ -578,3 +578,9 @@ def assert_pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.Data
         assert_series_equal(df1, df2)
     else:
         raise ValueError(f"Unsupported type {type(df1)}")
+
+
+def assert_columns_in_pandas_data_frame(df: pd.DataFrame, columns: List[str]) -> None:
+    """Check data frame for columns"""
+    for col in columns:
+        assert col in df.columns
