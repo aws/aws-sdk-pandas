@@ -5,20 +5,24 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Mapping, Optional, 
 
 import boto3
 from boto3.dynamodb.conditions import ConditionExpressionBuilder
-from boto3.dynamodb.types import TypeSerializer
+from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.annotations import Deprecated
 
 if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.client import DynamoDBClient
     from mypy_boto3_dynamodb.service_resource import Table
-    from mypy_boto3_dynamodb.type_defs import ExecuteStatementOutputTypeDef
+    from mypy_boto3_dynamodb.type_defs import ExecuteStatementOutputTypeDef, KeySchemaElementTableTypeDef
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 @apply_configs
+@Deprecated
 def get_table(
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
@@ -46,11 +50,10 @@ def get_table(
 
 def _execute_statement(
     kwargs: Dict[str, Union[str, bool, List[Any]]],
-    boto3_session: Optional[boto3.Session],
+    dynamodb_client: "DynamoDBClient",
 ) -> "ExecuteStatementOutputTypeDef":
-    dynamodb_resource = _utils.resource(service_name="dynamodb", session=boto3_session)
     try:
-        response = dynamodb_resource.meta.client.execute_statement(**kwargs)  # type: ignore[arg-type]
+        response = dynamodb_client.execute_statement(**kwargs)  # type: ignore[arg-type]
     except ClientError as err:
         if err.response["Error"]["Code"] == "ResourceNotFoundException":
             _logger.error("Couldn't execute PartiQL: '%s' because the table does not exist.", kwargs["Statement"])
@@ -66,14 +69,19 @@ def _execute_statement(
 
 
 def _read_execute_statement(
-    kwargs: Dict[str, Union[str, bool, List[Any]]], boto3_session: Optional[boto3.Session]
+    kwargs: Dict[str, Union[str, bool, List[Any]]],
+    dynamodb_client: "DynamoDBClient",
 ) -> Iterator[Dict[str, Any]]:
     next_token: Optional[str] = "init_token"  # Dummy token
+    deserializer = TypeDeserializer()
     while next_token:
-        response = _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
+        response = _execute_statement(kwargs=kwargs, dynamodb_client=dynamodb_client)
         next_token = response.get("NextToken", None)
         kwargs["NextToken"] = next_token  # type: ignore[assignment]
-        yield response["Items"]  # type: ignore[misc]
+        yield [
+            {k: deserializer.deserialize(v) for k, v in item.items()}
+            for item in response["Items"]
+        ]
 
 
 def execute_statement(
@@ -133,12 +141,15 @@ def execute_statement(
     """
     kwargs: Dict[str, Union[str, bool, List[Any]]] = {"Statement": statement, "ConsistentRead": consistent_read}
     if parameters:
-        kwargs["Parameters"] = parameters
+        serializer = TypeSerializer()
+        kwargs["Parameters"] = [serializer.serialize(p) for p in parameters]
+
+    dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
 
     if not statement.strip().upper().startswith("SELECT"):
-        _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
+        _execute_statement(kwargs=kwargs, dynamodb_client=dynamodb_client)
         return None
-    return _read_execute_statement(kwargs=kwargs, boto3_session=boto3_session)
+    return _read_execute_statement(kwargs=kwargs, dynamodb_client=dynamodb_client)
 
 
 def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -180,7 +191,9 @@ def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     return kwargs
 
 
-def _validate_items(items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], dynamodb_table: "Table") -> None:
+def _validate_items(
+    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], key_schema: List["KeySchemaElementTableTypeDef"]
+) -> None:
     """Validate if all items have the required keys for the Amazon DynamoDB table.
 
     Parameters
@@ -195,6 +208,6 @@ def _validate_items(items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]],
     None
         None.
     """
-    table_keys = [schema["AttributeName"] for schema in dynamodb_table.key_schema]
+    table_keys = [schema["AttributeName"] for schema in key_schema]
     if not all(key in item for item in items for key in table_keys):
         raise exceptions.InvalidArgumentValue("All items need to contain the required keys for the table.")
