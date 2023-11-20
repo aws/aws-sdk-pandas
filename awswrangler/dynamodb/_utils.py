@@ -73,14 +73,14 @@ def _execute_statement(
 
 
 def _serialize_item(
-    item: Dict[str, Any], serializer: Optional[TypeSerializer] = None
+    item: Mapping[str, Any], serializer: Optional[TypeSerializer] = None
 ) -> Dict[str, "AttributeValueTypeDef"]:
     serializer = serializer if serializer else TypeSerializer()
     return {k: serializer.serialize(v) for k, v in item.items()}
 
 
 def _deserialize_item(
-    item: Dict[str, "AttributeValueTypeDef"], deserializer: Optional[TypeDeserializer] = None
+    item: Mapping[str, "AttributeValueTypeDef"], deserializer: Optional[TypeDeserializer] = None
 ) -> Dict[str, Any]:
     deserializer = deserializer if deserializer else TypeDeserializer()
     return {k: deserializer.deserialize(v) for k, v in item.items()}
@@ -89,7 +89,7 @@ def _deserialize_item(
 def _read_execute_statement(
     kwargs: Dict[str, Union[str, bool, List[Any]]],
     dynamodb_client: "DynamoDBClient",
-) -> Iterator[Dict[str, Any]]:
+) -> Iterator[List[Dict[str, Any]]]:
     next_token: Optional[str] = "init_token"  # Dummy token
     deserializer = TypeDeserializer()
 
@@ -105,7 +105,7 @@ def execute_statement(
     parameters: Optional[List[Any]] = None,
     consistent_read: bool = False,
     boto3_session: Optional[boto3.Session] = None,
-) -> Optional[Iterator[Dict[str, Any]]]:
+) -> Optional[Iterator[List[Dict[str, Any]]]]:
     """Run a PartiQL statement against a DynamoDB table.
 
     Parameters

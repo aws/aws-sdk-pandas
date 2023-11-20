@@ -281,7 +281,7 @@ def put_items(
     ray_get(
         executor.map(
             _put_items,
-            dynamodb_client,  # type: ignore[arg-type]
+            dynamodb_client,
             batches,
             itertools.repeat(table_name),
             itertools.repeat(key_schema),
