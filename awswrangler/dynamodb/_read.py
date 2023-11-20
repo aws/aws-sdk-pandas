@@ -31,7 +31,7 @@ from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
-from awswrangler.dynamodb._utils import _deserialize_item, _serialize_item, _serialize_kwargs, execute_statement
+from awswrangler.dynamodb._utils import _deserialize_item, _serialize_item, execute_statement
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.client import DynamoDBClient
@@ -330,7 +330,6 @@ def _read_items_scan(
     chunked: bool,
     **kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame], _ItemsListType, Iterator[_ItemsListType]]:
-    kwargs = _serialize_kwargs(kwargs)
     kwargs["TableName"] = table_name
     schema = arrow_kwargs.pop("schema", None)
 

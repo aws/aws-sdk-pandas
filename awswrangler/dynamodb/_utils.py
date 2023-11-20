@@ -168,45 +168,6 @@ def execute_statement(
     return _read_execute_statement(kwargs=kwargs, dynamodb_client=dynamodb_client)
 
 
-def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
-    """Serialize a DynamoDB input arguments dictionary.
-
-    Parameters
-    ----------
-    kwargs : Dict[str, Any]
-        Dictionary to serialize.
-
-    Returns
-    -------
-    Dict[str, Any]
-        Serialized dictionary.
-    """
-    names: Dict[str, Any] = {}
-    values: Dict[str, Any] = {}
-    serializer = TypeSerializer()
-
-    if "FilterExpression" in kwargs and not isinstance(kwargs["FilterExpression"], str):
-        builder = ConditionExpressionBuilder()
-        exp_string, names, values = builder.build_expression(kwargs["FilterExpression"], False)
-        kwargs["FilterExpression"] = exp_string
-
-    if "ExpressionAttributeNames" in kwargs:
-        kwargs["ExpressionAttributeNames"].update(names)
-    elif names:
-        kwargs["ExpressionAttributeNames"] = names
-
-    values = _serialize_item(item=values, serializer=serializer)
-    if "ExpressionAttributeValues" in kwargs:
-        kwargs["ExpressionAttributeValues"] = _serialize_item(
-            kwargs["ExpressionAttributeValues"], serializer=serializer
-        )
-        kwargs["ExpressionAttributeValues"].update(values)
-    elif values:
-        kwargs["ExpressionAttributeValues"] = values
-
-    return kwargs
-
-
 def _validate_items(
     items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], key_schema: List["KeySchemaElementTableTypeDef"]
 ) -> None:
