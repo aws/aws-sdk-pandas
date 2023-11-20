@@ -47,3 +47,28 @@ def test_athena_spark_calculation(code, path, workgroup_spark):
     )
 
     assert result["Status"]["State"] == "COMPLETED"
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        """
+output_path = "$PATH"
+
+data = spark.range(0, 5)
+data.write.format("delta").save(output_path)
+        """,
+    ],
+)
+def test_athena_spark_calculation_with_spark_properties(code, path, workgroup_spark):
+    code = code.replace("$PATH", path)
+
+    result = wr.athena.run_spark_calculation(
+        code=code,
+        workgroup=workgroup_spark,
+        spark_properties={
+            "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
+        },
+    )
+    assert result["Status"]["State"] == "COMPLETED"
