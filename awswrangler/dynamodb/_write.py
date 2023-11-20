@@ -16,7 +16,7 @@ from awswrangler._distributed import engine
 from awswrangler._executor import _get_executor
 from awswrangler.distributed.ray import ray_get
 
-from ._utils import _validate_items
+from ._utils import _serialize_item, _validate_items
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.client import DynamoDBClient
@@ -224,8 +224,7 @@ def _put_items(
 
     # TODO add batching
     for item in items:
-        serialized_item = {k: serializer.serialize(v) for k, v in item.items()}
-        dynamodb_client.put_item(TableName=table_name, Item=serialized_item)
+        dynamodb_client.put_item(TableName=table_name, Item=_serialize_item(item, serializer))
 
 
 @apply_configs

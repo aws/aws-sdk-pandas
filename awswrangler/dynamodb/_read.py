@@ -21,7 +21,7 @@ from typing import (
 import boto3
 import pyarrow as pa
 from boto3.dynamodb.conditions import ConditionBase
-from boto3.dynamodb.types import Binary, TypeDeserializer
+from boto3.dynamodb.types import Binary, TypeDeserializer, TypeSerializer
 from botocore.exceptions import ClientError
 from typing_extensions import Literal
 
@@ -30,7 +30,7 @@ from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
-from awswrangler.dynamodb._utils import _serialize_kwargs, execute_statement
+from awswrangler.dynamodb._utils import _deserialize_item, _serialize_kwargs, execute_statement
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.client import DynamoDBClient
@@ -281,10 +281,7 @@ def _read_batch_items_chunked(
     deserializer = TypeDeserializer()
 
     response = dynamodb_client.batch_get_item(RequestItems={table_name: kwargs})
-    yield [
-        {k: deserializer.deserialize(v) for k, v in d.items()}
-        for d in response.get("Responses", {table_name: []}).get(table_name, [])
-    ]
+    yield [_deserialize_item(d, deserializer) for d in response.get("Responses", {table_name: []}).get(table_name, [])]
 
     # SEE: handle possible unprocessed keys. As suggested in Boto3 docs,
     # this approach should involve exponential backoff, but this should be
@@ -295,8 +292,7 @@ def _read_batch_items_chunked(
 
         response = dynamodb_client.batch_get_item(RequestItems={table_name: kwargs})
         yield [
-            {k: deserializer.deserialize(v) for k, v in d.items()}
-            for d in response.get("Responses", {table_name: []}).get(table_name, [])
+            _deserialize_item(d, deserializer) for d in response.get("Responses", {table_name: []}).get(table_name, [])
         ]
 
 
@@ -320,7 +316,7 @@ def _read_item(
     **kwargs: Any,
 ) -> Union[_ItemsListType, Iterator[_ItemsListType]]:
     item = dynamodb_client.get_item(TableName=table_name, **kwargs).get("Item", {})
-    item_list: _ItemsListType = [item]
+    item_list: _ItemsListType = [_deserialize_item(item)]
 
     return [item_list] if chunked else item_list
 
@@ -637,6 +633,7 @@ def read_items(  # pylint: disable=too-many-branches
 
     # Extract key schema
     dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
+    serializer = TypeSerializer()
     table_key_schema = dynamodb_client.describe_table(TableName=table_name)["Table"]["KeySchema"]
 
     # Detect sort key, if any
@@ -651,8 +648,9 @@ def read_items(  # pylint: disable=too-many-branches
     # Build kwargs shared by read methods
     kwargs: Dict[str, Any] = {"ConsistentRead": consistent}
     if partition_values:
+        serializer = TypeSerializer()
         if sort_key is None:
-            keys = [{partition_key: pv} for pv in partition_values]
+            keys = [{partition_key: serializer.serialize(pv)} for pv in partition_values]
         else:
             if not sort_values:
                 raise exceptions.InvalidArgumentType(
@@ -660,7 +658,10 @@ def read_items(  # pylint: disable=too-many-branches
                 )
             if len(sort_values) != len(partition_values):
                 raise exceptions.InvalidArgumentCombination("Partition and sort values must have the same length.")
-            keys = [{partition_key: pv, sort_key: sv} for pv, sv in zip(partition_values, sort_values)]
+            keys = [
+                {partition_key: serializer.serialize(pv), sort_key: serializer.serialize(sv)}
+                for pv, sv in zip(partition_values, sort_values)
+            ]
         kwargs["Keys"] = keys
     if index_name:
         kwargs["IndexName"] = index_name

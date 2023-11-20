@@ -15,7 +15,11 @@ from awswrangler.annotations import Deprecated
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.client import DynamoDBClient
     from mypy_boto3_dynamodb.service_resource import Table
-    from mypy_boto3_dynamodb.type_defs import ExecuteStatementOutputTypeDef, KeySchemaElementTableTypeDef
+    from mypy_boto3_dynamodb.type_defs import (
+        AttributeValueTypeDef,
+        ExecuteStatementOutputTypeDef,
+        KeySchemaElementTableTypeDef,
+    )
 
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -68,20 +72,32 @@ def _execute_statement(
     return response
 
 
+def _serialize_item(
+    item: Dict[str, Any], serializer: Optional[TypeSerializer] = None
+) -> Dict[str, "AttributeValueTypeDef"]:
+    serializer = serializer if serializer else TypeSerializer()
+    return {k: serializer.serialize(v) for k, v in item.items()}
+
+
+def _deserialize_item(
+    item: Dict[str, "AttributeValueTypeDef"], deserializer: Optional[TypeDeserializer] = None
+) -> Dict[str, Any]:
+    deserializer = deserializer if deserializer else TypeDeserializer()
+    return {k: deserializer.deserialize(v) for k, v in item.items()}
+
+
 def _read_execute_statement(
     kwargs: Dict[str, Union[str, bool, List[Any]]],
     dynamodb_client: "DynamoDBClient",
 ) -> Iterator[Dict[str, Any]]:
     next_token: Optional[str] = "init_token"  # Dummy token
     deserializer = TypeDeserializer()
+
     while next_token:
         response = _execute_statement(kwargs=kwargs, dynamodb_client=dynamodb_client)
         next_token = response.get("NextToken", None)
         kwargs["NextToken"] = next_token  # type: ignore[assignment]
-        yield [
-            {k: deserializer.deserialize(v) for k, v in item.items()}
-            for item in response["Items"]
-        ]
+        yield [_deserialize_item(item, deserializer) for item in response["Items"]]
 
 
 def execute_statement(
@@ -179,11 +195,11 @@ def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     elif names:
         kwargs["ExpressionAttributeNames"] = names
 
-    values = {k: serializer.serialize(v) for k, v in values.items()}
+    values = _serialize_item(item=values, serializer=serializer)
     if "ExpressionAttributeValues" in kwargs:
-        kwargs["ExpressionAttributeValues"] = {
-            k: serializer.serialize(v) for k, v in kwargs["ExpressionAttributeValues"].items()
-        }
+        kwargs["ExpressionAttributeValues"] = _serialize_item(
+            kwargs["ExpressionAttributeValues"], serializer=serializer
+        )
         kwargs["ExpressionAttributeValues"].update(values)
     elif values:
         kwargs["ExpressionAttributeValues"] = values
