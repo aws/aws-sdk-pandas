@@ -16,7 +16,7 @@ export CMAKE_PREFIX_PATH=$ARROW_HOME:$CMAKE_PREFIX_PATH
 
 git clone \
   --depth 1 \
-  --branch apache-arrow-12.0.0 \
+  --branch apache-arrow-14.0.1 \
   --single-branch \
   https://github.com/apache/arrow.git
 
@@ -85,6 +85,7 @@ pip3 install . -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyx
 
 rm -rf python/pyarrow*
 rm -rf python/boto*
+rm -rf python/urllib3*
 
 cp -r /aws-sdk-pandas/dist/pyarrow_files/pyarrow* python/
 

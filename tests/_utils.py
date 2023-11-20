@@ -377,8 +377,8 @@ def ensure_data_types(df: pd.DataFrame, has_list: bool = False, has_category: bo
     if "string_object" in df.columns:
         assert str(df["string_object"].dtype) == "string"
     assert str(df["string"].dtype) == "string"
-    assert str(df["date"].dtype) in ("object", "O", "datetime64[ns]")
-    assert str(df["timestamp"].dtype) in ("object", "O", "datetime64[ns]")
+    assert str(df["date"].dtype) in ("object", "O") or str(df["date"].dtype).startswith("datetime64")
+    assert str(df["timestamp"].dtype) in ("object", "O") or str(df["timestamp"].dtype).startswith("datetime64")
     assert str(df["bool"].dtype) in ("boolean", "Int64", "object")
     if "binary" in df.columns:
         assert str(df["binary"].dtype) == "object"

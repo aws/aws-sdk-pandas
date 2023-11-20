@@ -526,7 +526,7 @@ def test_read_items_schema(params, dynamodb_table: str, chunked: bool):
     wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
 
     if not is_ray_modin:
-        with pytest.raises(pa.ArrowInvalid):
+        with pytest.raises((pa.ArrowInvalid, pa.ArrowTypeError)):
             wr.dynamodb.read_items(table_name=dynamodb_table, allow_full_scan=True)
 
     schema = pa.schema([("id", pa.decimal128(7, 4)), ("word", pa.string()), ("char_count", pa.int8())])
