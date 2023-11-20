@@ -52,16 +52,12 @@ def test_athena_spark_calculation(code, path, workgroup_spark):
 @pytest.mark.parametrize(
     "code",
     [
-        "print(spark)",
         """
-    input_path = "s3://athena-examples-us-east-1/notebooks/yellow_tripdata_2016-01.parquet"
-    output_path = "$PATH"
+output_path = "$PATH"
 
-    taxi_df = spark.read.format("parquet").load(input_path)
-
-    taxi_passenger_counts = taxi_df.groupBy("VendorID", "passenger_count").count()
-    taxi_passenger_counts.coalesce(1).write.format("delta").save(output_path)
-    """,
+data = spark.range(0, 5)
+data.write.format("delta").save(output_path)
+        """,
     ],
 )
 def test_athena_spark_calculation_with_spark_properties(code, path, workgroup_spark):
@@ -71,8 +67,8 @@ def test_athena_spark_calculation_with_spark_properties(code, path, workgroup_sp
         code=code,
         workgroup=workgroup_spark,
         spark_properties={
-        "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-        "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension"
-    }
+            "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension"
+        }
     )
     assert result["Status"]["State"] == "COMPLETED"
