@@ -20,7 +20,7 @@ from typing import (
 
 import boto3
 import pyarrow as pa
-from boto3.dynamodb.conditions import ConditionBase
+from boto3.dynamodb.conditions import ConditionBase, ConditionExpressionBuilder
 from boto3.dynamodb.types import Binary, TypeDeserializer, TypeSerializer
 from botocore.exceptions import ClientError
 from typing_extensions import Literal
@@ -30,11 +30,10 @@ from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
 from awswrangler.distributed.ray import ray_get
-from awswrangler.dynamodb._utils import _deserialize_item, _serialize_kwargs, execute_statement
+from awswrangler.dynamodb._utils import _deserialize_item, _serialize_item, _serialize_kwargs, execute_statement
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.client import DynamoDBClient
-    from mypy_boto3_dynamodb.type_defs import KeySchemaElementTableTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -430,6 +429,19 @@ def _read_items(
         return _convert_items(items=cast(_ItemsListType, items), as_dataframe=as_dataframe, arrow_kwargs=arrow_kwargs)
 
 
+def _convert_key_condition_expression_to_dict(
+    key_condition_expression: ConditionBase, serializer: TypeSerializer
+) -> Dict[str, Any]:
+    builder = ConditionExpressionBuilder()
+    expression = builder.build_expression(key_condition_expression)
+
+    return {
+        "KeyConditionExpression": expression.condition_expression,
+        "ExpressionAttributeNames": expression.attribute_name_placeholders,
+        "ExpressionAttributeValues": _serialize_item(expression.attribute_value_placeholders, serializer=serializer),
+    }
+
+
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "dtype_backend"],
 )
@@ -648,7 +660,6 @@ def read_items(  # pylint: disable=too-many-branches
     # Build kwargs shared by read methods
     kwargs: Dict[str, Any] = {"ConsistentRead": consistent}
     if partition_values:
-        serializer = TypeSerializer()
         if sort_key is None:
             keys = [{partition_key: serializer.serialize(pv)} for pv in partition_values]
         else:
@@ -665,18 +676,23 @@ def read_items(  # pylint: disable=too-many-branches
         kwargs["Keys"] = keys
     if index_name:
         kwargs["IndexName"] = index_name
-    if key_condition_expression:
-        kwargs["KeyConditionExpression"] = key_condition_expression
     if filter_expression:
         kwargs["FilterExpression"] = filter_expression
     if columns:
         kwargs["ProjectionExpression"] = ", ".join(columns)
-    if expression_attribute_names:
-        kwargs["ExpressionAttributeNames"] = expression_attribute_names
-    if expression_attribute_values:
-        kwargs["ExpressionAttributeValues"] = expression_attribute_values
     if max_items_evaluated:
         kwargs["Limit"] = max_items_evaluated
+
+    if key_condition_expression:
+        if isinstance(key_condition_expression, ConditionBase):
+            expression_kwargs = _convert_key_condition_expression_to_dict(key_condition_expression, serializer)
+            kwargs.update(expression_kwargs)
+        else:
+            kwargs["KeyConditionExpression"] = key_condition_expression
+            if expression_attribute_names:
+                kwargs["ExpressionAttributeNames"] = expression_attribute_names
+            if expression_attribute_values:
+                kwargs["ExpressionAttributeValues"] = _serialize_item(expression_attribute_values, serializer)
 
     _logger.debug("DynamoDB scan/query kwargs: %s", kwargs)
     # If kwargs are sufficiently informative, proceed with actual read op
