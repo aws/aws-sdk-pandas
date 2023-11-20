@@ -68,7 +68,7 @@ def test_athena_spark_calculation_with_spark_properties(code, path, workgroup_sp
         workgroup=workgroup_spark,
         spark_properties={
             "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-            "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension"
-        }
+            "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
+        },
     )
     assert result["Status"]["State"] == "COMPLETED"
