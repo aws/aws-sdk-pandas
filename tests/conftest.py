@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from importlib import reload
 from types import ModuleType
-from typing import TYPE_CHECKING, Iterator, Optional
+from typing import Iterator, Optional
 
 import boto3
 import botocore.exceptions
@@ -13,9 +13,6 @@ import pytest
 import awswrangler as wr
 
 from ._utils import create_workgroup, extract_cloudformation_outputs, get_time_str_with_random_suffix, path_generator
-
-if TYPE_CHECKING:
-    from mypy_boto3_dynamodb.client import DynamoDBClient
 
 
 @pytest.fixture(scope="session")

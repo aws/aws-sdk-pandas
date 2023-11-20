@@ -9,7 +9,7 @@ from boto3.dynamodb.types import TypeSerializer
 from awswrangler import _utils
 from awswrangler._config import apply_configs
 
-from ._utils import _validate_items
+from ._utils import _TableBatchWriter, _validate_items
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -56,9 +56,8 @@ def delete_items(
 
     table_keys = [schema["AttributeName"] for schema in key_schema]
 
-    # TODO add batching
-    for item in items:
-        dynamodb_client.delete_item(
-            TableName=table_name,
-            Key={key: serializer.serialize(item[key]) for key in table_keys},
-        )
+    with _TableBatchWriter(table_name, dynamodb_client) as writer:
+        for item in items:
+            writer.delete_item(
+                key={key: serializer.serialize(item[key]) for key in table_keys},
+            )

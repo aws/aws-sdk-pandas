@@ -1,10 +1,10 @@
 """Amazon DynamoDB Utils Module (PRIVATE)."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Mapping, Optional, Union
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Mapping, Optional, Type, Union
 
 import boto3
-from boto3.dynamodb.conditions import ConditionExpressionBuilder
 from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 from botocore.exceptions import ClientError
 
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
         AttributeValueTypeDef,
         ExecuteStatementOutputTypeDef,
         KeySchemaElementTableTypeDef,
+        WriteRequestTypeDef,
     )
 
 
@@ -171,20 +172,120 @@ def execute_statement(
 def _validate_items(
     items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], key_schema: List["KeySchemaElementTableTypeDef"]
 ) -> None:
-    """Validate if all items have the required keys for the Amazon DynamoDB table.
+    """
+    Validate if all items have the required keys for the Amazon DynamoDB table.
 
     Parameters
     ----------
-    items : Union[List[Dict[str, Any]], List[Mapping[str, Any]]]
+    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]]
         List which contains the items that will be validated.
-    dynamodb_table : boto3.resources.dynamodb.Table
-        Amazon DynamoDB Table object.
-
-    Returns
-    -------
-    None
-        None.
+    key_schema: List[KeySchemaElementTableTypeDef]
+        The primary key structure for the table.
+        Each element consists of the attribute name and it's type (HASH or RANGE).
     """
     table_keys = [schema["AttributeName"] for schema in key_schema]
     if not all(key in item for item in items for key in table_keys):
         raise exceptions.InvalidArgumentValue("All items need to contain the required keys for the table.")
+
+
+class _TableBatchWriter:
+    """Automatically handle batch writes to DynamoDB for a single table."""
+
+    def __init__(
+        self,
+        table_name: str,
+        client: "DynamoDBClient",
+        flush_amount: int = 25,
+        overwrite_by_pkeys: Optional[List[str]] = None,
+    ):
+        self._table_name = table_name
+        self._client = client
+        self._items_buffer: List["WriteRequestTypeDef"] = []
+        self._flush_amount = flush_amount
+        self._overwrite_by_pkeys = overwrite_by_pkeys
+
+    def put_item(self, item: Dict[str, "AttributeValueTypeDef"]) -> None:
+        """
+        Add a new put item request to the batch.
+
+        Parameters
+        ----------
+        item: Dict[str, AttributeValueTypeDef]
+            The item to add.
+        """
+        self._add_request_and_process({"PutRequest": {"Item": item}})
+
+    def delete_item(self, key: Dict[str, "AttributeValueTypeDef"]) -> None:
+        """
+        Add a new delete request to the batch.
+
+        Parameters
+        ----------
+        key: Dict[str, AttributeValueTypeDef]
+            The key of the item to delete.
+        """
+        self._add_request_and_process({"DeleteRequest": {"Key": key}})
+
+    def _add_request_and_process(self, request: "WriteRequestTypeDef") -> None:
+        if self._overwrite_by_pkeys:
+            self._remove_dup_pkeys_request_if_any(request, self._overwrite_by_pkeys)
+        self._items_buffer.append(request)
+        self._flush_if_needed()
+
+    def _remove_dup_pkeys_request_if_any(self, request: "WriteRequestTypeDef", overwrite_by_pkeys: List[str]) -> None:
+        pkey_values_new = self._extract_pkey_values(request, overwrite_by_pkeys)
+        for item in self._items_buffer:
+            if self._extract_pkey_values(item, overwrite_by_pkeys) == pkey_values_new:
+                self._items_buffer.remove(item)
+                _logger.debug(
+                    "With overwrite_by_pkeys enabled, skipping " "request:%s",
+                    item,
+                )
+
+    def _extract_pkey_values(
+        self, request: "WriteRequestTypeDef", overwrite_by_pkeys: List[str]
+    ) -> Optional[List[Any]]:
+        if request.get("PutRequest"):
+            return [request["PutRequest"]["Item"][key] for key in overwrite_by_pkeys]
+        elif request.get("DeleteRequest"):
+            return [request["DeleteRequest"]["Key"][key] for key in overwrite_by_pkeys]
+        return None
+
+    def _flush_if_needed(self) -> None:
+        if len(self._items_buffer) >= self._flush_amount:
+            self._flush()
+
+    def _flush(self) -> None:
+        items_to_send = self._items_buffer[: self._flush_amount]
+        self._items_buffer = self._items_buffer[self._flush_amount :]
+        response = self._client.batch_write_item(RequestItems={self._table_name: items_to_send})
+
+        unprocessed_items = response["UnprocessedItems"]
+        if not unprocessed_items:
+            unprocessed_items = {}
+        item_list = unprocessed_items.get(self._table_name, [])
+
+        # Any unprocessed_items are immediately added to the
+        # next batch we send.
+        self._items_buffer.extend(item_list)
+        _logger.debug(
+            "Batch write sent %s, unprocessed: %s",
+            len(items_to_send),
+            len(self._items_buffer),
+        )
+
+    def __enter__(self) -> "_TableBatchWriter":
+        return self
+
+    def __exit__(
+        self,
+        exception_type: Optional[Type[BaseException]],
+        exception_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
+        # When we exit, we need to keep flushing whatever's left
+        # until there's nothing left in our items buffer.
+        while self._items_buffer:
+            self._flush()
+
+        return None
