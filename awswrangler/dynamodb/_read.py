@@ -11,6 +11,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    NamedTuple,
     Optional,
     Sequence,
     TypeVar,
@@ -297,9 +298,9 @@ def _read_batch_items_chunked(
 
 @_handle_reserved_keyword_error
 def _read_batch_items(
-    table_name: str, chunked: bool, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
+    table_name: str, dynamodb_client: Optional["DynamoDBClient"], chunked: bool, **kwargs: Any
 ) -> Union[_ItemsListType, Iterator[_ItemsListType]]:
-    items_iterator = _read_batch_items_chunked(table_name, boto3_session, **kwargs)
+    items_iterator = _read_batch_items_chunked(table_name, dynamodb_client, **kwargs)
 
     if chunked:
         return items_iterator
@@ -429,17 +430,23 @@ def _read_items(
         return _convert_items(items=cast(_ItemsListType, items), as_dataframe=as_dataframe, arrow_kwargs=arrow_kwargs)
 
 
-def _convert_key_condition_expression_to_dict(
-    key_condition_expression: ConditionBase, serializer: TypeSerializer
+class _ExpressionTuple(NamedTuple):
+    condition_expression: str
+    attribute_name_placeholders: Dict[str, str]
+    attribute_value_placeholders: Dict[str, Any]
+
+
+def _convert_condition_base_to_expression(
+    key_condition_expression: ConditionBase, is_key_condition: bool, serializer: TypeSerializer
 ) -> Dict[str, Any]:
     builder = ConditionExpressionBuilder()
-    expression = builder.build_expression(key_condition_expression)
+    expression = builder.build_expression(key_condition_expression, is_key_condition=is_key_condition)
 
-    return {
-        "KeyConditionExpression": expression.condition_expression,
-        "ExpressionAttributeNames": expression.attribute_name_placeholders,
-        "ExpressionAttributeValues": _serialize_item(expression.attribute_value_placeholders, serializer=serializer),
-    }
+    return _ExpressionTuple(
+        condition_expression=expression.condition_expression,
+        attribute_name_placeholders=expression.attribute_name_placeholders,
+        attribute_value_placeholders=_serialize_item(expression.attribute_value_placeholders, serializer=serializer),
+    )
 
 
 @_utils.validate_distributed_kwargs(
@@ -676,23 +683,37 @@ def read_items(  # pylint: disable=too-many-branches
         kwargs["Keys"] = keys
     if index_name:
         kwargs["IndexName"] = index_name
-    if filter_expression:
-        kwargs["FilterExpression"] = filter_expression
-    if columns:
-        kwargs["ProjectionExpression"] = ", ".join(columns)
-    if max_items_evaluated:
-        kwargs["Limit"] = max_items_evaluated
 
     if key_condition_expression:
-        if isinstance(key_condition_expression, ConditionBase):
-            expression_kwargs = _convert_key_condition_expression_to_dict(key_condition_expression, serializer)
-            kwargs.update(expression_kwargs)
-        else:
+        if isinstance(key_condition_expression, str):
             kwargs["KeyConditionExpression"] = key_condition_expression
-            if expression_attribute_names:
-                kwargs["ExpressionAttributeNames"] = expression_attribute_names
-            if expression_attribute_values:
-                kwargs["ExpressionAttributeValues"] = _serialize_item(expression_attribute_values, serializer)
+        else:
+            expression_tuple = _convert_condition_base_to_expression(
+                key_condition_expression, is_key_condition=True, serializer=serializer
+            )
+            kwargs["KeyConditionExpression"] = expression_tuple.condition_expression
+            kwargs["ExpressionAttributeNames"] = expression_tuple.attribute_name_placeholders
+            kwargs["ExpressionAttributeValues"] = expression_tuple.attribute_value_placeholders
+
+    if filter_expression:
+        if isinstance(filter_expression, str):
+            kwargs["FilterExpression"] = filter_expression
+        else:
+            expression_tuple = _convert_condition_base_to_expression(
+                filter_expression, is_key_condition=False, serializer=serializer
+            )
+            kwargs["FilterExpression"] = expression_tuple.condition_expression
+            kwargs["ExpressionAttributeNames"] = expression_tuple.attribute_name_placeholders
+            kwargs["ExpressionAttributeValues"] = expression_tuple.attribute_value_placeholders
+
+    if columns:
+        kwargs["ProjectionExpression"] = ", ".join(columns)
+    if expression_attribute_names:
+        kwargs["ExpressionAttributeNames"] = expression_attribute_names
+    if expression_attribute_values:
+        kwargs["ExpressionAttributeValues"] = _serialize_item(expression_attribute_values, serializer)
+    if max_items_evaluated:
+        kwargs["Limit"] = max_items_evaluated
 
     _logger.debug("DynamoDB scan/query kwargs: %s", kwargs)
     # If kwargs are sufficiently informative, proceed with actual read op
