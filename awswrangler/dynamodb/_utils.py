@@ -198,6 +198,7 @@ def _validate_items(
         raise exceptions.InvalidArgumentValue("All items need to contain the required keys for the table.")
 
 
+# Based on https://github.com/boto/boto3/blob/fcc24f39cc0a923fa578587fcd1f781e820488a1/boto3/dynamodb/table.py#L63
 class _TableBatchWriter:
     """Automatically handle batch writes to DynamoDB for a single table."""
 
@@ -239,6 +240,7 @@ class _TableBatchWriter:
     def _add_request_and_process(self, request: "WriteRequestTypeDef") -> None:
         if self._overwrite_by_pkeys:
             self._remove_dup_pkeys_request_if_any(request, self._overwrite_by_pkeys)
+
         self._items_buffer.append(request)
         self._flush_if_needed()
 
@@ -257,7 +259,7 @@ class _TableBatchWriter:
     ) -> Optional[List[Any]]:
         if request.get("PutRequest"):
             return [request["PutRequest"]["Item"][key] for key in overwrite_by_pkeys]
-        elif request.get("DeleteRequest"):
+        if request.get("DeleteRequest"):
             return [request["DeleteRequest"]["Key"][key] for key in overwrite_by_pkeys]
         return None
 
