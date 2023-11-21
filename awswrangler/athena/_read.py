@@ -774,7 +774,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     keep_files: bool = True,
@@ -929,8 +929,8 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
     s3_output : str, optional
         Amazon S3 path.
-    workgroup : str, optional
-        Athena workgroup.
+    workgroup : str
+        Athena workgroup. Primary by default.
     encryption : str, optional
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     kms_key : str, optional
@@ -1122,7 +1122,7 @@ def read_sql_table(
     categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     keep_files: bool = True,
@@ -1272,8 +1272,8 @@ def read_sql_table(
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
     s3_output : str, optional
         AWS S3 path.
-    workgroup : str, optional
-        Athena workgroup.
+    workgroup : str
+        Athena workgroup. Primary by default.
     encryption : str, optional
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     kms_key : str, optional
@@ -1364,7 +1364,7 @@ def unload(
     compression: Optional[str] = None,
     field_delimiter: Optional[str] = None,
     partitioned_by: Optional[List[str]] = None,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -1397,8 +1397,8 @@ def unload(
         A single-character field delimiter for files in CSV, TSV, and other text formats.
     partitioned_by : Optional[List[str]]
         An array list of columns by which the output is partitioned.
-    workgroup : str, optional
-        Athena workgroup.
+    workgroup : str
+        Athena workgroup. Primary by default.
     encryption : str, optional
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     kms_key : str, optional

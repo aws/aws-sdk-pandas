@@ -35,7 +35,7 @@ def _does_statement_exist(
 def create_prepared_statement(
     sql: str,
     statement_name: str,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     mode: Literal["update", "error"] = "update",
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
@@ -50,8 +50,8 @@ def create_prepared_statement(
         The query string for the prepared statement.
     statement_name : str
         The name of the prepared statement.
-    workgroup : str, optional
-        The name of the workgroup to which the prepared statement belongs.
+    workgroup : str
+        The name of the workgroup to which the prepared statement belongs. Primary by default.
     mode: str
         Determines the behaviour if the prepared statement already exists:
 
@@ -72,7 +72,6 @@ def create_prepared_statement(
         raise exceptions.InvalidArgumentValue("`mode` must be one of 'update' or 'error'.")
 
     athena_client = _utils.client("athena", session=boto3_session)
-    workgroup = workgroup if workgroup else "primary"
 
     already_exists = _does_statement_exist(statement_name, workgroup, athena_client)
     if already_exists and mode == "error":
@@ -95,16 +94,14 @@ def create_prepared_statement(
 
 
 @apply_configs
-def list_prepared_statements(
-    workgroup: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[str]:
+def list_prepared_statements(workgroup: str = "primary", boto3_session: Optional[boto3.Session] = None) -> List[str]:
     """
     List the prepared statements in the specified workgroup.
 
     Parameters
     ----------
-    workgroup: str, optional
-        The name of the workgroup to which the prepared statement belongs.
+    workgroup: str
+        The name of the workgroup to which the prepared statement belongs. Primary by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -115,7 +112,6 @@ def list_prepared_statements(
         Each item is a dictionary with the keys ``StatementName`` and ``LastModifiedTime``.
     """
     athena_client = _utils.client("athena", session=boto3_session)
-    workgroup = workgroup if workgroup else "primary"
 
     response = athena_client.list_prepared_statements(WorkGroup=workgroup)
     statements = response["PreparedStatements"]
@@ -130,7 +126,7 @@ def list_prepared_statements(
 @apply_configs
 def delete_prepared_statement(
     statement_name: str,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """
@@ -143,7 +139,7 @@ def delete_prepared_statement(
     statement_name : str
         The name of the prepared statement.
     workgroup : str, optional
-        The name of the workgroup to which the prepared statement belongs.
+        The name of the workgroup to which the prepared statement belongs. Primary by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 

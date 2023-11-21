@@ -492,6 +492,13 @@ def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert len(batch_df.index) == len(final_df.index) + 50
 
 
+def test_gremlin_write_empty(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port)
+
+    with pytest.raises(wr.exceptions.EmptyDataFrame):
+        wr.neptune.to_property_graph(client, pd.DataFrame(columns=["~id", "~label"]))
+
+
 def _create_dummy_vertex(label: str = "foo") -> Dict[str, Any]:
     return {
         "~id": str(uuid.uuid4()),
