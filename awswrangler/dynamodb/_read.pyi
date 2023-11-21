@@ -26,6 +26,7 @@ def _read_scan(
     dynamodb_client: Optional["DynamoDBClient"],
     as_dataframe: bool,
     kwargs: Dict[str, Any],
+    schema: Optional[pa.Schema],
     segment: int,
 ) -> Union[pa.Table, _ItemsListType]: ...
 @overload
