@@ -196,7 +196,7 @@ def to_iceberg(
     partition_cols: Optional[List[str]] = None,
     keep_files: bool = True,
     data_source: Optional[str] = None,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -237,8 +237,8 @@ def to_iceberg(
         Whether staging files produced by Athena are retained. 'True' by default.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
-    workgroup : str, optional
-        Athena workgroup.
+    workgroup : str
+        Athena workgroup. Primary by default.
     encryption : str, optional
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     kms_key : str, optional
