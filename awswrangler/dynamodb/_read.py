@@ -197,7 +197,7 @@ def _read_scan_chunked(
     client_dynamodb = dynamodb_client if dynamodb_client else _utils.client(service_name="dynamodb")
 
     deserializer = TypeDeserializer()
-    next_token = "init_token"  # Dummy token
+    next_token: Optional[str] = "init_token"  # Dummy token
     total_items = 0
 
     kwargs = dict(kwargs)
@@ -219,7 +219,7 @@ def _read_scan_chunked(
         if ("Limit" in kwargs) and (total_items >= kwargs["Limit"]):
             break
 
-        next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
+        next_token = response.get("LastEvaluatedKey", None)
         if next_token:
             kwargs["ExclusiveStartKey"] = next_token
 
@@ -244,7 +244,7 @@ def _read_scan(
 
 
 def _read_query_chunked(table_name: str, dynamodb_client: "DynamoDBClient", **kwargs: Any) -> Iterator[_ItemsListType]:
-    next_token = "init_token"  # Dummy token
+    next_token: Optional[str] = "init_token"  # Dummy token
     total_items = 0
 
     # Handle pagination
@@ -257,7 +257,7 @@ def _read_query_chunked(table_name: str, dynamodb_client: "DynamoDBClient", **kw
         if ("Limit" in kwargs) and (total_items >= kwargs["Limit"]):
             break
 
-        next_token = response.get("LastEvaluatedKey", None)  # type: ignore[assignment]
+        next_token = response.get("LastEvaluatedKey", None)
         if next_token:
             kwargs["ExclusiveStartKey"] = next_token
 
