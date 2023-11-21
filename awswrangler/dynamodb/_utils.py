@@ -1,24 +1,34 @@
 """Amazon DynamoDB Utils Module (PRIVATE)."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Mapping, Optional, Union
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Mapping, Optional, Type, TypedDict, Union
 
 import boto3
-from boto3.dynamodb.conditions import ConditionExpressionBuilder
-from boto3.dynamodb.types import TypeSerializer
+from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 from botocore.exceptions import ClientError
+from typing_extensions import NotRequired, Required
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.annotations import Deprecated
 
 if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.client import DynamoDBClient
     from mypy_boto3_dynamodb.service_resource import Table
-    from mypy_boto3_dynamodb.type_defs import ExecuteStatementOutputTypeDef
+    from mypy_boto3_dynamodb.type_defs import (
+        AttributeValueTypeDef,
+        ExecuteStatementOutputTypeDef,
+        KeySchemaElementTableTypeDef,
+        WriteRequestTypeDef,
+    )
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 @apply_configs
+@Deprecated
 def get_table(
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
@@ -44,13 +54,33 @@ def get_table(
     return dynamodb_table
 
 
+def _serialize_item(
+    item: Mapping[str, Any], serializer: Optional[TypeSerializer] = None
+) -> Dict[str, "AttributeValueTypeDef"]:
+    serializer = serializer if serializer else TypeSerializer()
+    return {k: serializer.serialize(v) for k, v in item.items()}
+
+
+def _deserialize_item(
+    item: Mapping[str, "AttributeValueTypeDef"], deserializer: Optional[TypeDeserializer] = None
+) -> Dict[str, Any]:
+    deserializer = deserializer if deserializer else TypeDeserializer()
+    return {k: deserializer.deserialize(v) for k, v in item.items()}
+
+
+class _ReadExecuteStatementKwargs(TypedDict):
+    Statement: Required[str]
+    ConsistentRead: Required[bool]
+    Parameters: NotRequired[List["AttributeValueTypeDef"]]
+    NextToken: NotRequired[str]
+
+
 def _execute_statement(
-    kwargs: Dict[str, Union[str, bool, List[Any]]],
-    boto3_session: Optional[boto3.Session],
+    kwargs: _ReadExecuteStatementKwargs,
+    dynamodb_client: "DynamoDBClient",
 ) -> "ExecuteStatementOutputTypeDef":
-    dynamodb_resource = _utils.resource(service_name="dynamodb", session=boto3_session)
     try:
-        response = dynamodb_resource.meta.client.execute_statement(**kwargs)  # type: ignore[arg-type]
+        response = dynamodb_client.execute_statement(**kwargs)
     except ClientError as err:
         if err.response["Error"]["Code"] == "ResourceNotFoundException":
             _logger.error("Couldn't execute PartiQL: '%s' because the table does not exist.", kwargs["Statement"])
@@ -66,14 +96,19 @@ def _execute_statement(
 
 
 def _read_execute_statement(
-    kwargs: Dict[str, Union[str, bool, List[Any]]], boto3_session: Optional[boto3.Session]
-) -> Iterator[Dict[str, Any]]:
+    kwargs: _ReadExecuteStatementKwargs,
+    dynamodb_client: "DynamoDBClient",
+) -> Iterator[List[Dict[str, Any]]]:
     next_token: Optional[str] = "init_token"  # Dummy token
+    deserializer = TypeDeserializer()
+
     while next_token:
-        response = _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
+        response = _execute_statement(kwargs=kwargs, dynamodb_client=dynamodb_client)
+        yield [_deserialize_item(item, deserializer) for item in response["Items"]]
+
         next_token = response.get("NextToken", None)
-        kwargs["NextToken"] = next_token  # type: ignore[assignment]
-        yield response["Items"]  # type: ignore[misc]
+        if next_token:
+            kwargs["NextToken"] = next_token
 
 
 def execute_statement(
@@ -81,7 +116,7 @@ def execute_statement(
     parameters: Optional[List[Any]] = None,
     consistent_read: bool = False,
     boto3_session: Optional[boto3.Session] = None,
-) -> Optional[Iterator[Dict[str, Any]]]:
+) -> Optional[Iterator[List[Dict[str, Any]]]]:
     """Run a PartiQL statement against a DynamoDB table.
 
     Parameters
@@ -131,70 +166,138 @@ def execute_statement(
     ...     parameters=[title, year],
     ... )
     """
-    kwargs: Dict[str, Union[str, bool, List[Any]]] = {"Statement": statement, "ConsistentRead": consistent_read}
+    kwargs: _ReadExecuteStatementKwargs = {"Statement": statement, "ConsistentRead": consistent_read}
     if parameters:
-        kwargs["Parameters"] = parameters
+        serializer = TypeSerializer()
+        kwargs["Parameters"] = [serializer.serialize(p) for p in parameters]
+
+    dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
 
     if not statement.strip().upper().startswith("SELECT"):
-        _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
+        _execute_statement(kwargs=kwargs, dynamodb_client=dynamodb_client)
         return None
-    return _read_execute_statement(kwargs=kwargs, boto3_session=boto3_session)
+    return _read_execute_statement(kwargs=kwargs, dynamodb_client=dynamodb_client)
 
 
-def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
-    """Serialize a DynamoDB input arguments dictionary.
-
-    Parameters
-    ----------
-    kwargs : Dict[str, Any]
-        Dictionary to serialize.
-
-    Returns
-    -------
-    Dict[str, Any]
-        Serialized dictionary.
+def _validate_items(
+    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], key_schema: List["KeySchemaElementTableTypeDef"]
+) -> None:
     """
-    names: Dict[str, Any] = {}
-    values: Dict[str, Any] = {}
-    serializer = TypeSerializer()
-
-    if "FilterExpression" in kwargs and not isinstance(kwargs["FilterExpression"], str):
-        builder = ConditionExpressionBuilder()
-        exp_string, names, values = builder.build_expression(kwargs["FilterExpression"], False)
-        kwargs["FilterExpression"] = exp_string
-
-    if "ExpressionAttributeNames" in kwargs:
-        kwargs["ExpressionAttributeNames"].update(names)
-    elif names:
-        kwargs["ExpressionAttributeNames"] = names
-
-    values = {k: serializer.serialize(v) for k, v in values.items()}
-    if "ExpressionAttributeValues" in kwargs:
-        kwargs["ExpressionAttributeValues"] = {
-            k: serializer.serialize(v) for k, v in kwargs["ExpressionAttributeValues"].items()
-        }
-        kwargs["ExpressionAttributeValues"].update(values)
-    elif values:
-        kwargs["ExpressionAttributeValues"] = values
-
-    return kwargs
-
-
-def _validate_items(items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], dynamodb_table: "Table") -> None:
-    """Validate if all items have the required keys for the Amazon DynamoDB table.
+    Validate if all items have the required keys for the Amazon DynamoDB table.
 
     Parameters
     ----------
-    items : Union[List[Dict[str, Any]], List[Mapping[str, Any]]]
+    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]]
         List which contains the items that will be validated.
-    dynamodb_table : boto3.resources.dynamodb.Table
-        Amazon DynamoDB Table object.
-
-    Returns
-    -------
-    None
-        None.
+    key_schema: List[KeySchemaElementTableTypeDef]
+        The primary key structure for the table.
+        Each element consists of the attribute name and it's type (HASH or RANGE).
     """
-    table_keys = [schema["AttributeName"] for schema in dynamodb_table.key_schema]
+    table_keys = [schema["AttributeName"] for schema in key_schema]
     if not all(key in item for item in items for key in table_keys):
         raise exceptions.InvalidArgumentValue("All items need to contain the required keys for the table.")
+
+
+# Based on https://github.com/boto/boto3/blob/fcc24f39cc0a923fa578587fcd1f781e820488a1/boto3/dynamodb/table.py#L63
+class _TableBatchWriter:
+    """Automatically handle batch writes to DynamoDB for a single table."""
+
+    def __init__(
+        self,
+        table_name: str,
+        client: "DynamoDBClient",
+        flush_amount: int = 25,
+        overwrite_by_pkeys: Optional[List[str]] = None,
+    ):
+        self._table_name = table_name
+        self._client = client
+        self._items_buffer: List["WriteRequestTypeDef"] = []
+        self._flush_amount = flush_amount
+        self._overwrite_by_pkeys = overwrite_by_pkeys
+
+    def put_item(self, item: Dict[str, "AttributeValueTypeDef"]) -> None:
+        """
+        Add a new put item request to the batch.
+
+        Parameters
+        ----------
+        item: Dict[str, AttributeValueTypeDef]
+            The item to add.
+        """
+        self._add_request_and_process({"PutRequest": {"Item": item}})
+
+    def delete_item(self, key: Dict[str, "AttributeValueTypeDef"]) -> None:
+        """
+        Add a new delete request to the batch.
+
+        Parameters
+        ----------
+        key: Dict[str, AttributeValueTypeDef]
+            The key of the item to delete.
+        """
+        self._add_request_and_process({"DeleteRequest": {"Key": key}})
+
+    def _add_request_and_process(self, request: "WriteRequestTypeDef") -> None:
+        if self._overwrite_by_pkeys:
+            self._remove_dup_pkeys_request_if_any(request, self._overwrite_by_pkeys)
+
+        self._items_buffer.append(request)
+        self._flush_if_needed()
+
+    def _remove_dup_pkeys_request_if_any(self, request: "WriteRequestTypeDef", overwrite_by_pkeys: List[str]) -> None:
+        pkey_values_new = self._extract_pkey_values(request, overwrite_by_pkeys)
+        for item in self._items_buffer:
+            if self._extract_pkey_values(item, overwrite_by_pkeys) == pkey_values_new:
+                self._items_buffer.remove(item)
+                _logger.debug(
+                    "With overwrite_by_pkeys enabled, skipping " "request:%s",
+                    item,
+                )
+
+    def _extract_pkey_values(
+        self, request: "WriteRequestTypeDef", overwrite_by_pkeys: List[str]
+    ) -> Optional[List[Any]]:
+        if request.get("PutRequest"):
+            return [request["PutRequest"]["Item"][key] for key in overwrite_by_pkeys]
+        if request.get("DeleteRequest"):
+            return [request["DeleteRequest"]["Key"][key] for key in overwrite_by_pkeys]
+        return None
+
+    def _flush_if_needed(self) -> None:
+        if len(self._items_buffer) >= self._flush_amount:
+            self._flush()
+
+    def _flush(self) -> None:
+        items_to_send = self._items_buffer[: self._flush_amount]
+        self._items_buffer = self._items_buffer[self._flush_amount :]
+        response = self._client.batch_write_item(RequestItems={self._table_name: items_to_send})
+
+        unprocessed_items = response["UnprocessedItems"]
+        if not unprocessed_items:
+            unprocessed_items = {}
+        item_list = unprocessed_items.get(self._table_name, [])
+
+        # Any unprocessed_items are immediately added to the
+        # next batch we send.
+        self._items_buffer.extend(item_list)
+        _logger.debug(
+            "Batch write sent %s, unprocessed: %s",
+            len(items_to_send),
+            len(self._items_buffer),
+        )
+
+    def __enter__(self) -> "_TableBatchWriter":
+        return self
+
+    def __exit__(
+        self,
+        exception_type: Optional[Type[BaseException]],
+        exception_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
+        # When we exit, we need to keep flushing whatever's left
+        # until there's nothing left in our items buffer.
+        while self._items_buffer:
+            self._flush()
+
+        return None

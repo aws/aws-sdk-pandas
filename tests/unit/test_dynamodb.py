@@ -425,12 +425,15 @@ def test_read_items_expression(params: Dict[str, Any], dynamodb_table: str, use_
         table_name=dynamodb_table,
         partition_values=[1, 2],
         sort_values=["b", "c"],
+        use_threads=use_threads,
     )
     assert df1.shape == (2, len(df.columns))
 
     # KeyConditionExpression as Key
     df2 = wr.dynamodb.read_items(
-        table_name=dynamodb_table, key_condition_expression=(Key("par0").eq(1) & Key("par1").eq("b"))
+        table_name=dynamodb_table,
+        key_condition_expression=(Key("par0").eq(1) & Key("par1").eq("b")),
+        use_threads=use_threads,
     )
     assert df2.shape == (1, len(df.columns))
 
@@ -439,16 +442,22 @@ def test_read_items_expression(params: Dict[str, Any], dynamodb_table: str, use_
         table_name=dynamodb_table,
         key_condition_expression="par0 = :v1 and par1 = :v2",
         expression_attribute_values={":v1": 1, ":v2": "b"},
+        use_threads=use_threads,
     )
     assert df3.shape == (1, len(df.columns))
 
     # FilterExpression as Attr
-    df4 = wr.dynamodb.read_items(table_name=dynamodb_table, filter_expression=Attr("par0").eq(1))
+    df4 = wr.dynamodb.read_items(
+        table_name=dynamodb_table, filter_expression=Attr("par0").eq(1), use_threads=use_threads
+    )
     assert df4.shape == (2, len(df.columns))
 
     # FilterExpression as string
     df5 = wr.dynamodb.read_items(
-        table_name=dynamodb_table, filter_expression="par0 = :v", expression_attribute_values={":v": 1}
+        table_name=dynamodb_table,
+        filter_expression="par0 = :v",
+        expression_attribute_values={":v": 1},
+        use_threads=use_threads,
     )
     assert df5.shape == (2, len(df.columns))
 
@@ -458,6 +467,7 @@ def test_read_items_expression(params: Dict[str, Any], dynamodb_table: str, use_
         filter_expression="#operator = :v",
         expression_attribute_names={"#operator": "operator"},
         expression_attribute_values={":v": "Eido"},
+        use_threads=use_threads,
     )
     assert df6.shape == (1, len(df.columns))
 

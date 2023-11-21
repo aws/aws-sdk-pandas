@@ -4,10 +4,12 @@ import logging
 from typing import Any, Dict, List, Optional
 
 import boto3
+from boto3.dynamodb.types import TypeSerializer
 
+from awswrangler import _utils
 from awswrangler._config import apply_configs
 
-from ._utils import _validate_items, get_table
+from ._utils import _TableBatchWriter, _validate_items
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -46,9 +48,16 @@ def delete_items(
     """
     _logger.debug("Deleting items from DynamoDB table %s", table_name)
 
-    dynamodb_table = get_table(table_name=table_name, boto3_session=boto3_session)
-    _validate_items(items=items, dynamodb_table=dynamodb_table)
-    table_keys = [schema["AttributeName"] for schema in dynamodb_table.key_schema]
-    with dynamodb_table.batch_writer() as writer:
+    dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
+    serializer = TypeSerializer()
+
+    key_schema = dynamodb_client.describe_table(TableName=table_name)["Table"]["KeySchema"]
+    _validate_items(items=items, key_schema=key_schema)
+
+    table_keys = [schema["AttributeName"] for schema in key_schema]
+
+    with _TableBatchWriter(table_name, dynamodb_client) as writer:
         for item in items:
-            writer.delete_item(Key={key: item[key] for key in table_keys})
+            writer.delete_item(
+                key={key: serializer.serialize(item[key]) for key in table_keys},
+            )

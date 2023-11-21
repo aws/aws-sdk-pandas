@@ -4,9 +4,10 @@ import itertools
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Union
 
 import boto3
+from boto3.dynamodb.types import TypeSerializer
 
 import awswrangler.pandas as pd
 from awswrangler import _utils
@@ -15,7 +16,12 @@ from awswrangler._distributed import engine
 from awswrangler._executor import _get_executor
 from awswrangler.distributed.ray import ray_get
 
-from ._utils import _validate_items, get_table
+from ._utils import _serialize_item, _TableBatchWriter, _validate_items
+
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.client import DynamoDBClient
+    from mypy_boto3_dynamodb.type_defs import KeySchemaElementTableTypeDef
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -130,14 +136,15 @@ def put_csv(
 
 @engine.dispatch_on_engine
 def _put_df(
-    boto3_session: Optional[boto3.Session],
+    dynamodb_client: Optional["DynamoDBClient"],
     df: pd.DataFrame,
     table_name: str,
+    key_schema: List["KeySchemaElementTableTypeDef"],
 ) -> None:
     items: List[Mapping[str, Any]] = [v.dropna().to_dict() for _, v in df.iterrows()]
 
     put_items_func = engine.dispatch_func(_put_items, "python")
-    put_items_func(items=items, table_name=table_name, boto3_session=boto3_session)
+    put_items_func(items=items, table_name=table_name, key_schema=key_schema, dynamodb_client=dynamodb_client)
 
 
 @apply_configs
@@ -188,29 +195,36 @@ def put_df(
 
     dfs = _utils.split_pandas_frame(df, concurrency)
 
+    dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
+    key_schema = dynamodb_client.describe_table(TableName=table_name)["Table"]["KeySchema"]
+
     ray_get(
         executor.map(
             _put_df,
-            boto3_session,  # type: ignore[arg-type]
+            dynamodb_client,
             dfs,
             itertools.repeat(table_name),
+            itertools.repeat(key_schema),
         )
     )
 
 
 @engine.dispatch_on_engine
 def _put_items(
-    boto3_session: Optional[boto3.Session],
+    dynamodb_client: Optional["DynamoDBClient"],
     items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]],
     table_name: str,
+    key_schema: List["KeySchemaElementTableTypeDef"],
 ) -> None:
     _logger.debug("Inserting %d items", len(items))
+    _validate_items(items=items, key_schema=key_schema)
 
-    dynamodb_table = get_table(table_name=table_name, boto3_session=boto3_session)
-    _validate_items(items=items, dynamodb_table=dynamodb_table)
-    with dynamodb_table.batch_writer() as writer:
+    dynamodb_client = dynamodb_client if dynamodb_client else _utils.client(service_name="dynamodb")
+    serializer = TypeSerializer()
+
+    with _TableBatchWriter(table_name, dynamodb_client) as writer:
         for item in items:
-            writer.put_item(Item=item)  # type: ignore[arg-type]
+            writer.put_item(_serialize_item(item, serializer))
 
 
 @apply_configs
@@ -261,11 +275,15 @@ def put_items(
         num_chunks=_utils.ensure_worker_or_thread_count(use_threads=use_threads),
     )
 
+    dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
+    key_schema = dynamodb_client.describe_table(TableName=table_name)["Table"]["KeySchema"]
+
     ray_get(
         executor.map(
             _put_items,
-            boto3_session,  # type: ignore[arg-type]
+            dynamodb_client,
             batches,
             itertools.repeat(table_name),
+            itertools.repeat(key_schema),
         )
     )
