@@ -136,7 +136,7 @@ def _start_query_execution(
     return response["QueryExecutionId"]
 
 
-def _get_workgroup_config(session: Optional[boto3.Session] = None, workgroup: Optional[str] = None) -> _WorkGroupConfig:
+def _get_workgroup_config(session: Optional[boto3.Session] = None, workgroup: str = "primary") -> _WorkGroupConfig:
     enforced: bool
     wg_s3_output: Optional[str]
     wg_encryption: Optional[str]
@@ -472,7 +472,7 @@ def repair_table(
     database: Optional[str] = None,
     data_source: Optional[str] = None,
     s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
@@ -501,8 +501,8 @@ def repair_table(
         Data Source / Catalog name. If None, 'AwsDataCatalog' is used.
     s3_output : str, optional
         AWS S3 path.
-    workgroup : str, optional
-        Athena workgroup.
+    workgroup : str
+        Athena workgroup. Primary by default.
     encryption : str, optional
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
@@ -552,7 +552,7 @@ def describe_table(
     table: str,
     database: Optional[str] = None,
     s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
@@ -577,8 +577,8 @@ def describe_table(
         AWS Glue/Athena database name.
     s3_output : str, optional
         AWS S3 path.
-    workgroup : str, optional
-        Athena workgroup.
+    workgroup : str
+        Athena workgroup. Primary by default.
     encryption : str, optional
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
@@ -641,7 +641,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     field_delimiter: Optional[str] = None,
     schema_only: bool = False,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     data_source: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
@@ -686,8 +686,8 @@ def create_ctas_table(  # pylint: disable=too-many-locals
         The single-character field delimiter for files in CSV, TSV, and text files.
     schema_only : bool, optional
         _description_, by default False
-    workgroup : Optional[str], optional
-        Athena workgroup.
+    workgroup : str
+        Athena workgroup. Primary by default.
     data_source : Optional[str], optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' is used.
     encryption : str, optional
@@ -856,7 +856,7 @@ def show_create_table(
     table: str,
     database: Optional[str] = None,
     s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
@@ -880,8 +880,8 @@ def show_create_table(
         AWS Glue/Athena database name.
     s3_output : str, optional
         AWS S3 path.
-    workgroup : str, optional
-        Athena workgroup.
+    workgroup : str
+        Athena workgroup. Primary by default.
     encryption : str, optional
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional

@@ -35,7 +35,7 @@ def start_query_execution(
     sql: str,
     database: Optional[str] = None,
     s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
+    workgroup: str = "primary",
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     params: Union[Dict[str, Any], List[str], None] = None,
@@ -62,8 +62,8 @@ def start_query_execution(
         AWS Glue/Athena database name.
     s3_output : str, optional
         AWS S3 path.
-    workgroup : str, optional
-        Athena workgroup.
+    workgroup : str
+        Athena workgroup. Primary by default.
     encryption : str, optional
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional

@@ -176,6 +176,8 @@ def to_property_graph(
         raise exceptions.InvalidArgumentValue(
             "DataFrame must contain at least a ~id and a ~label column to be saved to Amazon Neptune"
         )
+    if df.empty:
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
     # Loop through items in the DF
     for index, row in df.iterrows():
