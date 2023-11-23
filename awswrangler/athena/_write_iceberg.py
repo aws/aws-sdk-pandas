@@ -194,6 +194,7 @@ def to_iceberg(
     index: bool = False,
     table_location: Optional[str] = None,
     partition_cols: Optional[List[str]] = None,
+    merge_cols: Optional[List[str]] = None,
     keep_files: bool = True,
     data_source: Optional[str] = None,
     workgroup: str = "primary",
@@ -233,6 +234,10 @@ def to_iceberg(
         functions (e.g. "day(ts)").
 
         https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-partitioning
+    merge_cols: List[str], optional
+        List of column names that will be used for conditional inserts and updates.
+
+        https://docs.aws.amazon.com/athena/latest/ug/merge-into-statement.html
     keep_files : bool
         Whether staging files produced by Athena are retained. 'True' by default.
     data_source : str, optional
@@ -375,9 +380,24 @@ def to_iceberg(
             glue_table_settings=glue_table_settings,
         )
 
-        # Insert into iceberg table
+        # Insert or merge into Iceberg table
+        sql_statement: str
+        if merge_cols:
+            sql_statement = f"""
+                MERGE INTO "{database}"."{table}" target
+                USING "{database}"."{temp_table}" source
+                ON {' AND '.join([f'target."{x}" = source."{x}"' for x in merge_cols])}
+                WHEN MATCHED THEN
+                    UPDATE SET {', '.join([f'"{x}" = source."{x}"' for x in df.columns])}
+                WHEN NOT MATCHED THEN
+                    INSERT ({', '.join([f'"{x}"' for x in df.columns])})
+                    VALUES ({', '.join([f'source."{x}"' for x in df.columns])})
+            """
+        else:
+            sql_statement = f'INSERT INTO "{database}"."{table}" SELECT * FROM "{database}"."{temp_table}"'
+
         query_execution_id: str = _start_query_execution(
-            sql=f'INSERT INTO "{database}"."{table}" SELECT * FROM "{database}"."{temp_table}"',
+            sql=sql_statement,
             workgroup=workgroup,
             wg_config=wg_config,
             database=database,
