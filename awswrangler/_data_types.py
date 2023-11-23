@@ -554,9 +554,11 @@ def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches,too-many-sta
             fields = pa.Schema.from_pandas(df=df.reset_index().drop(columns=cols), preserve_index=False)
         for field in fields:
             name = str(field.name)
-            _logger.debug("Inferring PyArrow type from index: %s", name)
-            cols_dtypes[name] = field.type
-            indexes.append(name)
+            # Check if any of the index columns must be ignored
+            if name not in ignore_cols:
+                _logger.debug("Inferring PyArrow type from index: %s", name)
+                cols_dtypes[name] = field.type
+                indexes.append(name)
 
     # Merging Index
     sorted_cols: List[str] = indexes + list(df.columns) if index_left is True else list(df.columns) + indexes

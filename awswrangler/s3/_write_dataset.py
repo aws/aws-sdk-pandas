@@ -150,7 +150,13 @@ def _to_partitions(
     for keys, subgroup in df.groupby(by=partition_cols, observed=True):
         # Keys are either a primitive type or a tuple if partitioning by multiple cols
         keys = (keys,) if not isinstance(keys, tuple) else keys  # ruff: noqa: PLW2901
-        subgroup = subgroup.drop(partition_cols, axis="columns")  # ruff: noqa: PLW2901
+        # Drop partition columns from df
+        subgroup.drop(
+            columns=[col for col in partition_cols if col in subgroup.columns],
+            inplace=True,
+        )  # ruff: noqa: PLW2901
+        # Drop index levels if partitioning by index columns
+        subgroup = subgroup.droplevel(level=[col for col in partition_cols if col in subgroup.index.names])
         prefix = _delete_objects(
             keys=keys,
             path_root=path_root,
