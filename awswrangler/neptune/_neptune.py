@@ -242,6 +242,9 @@ def to_rdf_graph(
     ...     df=df
     ... )
     """
+    # Reset index to use it for batch calculations
+    df = df.reset_index(drop=True)
+
     is_quads = False
     if pd.Series([subject_column, object_column, predicate_column]).isin(df.columns).all():
         if graph_column in df.columns:
@@ -268,7 +271,10 @@ def to_rdf_graph(
         if index > 0 and index % batch_size == 0:
             res = client.write_sparql(query)
             if res:
-                query = ""
+                if index == df.index[-1]:
+                    return res
+                else:
+                    query = ""
     return client.write_sparql(query)
 
 
