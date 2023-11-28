@@ -218,6 +218,8 @@ def to_rdf_graph(
         instance of the neptune client to use
     df (pandas.DataFrame) :
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    batch_size (int) :
+        The number of rows in the DataFrame (i.e. triples) to write into Amazon Neptune in one query. Defaults to 50
     subject_column (str, optional) :
         The column name in the DataFrame for the subject.  Defaults to 's'
     predicate_column (str, optional) :
@@ -242,8 +244,6 @@ def to_rdf_graph(
     ...     df=df
     ... )
     """
-    # Reset index to use it for batch calculations
-    df = df.reset_index(drop=True)
 
     is_quads = False
     if pd.Series([subject_column, object_column, predicate_column]).isin(df.columns).all():
@@ -257,7 +257,7 @@ def to_rdf_graph(
 
     query = ""
     # Loop through items in the DF
-    for index, row in df.iterrows():
+    for i, (_, row) in enumerate(df.iterrows()):
         # build up a query
         if is_quads:
             insert = f"""INSERT DATA {{ GRAPH <{row[graph_column]}> {{<{row[subject_column]}>
@@ -268,14 +268,11 @@ def to_rdf_graph(
                     <{row[object_column]}> . }}; """
             query = query + insert
         # run the query
-        if index > 0 and index % batch_size == 0:
+        if i > 0 and i % batch_size == 0:
             res = client.write_sparql(query)
             if res:
-                if index == df.index[-1]:
-                    return res
-                else:
-                    query = ""
-    return client.write_sparql(query)
+                query = ""
+    return client.write_sparql(query) if query else res
 
 
 BULK_LOAD_IN_PROGRESS_STATES = {"LOAD_IN_QUEUE", "LOAD_NOT_STARTED", "LOAD_IN_PROGRESS"}
