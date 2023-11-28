@@ -244,7 +244,6 @@ def to_rdf_graph(
     ...     df=df
     ... )
     """
-
     is_quads = False
     if pd.Series([subject_column, object_column, predicate_column]).isin(df.columns).all():
         if graph_column in df.columns:
