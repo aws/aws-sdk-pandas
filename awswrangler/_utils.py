@@ -107,7 +107,7 @@ INSTALL_MAPPING = {
     "pyodbc": "sqlserver",
     "gremlin_python": "gremlin",
     "opensearchpy": "opensearch",
-    "oracledb": "oracle"
+    "oracledb": "oracle",
 }
 
 
@@ -122,7 +122,8 @@ def check_optional_dependency(
                 package_name = INSTALL_MAPPING.get(name)
                 install_name = package_name if package_name is not None else name
                 raise ModuleNotFoundError(
-                    f"Missing optional dependency '{name}'. " f"Use pip install awswrangler[{install_name}] to install it."
+                    f"Missing optional dependency '{name}'. "
+                    f"Use pip install awswrangler[{install_name}] to install it."
                 )
             return func(*args, **kwargs)
 
