@@ -1749,3 +1749,56 @@ def test_athena_to_iceberg_column_comments(path: str, path2: str, glue_database:
     column_comments_actual = wr.catalog.get_columns_comments(glue_database, glue_table)
 
     assert column_comments_actual == column_comments
+
+
+def test_athena_to_iceberg_merge_into(path: str, path2: str, glue_database: str, glue_table: str) -> None:
+    df = pd.DataFrame({"title": ["Dune", "Fargo"], "year": ["1984", "1996"], "gross": [35_000_000, 60_000_000]})
+    df["title"] = df["title"].astype("string")
+    df["year"] = df["year"].astype("string")
+    df["gross"] = df["gross"].astype("Int64")
+
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+
+    # Perform MERGE INTO
+    df2 = pd.DataFrame({"title": ["Dune", "Fargo"], "year": ["2021", "1996"], "gross": [400_000_000, 60_000_001]})
+    df2["title"] = df2["title"].astype("string")
+    df2["year"] = df2["year"].astype("string")
+    df2["gross"] = df2["gross"].astype("Int64")
+
+    wr.athena.to_iceberg(
+        df=df2,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+        merge_cols=["title", "year"],
+    )
+
+    # Expected output
+    df_expected = pd.DataFrame(
+        {
+            "title": ["Dune", "Fargo", "Dune"],
+            "year": ["1984", "1996", "2021"],
+            "gross": [35_000_000, 60_000_001, 400_000_000],
+        }
+    )
+    df_expected["title"] = df_expected["title"].astype("string")
+    df_expected["year"] = df_expected["year"].astype("string")
+    df_expected["gross"] = df_expected["gross"].astype("Int64")
+
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY year',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert_pandas_equals(df_expected, df_out)
