@@ -64,7 +64,7 @@ def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
 
 def _does_table_exist(cursor: "Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
-    cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE " f"{schema_str} TABLE_NAME = ?", table)
+    cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE {schema_str} TABLE_NAME = ?", table)
     return len(cursor.fetchall()) > 0
 
 
