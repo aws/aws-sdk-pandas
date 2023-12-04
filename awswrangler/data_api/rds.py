@@ -297,7 +297,7 @@ def _does_table_exist(con: RdsDataApi, table: str, database: str, transaction_id
         parameters=[
             {
                 "name": "table",
-                "value": table,
+                "value": {"stringValue": table},
             },
         ],
     )

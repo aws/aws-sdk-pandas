@@ -173,7 +173,7 @@ def connect(
         password=attrs.password,
         port=attrs.port,
         host=attrs.host,
-        ssl=attrs.ssl_context,
+        ssl=attrs.ssl_context,  # type: ignore[arg-type]
         read_timeout=read_timeout,
         write_timeout=write_timeout,
         connect_timeout=connect_timeout,
