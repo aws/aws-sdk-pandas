@@ -1,4 +1,5 @@
 """SQL utilities."""
+import re
 from awswrangler import exceptions
 
 
@@ -9,18 +10,7 @@ def identifier(sql):
     if len(sql) == 0:
         raise exceptions.InvalidArgumentValue("identifier must be > 0 characters in length")
 
-    quote = not sql[0].isalpha()
-
-    for c in sql[1:]:
-        if not (c.isalpha() or c.isdecimal() or c in "-_$"):
-            if c == "\u0000":
-                raise exceptions.InvalidArgumentValue(
-                    "identifier cannot contain the code zero character"
-                )
-            quote = True
-            break
-
-    if quote:
-        sql = sql.replace('"', '""')
+    if re.search(r"\W", sql):
+        raise exceptions.InvalidArgumentValue("identifier can not contain non-alphanumeric characters")
 
     return f'`{sql}`'
