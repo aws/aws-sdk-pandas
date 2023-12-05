@@ -292,7 +292,15 @@ def _drop_table(con: RdsDataApi, table: str, database: str, transaction_id: str,
 
 
 def _does_table_exist(con: RdsDataApi, table: str, database: str, transaction_id: str) -> bool:
-    res = con.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{table}'")
+    res = con.execute(
+        "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = :table",
+        parameters=[
+            {
+                "name": "table",
+                "value": {"stringValue": table},
+            },
+        ],
+    )
     return not res.empty
 
 

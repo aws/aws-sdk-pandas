@@ -3,6 +3,7 @@
 
 import logging
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -26,7 +27,14 @@ from awswrangler._config import apply_configs
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
-pyodbc = _utils.import_optional_dependency("pyodbc")
+if TYPE_CHECKING:
+    try:
+        import pyodbc
+        from pyodbc import Cursor
+    except ImportError:
+        pass
+else:
+    pyodbc = _utils.import_optional_dependency("pyodbc")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
@@ -47,16 +55,16 @@ def _get_table_identifier(schema: Optional[str], table: str) -> str:
     return table_identifier
 
 
-def _drop_table(cursor: "pyodbc.Cursor", schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
     table_identifier = _get_table_identifier(schema, table)
     sql = f"IF OBJECT_ID(N'{table_identifier}', N'U') IS NOT NULL DROP TABLE {table_identifier}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: "pyodbc.Cursor", schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
-    cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE " f"{schema_str} TABLE_NAME = '{table}'")
+    cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE {schema_str} TABLE_NAME = ?", table)
     return len(cursor.fetchall()) > 0
 
 

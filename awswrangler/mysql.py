@@ -3,7 +3,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Type, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Type, Union, cast, overload
 
 import boto3
 import pyarrow as pa
@@ -13,12 +13,21 @@ from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
 
-pymysql = _utils.import_optional_dependency("pymysql")
+if TYPE_CHECKING:
+    try:
+        import pymysql
+        from pymysql.connections import Connection
+        from pymysql.cursors import Cursor
+    except ImportError:
+        pass
+else:
+    pymysql = _utils.import_optional_dependency("pymysql")
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _validate_connection(con: "pymysql.connections.Connection[Any]") -> None:
+def _validate_connection(con: "Connection[Any]") -> None:
     if not isinstance(con, pymysql.connections.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -27,16 +36,16 @@ def _validate_connection(con: "pymysql.connections.Connection[Any]") -> None:
         )
 
 
-def _drop_table(cursor: "pymysql.cursors.Cursor", schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
     schema_str = f"`{schema}`." if schema else ""
     sql = f"DROP TABLE IF EXISTS {schema_str}`{table}`"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: "pymysql.cursors.Cursor", schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
-    cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE " f"{schema_str} TABLE_NAME = '{table}'")
+    cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE {schema_str} TABLE_NAME = %s", args=[table])
     return len(cursor.fetchall()) > 0
 
 
@@ -164,7 +173,7 @@ def connect(
         password=attrs.password,
         port=attrs.port,
         host=attrs.host,
-        ssl=attrs.ssl_context,
+        ssl=attrs.ssl_context,  # type: ignore[arg-type]
         read_timeout=read_timeout,
         write_timeout=write_timeout,
         connect_timeout=connect_timeout,
