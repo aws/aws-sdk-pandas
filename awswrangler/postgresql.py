@@ -584,7 +584,7 @@ def to_sql(
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
             column_placeholders: str = ", ".join(["%s"] * len(df.columns))
-            column_names = [f'"{column}"' for column in df.columns]
+            column_names = [pg8000_native.identifier(column) for column in df.columns]
             insertion_columns = ""
             upsert_str = ""
             if use_column_names:
