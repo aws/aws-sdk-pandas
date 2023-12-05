@@ -9,7 +9,7 @@ import boto3
 import pyarrow as pa
 
 import awswrangler.pandas as pd
-from awswrangler import _data_types, _utils, exceptions
+from awswrangler import _data_types, _sql_utils, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
 
@@ -37,8 +37,8 @@ def _validate_connection(con: "Connection[Any]") -> None:
 
 
 def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
-    schema_str = f"`{schema}`." if schema else ""
-    sql = f"DROP TABLE IF EXISTS {schema_str}`{table}`"
+    schema_str = f"{_sql_utils.identifier(schema)}." if schema else ""
+    sql = f"DROP TABLE IF EXISTS {schema_str}{_sql_utils.identifier(table)}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -72,7 +72,7 @@ def _create_table(
         converter_func=_data_types.pyarrow2mysql,
     )
     cols_str: str = "".join([f"`{k}` {v},\n" for k, v in mysql_types.items()])[:-2]
-    sql = f"CREATE TABLE IF NOT EXISTS `{schema}`.`{table}` (\n{cols_str})"
+    sql = f"CREATE TABLE IF NOT EXISTS {_sql_utils.identifier(schema)}.{_sql_utils.identifier(schema)} (\n{cols_str})"
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -419,7 +419,11 @@ def read_sql_table(
     >>> con.close()
 
     """
-    sql: str = f"SELECT * FROM `{table}`" if schema is None else f"SELECT * FROM `{schema}`.`{table}`"
+    sql: str = (
+        f"SELECT * FROM {_sql_utils.identifier(table)}"
+        if schema is None
+        else f"SELECT * FROM {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)}"
+    )
     return read_sql_query(
         sql=sql,
         con=con,
@@ -561,19 +565,25 @@ def to_sql(
             sql: str
             for placeholders, parameters in placeholder_parameter_pair_generator:
                 if mode == "upsert_replace_into":
-                    sql = f"REPLACE INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}"
+                    sql = f"REPLACE INTO {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)} {insertion_columns} VALUES {placeholders}"
                 else:
-                    sql = f"""INSERT{ignore_str} INTO `{schema}`.`{table}` {insertion_columns}
+                    sql = f"""INSERT{ignore_str} INTO {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)} {insertion_columns}
 VALUES {placeholders}{upsert_str}"""
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
             if mode == "upsert_distinct":
                 temp_table = f"{table}_{uuid.uuid4().hex}"
-                cursor.execute(f"CREATE TABLE `{schema}`.`{temp_table}` LIKE `{schema}`.`{table}`")
-                cursor.execute(f"INSERT INTO `{schema}`.`{temp_table}` SELECT DISTINCT * FROM `{schema}`.`{table}`")
-                cursor.execute(f"DROP TABLE IF EXISTS `{schema}`.`{table}`")
-                cursor.execute(f"ALTER TABLE `{schema}`.`{temp_table}` RENAME TO `{table}`")
+                cursor.execute(
+                    f"CREATE TABLE {_sql_utils.identifier(schema)}.{_sql_utils.identifier(temp_table)} LIKE {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)}"
+                )
+                cursor.execute(
+                    f"INSERT INTO {_sql_utils.identifier(schema)}.{_sql_utils.identifier(temp_table)} SELECT DISTINCT * FROM {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)}"
+                )
+                cursor.execute(f"DROP TABLE IF EXISTS {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)}")
+                cursor.execute(
+                    f"ALTER TABLE {_sql_utils.identifier(schema)}.{_sql_utils.identifier(temp_table)} RENAME TO {_sql_utils.identifier(table)}"
+                )
                 con.commit()
 
     except Exception as ex:
