@@ -71,7 +71,7 @@ def _create_table(
         varchar_lengths=varchar_lengths,
         converter_func=_data_types.pyarrow2mysql,
     )
-    cols_str: str = "".join([f"`{k}` {v},\n" for k, v in mysql_types.items()])[:-2]
+    cols_str: str = "".join([f"{_sql_utils.identifier(k)} {v},\n" for k, v in mysql_types.items()])[:-2]
     sql = f"CREATE TABLE IF NOT EXISTS {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)} (\n{cols_str})"
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
@@ -555,9 +555,11 @@ def to_sql(
             upsert_str = ""
             ignore_str = " IGNORE" if mode == "ignore" else ""
             if use_column_names:
-                insertion_columns = f"(`{'`, `'.join(df.columns)}`)"
+                insertion_columns = f"({', '.join([_sql_utils.identifier(col) for col in df.columns])})"
             if mode == "upsert_duplicate_key":
-                upsert_columns = ", ".join(df.columns.map(lambda column: f"`{column}`=VALUES(`{column}`)"))
+                upsert_columns = ", ".join(
+                    df.columns.map(lambda col: f"{_sql_utils.identifier(col)}=VALUES({_sql_utils.identifier(col)})")
+                )
                 upsert_str = f" ON DUPLICATE KEY UPDATE {upsert_columns}"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
