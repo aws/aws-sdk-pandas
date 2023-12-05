@@ -9,10 +9,18 @@ def identifier(sql):
     if len(sql) == 0:
         raise exceptions.InvalidArgumentValue("identifier must be > 0 characters in length")
 
-    for c in sql:
-        if not (c.isalpha() or c.isdecimal() or c in "_$"):
-            if c == "\u0000":
-                raise exceptions.InvalidArgumentValue("identifier cannot contain the code zero character")
-            raise exceptions.InvalidArgumentValue("Identifier contains invalid characters")
+    quote = not sql[0].isalpha()
 
-    return f"`{sql}`"
+    for c in sql[1:]:
+        if not (c.isalpha() or c.isdecimal() or c in "-_$"):
+            if c == "\u0000":
+                raise exceptions.InvalidArgumentValue(
+                    "identifier cannot contain the code zero character"
+                )
+            quote = True
+            break
+
+    if quote:
+        sql = sql.replace('"', '""')
+
+    return f'`{sql}`'
