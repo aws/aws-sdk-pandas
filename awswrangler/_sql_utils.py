@@ -11,7 +11,8 @@ def identifier(sql: str, sql_mode: str = "mysql") -> str:
     sql: str
         Identifier to use in SQL.
     sql_mode: str
-        "mysql" for default MySQL identifiers (backticks) or "ansi" for ANSI-compatible identifiers (double quotes).
+        "mysql" for default MySQL identifiers (backticks), "ansi" for ANSI-compatible identifiers (double quotes), or
+        "mssql" for MSSQL identifiers (square brackets).
 
     Returns
     -------
@@ -30,8 +31,10 @@ def identifier(sql: str, sql_mode: str = "mysql") -> str:
         )
 
     if sql_mode == "mysql":
-        return f"`{identifier}`"
+        return f"`{sql}`"
     elif sql_mode == "ansi":
-        return f'"{identifier}"'
+        return f'"{sql}"'
+    elif sql_mode == "mssql":
+        return f"[{sql}]"
 
     raise ValueError(f"Unknown SQL MODE: {sql_mode}")
