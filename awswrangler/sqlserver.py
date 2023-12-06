@@ -65,8 +65,12 @@ def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
 
 
 def _does_table_exist(cursor: "Cursor", schema: Optional[str], table: str) -> bool:
-    schema_str = f"TABLE_SCHEMA = {identifier(schema, sql_mode='mssql')} AND" if schema else ""
-    cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE {schema_str} TABLE_NAME = ?", table)
+    if schema:
+        cursor.execute(
+            f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?", (schema, table)
+        )
+    else:
+        cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?", table)
     return len(cursor.fetchall()) > 0
 
 
