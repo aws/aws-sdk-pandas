@@ -1,11 +1,10 @@
 """SQL utilities."""
 import re
-from typing import Literal
 
 from awswrangler import exceptions
 
 
-def identifier(sql: str, sql_mode: Literal["mysql", "ansi", "mssql"] = "mysql") -> str:
+def identifier(sql: str, sql_mode: str = "mysql") -> str:
     """
     Turn the input into an escaped SQL identifier, such as the name of a table or column.
 
