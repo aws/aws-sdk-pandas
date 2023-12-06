@@ -65,8 +65,12 @@ END;
 
 
 def _does_table_exist(cursor: "oracledb.Cursor", schema: Optional[str], table: str) -> bool:
-    schema_str = f"OWNER = '{schema}' AND" if schema else ""
-    cursor.execute(f"SELECT * FROM ALL_TABLES WHERE {schema_str} TABLE_NAME = '{table}'")
+    if schema:
+        cursor.execute(
+            "SELECT * FROM ALL_TABLES WHERE OWNER = :schema AND TABLE_NAME = :table", schema=schema, table=table
+        )
+    else:
+        cursor.execute("SELECT * FROM ALL_TABLES WHERE TABLE_NAME = :table", table=table)
     return len(cursor.fetchall()) > 0
 
 
