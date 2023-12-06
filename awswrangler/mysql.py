@@ -9,9 +9,10 @@ import boto3
 import pyarrow as pa
 
 import awswrangler.pandas as pd
-from awswrangler import _data_types, _sql_utils, _utils, exceptions
+from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
+from awswrangler._sql_utils import identifier
 
 if TYPE_CHECKING:
     try:
@@ -37,8 +38,8 @@ def _validate_connection(con: "Connection[Any]") -> None:
 
 
 def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
-    schema_str = f"{_sql_utils.identifier(schema)}." if schema else ""
-    sql = f"DROP TABLE IF EXISTS {schema_str}{_sql_utils.identifier(table)}"
+    schema_str = f"{identifier(schema)}." if schema else ""
+    sql = f"DROP TABLE IF EXISTS {schema_str}{identifier(table)}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -71,8 +72,8 @@ def _create_table(
         varchar_lengths=varchar_lengths,
         converter_func=_data_types.pyarrow2mysql,
     )
-    cols_str: str = "".join([f"{_sql_utils.identifier(k)} {v},\n" for k, v in mysql_types.items()])[:-2]
-    sql = f"CREATE TABLE IF NOT EXISTS {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)} (\n{cols_str})"
+    cols_str: str = "".join([f"{identifier(k)} {v},\n" for k, v in mysql_types.items()])[:-2]
+    sql = f"CREATE TABLE IF NOT EXISTS {identifier(schema)}.{identifier(table)} (\n{cols_str})"
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -420,9 +421,9 @@ def read_sql_table(
 
     """
     sql: str = (
-        f"SELECT * FROM {_sql_utils.identifier(table)}"
+        f"SELECT * FROM {identifier(table)}"
         if schema is None
-        else f"SELECT * FROM {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)}"
+        else f"SELECT * FROM {identifier(schema)}.{identifier(table)}"
     )
     return read_sql_query(
         sql=sql,
@@ -555,11 +556,9 @@ def to_sql(
             upsert_str = ""
             ignore_str = " IGNORE" if mode == "ignore" else ""
             if use_column_names:
-                insertion_columns = f"({', '.join([_sql_utils.identifier(col) for col in df.columns])})"
+                insertion_columns = f"({', '.join([identifier(col) for col in df.columns])})"
             if mode == "upsert_duplicate_key":
-                upsert_columns = ", ".join(
-                    df.columns.map(lambda col: f"{_sql_utils.identifier(col)}=VALUES({_sql_utils.identifier(col)})")
-                )
+                upsert_columns = ", ".join(df.columns.map(lambda col: f"{identifier(col)}=VALUES({identifier(col)})"))
                 upsert_str = f" ON DUPLICATE KEY UPDATE {upsert_columns}"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
@@ -567,9 +566,9 @@ def to_sql(
             sql: str
             for placeholders, parameters in placeholder_parameter_pair_generator:
                 if mode == "upsert_replace_into":
-                    sql = f"REPLACE INTO {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)} {insertion_columns} VALUES {placeholders}"
+                    sql = f"REPLACE INTO {identifier(schema)}.{identifier(table)} {insertion_columns} VALUES {placeholders}"
                 else:
-                    sql = f"""INSERT{ignore_str} INTO {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)} {insertion_columns}
+                    sql = f"""INSERT{ignore_str} INTO {identifier(schema)}.{identifier(table)} {insertion_columns}
 VALUES {placeholders}{upsert_str}"""
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
@@ -577,14 +576,14 @@ VALUES {placeholders}{upsert_str}"""
             if mode == "upsert_distinct":
                 temp_table = f"{table}_{uuid.uuid4().hex}"
                 cursor.execute(
-                    f"CREATE TABLE {_sql_utils.identifier(schema)}.{_sql_utils.identifier(temp_table)} LIKE {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)}"
+                    f"CREATE TABLE {identifier(schema)}.{identifier(temp_table)} LIKE {identifier(schema)}.{identifier(table)}"
                 )
                 cursor.execute(
-                    f"INSERT INTO {_sql_utils.identifier(schema)}.{_sql_utils.identifier(temp_table)} SELECT DISTINCT * FROM {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)}"
+                    f"INSERT INTO {identifier(schema)}.{identifier(temp_table)} SELECT DISTINCT * FROM {identifier(schema)}.{identifier(table)}"
                 )
-                cursor.execute(f"DROP TABLE IF EXISTS {_sql_utils.identifier(schema)}.{_sql_utils.identifier(table)}")
+                cursor.execute(f"DROP TABLE IF EXISTS {identifier(schema)}.{identifier(table)}")
                 cursor.execute(
-                    f"ALTER TABLE {_sql_utils.identifier(schema)}.{_sql_utils.identifier(temp_table)} RENAME TO {_sql_utils.identifier(table)}"
+                    f"ALTER TABLE {identifier(schema)}.{identifier(temp_table)} RENAME TO {identifier(table)}"
                 )
                 con.commit()
 

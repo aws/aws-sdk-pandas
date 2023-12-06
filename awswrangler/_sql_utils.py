@@ -4,7 +4,18 @@ import re
 from awswrangler import exceptions
 
 
-def identifier(sql):
+def identifier(sql: str) -> str:
+    """
+    Turn the input into an escaped SQL identifier, such as the name of a table or column.
+
+    sql: str
+        Identifier to use in SQL.
+
+    Returns
+    -------
+    str
+        Escaped SQL identifier.
+    """
     if not isinstance(sql, str):
         raise exceptions.InvalidArgumentValue("identifier must be a str")
 
