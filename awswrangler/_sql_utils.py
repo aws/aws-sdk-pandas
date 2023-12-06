@@ -4,12 +4,14 @@ import re
 from awswrangler import exceptions
 
 
-def identifier(sql: str) -> str:
+def identifier(sql: str, sql_mode: str = "mysql") -> str:
     """
     Turn the input into an escaped SQL identifier, such as the name of a table or column.
 
     sql: str
         Identifier to use in SQL.
+    sql_mode: str
+        "mysql" for default MySQL identifiers (backticks) or "ansi" for ANSI-compatible identifiers (double quotes).
 
     Returns
     -------
@@ -27,4 +29,9 @@ def identifier(sql: str) -> str:
             "identifier must contain only alphanumeric characters, spaces, underscores, or hyphens"
         )
 
-    return f"`{sql}`"
+    if sql_mode == "mysql":
+        return f"`{identifier}`"
+    elif sql_mode == "ansi":
+        return f'"{identifier}"'
+
+    raise ValueError(f"Unknown SQL MODE: {sql_mode}")
