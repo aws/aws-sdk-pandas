@@ -33,9 +33,6 @@ _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
-import oracledb
-
-
 def _validate_connection(con: "oracledb.Connection") -> None:
     if not isinstance(con, oracledb.Connection):
         raise exceptions.InvalidConnection(
