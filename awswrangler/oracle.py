@@ -33,6 +33,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
+import oracledb
+
+
 def _validate_connection(con: "oracledb.Connection") -> None:
     if not isinstance(con, oracledb.Connection):
         raise exceptions.InvalidConnection(
@@ -67,10 +70,12 @@ END;
 def _does_table_exist(cursor: "oracledb.Cursor", schema: Optional[str], table: str) -> bool:
     if schema:
         cursor.execute(
-            "SELECT * FROM ALL_TABLES WHERE OWNER = :schema AND TABLE_NAME = :table", schema=schema, table=table
+            "SELECT * FROM ALL_TABLES WHERE OWNER = :db_schema AND TABLE_NAME = :db_table",
+            db_schema=schema,
+            db_table=table,
         )
     else:
-        cursor.execute("SELECT * FROM ALL_TABLES WHERE TABLE_NAME = :table", table=table)
+        cursor.execute("SELECT * FROM ALL_TABLES WHERE TABLE_NAME = :tbl", tbl=table)
     return len(cursor.fetchall()) > 0
 
 
