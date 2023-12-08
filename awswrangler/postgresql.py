@@ -69,7 +69,7 @@ def _create_table(
         varchar_lengths=varchar_lengths,
         converter_func=_data_types.pyarrow2postgresql,
     )
-    cols_str: str = "".join([f'"{k}" {v},\n' for k, v in postgresql_types.items()])[:-2]
+    cols_str: str = "".join([f"{pg8000_native.identifier(k)} {v},\n" for k, v in postgresql_types.items()])[:-2]
     sql = f"CREATE TABLE IF NOT EXISTS {pg8000_native.identifier(schema)}.{pg8000_native.identifier(table)} (\n{cols_str})"
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
@@ -584,7 +584,7 @@ def to_sql(
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
             column_placeholders: str = ", ".join(["%s"] * len(df.columns))
-            column_names = [f'"{column}"' for column in df.columns]
+            column_names = [pg8000_native.identifier(column) for column in df.columns]
             insertion_columns = ""
             upsert_str = ""
             if use_column_names:

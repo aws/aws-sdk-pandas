@@ -24,6 +24,7 @@ import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
+from awswrangler._sql_utils import identifier
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
@@ -43,8 +44,8 @@ def _validate_connection(con: "oracledb.Connection") -> None:
 
 
 def _get_table_identifier(schema: Optional[str], table: str) -> str:
-    schema_str = f'"{schema}".' if schema else ""
-    table_identifier = f'{schema_str}"{table}"'
+    schema_str = f'{identifier(schema, sql_mode="ansi")}.' if schema else ""
+    table_identifier = f'{schema_str}{identifier(table, sql_mode="ansi")}'
     return table_identifier
 
 
@@ -65,8 +66,14 @@ END;
 
 
 def _does_table_exist(cursor: "oracledb.Cursor", schema: Optional[str], table: str) -> bool:
-    schema_str = f"OWNER = '{schema}' AND" if schema else ""
-    cursor.execute(f"SELECT * FROM ALL_TABLES WHERE {schema_str} TABLE_NAME = '{table}'")
+    if schema:
+        cursor.execute(
+            "SELECT * FROM ALL_TABLES WHERE OWNER = :db_schema AND TABLE_NAME = :db_table",
+            db_schema=schema,
+            db_table=table,
+        )
+    else:
+        cursor.execute("SELECT * FROM ALL_TABLES WHERE TABLE_NAME = :tbl", tbl=table)
     return len(cursor.fetchall()) > 0
 
 
@@ -93,10 +100,10 @@ def _create_table(
         varchar_lengths=varchar_lengths,
         converter_func=_data_types.pyarrow2oracle,
     )
-    cols_str: str = "".join([f'"{k}" {v},\n' for k, v in oracle_types.items()])[:-2]
+    cols_str: str = "".join([f'{identifier(k, sql_mode="ansi")} {v},\n' for k, v in oracle_types.items()])[:-2]
 
     if primary_keys:
-        primary_keys_str = ", ".join([f'"{k}"' for k in primary_keys])
+        primary_keys_str = ", ".join([f'{identifier(k, sql_mode="ansi")}' for k in primary_keys])
     else:
         primary_keys_str = None
 
@@ -450,7 +457,7 @@ def _generate_insert_statement(
     column_placeholders: str = f"({', '.join([':' + str(i + 1) for i in range(len(df.columns))])})"
 
     if use_column_names:
-        insertion_columns = "(" + ", ".join('"' + column + '"' for column in df.columns) + ")"
+        insertion_columns = "(" + ", ".join(identifier(column, sql_mode="ansi") for column in df.columns) + ")"
     else:
         insertion_columns = ""
 
@@ -470,14 +477,19 @@ def _generate_upsert_statement(
 
     non_primary_key_columns = [key for key in df.columns if key not in set(primary_keys)]
 
-    primary_keys_str = ", ".join([f'"{key}"' for key in primary_keys])
-    columns_str = ", ".join([f'"{key}"' for key in non_primary_key_columns])
+    primary_keys_str = ", ".join([f'{identifier(key, sql_mode="ansi")}' for key in primary_keys])
+    columns_str = ", ".join([f'{identifier(key, sql_mode="ansi")}' for key in non_primary_key_columns])
 
     column_placeholders: str = f"({', '.join([':' + str(i + 1) for i in range(len(df.columns))])})"
 
-    primary_key_condition_str = " AND ".join([f'"{key}" = :{i+1}' for i, key in enumerate(primary_keys)])
+    primary_key_condition_str = " AND ".join(
+        [f'{identifier(key, sql_mode="ansi")} = :{i+1}' for i, key in enumerate(primary_keys)]
+    )
     assignment_str = ", ".join(
-        [f'"{col}" = :{i + len(primary_keys) + 1}' for i, col in enumerate(non_primary_key_columns)]
+        [
+            f'{identifier(col, sql_mode="ansi")} = :{i + len(primary_keys) + 1}'
+            for i, col in enumerate(non_primary_key_columns)
+        ]
     )
 
     return f"""

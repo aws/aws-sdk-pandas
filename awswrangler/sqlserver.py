@@ -24,6 +24,7 @@ import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
+from awswrangler._sql_utils import identifier
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
@@ -50,9 +51,10 @@ def _validate_connection(con: "pyodbc.Connection") -> None:
 
 
 def _get_table_identifier(schema: Optional[str], table: str) -> str:
-    schema_str = f'"{schema}".' if schema else ""
-    table_identifier = f'{schema_str}"{table}"'
-    return table_identifier
+    if schema:
+        return f"{identifier(schema, sql_mode='mssql')}.{identifier(table, sql_mode='mssql')}"
+    else:
+        return identifier(table, sql_mode="mssql")
 
 
 def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
@@ -63,8 +65,12 @@ def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
 
 
 def _does_table_exist(cursor: "Cursor", schema: Optional[str], table: str) -> bool:
-    schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
-    cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE {schema_str} TABLE_NAME = ?", table)
+    if schema:
+        cursor.execute(
+            "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?", (schema, table)
+        )
+    else:
+        cursor.execute("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?", table)
     return len(cursor.fetchall()) > 0
 
 
@@ -90,7 +96,7 @@ def _create_table(
         varchar_lengths=varchar_lengths,
         converter_func=_data_types.pyarrow2sqlserver,
     )
-    cols_str: str = "".join([f'"{k}" {v},\n' for k, v in sqlserver_types.items()])[:-2]
+    cols_str: str = "".join([f"{identifier(k, sql_mode='mssql')} {v},\n" for k, v in sqlserver_types.items()])[:-2]
     table_identifier = _get_table_identifier(schema, table)
     sql = (
         f"IF OBJECT_ID(N'{table_identifier}', N'U') IS NULL BEGIN CREATE TABLE {table_identifier} (\n{cols_str}); END;"
@@ -529,7 +535,7 @@ def to_sql(
             table_identifier = _get_table_identifier(schema, table)
             insertion_columns = ""
             if use_column_names:
-                quoted_columns = ", ".join(f'"{col}"' for col in df.columns)
+                quoted_columns = ", ".join(f"{identifier(col, sql_mode='mssql')}" for col in df.columns)
                 insertion_columns = f"({quoted_columns})"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
