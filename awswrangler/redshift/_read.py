@@ -10,6 +10,7 @@ from awswrangler import _databases as _db_utils
 from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
+from awswrangler._sql_utils import identifier
 
 from ._connect import _validate_connection
 from ._utils import _make_s3_auth_string
@@ -199,7 +200,10 @@ def read_sql_table(
     >>> con.close()
 
     """
-    sql: str = f'SELECT * FROM "{table}"' if schema is None else f'SELECT * FROM "{schema}"."{table}"'
+    if schema is None:
+        sql = f'SELECT * FROM {identifier(table, sql_mode="ansi")}'
+    else:
+        sql = f'SELECT * FROM {identifier(schema, sql_mode="ansi")}.{identifier(table, sql_mode="ansi")}'
     return read_sql_query(
         sql=sql,
         con=con,
