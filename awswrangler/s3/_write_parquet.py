@@ -60,11 +60,11 @@ def _new_writer(
     if "version" not in pyarrow_additional_kwargs:
         # By default, use version 1.0 logical type set to maximize compatibility
         pyarrow_additional_kwargs["version"] = "1.0"
-    if not pyarrow_additional_kwargs.get("use_dictionary"):
+    if "use_dictionary" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["use_dictionary"] = True
-    if not pyarrow_additional_kwargs.get("write_statistics"):
+    if "write_statistics" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["write_statistics"] = True
-    if not pyarrow_additional_kwargs.get("schema"):
+    if "schema" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["schema"] = schema
 
     with open_s3_object(
