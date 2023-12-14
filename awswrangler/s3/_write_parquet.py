@@ -708,7 +708,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     # Pyarrow defaults
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
-    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+    if "coerce_timestamps" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
     if "flavor" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["flavor"] = "spark"
