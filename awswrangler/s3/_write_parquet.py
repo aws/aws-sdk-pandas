@@ -53,18 +53,18 @@ def _new_writer(
     writer: Optional[pyarrow.parquet.ParquetWriter] = None
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
-    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+    if "coerce_timestamps" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
     if "flavor" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["flavor"] = "spark"
     if "version" not in pyarrow_additional_kwargs:
         # By default, use version 1.0 logical type set to maximize compatibility
         pyarrow_additional_kwargs["version"] = "1.0"
-    if not pyarrow_additional_kwargs.get("use_dictionary"):
+    if "use_dictionary" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["use_dictionary"] = True
-    if not pyarrow_additional_kwargs.get("write_statistics"):
+    if "write_statistics" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["write_statistics"] = True
-    if not pyarrow_additional_kwargs.get("schema"):
+    if "schema" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["schema"] = schema
 
     with open_s3_object(
@@ -708,7 +708,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     # Pyarrow defaults
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
-    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+    if "coerce_timestamps" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
     if "flavor" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["flavor"] = "spark"

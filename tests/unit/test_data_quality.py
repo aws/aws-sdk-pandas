@@ -1,5 +1,6 @@
 import logging
 
+import botocore
 import pytest
 
 import awswrangler as wr
@@ -258,6 +259,7 @@ def test_upsert_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
     assert row_count.iloc[0]["expression"] == "between 2 and 8"
 
 
+@pytest.mark.xfail(raises=botocore.exceptions.ClientError, reason="Service error when evaluating multiple rulesets.")
 def test_two_evaluations_at_once(
     df: pd.DataFrame, glue_database: str, glue_table: str, glue_ruleset: str, glue_data_quality_role: str
 ) -> None:
