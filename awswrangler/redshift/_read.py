@@ -7,10 +7,9 @@ import pyarrow as pa
 
 import awswrangler.pandas as pd
 from awswrangler import _databases as _db_utils
-from awswrangler import _utils, exceptions, s3
+from awswrangler import _sql_utils, _utils, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
-from awswrangler._sql_utils import identifier
 
 from ._connect import _validate_connection
 from ._utils import _make_s3_auth_string
@@ -18,6 +17,10 @@ from ._utils import _make_s3_auth_string
 redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _identifier(sql: str) -> str:
+    return _sql_utils.identifier(sql, sql_mode="ansi")
 
 
 def _read_parquet_iterator(
@@ -201,9 +204,9 @@ def read_sql_table(
 
     """
     if schema is None:
-        sql = f'SELECT * FROM {identifier(table, sql_mode="ansi")}'
+        sql = f"SELECT * FROM {_identifier(table)}"
     else:
-        sql = f'SELECT * FROM {identifier(schema, sql_mode="ansi")}.{identifier(table, sql_mode="ansi")}'
+        sql = f"SELECT * FROM {_identifier(schema)}.{_identifier(table)}"
     return read_sql_query(
         sql=sql,
         con=con,
