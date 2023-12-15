@@ -9,7 +9,7 @@ import boto3
 import botocore
 import pandas as pd
 
-from awswrangler import _data_types, _utils, exceptions, s3
+from awswrangler import _data_types, _sql_utils, _utils, exceptions, s3
 
 redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
@@ -18,6 +18,10 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 _RS_DISTSTYLES: List[str] = ["AUTO", "EVEN", "ALL", "KEY"]
 _RS_SORTSTYLES: List[str] = ["COMPOUND", "INTERLEAVED"]
+
+
+def _identifier(sql: str) -> str:
+    return _sql_utils.identifier(sql, sql_mode="ansi")
 
 
 def _make_s3_auth_string(
@@ -66,15 +70,19 @@ def _drop_table(cursor: "redshift_connector.Cursor", schema: Optional[str], tabl
 
 
 def _truncate_table(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> None:
-    schema_str = f'"{schema}".' if schema else ""
-    sql = f'TRUNCATE TABLE {schema_str}"{table}"'
+    if schema:
+        sql = f"TRUNCATE TABLE {_identifier(schema)}.{_identifier(table)}"
+    else:
+        sql = f"TRUNCATE TABLE {_identifier(table)}"
     _logger.debug("Executing truncate table query:\n%s", sql)
     cursor.execute(sql)
 
 
 def _delete_all(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> None:
-    schema_str = f'"{schema}".' if schema else ""
-    sql = f'DELETE FROM {schema_str}"{table}"'
+    if schema:
+        sql = f"DELETE FROM {_identifier(schema)}.{_identifier(table)}"
+    else:
+        sql = f"DELETE FROM {_identifier(table)}"
     _logger.debug("Executing delete query:\n%s", sql)
     cursor.execute(sql)
 
@@ -116,8 +124,9 @@ def _lock(
     table_names: List[str],
     schema: Optional[str] = None,
 ) -> None:
-    fmt = '"{schema}"."{table}"' if schema else '"{table}"'
-    tables = ", ".join([fmt.format(schema=schema, table=table) for table in table_names])
+    tables = ", ".join(
+        [(f"{_identifier(schema)}.{_identifier(table)}" if schema else _identifier(table)) for table in table_names]
+    )
     sql: str = f"LOCK {tables};\n"
     _logger.debug("Executing lock query:\n%s", sql)
     cursor.execute(sql)
@@ -137,32 +146,30 @@ def _upsert(
     _logger.debug("primary_keys: %s", primary_keys)
     if not primary_keys:
         raise exceptions.InvalidRedshiftPrimaryKeys()
-    equals_clause: str = f'"{table}".%s = "{temp_table}".%s'
+    equals_clause: str = f"{_identifier(table)}.%s = {_identifier(temp_table)}.%s"
     join_clause: str = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
     if precombine_key:
-        delete_from_target_filter: str = f"AND {table}.{precombine_key} <= {temp_table}.{precombine_key}"
-        delete_from_temp_filter: str = f"AND {table}.{precombine_key} > {temp_table}.{precombine_key}"
-        target_del_sql: str = (
-            f'DELETE FROM "{schema}"."{table}" USING "{temp_table}" WHERE {join_clause} {delete_from_target_filter}'
+        delete_from_target_filter: str = (
+            f"AND {_identifier(table)}.{precombine_key} <= {_identifier(temp_table)}.{precombine_key}"
         )
+        delete_from_temp_filter: str = (
+            f"AND {_identifier(table)}.{precombine_key} > {_identifier(temp_table)}.{precombine_key}"
+        )
+        target_del_sql: str = f"DELETE FROM {_identifier(schema)}.{_identifier(table)} USING {_identifier(temp_table)} WHERE {join_clause} {delete_from_target_filter}"
         _logger.debug("Executing delete query:\n%s", target_del_sql)
         cursor.execute(target_del_sql)
-        source_del_sql: str = (
-            f'DELETE FROM "{temp_table}" USING "{schema}"."{table}" WHERE {join_clause} {delete_from_temp_filter}'
-        )
+        source_del_sql: str = f"DELETE FROM {_identifier(temp_table)} USING {_identifier(schema)}.{_identifier(table)} WHERE {join_clause} {delete_from_temp_filter}"
         _logger.debug("Executing delete query:\n%s", source_del_sql)
         cursor.execute(source_del_sql)
     else:
-        sql: str = f'DELETE FROM "{schema}"."{table}" USING "{temp_table}" WHERE {join_clause}'
+        sql: str = f"DELETE FROM {_identifier(schema)}.{_identifier(table)} USING {_identifier(temp_table)} WHERE {join_clause}"
         _logger.debug("Executing delete query:\n%s", sql)
         cursor.execute(sql)
     if column_names:
         column_names_str = ",".join(column_names)
-        insert_sql = (
-            f'INSERT INTO "{schema}"."{table}"({column_names_str}) SELECT {column_names_str} FROM "{temp_table}"'
-        )
+        insert_sql = f"INSERT INTO {_identifier(schema)}.{_identifier(table)}({column_names_str}) SELECT {column_names_str} FROM {_identifier(temp_table)}"
     else:
-        insert_sql = f'INSERT INTO "{schema}"."{table}" SELECT * FROM "{temp_table}"'
+        insert_sql = f"INSERT INTO {_identifier(schema)}.{_identifier(table)} SELECT * FROM {_identifier(temp_table)}"
     _logger.debug("Executing insert query:\n%s", insert_sql)
     cursor.execute(insert_sql)
     _drop_table(cursor=cursor, schema=schema, table=temp_table)
@@ -299,7 +306,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
         if mode == "upsert":
             guid: str = uuid.uuid4().hex
             temp_table: str = f"temp_redshift_{guid}"
-            sql: str = f'CREATE TEMPORARY TABLE {temp_table} (LIKE "{schema}"."{table}")'
+            sql: str = f"CREATE TEMPORARY TABLE {temp_table} (LIKE {_identifier(schema)}.{_identifier(table)})"
             _logger.debug("Executing create temporary table query:\n%s", sql)
             cursor.execute(sql)
             return temp_table, None
@@ -355,7 +362,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     distkey_str: str = f"\nDISTKEY({distkey})" if distkey and diststyle == "KEY" else ""
     sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})" if sortkey else ""
     sql = (
-        f'CREATE TABLE IF NOT EXISTS "{schema}"."{table}" (\n'
+        f"CREATE TABLE IF NOT EXISTS {_identifier(schema)}.{_identifier(table)} (\n"
         f"{cols_str}"
         f"{primary_keys_str}"
         f")\nDISTSTYLE {diststyle}"
