@@ -3,7 +3,7 @@ ARG python_version=base
 
 FROM ${base_image} AS base
 
-RUN yum install -y \
+RUN dnf install -y \
     boost-devel \
     jemalloc-devel \
     libxml2-devel \
