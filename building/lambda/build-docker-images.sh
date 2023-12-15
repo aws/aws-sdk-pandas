@@ -34,4 +34,11 @@ docker build \
   --build-arg base_image=public.ecr.aws/lambda/python:3.11 \
   .
 
+# Python 3.12
+docker build \
+  --pull \
+  --tag awswrangler-build-py312 \
+  --build-arg base_image=public.ecr.aws/lambda/python:3.12 \
+  .
+
 rm -rf pyproject.toml poetry.lock
