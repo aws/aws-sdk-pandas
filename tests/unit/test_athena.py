@@ -880,11 +880,11 @@ def test_bucketing_catalog_parquet_table(path, glue_database, glue_table):
 )
 def test_bucketing_parquet_dataset(path, glue_database, glue_table, bucketing_data, dtype):
     # Skip invalid combinations of data and data types
-    if type(bucketing_data[0]) == int and "int" not in dtype.lower():
+    if type(bucketing_data[0]) == int and "int" not in dtype.lower():  # noqa: E721
         pytest.skip()
-    if type(bucketing_data[0]) == bool and "bool" not in dtype.lower():
+    if type(bucketing_data[0]) == bool and "bool" not in dtype.lower():  # noqa: E721
         pytest.skip()
-    if type(bucketing_data[0]) == str and (dtype != "string" or dtype != "object"):
+    if type(bucketing_data[0]) == str and (dtype != "string" or dtype != "object"):  # noqa: E721
         pytest.skip()
 
     nb_of_buckets = 2
@@ -969,11 +969,11 @@ def test_bucketing_catalog_csv_table(path, glue_database, glue_table):
 )
 def test_bucketing_csv_dataset(path, glue_database, glue_table, bucketing_data, dtype):
     # Skip invalid combinations of data and data types
-    if type(bucketing_data[0]) == int and "int" not in dtype.lower():
+    if type(bucketing_data[0]) == int and "int" not in dtype.lower():  # noqa: E721
         pytest.skip()
-    if type(bucketing_data[0]) == bool and "bool" not in dtype.lower():
+    if type(bucketing_data[0]) == bool and "bool" not in dtype.lower():  # noqa: E721
         pytest.skip()
-    if type(bucketing_data[0]) == str and (dtype != "string" or dtype != "object"):
+    if type(bucketing_data[0]) == str and (dtype != "string" or dtype != "object"):  # noqa: E721
         pytest.skip()
 
     nb_of_buckets = 2

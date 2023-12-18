@@ -156,7 +156,9 @@ def _to_partitions(
             inplace=True,
         )  # noqa: PLW2901
         # Drop index levels if partitioning by index columns
-        subgroup = subgroup.droplevel(level=[col for col in partition_cols if col in subgroup.index.names])  # noqa: PLW2901
+        subgroup = subgroup.droplevel(  # noqa: PLW2901
+            level=[col for col in partition_cols if col in subgroup.index.names]
+        )
         prefix = _delete_objects(
             keys=keys,
             path_root=path_root,
