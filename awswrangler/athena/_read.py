@@ -74,7 +74,7 @@ def _add_query_metadata_generator(
 ) -> Iterator[pd.DataFrame]:
     """Add Query Execution metadata to every DF in iterator."""
     for df in dfs:
-        df = _apply_query_metadata(df=df, query_metadata=query_metadata)  # ruff: noqa: PLW2901
+        df = _apply_query_metadata(df=df, query_metadata=query_metadata)  # noqa: PLW2901
         yield df
 
 

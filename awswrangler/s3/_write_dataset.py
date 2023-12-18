@@ -149,14 +149,14 @@ def _to_partitions(
     s3_client = client(service_name="s3", session=boto3_session)
     for keys, subgroup in df.groupby(by=partition_cols, observed=True):
         # Keys are either a primitive type or a tuple if partitioning by multiple cols
-        keys = (keys,) if not isinstance(keys, tuple) else keys  # ruff: noqa: PLW2901
+        keys = (keys,) if not isinstance(keys, tuple) else keys  # noqa: PLW2901
         # Drop partition columns from df
         subgroup.drop(
             columns=[col for col in partition_cols if col in subgroup.columns],
             inplace=True,
-        )  # ruff: noqa: PLW2901
+        )  # noqa: PLW2901
         # Drop index levels if partitioning by index columns
-        subgroup = subgroup.droplevel(level=[col for col in partition_cols if col in subgroup.index.names])
+        subgroup = subgroup.droplevel(level=[col for col in partition_cols if col in subgroup.index.names])  # noqa: PLW2901
         prefix = _delete_objects(
             keys=keys,
             path_root=path_root,

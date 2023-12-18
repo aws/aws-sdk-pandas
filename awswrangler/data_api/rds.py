@@ -363,7 +363,7 @@ def _generate_parameters(columns: List[str], values: List[Any]) -> List[Dict[str
     parameter_list = []
 
     for col, value in zip(columns, values):
-        value, type_hint = _create_value_dict(value)  # ruff: noqa: PLW2901
+        value, type_hint = _create_value_dict(value)  # noqa: PLW2901
 
         parameter = {
             "name": col,
