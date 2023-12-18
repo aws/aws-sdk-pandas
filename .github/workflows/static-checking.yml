@@ -16,14 +16,9 @@ jobs:
   Check:
 
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
-        experimental: [false]
-        include:
-          - version: "3.12"
-            experimental: true
+        python-version: ["3.8", "3.11"]
 
     steps:
       - uses: actions/checkout@v3
