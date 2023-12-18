@@ -50,6 +50,7 @@ jobs:
         if: ${{ matrix.python-version != '3.12' }}
         run: mypy --install-types --non-interactive awswrangler
       - name: Pylint Lint
+        if: ${{ matrix.python-version != '3.12' }}
         run: pylint -j 0 --disable=all --enable=R0913,R0915 awswrangler
       - name: Documentation check
         run: doc8 --max-line-length 120 docs/source
