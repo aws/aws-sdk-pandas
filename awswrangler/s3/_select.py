@@ -56,8 +56,8 @@ def _select_object_content(
     for event in response["Payload"]:
         if "Records" in event:
             records = (
-                event["Records"]["Payload"]  # type: ignore[index]
-                .decode(  # type: ignore[attr-defined]
+                event["Records"]["Payload"]
+                .decode(
                     encoding="utf-8",
                     errors="ignore",
                 )

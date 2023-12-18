@@ -165,7 +165,7 @@ def validate_kwargs(
 
         @wraps(func)
         def inner(*args: Any, **kwargs: Any) -> Any:
-            passed_unsupported_kwargs = set(unsupported_kwargs).intersection(  # type: ignore
+            passed_unsupported_kwargs = set(unsupported_kwargs).intersection(
                 set([key for key, value in kwargs.items() if value is not None])
             )
 
@@ -736,7 +736,7 @@ def get_credentials_from_session(
 ) -> botocore.credentials.ReadOnlyCredentials:
     """Get AWS credentials from boto3 session."""
     session: boto3.Session = ensure_session(session=boto3_session)
-    credentials: botocore.credentials.Credentials = session.get_credentials()
+    credentials: botocore.credentials.Credentials = session.get_credentials()  # type: ignore[assignment]
     frozen_credentials: botocore.credentials.ReadOnlyCredentials = credentials.get_frozen_credentials()
     return frozen_credentials
 

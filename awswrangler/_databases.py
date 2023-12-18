@@ -160,7 +160,7 @@ def _records2df(
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
         if (dtype is None) or (col_name not in dtype):
             if _oracledb_found:
-                col_values = oracle.handle_oracle_objects(col_values, col_name)  # ruff: noqa: PLW2901
+                col_values = oracle.handle_oracle_objects(col_values, col_name)  # type: ignore[arg-type,assignment]  # ruff: noqa: PLW2901
             try:
                 array: pa.Array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
             except pa.ArrowInvalid as ex:
@@ -169,7 +169,7 @@ def _records2df(
             try:
                 if _oracledb_found:
                     if _should_handle_oracle_objects(dtype[col_name]):
-                        col_values = oracle.handle_oracle_objects(col_values, col_name, dtype)
+                        col_values = oracle.handle_oracle_objects(col_values, col_name, dtype)  # type: ignore[arg-type,assignment]
                 array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
             except (pa.ArrowInvalid, pa.ArrowTypeError):
                 array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
