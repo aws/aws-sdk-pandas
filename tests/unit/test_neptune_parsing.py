@@ -152,7 +152,7 @@ def test_parse_gremlin_path_elements(gremlin_parser):
     assert df.shape == (1, 3)
     assert row[0]["name"] == "foo"
     assert row[0]["age"] == 29
-    assert row[1] == {"id": "bar", "label": "label", "outV": "out1", "inV": "in2"}
+    assert row[1] == {"id": "bar", "label": "label", "outV": "out1", "inV": "in2", "properties": None}
     assert row[2]["name"] == "bar"
     assert row[2]["age"] == 40
 
