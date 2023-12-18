@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.11"]
+        python-version: ["3.8", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v3
@@ -27,11 +27,19 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Requirements
+        if: ${{ matrix.python-version != '3.12' }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry
           poetry config virtualenvs.create false --local
           poetry install --all-extras -vvv
+      - name: Install Requirements
+        if: ${{ matrix.python-version == '3.12' }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+          poetry config virtualenvs.create false --local
+          poetry install --extras "redshift mysql postgres sqlserver oracle gremlin sparql opencypher opensearch openpyxl progressbar deltalake geopandas" -vvv
       - name: Black style
         run: black --check .
       - name: ruff check
@@ -39,6 +47,7 @@ jobs:
           ruff . --ignore "PL" --ignore "D"
           ruff awswrangler
       - name: mypy check
+        if: ${{ matrix.python-version != '3.12' }}
         run: mypy --install-types --non-interactive awswrangler
       - name: Pylint Lint
         run: pylint -j 0 --disable=all --enable=R0913,R0915 awswrangler
