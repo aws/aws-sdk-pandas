@@ -101,6 +101,8 @@ AWS SDK for pandas can also run your workflows at scale by leveraging [Modin](ht
 
 The quickest way to get started is to use AWS Glue with Ray. Read our [docs](https://aws-sdk-pandas.readthedocs.io/en/3.4.2/scale.html), our blogs ([1](https://aws.amazon.com/blogs/big-data/scale-aws-sdk-for-pandas-workloads-with-aws-glue-for-ray/)/[2](https://aws.amazon.com/blogs/big-data/advanced-patterns-with-aws-sdk-for-pandas-on-aws-glue-for-ray/)), or head to our latest [tutorials](https://github.com/aws/aws-sdk-pandas/tree/main/tutorials) to discover even more features.
 
+> ⚠️ **Ray is currently not available for Python 3.12. While AWS SDK for pandas supports Python 3.12, it cannot be used at scale.**
+
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
 
 - [**What is AWS SDK for pandas?**](https://aws-sdk-pandas.readthedocs.io/en/3.4.2/about.html)
