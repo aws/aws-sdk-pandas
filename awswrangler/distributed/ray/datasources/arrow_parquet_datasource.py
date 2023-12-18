@@ -82,14 +82,14 @@ class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abs
        relative to the root S3 prefix.
     """
 
-    def create_reader(self, **kwargs: Dict[str, Any]) -> Reader:
+    def create_reader(self, **kwargs: Dict[str, Any]) -> Reader:  # type: ignore[type-arg]
         """Return a Reader for the given read arguments."""
         return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore[arg-type]
 
     def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
         self,
         f: "pyarrow.NativeFile",
-        block: BlockAccessor,
+        block: BlockAccessor,  # type: ignore[type-arg]
         pandas_kwargs: Optional[Dict[str, Any]],
         **writer_args: Any,
     ) -> None:
@@ -119,7 +119,7 @@ class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abs
 # raw pyarrow file fragment causes S3 network calls.
 class _SerializedPiece:
     def __init__(self, frag: ParquetFileFragment):
-        self._data = cloudpickle.dumps(  # type: ignore[attr-defined]
+        self._data = cloudpickle.dumps(  # type: ignore[attr-defined,no-untyped-call]
             (frag.format, frag.path, frag.filesystem, frag.partition_expression)
         )
 
@@ -185,7 +185,7 @@ def _deserialize_pieces_with_retry(
     raise final_exception  # type: ignore[misc]
 
 
-class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instance-attributes
+class _ArrowParquetDatasourceReader(Reader):  # type: ignore[type-arg]  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         paths: Union[str, List[str]],
@@ -194,7 +194,7 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
         columns: Optional[List[str]] = None,
         schema: Optional[Schema] = None,
         meta_provider: ParquetMetadataProvider = DefaultParquetMetadataProvider(),
-        _block_udf: Optional[Callable[[Block], Block]] = None,
+        _block_udf: Optional[Callable[[Block], Block]] = None,  # type: ignore[type-arg]
         **reader_args: Any,
     ):
         import pyarrow as pa
@@ -225,7 +225,7 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
             # Try to infer dataset schema by passing dummy table through UDF.
             dummy_table = schema.empty_table()
             try:
-                inferred_schema = _block_udf(dummy_table).schema
+                inferred_schema = _block_udf(dummy_table).schema  # type: ignore[union-attr]
                 inferred_schema = inferred_schema.with_metadata(schema.metadata)
             except Exception:  # pylint: disable=broad-except
                 _logger.debug(
@@ -361,7 +361,7 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
 # 1. Use _add_table_partitions to add partition columns. The behavior is controlled by Pandas SDK
 #    native `dataset` parameter. The partitions are loaded relative to the `path_root` prefix.
 def _read_pieces(
-    block_udf: Optional[Callable[[Block], Block]],
+    block_udf: Optional[Callable[[Block], Block]],  # type: ignore[type-arg]
     reader_args: Any,
     columns: Optional[List[str]],
     schema: Optional[Union[type, "pyarrow.lib.Schema"]],

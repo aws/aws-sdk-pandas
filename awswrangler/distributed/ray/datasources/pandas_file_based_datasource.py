@@ -35,7 +35,7 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
         *,
         filesystem: Optional["pyarrow.fs.FileSystem"] = None,
         dataset_uuid: Optional[str] = None,
-        block: Optional[Block] = None,
+        block: Optional[Block] = None,  # type: ignore[type-arg]
         block_index: Optional[int] = None,
         file_format: Optional[str] = None,
     ) -> str:
@@ -64,7 +64,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
-    def do_write(  # pylint: disable=arguments-differ
+    def do_write(  # type: ignore[override]  # pylint: disable=arguments-differ
         self,
         blocks: List[ObjectRef[pd.DataFrame]],
         metadata: List[BlockMetadata],
@@ -141,9 +141,9 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
 
         return write_tasks
 
-    def write(  # type: ignore[override]
+    def write(
         self,
-        blocks: Iterable[Union[Block, ObjectRef[pd.DataFrame]]],
+        blocks: Iterable[Union[Block, ObjectRef[pd.DataFrame]]],  # type: ignore[type-arg]
         ctx: TaskContext,
         path: str,
         dataset_uuid: str,
@@ -188,7 +188,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
 
         file_suffix = self._get_file_suffix(self._FILE_EXTENSION, compression)
 
-        builder = DelegatingBlockBuilder()  # type: ignore[no-untyped-call]
+        builder = DelegatingBlockBuilder()  # type: ignore[no-untyped-call,var-annotated]
         for block in blocks:
             # Dereference the block if ObjectRef is passed
             builder.add_block(ray_get(block) if isinstance(block, ray.ObjectRef) else block)  # type: ignore[arg-type]
@@ -198,7 +198,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
             path,
             filesystem=filesystem,
             dataset_uuid=dataset_uuid,
-            block=block,
+            block=block,  # type: ignore[arg-type]
             block_index=ctx.task_idx,
             file_format=file_suffix,
         )
@@ -211,7 +211,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     def _write_block(
         self,
         f: "pyarrow.NativeFile",
-        block: BlockAccessor,
+        block: BlockAccessor,  # type: ignore[type-arg]
         writer_args_fn: Callable[[], Dict[str, Any]] = lambda: {},
         **writer_args: Any,
     ) -> None:

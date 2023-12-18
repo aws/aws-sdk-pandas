@@ -72,7 +72,7 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
     def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed
         self,
         f: io.TextIOWrapper,
-        block: BlockAccessor,
+        block: BlockAccessor,  # type: ignore[type-arg]
         pandas_kwargs: Optional[Dict[str, Any]],
         **writer_args: Any,
     ) -> None:
