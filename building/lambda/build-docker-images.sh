@@ -39,6 +39,7 @@ docker build \
   --pull \
   --tag awswrangler-build-py312 \
   --build-arg base_image=public.ecr.aws/lambda/python:3.12 \
+  --file Dockerfile.py312 \
   .
 
 rm -rf pyproject.toml poetry.lock
