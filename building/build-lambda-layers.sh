@@ -14,37 +14,37 @@ pushd lambda
 # Building all related docker images
 ./build-docker-images.sh
 
-# # Python 3.8
-# docker run \
-#   --volume "$DIR_NAME":/aws-sdk-pandas/ \
-#   --workdir /aws-sdk-pandas/building/lambda \
-#   --rm \
-#   awswrangler-build-py38 \
-#   build-lambda-layer.sh "${VERSION}-py3.8${ARCH_SUFFIX}" "ninja-build"
+# Python 3.8
+docker run \
+  --volume "$DIR_NAME":/aws-sdk-pandas/ \
+  --workdir /aws-sdk-pandas/building/lambda \
+  --rm \
+  awswrangler-build-py38 \
+  build-lambda-layer.sh "${VERSION}-py3.8${ARCH_SUFFIX}" "ninja-build"
 
-# # Python 3.9
-# docker run \
-#   --volume "$DIR_NAME":/aws-sdk-pandas/ \
-#   --workdir /aws-sdk-pandas/building/lambda \
-#   --rm \
-#   awswrangler-build-py39 \
-#   build-lambda-layer.sh "${VERSION}-py3.9${ARCH_SUFFIX}" "ninja-build"
+# Python 3.9
+docker run \
+  --volume "$DIR_NAME":/aws-sdk-pandas/ \
+  --workdir /aws-sdk-pandas/building/lambda \
+  --rm \
+  awswrangler-build-py39 \
+  build-lambda-layer.sh "${VERSION}-py3.9${ARCH_SUFFIX}" "ninja-build"
 
-# # Python 3.10
-# docker run \
-#   --volume "$DIR_NAME":/aws-sdk-pandas/ \
-#   --workdir /aws-sdk-pandas/building/lambda \
-#   --rm \
-#   awswrangler-build-py310 \
-#   build-lambda-layer.sh "${VERSION}-py3.10${ARCH_SUFFIX}" "ninja-build"
+# Python 3.10
+docker run \
+  --volume "$DIR_NAME":/aws-sdk-pandas/ \
+  --workdir /aws-sdk-pandas/building/lambda \
+  --rm \
+  awswrangler-build-py310 \
+  build-lambda-layer.sh "${VERSION}-py3.10${ARCH_SUFFIX}" "ninja-build"
 
-# # Python 3.11
-# docker run \
-#   --volume "$DIR_NAME":/aws-sdk-pandas/ \
-#   --workdir /aws-sdk-pandas/building/lambda \
-#   --rm \
-#   awswrangler-build-py311 \
-#   build-lambda-layer.sh "${VERSION}-py3.11${ARCH_SUFFIX}" "ninja-build"
+# Python 3.11
+docker run \
+  --volume "$DIR_NAME":/aws-sdk-pandas/ \
+  --workdir /aws-sdk-pandas/building/lambda \
+  --rm \
+  awswrangler-build-py311 \
+  build-lambda-layer.sh "${VERSION}-py3.11${ARCH_SUFFIX}" "ninja-build"
 
 # Python 3.12
 docker run \
