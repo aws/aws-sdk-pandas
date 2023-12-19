@@ -163,8 +163,8 @@ class OpenSearchStack(Stack):  # type: ignore
             ),
         )
 
-        self.cfn_collection.add_depends_on(cfn_encryption_policy)
-        self.cfn_collection.add_depends_on(cfn_network_policy)
+        self.cfn_collection.add_dependency(cfn_encryption_policy)
+        self.cfn_collection.add_dependency(cfn_network_policy)
 
         CfnOutput(
             self,

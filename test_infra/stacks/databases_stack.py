@@ -370,7 +370,6 @@ class DatabasesStack(Stack):  # type: ignore
                 version=rds.AuroraPostgresEngineVersion.VER_13_7,
             ),
             cluster_identifier="postgresql-cluster-sdk-pandas",
-            instances=1,
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
                 password=self.db_password_secret,
@@ -380,11 +379,12 @@ class DatabasesStack(Stack):  # type: ignore
             parameter_group=pg,
             s3_import_buckets=[self.bucket],
             s3_export_buckets=[self.bucket],
-            instance_props=rds.InstanceProps(
-                vpc=self.vpc,
+            writer=rds.ClusterInstance.provisioned(
+                id="Instance1",
                 publicly_accessible=self.publicly_accessible,
-                security_groups=[self.db_security_group],
             ),
+            vpc=self.vpc,
+            security_groups=[self.db_security_group],
             subnet_group=self.rds_subnet_group,
         )
         glue.Connection(
@@ -451,7 +451,6 @@ class DatabasesStack(Stack):  # type: ignore
                 version=rds.AuroraMysqlEngineVersion.VER_2_10_2,
             ),
             cluster_identifier="mysql-cluster-sdk-pandas",
-            instances=1,
             default_database_name=database,
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
@@ -459,14 +458,15 @@ class DatabasesStack(Stack):  # type: ignore
             ),
             port=port,
             backup=rds.BackupProps(retention=Duration.days(1)),
-            instance_props=rds.InstanceProps(
-                vpc=self.vpc,
-                publicly_accessible=self.publicly_accessible,
-                security_groups=[self.db_security_group],
-            ),
-            subnet_group=self.rds_subnet_group,
             s3_import_buckets=[self.bucket],
             s3_export_buckets=[self.bucket],
+            writer=rds.ClusterInstance.provisioned(
+                id="Instance1",
+                publicly_accessible=self.publicly_accessible,
+            ),
+            vpc=self.vpc,
+            security_groups=[self.db_security_group],
+            subnet_group=self.rds_subnet_group,
         )
         glue.Connection(
             self,
