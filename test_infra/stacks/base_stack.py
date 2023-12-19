@@ -18,7 +18,7 @@ class BaseStack(Stack):  # type: ignore
         self.vpc = ec2.Vpc(
             self,
             "aws-sdk-pandas-vpc",
-            cidr="11.19.224.0/19",
+            ip_addresses=ec2.IpAddresses.cidr("11.19.224.0/19"),
             enable_dns_hostnames=True,
             enable_dns_support=True,
             gateway_endpoints={
