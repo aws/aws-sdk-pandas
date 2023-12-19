@@ -86,6 +86,7 @@ pip3 install . -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyx
 rm -rf python/pyarrow*
 rm -rf python/boto*
 rm -rf python/urllib3*
+rm -rf python/s3transfer*
 
 cp -r /aws-sdk-pandas/dist/pyarrow_files/pyarrow* python/
 
