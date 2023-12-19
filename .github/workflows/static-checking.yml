@@ -33,7 +33,7 @@ jobs:
           python -m pip install poetry
           poetry config virtualenvs.create false --local
           poetry install --all-extras -vvv
-      - name: Install Requirements
+      - name: Install Requirements  # Until Ray supports Python 3.12, we need to skip MyPy and PyLint checks
         if: ${{ matrix.python-version == '3.12' }}
         run: |
           python -m pip install --upgrade pip
