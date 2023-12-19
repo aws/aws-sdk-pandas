@@ -29,7 +29,7 @@ def _block_to_df(
     return _table_to_df(table=block._table, kwargs=to_pandas_kwargs)  # pylint: disable=protected-access
 
 
-def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset:  # type: ignore[type-arg]
+def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset:
     """Create Ray dataset from supported types of data frames."""
     if isinstance(df, modin_pd.DataFrame):
         return from_modin(df)  # type: ignore[no-any-return]
@@ -39,7 +39,7 @@ def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset
 
 
 def _to_modin(
-    dataset: Dataset,  # type: ignore[type-arg]
+    dataset: Dataset,
     to_pandas_kwargs: Optional[Dict[str, Any]] = None,
     ignore_index: Optional[bool] = True,
 ) -> modin_pd.DataFrame:
