@@ -36,7 +36,7 @@ jobs:
         run: black --check .
       - name: ruff check
         run: |
-          ruff . --ignore "PL" --ignore "D"
+          ruff . --ignore "PL" --ignore "D" --ignore "RUF" --ignore "PD"
           ruff awswrangler
       - name: mypy check
         run: mypy --install-types --non-interactive awswrangler
