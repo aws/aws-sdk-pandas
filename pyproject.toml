@@ -158,9 +158,9 @@ extend_exclude = '''
 '''
 
 [tool.ruff]
-select = ["D", "E", "F", "I001", "I002", "PL", "W", "PD"]
-ignore = ["E501", "PLR2004", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PD901"]
-fixable = ["I001"]
+select = ["D", "E", "F", "I001", "I002", "PL", "W", "PD", "RUF"]
+ignore = ["E501", "PLR2004", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PD901", "RUF002", "RUF015"]
+fixable = ["I001", "I002", "RUF100", "RUF010"]
 exclude = [
     ".eggs",
     ".git",

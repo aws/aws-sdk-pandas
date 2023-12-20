@@ -34,9 +34,9 @@ def _build_partition_predicate(
     partition_predicates: List[str] = []
     for col, val in zip(partition_cols, partitions_values):
         if partitions_types[col].startswith(("tinyint", "smallint", "int", "bigint", "float", "double", "decimal")):
-            partition_predicates.append(f"{col}={str(val)}")
+            partition_predicates.append(f"{col}={val!s}")
         else:
-            partition_predicates.append(f"{col}='{str(val)}'")
+            partition_predicates.append(f"{col}='{val!s}'")
     return " AND ".join(partition_predicates)
 
 

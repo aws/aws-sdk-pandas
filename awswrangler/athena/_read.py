@@ -40,7 +40,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 @_utils.check_optional_dependency(shapely_wkt, "shapely")
 @_utils.check_optional_dependency(geopandas, "geopandas")
-def _cast_geometry(df: pd.DataFrame, parse_geometry: List[str] = None):
+def _cast_geometry(df: pd.DataFrame, parse_geometry: Optional[List[str]] = None):
     def load_geom_wkt(x):
         """Load geometry from well-known text."""
         return shapely_wkt.loads(x)
@@ -166,7 +166,7 @@ def _fetch_parquet_result(
         ret = _apply_query_metadata(df=ret, query_metadata=query_metadata)
     else:
         ret = _add_query_metadata_generator(dfs=ret, query_metadata=query_metadata)
-    paths_delete: List[str] = paths + [manifest_path, metadata_path]
+    paths_delete: List[str] = [*paths, manifest_path, metadata_path]
     if chunked is False:
         if keep_files is False:
             s3.delete_objects(

@@ -132,8 +132,8 @@ def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...],
     args: List[Any] = [sql]
     if params is not None:
         if hasattr(params, "keys"):
-            return args + [params]
-        return args + [list(params)]
+            return [*args, params]
+        return [*args, params]
     return args
 
 

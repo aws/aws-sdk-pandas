@@ -52,7 +52,7 @@ def _get_path_ignore_suffix(path_ignore_suffix: Union[str, List[str], None]) -> 
     elif path_ignore_suffix is None:
         path_ignore_suffix = ["/_SUCCESS"]
     else:
-        path_ignore_suffix = path_ignore_suffix + ["/_SUCCESS"]
+        path_ignore_suffix = [*path_ignore_suffix, "/_SUCCESS"]
     return path_ignore_suffix
 
 

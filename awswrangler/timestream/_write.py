@@ -330,7 +330,7 @@ def write(
         _data_types.timestream_type_from_pandas(df.loc[:, measure_cols]) if all(measure_cols) else []
     )
     dimensions_cols = dimensions_cols if dimensions_cols else [dimensions_cols]  # type: ignore[list-item]
-    cols_names: List[Optional[str]] = [time_col] + measure_cols + dimensions_cols
+    cols_names: List[Optional[str]] = [time_col, *measure_cols, *dimensions_cols]
     measure_name = measure_name if measure_name else measure_cols[0]
     common_attributes = _sanitize_common_attributes(common_attributes, version, time_unit, measure_name)
 

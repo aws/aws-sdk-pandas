@@ -2,4 +2,4 @@
 set -ex
 
 black .
-ruff --fix --select "I001" --select "I002" awswrangler
+ruff --fix awswrangler

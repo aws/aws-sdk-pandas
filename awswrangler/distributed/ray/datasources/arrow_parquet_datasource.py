@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 import numpy as np
 
 # fs required to implicitly trigger S3 subsystem initialization
-import pyarrow.fs  # noqa: F401 pylint: disable=unused-import
+import pyarrow.fs  # pylint: disable=unused-import
 from pyarrow.dataset import ParquetFileFragment
 from pyarrow.lib import Schema
 from ray import cloudpickle
@@ -246,7 +246,7 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
             _handle_read_os_error(e, paths)
         except pyarrow.ArrowInvalid as ex:
             if "Parquet file size is 0 bytes" in str(ex):
-                raise exceptions.InvalidFile(f"Invalid Parquet file. {str(ex)}")
+                raise exceptions.InvalidFile(f"Invalid Parquet file. {ex!s}")
             raise
         self._pq_ds = pq_ds
         self._meta_provider = meta_provider

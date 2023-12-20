@@ -2,7 +2,7 @@
 set -ex
 
 black --check .
-ruff . --ignore "PL" --ignore "D"
+ruff . --ignore "PL" --ignore "D" --ignore "RUF" --ignore "PD"
 ruff awswrangler
 mypy --install-types --non-interactive awswrangler
 pylint -j 0 --disable=all --enable=R0911,R0912,R0913,R0915 awswrangler

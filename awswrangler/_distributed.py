@@ -9,7 +9,7 @@ from collections import defaultdict
 from enum import Enum, unique
 from functools import wraps
 from importlib import reload
-from typing import Any, Callable, Dict, Literal, Optional, TypeVar, cast
+from typing import Any, Callable, ClassVar, Dict, Literal, Optional, TypeVar, cast
 
 EngineLiteral = Literal["python", "ray"]
 MemoryFormatLiteral = Literal["pandas", "modin"]
@@ -42,7 +42,7 @@ class Engine:
 
     _engine: Optional[EngineEnum] = EngineEnum[WR_ENGINE.upper()] if WR_ENGINE else None
     _initialized_engine: Optional[EngineEnum] = None
-    _registry: Dict[EngineLiteral, Dict[str, Callable[..., Any]]] = defaultdict(dict)
+    _registry: ClassVar[Dict[EngineLiteral, Dict[str, Callable[..., Any]]]] = defaultdict(dict)
     _lock: threading.RLock = threading.RLock()
 
     @classmethod

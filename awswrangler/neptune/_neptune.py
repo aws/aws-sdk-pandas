@@ -260,10 +260,10 @@ def to_rdf_graph(
         # build up a query
         if is_quads:
             insert = f"""INSERT DATA {{ GRAPH <{row[graph_column]}> {{<{row[subject_column]}>
-                    <{str(row[predicate_column])}> <{row[object_column]}> . }} }}; """
+                    <{row[predicate_column]!s}> <{row[object_column]}> . }} }}; """
             query = query + insert
         else:
-            insert = f"""INSERT DATA {{ <{row[subject_column]}> <{str(row[predicate_column])}>
+            insert = f"""INSERT DATA {{ <{row[subject_column]}> <{row[predicate_column]!s}>
                     <{row[object_column]}> . }}; """
             query = query + insert
         # run the query

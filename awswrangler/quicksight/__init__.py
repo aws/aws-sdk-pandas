@@ -1,8 +1,8 @@
 """Amazon QuickSight Module."""
 
-from awswrangler.quicksight._cancel import cancel_ingestion  # noqa
-from awswrangler.quicksight._create import create_athena_data_source, create_athena_dataset, create_ingestion  # noqa
-from awswrangler.quicksight._delete import (  # noqa
+from awswrangler.quicksight._cancel import cancel_ingestion
+from awswrangler.quicksight._create import create_athena_data_source, create_athena_dataset, create_ingestion
+from awswrangler.quicksight._delete import (
     delete_all_dashboards,
     delete_all_data_sources,
     delete_all_datasets,
@@ -12,14 +12,14 @@ from awswrangler.quicksight._delete import (  # noqa
     delete_dataset,
     delete_template,
 )
-from awswrangler.quicksight._describe import (  # noqa
+from awswrangler.quicksight._describe import (
     describe_dashboard,
     describe_data_source,
     describe_data_source_permissions,
     describe_dataset,
     describe_ingestion,
 )
-from awswrangler.quicksight._get_list import (  # noqa
+from awswrangler.quicksight._get_list import (
     get_dashboard_id,
     get_dashboard_ids,
     get_data_source_arn,
