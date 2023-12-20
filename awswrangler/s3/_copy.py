@@ -39,7 +39,7 @@ def _copy_objects(
             CopySource=copy_source,
             Bucket=target_bucket,
             Key=target_key,
-            ExtraArgs=s3_additional_kwargs,  # type: ignore[arg-type]
+            ExtraArgs=s3_additional_kwargs,
             Config=TransferConfig(num_download_attempts=10, use_threads=use_threads),  # type: ignore[arg-type]
         )
 

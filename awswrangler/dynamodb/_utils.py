@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from mypy_boto3_dynamodb.type_defs import (
         AttributeValueTypeDef,
         ExecuteStatementOutputTypeDef,
-        KeySchemaElementTableTypeDef,
+        KeySchemaElementTypeDef,
         WriteRequestTypeDef,
     )
 
@@ -180,7 +180,7 @@ def execute_statement(
 
 
 def _validate_items(
-    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], key_schema: List["KeySchemaElementTableTypeDef"]
+    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], key_schema: List["KeySchemaElementTypeDef"]
 ) -> None:
     """
     Validate if all items have the required keys for the Amazon DynamoDB table.

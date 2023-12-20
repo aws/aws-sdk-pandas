@@ -27,7 +27,7 @@ def _validate_partition_shape(df: pd.DataFrame) -> bool:
     """
     # Unwrap partitions as they are currently stored (axis=None)
     partitions_shape = np.array(unwrap_partitions(df)).shape
-    return partitions_shape[1] == 1
+    return partitions_shape[1] == 1  # type: ignore[no-any-return,unused-ignore]
 
 
 FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])

@@ -663,6 +663,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
 
         By default, adds log4j config as follows:
         `{"Classification": "spark-log4j", "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"}}`
+
     Returns
     -------
     str

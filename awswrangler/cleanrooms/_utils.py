@@ -29,6 +29,7 @@ def wait_query(
         Protected query execution ID
     boto3_session : boto3.Session, optional
         Boto3 Session. If None, the default boto3 session is used
+
     Returns
     -------
     Dict[str, Any]

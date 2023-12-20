@@ -16,7 +16,7 @@ from awswrangler.typing import AthenaCacheSettings
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_ConfigValueType = Union[str, bool, int, float, botocore.config.Config, dict]
+_ConfigValueType = Union[str, bool, int, float, botocore.config.Config, Dict[Any, Any]]
 
 
 class _ConfigArg(NamedTuple):

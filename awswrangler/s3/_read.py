@@ -325,7 +325,7 @@ def _ensure_locations_are_valid(paths: Iterable[str]) -> Iterator[str]:
         # If the suffix looks like a partition,
         if suffix and (suffix.count("=") == 1):
             # the path should end in a '/' character.
-            path = f"{path}/"  # ruff: noqa: PLW2901
+            path = f"{path}/"  # noqa: PLW2901
         yield path
 
 

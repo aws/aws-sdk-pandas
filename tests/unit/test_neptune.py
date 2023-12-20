@@ -130,10 +130,10 @@ def test_gremlin_query_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
 
     wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{uuid.uuid4()}')")
     df = wr.neptune.execute_gremlin(client, "g.V().limit(1)")
-    assert df.shape == (1, 2)
+    assert df.shape == (1, 3)
 
     df = wr.neptune.execute_gremlin(client, "g.V().limit(2)")
-    assert df.shape == (2, 2)
+    assert df.shape == (2, 3)
 
 
 def test_gremlin_query_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
@@ -141,10 +141,10 @@ def test_gremlin_query_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
     wr.neptune.execute_gremlin(client, "g.addE('bar').from(addV('foo')).to(addV('foo'))")
     df = wr.neptune.execute_gremlin(client, "g.E().limit(1)")
-    assert df.shape == (1, 4)
+    assert df.shape == (1, 5)
 
     df = wr.neptune.execute_gremlin(client, "g.E().limit(2)")
-    assert df.shape == (2, 4)
+    assert df.shape == (2, 5)
 
 
 def test_gremlin_query_no_results(neptune_endpoint, neptune_port) -> Dict[str, Any]:

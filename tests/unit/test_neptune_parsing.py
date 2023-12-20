@@ -26,9 +26,10 @@ def test_parse_gremlin_vertex_elements(gremlin_parser):
     out = gremlin_parser.gremlin_results_to_dict(input)
     df = pd.DataFrame.from_records(out)
     row = df.iloc[0]
-    assert df.shape == (1, 2)
+    assert df.shape == (1, 3)
     assert row["id"] == "foo"
     assert row["label"] == "vertex"
+    assert row["properties"] is None
 
     # parse multiple vertex elements
     v1 = Vertex("bar")
@@ -36,9 +37,10 @@ def test_parse_gremlin_vertex_elements(gremlin_parser):
     out = gremlin_parser.gremlin_results_to_dict(input)
     df = pd.DataFrame.from_records(out)
     row = df.iloc[1]
-    assert df.shape == (2, 2)
+    assert df.shape == (2, 3)
     assert row["id"] == "bar"
     assert row["label"] == "vertex"
+    assert row["properties"] is None
 
 
 # parse Edge elements
@@ -49,11 +51,12 @@ def test_parse_gremlin_edge_elements(gremlin_parser):
     out = gremlin_parser.gremlin_results_to_dict(input)
     df = pd.DataFrame.from_records(out)
     row = df.iloc[0]
-    assert df.shape == (1, 4)
+    assert df.shape == (1, 5)
     assert row["id"] == "foo"
     assert row["outV"] == "out1"
     assert row["label"] == "label"
     assert row["inV"] == "in1"
+    assert row["properties"] is None
 
     # parse multiple edge elements
     v1 = Edge("bar", "out1", "label", "in2")
@@ -61,11 +64,12 @@ def test_parse_gremlin_edge_elements(gremlin_parser):
     out = gremlin_parser.gremlin_results_to_dict(input)
     df = pd.DataFrame.from_records(out)
     row = df.iloc[1]
-    assert df.shape == (2, 4)
+    assert df.shape == (2, 5)
     assert row["id"] == "bar"
     assert row["outV"] == "out1"
     assert row["label"] == "label"
     assert row["inV"] == "in2"
+    assert row["properties"] is None
 
 
 # parse Property elements
@@ -76,12 +80,13 @@ def test_parse_gremlin_property_elements(gremlin_parser):
     out = gremlin_parser.gremlin_results_to_dict(input)
     df = pd.DataFrame.from_records(out)
     row = df.iloc[0]
-    assert df.shape == (1, 5)
+    assert df.shape == (1, 6)
     assert row["id"] == "foo"
     assert row["label"] == "name"
     assert row["value"] == "bar"
     assert row["key"] == "name"
     assert row["vertex"] == "v1"
+    assert row["properties"] is None
 
     v = Property("foo", "name", "bar")
     input = [v]
@@ -105,9 +110,9 @@ def test_parse_gremlin_path_elements(gremlin_parser):
     df = pd.DataFrame.from_records(out)
     row = df.iloc[0]
     assert df.shape == (1, 3)
-    assert row[0] == {"id": "foo", "label": "vertex"}
-    assert row[1] == {"id": "e1", "label": "label", "outV": "foo", "inV": "bar"}
-    assert row[2] == {"id": "bar", "label": "vertex"}
+    assert row[0] == {"id": "foo", "label": "vertex", "properties": None}
+    assert row[1] == {"id": "e1", "label": "label", "outV": "foo", "inV": "bar", "properties": None}
+    assert row[2] == {"id": "bar", "label": "vertex", "properties": None}
 
     # parse path with multiple elements
     e2 = Edge("bar", "out1", "label", "in2")
@@ -117,9 +122,9 @@ def test_parse_gremlin_path_elements(gremlin_parser):
     df = pd.DataFrame.from_records(out)
     row = df.iloc[1]
     assert df.shape == (2, 3)
-    assert row[0] == {"id": "bar", "label": "vertex"}
-    assert row[1] == {"id": "bar", "label": "label", "outV": "out1", "inV": "in2"}
-    assert row[2] == {"id": "in2", "label": "vertex"}
+    assert row[0] == {"id": "bar", "label": "vertex", "properties": None}
+    assert row[1] == {"id": "bar", "label": "label", "outV": "out1", "inV": "in2", "properties": None}
+    assert row[2] == {"id": "in2", "label": "vertex", "properties": None}
 
     # parse path with maps
     p = Path(
@@ -147,7 +152,7 @@ def test_parse_gremlin_path_elements(gremlin_parser):
     assert df.shape == (1, 3)
     assert row[0]["name"] == "foo"
     assert row[0]["age"] == 29
-    assert row[1] == {"id": "bar", "label": "label", "outV": "out1", "inV": "in2"}
+    assert row[1] == {"id": "bar", "label": "label", "outV": "out1", "inV": "in2", "properties": None}
     assert row[2]["name"] == "bar"
     assert row[2]["age"] == 40
 

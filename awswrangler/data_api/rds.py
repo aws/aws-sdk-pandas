@@ -165,7 +165,7 @@ class RdsDataApi(_connector.DataApiConnector):
         def function(sql: str) -> "ExecuteStatementResponseTypeDef":
             return self.client.execute_statement(
                 resourceArn=self.resource_arn,
-                database=database,  # type: ignore[arg-type]
+                database=database,
                 sql=sql,
                 secretArn=self.secret_arn,
                 includeResultMetadata=True,
@@ -196,7 +196,7 @@ class RdsDataApi(_connector.DataApiConnector):
         def function(sql: str) -> "BatchExecuteStatementResponseTypeDef":
             return self.client.batch_execute_statement(
                 resourceArn=self.resource_arn,
-                database=database,  # type: ignore[arg-type]
+                database=database,
                 sql=sql,
                 secretArn=self.secret_arn,
                 **additional_kwargs,
@@ -363,7 +363,7 @@ def _generate_parameters(columns: List[str], values: List[Any]) -> List[Dict[str
     parameter_list = []
 
     for col, value in zip(columns, values):
-        value, type_hint = _create_value_dict(value)  # ruff: noqa: PLW2901
+        value, type_hint = _create_value_dict(value)  # noqa: PLW2901
 
         parameter = {
             "name": col,

@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, TypedDict, Union, cast
 import boto3
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSPreparedRequest, AWSRequest
+from botocore.credentials import Credentials
 from typing_extensions import Literal, NotRequired
 
 import awswrangler.neptune._gremlin_init as gremlin
@@ -126,7 +127,7 @@ class NeptuneClient:
     ) -> Union[AWSRequest, AWSPreparedRequest]:
         req = AWSRequest(method=method, url=url, data=data, params=params, headers=headers)
         if self.iam_enabled:
-            credentials = self.boto3_session.get_credentials()
+            credentials: Credentials = self.boto3_session.get_credentials()  # type: ignore[assignment]
             try:
                 frozen_creds = credentials.get_frozen_credentials()
             except AttributeError:

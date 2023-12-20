@@ -119,7 +119,7 @@ class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abs
 # raw pyarrow file fragment causes S3 network calls.
 class _SerializedPiece:
     def __init__(self, frag: ParquetFileFragment):
-        self._data = cloudpickle.dumps(  # type: ignore[attr-defined]
+        self._data = cloudpickle.dumps(  # type: ignore[attr-defined,no-untyped-call]
             (frag.format, frag.path, frag.filesystem, frag.partition_expression)
         )
 

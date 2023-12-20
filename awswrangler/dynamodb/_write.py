@@ -20,7 +20,7 @@ from ._utils import _serialize_item, _TableBatchWriter, _validate_items
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.client import DynamoDBClient
-    from mypy_boto3_dynamodb.type_defs import KeySchemaElementTableTypeDef
+    from mypy_boto3_dynamodb.type_defs import KeySchemaElementTypeDef
 
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -139,7 +139,7 @@ def _put_df(
     dynamodb_client: Optional["DynamoDBClient"],
     df: pd.DataFrame,
     table_name: str,
-    key_schema: List["KeySchemaElementTableTypeDef"],
+    key_schema: List["KeySchemaElementTypeDef"],
 ) -> None:
     items: List[Mapping[str, Any]] = [v.dropna().to_dict() for _, v in df.iterrows()]
 
@@ -214,7 +214,7 @@ def _put_items(
     dynamodb_client: Optional["DynamoDBClient"],
     items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]],
     table_name: str,
-    key_schema: List["KeySchemaElementTableTypeDef"],
+    key_schema: List["KeySchemaElementTypeDef"],
 ) -> None:
     _logger.debug("Inserting %d items", len(items))
     _validate_items(items=items, key_schema=key_schema)

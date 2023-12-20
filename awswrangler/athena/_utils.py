@@ -197,7 +197,7 @@ def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
     origin_df_dict = df.to_dict()
     target_df_dict: Dict[str, List[Union[str, bool]]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
     for index, col_name in origin_df_dict["col_name"].items():
-        col_name = col_name.strip()  # ruff: noqa: PLW2901
+        col_name = col_name.strip()  # noqa: PLW2901
         if col_name.startswith("#") or not col_name:
             pass
         elif col_name in target_df_dict["Column Name"]:
