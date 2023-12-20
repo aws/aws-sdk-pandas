@@ -381,7 +381,7 @@ def _generate_parameter_sets(df: pd.DataFrame) -> List[List[Dict[str, Any]]]:
     parameter_sets = []
 
     columns = df.columns.tolist()
-    for values in df.values.tolist():
+    for values in df.to_numpy().tolist():
         parameter_sets.append(_generate_parameters(columns, values))
 
     return parameter_sets

@@ -190,7 +190,7 @@ def _records2df(
             timestamp_as_object=timestamp_as_object,
         )
     if index is not None:
-        df.set_index(index, inplace=True)
+        df = df.set_index(index)
     return df
 
 
@@ -369,7 +369,7 @@ def generate_placeholder_parameter_pairs(
 
         return value
 
-    parameters = df.values.tolist()
+    parameters = df.to_numpy().tolist()
     for i in range(0, len(df.index), chunksize):
         parameters_chunk = parameters[i : i + chunksize]
         chunk_placeholders = ", ".join([f"({column_placeholders})" for _ in range(len(parameters_chunk))])

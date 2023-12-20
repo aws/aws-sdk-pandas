@@ -582,7 +582,7 @@ def to_sql(
                 varchar_lengths=varchar_lengths,
             )
             if index:
-                df.reset_index(level=df.index.names, inplace=True)
+                df = df.reset_index(level=df.index.names)
             column_placeholders: str = ", ".join(["%s"] * len(df.columns))
             column_names = [pg8000_native.identifier(column) for column in df.columns]
             insertion_columns = ""

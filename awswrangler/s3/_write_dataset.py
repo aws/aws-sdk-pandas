@@ -151,10 +151,9 @@ def _to_partitions(
         # Keys are either a primitive type or a tuple if partitioning by multiple cols
         keys = (keys,) if not isinstance(keys, tuple) else keys  # noqa: PLW2901
         # Drop partition columns from df
-        subgroup.drop(
+        subgroup = subgroup.drop(  # noqa: PLW2901
             columns=[col for col in partition_cols if col in subgroup.columns],
-            inplace=True,
-        )  # noqa: PLW2901
+        )
         # Drop index levels if partitioning by index columns
         subgroup = subgroup.droplevel(  # noqa: PLW2901
             level=[col for col in partition_cols if col in subgroup.index.names]

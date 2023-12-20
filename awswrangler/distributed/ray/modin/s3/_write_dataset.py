@@ -47,7 +47,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
         bucketing=True,
         **func_kwargs,
     )
-    for df_path in df_paths.values:
+    for df_path in df_paths.values:  # noqa: PD011
         # The value in df_path can be a string, a list of string, or a list of lists of strings
         row_paths = list(_retrieve_paths(df_path))
         paths.extend(row_paths)
@@ -194,10 +194,10 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
         boto3_session=None,
         **func_kwargs,
     )
-    paths = [path for metadata in df_write_metadata.values for _, _, paths in metadata for path in paths]
+    paths = [path for metadata in df_write_metadata.values for _, _, paths in metadata for path in paths]  # noqa: PD011
     partitions_values = {
         prefix: list(str(p) for p in partitions) if isinstance(partitions, tuple) else [str(partitions)]
-        for metadata in df_write_metadata.values
+        for metadata in df_write_metadata.values  # noqa: PD011
         for prefix, partitions, _ in metadata
     }
     return paths, partitions_values

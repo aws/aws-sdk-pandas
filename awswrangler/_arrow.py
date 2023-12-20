@@ -52,7 +52,7 @@ def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
     """Ensure that all columns has the writeable flag True."""
     for column in df.columns.to_list():
         if hasattr(df[column].values, "flags") is True:
-            if df[column].values.flags.writeable is False:
+            if df[column].values.flags.writeable is False:  # noqa: PD011
                 s: pd.Series = df[column]
                 df[column] = None
                 df[column] = s

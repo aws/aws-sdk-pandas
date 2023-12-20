@@ -163,7 +163,7 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     if len(names) == len(set_names):
         return df
     d = {key: [name + f"_{i}" if i > 0 else name for i, name in enumerate(names[names == key])] for key in set_names}
-    df.rename(columns=lambda c: d[c].pop(0), inplace=True)
+    df = df.rename(columns=lambda c: d[c].pop(0))
     while df.columns.duplicated().any():
         # Catches edge cases where pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [5, 6]})
         df = rename_duplicated_columns(df)
@@ -295,10 +295,10 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     duplicated = df.columns.duplicated()
     if duplicated.any():
         _logger.warning("Dropping duplicated columns...")
-        columns = df.columns.values
+        columns = df.columns.array
         columns[duplicated] = "AWSWranglerDuplicatedMarker"
         df.columns = columns
-        df.drop(columns="AWSWranglerDuplicatedMarker", inplace=True)
+        df = df.drop(columns="AWSWranglerDuplicatedMarker")
     return df
 
 
