@@ -41,17 +41,13 @@ def moto_subnet_id() -> str:
 
         vpc_id = ec2_client.create_vpc(
             CidrBlock="10.0.0.0/16",
-        )[
-            "Vpc"
-        ]["VpcId"]
+        )["Vpc"]["VpcId"]
 
         subnet_id = ec2_client.create_subnet(
             VpcId=vpc_id,
             CidrBlock="10.0.0.0/24",
             AvailabilityZone="us-west-1a",
-        )[
-            "Subnet"
-        ]["SubnetId"]
+        )["Subnet"]["SubnetId"]
 
         yield subnet_id
 

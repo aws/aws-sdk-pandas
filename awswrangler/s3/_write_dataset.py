@@ -20,7 +20,8 @@ def _get_bucketing_series(df: pd.DataFrame, bucketing_info: typing.BucketingInfo
     bucket_number_series = (
         df[bucketing_info[0]]
         # Prevent "upcasting" mixed types by casting to object
-        .astype("O").apply(
+        .astype("O")
+        .apply(
             lambda row: _get_bucket_number(bucketing_info[1], [row[col_name] for col_name in bucketing_info[0]]),
             axis="columns",
         )
@@ -329,9 +330,7 @@ def _to_dataset(
     _logger.debug("Wrote %s paths", len(paths))
     _logger.debug("Created partitions_values: %s", partitions_values)
     if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-        list_add_objects: List[
-            List[Dict[str, Any]]
-        ] = lakeformation._build_table_objects(  # pylint: disable=protected-access
+        list_add_objects: List[List[Dict[str, Any]]] = lakeformation._build_table_objects(  # pylint: disable=protected-access
             paths, partitions_values, use_threads=use_threads, boto3_session=boto3_session
         )
         try:
