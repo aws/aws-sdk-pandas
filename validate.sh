@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-black --check .
+ruff format --check .
 ruff . --ignore "PL" --ignore "D"
 ruff awswrangler
 mypy --install-types --non-interactive awswrangler

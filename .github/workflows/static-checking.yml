@@ -32,8 +32,8 @@ jobs:
           python -m pip install poetry
           poetry config virtualenvs.create false --local
           poetry install --all-extras -vvv
-      - name: Black style
-        run: black --check .
+      - name: ruff format
+        run: ruff format --check .
       - name: ruff check
         run: |
           ruff . --ignore "PL" --ignore "D"
