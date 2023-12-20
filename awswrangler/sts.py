@@ -1,9 +1,8 @@
 """STS module."""
 
+import boto3
 import logging
 from typing import Optional
-
-import boto3
 
 from awswrangler import _utils
 

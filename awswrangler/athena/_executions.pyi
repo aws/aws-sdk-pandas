@@ -19,7 +19,7 @@ def start_query_execution(
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
     encryption: Optional[str] = ...,
-    kms_key: Optional[str] = ...,   
+    kms_key: Optional[str] = ...,
     params: Union[Dict[str, Any], List[str], None] = ...,
     paramstyle: Literal["qmark", "named"] = ...,
     boto3_session: Optional[boto3.Session] = ...,
