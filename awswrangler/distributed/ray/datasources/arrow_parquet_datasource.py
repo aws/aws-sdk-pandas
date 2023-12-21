@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 import numpy as np
 
 # fs required to implicitly trigger S3 subsystem initialization
-import pyarrow.fs  # noqa: F401 pylint: disable=unused-import
+import pyarrow.fs  # pylint: disable=unused-import
 from pyarrow.dataset import ParquetFileFragment
 from pyarrow.lib import Schema
 from ray import cloudpickle

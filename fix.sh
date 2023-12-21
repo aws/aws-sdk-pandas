@@ -2,4 +2,4 @@
 set -ex
 
 ruff format .
-ruff --fix awswrangler
+ruff check --fix .

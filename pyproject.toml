@@ -132,9 +132,9 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
-select = ["D", "E", "F", "I001", "I002", "PL", "W"]
+select = ["D", "E", "F", "I", "PL", "RUF100", "W"]
 ignore = ["E501", "PLR2004", "PLR0911", "PLR0912", "PLR0913", "PLR0915"]
-fixable = ["I001", "I002", "W291"]
+fixable = ["ALL"]
 extend-include = ["*.ipynb"]
 exclude = [
     ".eggs",
@@ -152,14 +152,17 @@ exclude = [
 line-length = 120
 target-version = "py38"
 
-[tool.ruff.lint]
-exclude = ["*.ipynb"]
+[tool.ruff.lint.per-file-ignores]
+"docs/*" = ["D"]
+"test_infra/*" = ["D"]
+"tests/*" = ["PL", "D"]
+"tutorials/*" = ["D", "E402", "F401", "F811", "F821"]
 
 [tool.ruff.pydocstyle]
 convention = "numpy"
 
 [tool.mypy]
-python_version = 3.8
+python_version = "3.8"
 strict = true
 ignore_missing_imports = true
 warn_unused_ignores = true

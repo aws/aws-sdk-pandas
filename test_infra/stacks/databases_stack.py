@@ -139,11 +139,11 @@ class DatabasesStack(Stack):  # type: ignore
             self,
             "aws-sdk-pandas-catalog-encryption",
             catalog_id=f"{Aws.ACCOUNT_ID}",
-            data_catalog_encryption_settings=CfnDataCatalogEncryptionSettings.DataCatalogEncryptionSettingsProperty(  # noqa: E501
+            data_catalog_encryption_settings=CfnDataCatalogEncryptionSettings.DataCatalogEncryptionSettingsProperty(
                 encryption_at_rest=CfnDataCatalogEncryptionSettings.EncryptionAtRestProperty(
                     catalog_encryption_mode="DISABLED",
                 ),
-                connection_password_encryption=CfnDataCatalogEncryptionSettings.ConnectionPasswordEncryptionProperty(  # noqa: E501
+                connection_password_encryption=CfnDataCatalogEncryptionSettings.ConnectionPasswordEncryptionProperty(
                     kms_key_id=self.key.key_id,
                     return_connection_password_encrypted=True,
                 ),
@@ -270,7 +270,7 @@ class DatabasesStack(Stack):  # type: ignore
             type=glue.ConnectionType.JDBC,
             connection_name="aws-sdk-pandas-redshift",
             properties={
-                "JDBC_CONNECTION_URL": f"jdbc:redshift://{redshift_cluster.cluster_endpoint.hostname}:{port}/{database}",  # noqa: E501
+                "JDBC_CONNECTION_URL": f"jdbc:redshift://{redshift_cluster.cluster_endpoint.hostname}:{port}/{database}",
                 "USERNAME": self.db_username,
                 "PASSWORD": self.db_password,
             },
@@ -663,7 +663,7 @@ class DatabasesStack(Stack):  # type: ignore
             type=glue.ConnectionType.JDBC,
             connection_name="aws-sdk-pandas-sqlserver",
             properties={
-                "JDBC_CONNECTION_URL": f"jdbc:sqlserver://{sqlserver.instance_endpoint.hostname}:{port};databaseName={database}",  # noqa: E501
+                "JDBC_CONNECTION_URL": f"jdbc:sqlserver://{sqlserver.instance_endpoint.hostname}:{port};databaseName={database}",
                 "USERNAME": self.db_username,
                 "PASSWORD": self.db_password,
             },
@@ -725,7 +725,7 @@ class DatabasesStack(Stack):  # type: ignore
             type=glue.ConnectionType.JDBC,
             connection_name="aws-sdk-pandas-oracle",
             properties={
-                "JDBC_CONNECTION_URL": f"jdbc:oracle:thin://@{oracle.instance_endpoint.hostname}:{port}/{database}",  # noqa: E501
+                "JDBC_CONNECTION_URL": f"jdbc:oracle:thin://@{oracle.instance_endpoint.hostname}:{port}/{database}",
                 "USERNAME": self.db_username,
                 "PASSWORD": self.db_password,
             },

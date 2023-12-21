@@ -779,12 +779,12 @@ def test_cast_decimal(path, glue_table, glue_database):
 def test_splits():
     s = "a:struct<id:string,name:string>,b:struct<id:string,name:string>"
     assert list(_split_fields(s)) == ["a:struct<id:string,name:string>", "b:struct<id:string,name:string>"]
-    s = "a:struct<a:struct<id:string,name:string>,b:struct<id:string,name:string>>,b:struct<a:struct<id:string,name:string>,b:struct<id:string,name:string>>"  # noqa
+    s = "a:struct<a:struct<id:string,name:string>,b:struct<id:string,name:string>>,b:struct<a:struct<id:string,name:string>,b:struct<id:string,name:string>>"
     assert list(_split_fields(s)) == [
         "a:struct<a:struct<id:string,name:string>,b:struct<id:string,name:string>>",
         "b:struct<a:struct<id:string,name:string>,b:struct<id:string,name:string>>",
     ]
-    s = "a:struct<id:string,name:string>,b:struct<id:string,name:string>,c:struct<id:string,name:string>,d:struct<id:string,name:string>"  # noqa
+    s = "a:struct<id:string,name:string>,b:struct<id:string,name:string>,c:struct<id:string,name:string>,d:struct<id:string,name:string>"
     assert list(_split_fields(s)) == [
         "a:struct<id:string,name:string>",
         "b:struct<id:string,name:string>",
