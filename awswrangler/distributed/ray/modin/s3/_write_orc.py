@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import modin.pandas as pd
 import pyarrow as pa
-from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
+from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import ArrowORCDatasource, UserProvidedKeyBlockWritePathProvider

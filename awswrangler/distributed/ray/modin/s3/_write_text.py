@@ -3,7 +3,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import modin.pandas as pd
-from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
+from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
