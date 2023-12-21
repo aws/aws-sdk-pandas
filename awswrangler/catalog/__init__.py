@@ -7,9 +7,7 @@ from awswrangler.catalog._add import (
     add_orc_partitions,
     add_parquet_partitions,
 )
-
-# noqa
-from awswrangler.catalog._create import (  # noqa
+from awswrangler.catalog._create import (
     _create_csv_table,
     _create_json_table,
     _create_parquet_table,
@@ -21,14 +19,14 @@ from awswrangler.catalog._create import (  # noqa
     overwrite_table_parameters,
     upsert_table_parameters,
 )
-from awswrangler.catalog._delete import (  # noqa
+from awswrangler.catalog._delete import (
     delete_all_partitions,
     delete_column,
     delete_database,
     delete_partitions,
     delete_table_if_exists,
 )
-from awswrangler.catalog._get import (  # noqa
+from awswrangler.catalog._get import (
     _get_table_input,
     databases,
     get_columns_comments,
@@ -48,7 +46,7 @@ from awswrangler.catalog._get import (  # noqa
     table,
     tables,
 )
-from awswrangler.catalog._utils import (  # noqa
+from awswrangler.catalog._utils import (
     does_table_exist,
     drop_duplicated_columns,
     extract_athena_types,

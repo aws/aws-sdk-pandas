@@ -1,7 +1,7 @@
 """Amazon Lake Formation Module."""
 
-from awswrangler.lakeformation._read import read_sql_query, read_sql_table  # noqa
-from awswrangler.lakeformation._utils import (  # noqa
+from awswrangler.lakeformation._read import read_sql_query, read_sql_table
+from awswrangler.lakeformation._utils import (
     _build_table_objects,
     _get_table_objects,
     _update_table_objects,

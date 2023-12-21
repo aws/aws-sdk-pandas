@@ -155,7 +155,7 @@ def _to_partitions(
         subgroup.drop(
             columns=[col for col in partition_cols if col in subgroup.columns],
             inplace=True,
-        )  # noqa: PLW2901
+        )
         # Drop index levels if partitioning by index columns
         subgroup = subgroup.droplevel(  # noqa: PLW2901
             level=[col for col in partition_cols if col in subgroup.index.names]

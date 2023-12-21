@@ -245,7 +245,7 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
             {
                 "Classification": "spark-hive-site",
                 "Properties": {
-                    "hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"  # noqa
+                    "hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
                 },
                 "Configurations": [],
             }

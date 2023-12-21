@@ -7,7 +7,7 @@ Documentation: https://aws-sdk-pandas.readthedocs.io/
 
 import logging as _logging
 
-from awswrangler import (  # noqa
+from awswrangler import (
     athena,
     catalog,
     chime,
@@ -34,9 +34,9 @@ from awswrangler import (  # noqa
     timestream,
     typing,
 )
-from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
-from awswrangler._config import config  # noqa
-from awswrangler._distributed import EngineEnum, MemoryFormatEnum, engine, memory_format  # noqa
+from awswrangler.__metadata__ import __description__, __license__, __title__, __version__
+from awswrangler._config import config
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum, engine, memory_format
 
 engine.register()
 
