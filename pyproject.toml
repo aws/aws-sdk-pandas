@@ -155,11 +155,16 @@ target-version = "py38"
 [tool.ruff.lint]
 exclude = ["*.ipynb"]
 
+[tool.ruff.lint.per-file-ignores]
+"test_infra/*" = ["PL", "D"]
+"tests/*" = ["PL", "D"]
+"docs/*" = ["PL", "D"]
+
 [tool.ruff.pydocstyle]
 convention = "numpy"
 
 [tool.mypy]
-python_version = 3.8
+python_version = "3.8"
 strict = true
 ignore_missing_imports = true
 warn_unused_ignores = true
