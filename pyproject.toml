@@ -152,13 +152,11 @@ exclude = [
 line-length = 120
 target-version = "py38"
 
-[tool.ruff.lint]
-exclude = ["*.ipynb"]
-
 [tool.ruff.lint.per-file-ignores]
-"test_infra/*" = ["PL", "D"]
+"docs/*" = ["D"]
+"test_infra/*" = ["D"]
 "tests/*" = ["PL", "D"]
-"docs/*" = ["PL", "D"]
+"tutorials/*" = ["D", "E402", "F401", "F811", "F821"]
 
 [tool.ruff.pydocstyle]
 convention = "numpy"
