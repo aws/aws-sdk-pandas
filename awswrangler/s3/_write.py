@@ -122,9 +122,10 @@ def _sanitize(
     df = catalog.sanitize_dataframe_columns_names(df=df)
     partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
     if bucketing_info:
-        bucketing_info = [
-            catalog.sanitize_column_name(bucketing_col) for bucketing_col in bucketing_info[0]
-        ], bucketing_info[1]
+        bucketing_info = (
+            [catalog.sanitize_column_name(bucketing_col) for bucketing_col in bucketing_info[0]],
+            bucketing_info[1],
+        )
     dtype = {catalog.sanitize_column_name(k): v for k, v in dtype.items()}
     _utils.check_duplicated_columns(df=df)
     return _SanitizeResult(df, dtype, partition_cols, bucketing_info)
@@ -380,9 +381,7 @@ class _S3WriteStrategy(ABC):
 
                 if (catalog_table_input is None) and (table_type == "GOVERNED"):
                     self._create_glue_table(**create_table_args)  # pylint: disable=protected-access
-                    create_table_args[
-                        "catalog_table_input"
-                    ] = catalog._get_table_input(  # pylint: disable=protected-access
+                    create_table_args["catalog_table_input"] = catalog._get_table_input(  # pylint: disable=protected-access
                         database=database,
                         table=table,
                         boto3_session=boto3_session,
