@@ -71,7 +71,7 @@ geopandas = [
 
 # Distributed
 modin = { version = "^0.23.0", optional = true }
-ray = { version = ">=2.0.0,<2.7.0", extras = ["default", "data"], optional = true }
+ray = { version = ">=2.0.0,<2.10.0", extras = ["default", "data"], optional = true }
 
 [tool.poetry.extras]
 redshift = ["redshift-connector"]
