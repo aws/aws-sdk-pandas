@@ -468,8 +468,6 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
         return pd.BooleanDtype()
     if pa.types.is_string(dtype):
         return pd.StringDtype()
-    # if pa.types.is_binary(dtype):
-    #     return pd.
     return None
 
 
