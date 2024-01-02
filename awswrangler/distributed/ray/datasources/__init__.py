@@ -12,6 +12,7 @@ from awswrangler.distributed.ray.datasources.pandas_text_datasource import (
     PandasJSONDatasource,
     PandasTextDatasource,
 )
+from awswrangler.distributed.ray.datasources.parquet_datasink import ParquetDatasink
 
 __all__ = [
     "ArrowCSVDatasource",
@@ -24,4 +25,5 @@ __all__ = [
     "PandasJSONDatasource",
     "PandasTextDatasource",
     "UserProvidedKeyBlockWritePathProvider",
+    "ParquetDatasink",
 ]

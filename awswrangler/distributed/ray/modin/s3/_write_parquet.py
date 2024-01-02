@@ -8,7 +8,7 @@ import pyarrow as pa
 from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray.datasources import ArrowParquetDatasource, UserProvidedKeyBlockWritePathProvider
+from awswrangler.distributed.ray.datasources import ParquetDatasink, UserProvidedKeyBlockWritePathProvider
 from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
 
 if TYPE_CHECKING:
@@ -62,9 +62,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
             )
 
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
-    datasource = ArrowParquetDatasource()
-    ds.write_datasource(
-        datasource,
+    datasink = ParquetDatasink(
         path=path or path_root,
         dataset_uuid=filename_prefix,
         # If user has provided a single key, use that instead of generating a path per block
@@ -72,10 +70,13 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
         block_path_provider=UserProvidedKeyBlockWritePathProvider()
         if path and not path.endswith("/") and not max_rows_by_file
         else DefaultBlockWritePathProvider(),
-        index=index,
-        dtype=dtype,
-        compression=compression,
-        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-        schema=schema,
+        arrow_parquet_args={
+            "index": index,
+            "dtype": dtype,
+            "compression": compression,
+            # "pyarrow_additional_kwargs": pyarrow_additional_kwargs,
+            "schema": schema,
+        },
     )
-    return datasource.get_write_paths()
+    ds.write_datasink(datasink)
+    return datasink.get_write_paths()

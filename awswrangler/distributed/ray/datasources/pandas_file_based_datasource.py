@@ -8,12 +8,12 @@ import pyarrow
 import ray
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor, BlockMetadata
-from ray.data.datasource.datasource import WriteResult
-from ray.data.datasource.file_based_datasource import FileBasedDatasource
 from ray.data.datasource.block_path_provider import (
     BlockWritePathProvider,
     DefaultBlockWritePathProvider,
 )
+from ray.data.datasource.datasource import WriteResult
+from ray.data.datasource.file_based_datasource import FileBasedDatasource
 from ray.types import ObjectRef
 
 from awswrangler.distributed.ray import ray_get, ray_remote
