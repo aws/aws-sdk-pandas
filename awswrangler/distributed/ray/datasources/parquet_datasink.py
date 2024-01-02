@@ -1,3 +1,5 @@
+"""Ray ParquetDatasink Module."""
+
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
@@ -5,15 +7,17 @@ import pyarrow as pa
 from ray.data.block import BlockAccessor
 from ray.data.datasource.block_path_provider import BlockWritePathProvider
 from ray.data.datasource.file_based_datasource import _resolve_kwargs
+from ray.data.datasource.file_datasink import BlockBasedFileDatasink
 from ray.data.datasource.filename_provider import FilenameProvider
-from ray.data.datasource.parquet_datasink import _ParquetDatasink
 
 from awswrangler._arrow import _df_to_table
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-class ParquetDatasink(_ParquetDatasink):
+class ParquetDatasink(BlockBasedFileDatasink):
+    """A datasink that writes Parquet files."""
+
     def __init__(
         self,
         path: str,
@@ -27,26 +31,34 @@ class ParquetDatasink(_ParquetDatasink):
         block_path_provider: Optional[BlockWritePathProvider] = None,
         dataset_uuid: Optional[str] = None,
     ):
+        if arrow_parquet_args is None:
+            arrow_parquet_args = {}
+
+        self.arrow_parquet_args_fn = arrow_parquet_args_fn
+        self.arrow_parquet_args = arrow_parquet_args
+
+        self._write_paths: List[str] = []
+
         super().__init__(
             path,
-            arrow_parquet_args_fn=arrow_parquet_args_fn,
-            arrow_parquet_args=arrow_parquet_args,
             filesystem=filesystem,
             try_create_dir=try_create_dir,
             open_stream_args=open_stream_args,
             filename_provider=filename_provider,
             block_path_provider=block_path_provider,
             dataset_uuid=dataset_uuid,
+            file_format="parquet",
         )
 
-        self._write_paths: List[str] = []
+    def write_block_to_file(self, block: BlockAccessor, file: pa.NativeFile) -> None:
+        """
+        Write a block of data to a file.
 
-    def write_block_to_file(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
-        self,
-        block: BlockAccessor,
-        file: pa.NativeFile,
-        **writer_args: Any,
-    ) -> None:
+        Parameters
+        ----------
+        block : BlockAccessor
+        file : pa.NativeFile
+        """
         writer_args = _resolve_kwargs(self.arrow_parquet_args_fn, **self.arrow_parquet_args)
 
         schema: pa.Schema = writer_args.pop("schema", None)
