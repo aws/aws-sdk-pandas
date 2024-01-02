@@ -19,7 +19,7 @@ from pyarrow.lib import Schema
 from ray import cloudpickle
 from ray.data._internal.output_buffer import BlockOutputBuffer
 from ray.data._internal.progress_bar import ProgressBar
-from ray.data.block import Block, BlockAccessor
+from ray.data.block import Block
 from ray.data.context import DatasetContext
 from ray.data.datasource import Reader, ReadTask
 from ray.data.datasource.file_based_datasource import _resolve_paths_and_filesystem
@@ -30,7 +30,7 @@ from ray.data.datasource.file_meta_provider import (
 )
 
 from awswrangler import exceptions
-from awswrangler._arrow import _add_table_partitions, _df_to_table
+from awswrangler._arrow import _add_table_partitions
 from awswrangler.distributed.ray import ray_remote
 from awswrangler.distributed.ray.datasources.arrow_parquet_base_datasource import ArrowParquetBaseDatasource
 from awswrangler.s3._write import _COMPRESSION_2_EXT
@@ -85,29 +85,6 @@ class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abs
     def create_reader(self, **kwargs: Dict[str, Any]) -> Reader:
         """Return a Reader for the given read arguments."""
         return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore[arg-type]
-
-    def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
-        self,
-        f: "pyarrow.NativeFile",
-        block: BlockAccessor,
-        pandas_kwargs: Optional[Dict[str, Any]],
-        **writer_args: Any,
-    ) -> None:
-        """Write a block to S3."""
-        import pyarrow as pa  # pylint: disable=import-outside-toplevel,reimported
-
-        schema: pa.Schema = writer_args.get("schema", None)
-        dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
-        index: bool = writer_args.get("index", False)
-        compression: Optional[str] = writer_args.get("compression", None)
-        pyarrow_additional_kwargs: Optional[Dict[str, Any]] = writer_args.get("pyarrow_additional_kwargs", {})
-
-        pa.parquet.write_table(
-            _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
-            f,
-            compression=compression,
-            **pyarrow_additional_kwargs,
-        )
 
     def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
         if compression is not None:

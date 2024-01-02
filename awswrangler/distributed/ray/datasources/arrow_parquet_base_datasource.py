@@ -66,22 +66,3 @@ class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=
     ) -> pa.NativeFile:
         # Parquet requires `open_input_file` due to random access reads
         return filesystem.open_input_file(path, **open_args)
-
-    def _write_block(  # type: ignore[override]
-        self,
-        f: pa.NativeFile,
-        block: BlockAccessor,
-        **writer_args: Any,
-    ) -> None:
-        schema: Optional[pa.schema] = writer_args.get("schema", None)
-        dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
-        index: bool = writer_args.get("index", False)
-        compression: Optional[str] = writer_args.get("compression", None)
-        pyarrow_additional_kwargs: Dict[str, Any] = writer_args.get("pyarrow_additional_kwargs", {})
-
-        pq.write_table(
-            _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
-            f,
-            compression=compression,
-            **pyarrow_additional_kwargs,
-        )
