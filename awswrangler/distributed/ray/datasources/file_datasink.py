@@ -23,19 +23,18 @@ class _BlockFileDatasink(Datasink):
     def __init__(
         self,
         path: str,
+        file_format: str,
         *,
         block_path_provider: Optional[BlockWritePathProvider] = None,
         dataset_uuid: Optional[str] = None,
-        file_format: Optional[str] = None,
         s3_additional_kwargs: Optional[Dict[str, str]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
         **write_args: Any,
     ):
         self.path = path
-
+        self.file_format = file_format
         self.block_path_provider = block_path_provider
         self.dataset_uuid = dataset_uuid
-        self.file_format = file_format
         self.s3_additional_kwargs = s3_additional_kwargs
         self.pandas_kwargs = pandas_kwargs or {}
         self.write_args = write_args or {}
@@ -66,7 +65,7 @@ class _BlockFileDatasink(Datasink):
                 _write_block_to_file(f, BlockAccessor.for_block(block))
                 return write_path
 
-        file_suffix = self._get_file_suffix(self._FILE_EXTENSION, compression)
+        file_suffix = self._get_file_suffix(self.file_format, compression)
 
         builder = DelegatingBlockBuilder()  # type: ignore[no-untyped-call]
         for block in blocks:
@@ -77,8 +76,8 @@ class _BlockFileDatasink(Datasink):
         write_path = self.block_path_provider(
             self.path,
             dataset_uuid=self.dataset_uuid,
-            block=block,
             block_index=ctx.task_idx,
+            task_index=ctx.task_idx,
             file_format=file_suffix,
         )
 

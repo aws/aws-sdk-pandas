@@ -2,10 +2,11 @@
 
 import io
 import logging
-from typing import Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
 import pandas as pd
 from ray.data.block import BlockAccessor
+from ray.data.datasource.block_path_provider import BlockWritePathProvider
 
 from awswrangler.distributed.ray.datasources.file_datasink import _BlockFileDatasink
 
@@ -18,11 +19,24 @@ class _PandasTextDatasink(_BlockFileDatasink):
     def __init__(
         self,
         path: str,
-        write_text_func: Optional[Callable[..., None]],
         file_format: str,
-        **file_datasink_kwargs,
+        write_text_func: Optional[Callable[..., None]],
+        *,
+        block_path_provider: Optional[BlockWritePathProvider] = None,
+        dataset_uuid: Optional[str] = None,
+        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        **write_args: Any,
     ):
-        super().__init__(path, file_format=file_format, **file_datasink_kwargs)
+        super().__init__(
+            path,
+            file_format=file_format,
+            block_path_provider=block_path_provider,
+            dataset_uuid=dataset_uuid,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pandas_kwargs=pandas_kwargs,
+            **write_args,
+        )
 
         self.write_text_func = write_text_func
 
@@ -46,13 +60,22 @@ class PandasCSVDatasink(_PandasTextDatasink):  # pylint: disable=abstract-method
     def __init__(
         self,
         path: str,
-        **file_datasink_kwargs,
-    ) -> None:
+        *,
+        block_path_provider: Optional[BlockWritePathProvider] = None,
+        dataset_uuid: Optional[str] = None,
+        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        **write_args: Any,
+    ):
         super().__init__(
             path,
+            "csv",
             pd.DataFrame.to_csv,
-            file_format="csv",
-            **file_datasink_kwargs,
+            block_path_provider=block_path_provider,
+            dataset_uuid=dataset_uuid,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pandas_kwargs=pandas_kwargs,
+            **write_args,
         )
 
 
@@ -62,11 +85,20 @@ class PandasJSONDatasink(_PandasTextDatasink):  # pylint: disable=abstract-metho
     def __init__(
         self,
         path: str,
-        **file_datasink_kwargs,
-    ) -> None:
+        *,
+        block_path_provider: Optional[BlockWritePathProvider] = None,
+        dataset_uuid: Optional[str] = None,
+        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        **write_args: Any,
+    ):
         super().__init__(
             path,
+            "json",
             pd.DataFrame.to_json,
-            file_format="json",
-            **file_datasink_kwargs,
+            block_path_provider=block_path_provider,
+            dataset_uuid=dataset_uuid,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pandas_kwargs=pandas_kwargs,
+            **write_args,
         )
