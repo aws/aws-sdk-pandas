@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any
 
 import boto3
 import oracledb
@@ -28,7 +30,7 @@ def test_connection() -> None:
         pass
 
 
-def test_read_sql_query_simple(databases_parameters: Dict[str, Any], oracle_con: "oracledb.Connection") -> None:
+def test_read_sql_query_simple(databases_parameters: dict[str, Any], oracle_con: "oracledb.Connection") -> None:
     df = wr.oracle.read_sql_query("SELECT 1 FROM DUAL", con=oracle_con)
     assert df.shape == (1, 1)
 

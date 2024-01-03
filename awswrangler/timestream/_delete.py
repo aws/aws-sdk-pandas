@@ -1,7 +1,8 @@
 """Amazon Timestream Delete Module."""
 
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
 import boto3
 
@@ -12,7 +13,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def delete_database(
     database: str,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Delete a given Timestream database. This is an irreversible operation.
 
@@ -52,7 +53,7 @@ def delete_database(
 def delete_table(
     database: str,
     table: str,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Delete a given Timestream table.
 

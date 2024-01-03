@@ -1,7 +1,9 @@
 """Ray PandasFileBasedDatasource Module."""
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Iterable
 
 import pandas as pd
 import pyarrow
@@ -33,11 +35,11 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
         self,
         base_path: str,
         *,
-        filesystem: Optional["pyarrow.fs.FileSystem"] = None,
-        dataset_uuid: Optional[str] = None,
-        block: Optional[Block] = None,
-        block_index: Optional[int] = None,
-        file_format: Optional[str] = None,
+        filesystem: "pyarrow.fs.FileSystem" | None = None,
+        dataset_uuid: str | None = None,
+        block: Block | None = None,
+        block_index: int | None = None,
+        file_format: str | None = None,
     ) -> str:
         return base_path
 
@@ -59,30 +61,30 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     def __init__(self) -> None:
         super().__init__()
 
-        self._write_paths: List[str] = []
+        self._write_paths: list[str] = []
 
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
     def do_write(  # pylint: disable=arguments-differ
         self,
-        blocks: List[ObjectRef[pd.DataFrame]],
-        metadata: List[BlockMetadata],
+        blocks: list[ObjectRef[pd.DataFrame]],
+        metadata: list[BlockMetadata],
         path: str,
         dataset_uuid: str,
-        filesystem: Optional[pyarrow.fs.FileSystem] = None,
+        filesystem: pyarrow.fs.FileSystem | None = None,
         try_create_dir: bool = True,
-        open_stream_args: Optional[Dict[str, Any]] = None,
+        open_stream_args: dict[str, Any] | None = None,
         block_path_provider: BlockWritePathProvider = DefaultBlockWritePathProvider(),
-        write_args_fn: Callable[[], Dict[str, Any]] = lambda: {},
-        _block_udf: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None,
-        ray_remote_args: Optional[Dict[str, Any]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
-        compression: Optional[str] = None,
+        write_args_fn: Callable[[], dict[str, Any]] = lambda: {},
+        _block_udf: Callable[[pd.DataFrame], pd.DataFrame] | None = None,
+        ray_remote_args: dict[str, Any] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
+        compression: str | None = None,
         mode: str = "wb",
         **write_args: Any,
-    ) -> List[ObjectRef[WriteResult]]:
+    ) -> list[ObjectRef[WriteResult]]:
         """Create and return write tasks for a file-based datasource.
 
         Note: In Ray 2.4+ write semantics has changed. datasource.do_write() was deprecated in favour of
@@ -143,16 +145,16 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
 
     def write(  # type: ignore[override]
         self,
-        blocks: Iterable[Union[Block, ObjectRef[pd.DataFrame]]],
+        blocks: Iterable[Block | ObjectRef[pd.DataFrame]],
         ctx: TaskContext,
         path: str,
         dataset_uuid: str,
-        filesystem: Optional[pyarrow.fs.FileSystem] = None,
+        filesystem: pyarrow.fs.FileSystem | None = None,
         block_path_provider: BlockWritePathProvider = DefaultBlockWritePathProvider(),
-        _block_udf: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
-        compression: Optional[str] = None,
+        _block_udf: Callable[[pd.DataFrame], pd.DataFrame] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
+        compression: str | None = None,
         mode: str = "wb",
         **write_args: Any,
     ) -> WriteResult:
@@ -205,14 +207,14 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
 
         return write_block(write_path, block)
 
-    def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
+    def _get_file_suffix(self, file_format: str, compression: str | None) -> str:
         return f"{file_format}{_COMPRESSION_2_EXT.get(compression)}"
 
     def _write_block(
         self,
         f: "pyarrow.NativeFile",
         block: BlockAccessor,
-        writer_args_fn: Callable[[], Dict[str, Any]] = lambda: {},
+        writer_args_fn: Callable[[], dict[str, Any]] = lambda: {},
         **writer_args: Any,
     ) -> None:
         raise NotImplementedError("Subclasses of PandasFileBasedDatasource must implement _write_block().")
@@ -222,18 +224,18 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     # and is meant to be used for singular actions like
     # [committing a transaction](https://docs.ray.io/en/latest/data/api/doc/ray.data.Datasource.html).
     # As deceptive as it may look, there is no race condition here.
-    def on_write_complete(self, write_results: List[Any], **_: Any) -> None:
+    def on_write_complete(self, write_results: list[Any], **_: Any) -> None:
         """Execute callback after all write tasks complete."""
         _logger.debug("Write complete %s.", write_results)
 
         # Collect and return all write task paths
         self._write_paths.extend(write_results)
 
-    def on_write_failed(self, write_results: List[ObjectRef[Any]], error: Exception, **_: Any) -> None:
+    def on_write_failed(self, write_results: list[ObjectRef[Any]], error: Exception, **_: Any) -> None:
         """Execute callback after write tasks fail."""
         _logger.debug("Write failed %s.", write_results)
         raise error
 
-    def get_write_paths(self) -> List[str]:
+    def get_write_paths(self) -> list[str]:
         """Return S3 paths of where the results have been written."""
         return self._write_paths

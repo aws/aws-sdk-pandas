@@ -1,7 +1,9 @@
 """Ray PandasTextDatasource Module."""
+from __future__ import annotations
+
 import io
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional
+from typing import Any, Callable, Iterator
 
 import pandas as pd
 import pyarrow
@@ -24,14 +26,14 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
     def __init__(
         self,
         read_text_func: Callable[..., pd.DataFrame],
-        write_text_func: Optional[Callable[..., None]],
+        write_text_func: Callable[..., None] | None,
     ) -> None:
         super().__init__()
 
         self.read_text_func = read_text_func
         self.write_text_func = write_text_func
 
-        self._write_paths: List[str] = []
+        self._write_paths: list[str] = []
 
     def _read_stream(  # type: ignore[override]  # pylint: disable=arguments-differ
         self,
@@ -39,9 +41,9 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
         path: str,
         path_root: str,
         dataset: bool,
-        version_ids: Optional[Dict[str, str]],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        pandas_kwargs: Optional[Dict[str, Any]],
+        version_ids: dict[str, str] | None,
+        s3_additional_kwargs: dict[str, str] | None,
+        pandas_kwargs: dict[str, Any] | None,
         **reader_args: Any,
     ) -> Iterator[pd.DataFrame]:
         read_text_func = self.read_text_func
@@ -73,7 +75,7 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
         self,
         f: io.TextIOWrapper,
         block: BlockAccessor,
-        pandas_kwargs: Optional[Dict[str, Any]],
+        pandas_kwargs: dict[str, Any] | None,
         **writer_args: Any,
     ) -> None:
         write_text_func = self.write_text_func
@@ -98,9 +100,9 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         path: str,
         path_root: str,
         dataset: bool,
-        version_ids: Optional[Dict[str, str]],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        pandas_kwargs: Dict[str, Any],
+        version_ids: dict[str, str] | None,
+        s3_additional_kwargs: dict[str, str] | None,
+        pandas_kwargs: dict[str, Any],
         **reader_args: Any,
     ) -> Iterator[pd.DataFrame]:
         pandas_header_arg = pandas_kwargs.get("header", "infer")
@@ -146,9 +148,9 @@ class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-me
         path: str,
         path_root: str,
         dataset: bool,
-        version_ids: Optional[Dict[str, str]],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        pandas_kwargs: Dict[str, Any],
+        version_ids: dict[str, str] | None,
+        s3_additional_kwargs: dict[str, str] | None,
+        pandas_kwargs: dict[str, Any],
         **reader_args: Any,
     ) -> Iterator[pd.DataFrame]:
         read_text_func = self.read_text_func

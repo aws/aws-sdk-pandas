@@ -1,5 +1,7 @@
 """Amazon DynamoDB Read Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import itertools
 import logging
 import warnings
@@ -12,10 +14,8 @@ from typing import (
     Iterator,
     List,
     NamedTuple,
-    Optional,
     Sequence,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -42,17 +42,17 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _ItemsListType = List[Dict[str, Any]]
 
 
-def _read_chunked(iterator: Iterator[Dict[str, Any]]) -> Iterator[pd.DataFrame]:
+def _read_chunked(iterator: Iterator[dict[str, Any]]) -> Iterator[pd.DataFrame]:
     for item in iterator:
         yield pd.DataFrame(item)
 
 
 def read_partiql_query(
     query: str,
-    parameters: Optional[List[Any]] = None,
+    parameters: list[Any] | None = None,
     chunked: bool = False,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    boto3_session: boto3.Session | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read data from a DynamoDB table via a PartiQL query.
 
     Parameters
@@ -88,7 +88,7 @@ def read_partiql_query(
     ... )
     """
     _logger.debug("Reading results for PartiQL query:  '%s'", query)
-    iterator: Iterator[Dict[str, Any]] = execute_statement(  # type: ignore[assignment]
+    iterator: Iterator[dict[str, Any]] = execute_statement(  # type: ignore[assignment]
         query, parameters=parameters, boto3_session=boto3_session
     )
     if chunked:
@@ -96,7 +96,7 @@ def read_partiql_query(
     return pd.DataFrame([item for sublist in iterator for item in sublist])
 
 
-def _get_invalid_kwarg(msg: str) -> Optional[str]:
+def _get_invalid_kwarg(msg: str) -> str | None:
     """Detect which keyword argument contains reserved keywords based on given error message.
 
     Parameters
@@ -156,8 +156,8 @@ def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
 def _convert_items(
     items: _ItemsListType,
     as_dataframe: bool,
-    arrow_kwargs: Dict[str, Any],
-) -> Union[pd.DataFrame, _ItemsListType]:
+    arrow_kwargs: dict[str, Any],
+) -> pd.DataFrame | _ItemsListType:
     return (
         _utils.table_refs_to_df(
             [
@@ -180,24 +180,24 @@ def _convert_items(
 def _convert_items_chunked(
     items_iterator: Iterator[_ItemsListType],
     as_dataframe: bool,
-    arrow_kwargs: Dict[str, Any],
-) -> Union[Iterator[pd.DataFrame], Iterator[_ItemsListType]]:
+    arrow_kwargs: dict[str, Any],
+) -> Iterator[pd.DataFrame] | Iterator[_ItemsListType]:
     for items in items_iterator:
         yield _convert_items(items, as_dataframe, arrow_kwargs)
 
 
 def _read_scan_chunked(
-    dynamodb_client: Optional["DynamoDBClient"],
+    dynamodb_client: "DynamoDBClient" | None,
     as_dataframe: bool,
-    kwargs: Dict[str, Any],
-    schema: Optional[pa.Schema] = None,
-    segment: Optional[int] = None,
-) -> Union[Iterator[pa.Table], Iterator[_ItemsListType]]:
+    kwargs: dict[str, Any],
+    schema: pa.Schema | None = None,
+    segment: int | None = None,
+) -> Iterator[pa.Table] | Iterator[_ItemsListType]:
     # SEE: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan
     client_dynamodb = dynamodb_client if dynamodb_client else _utils.client(service_name="dynamodb")
 
     deserializer = TypeDeserializer()
-    next_token: Optional[str] = "init_token"  # Dummy token
+    next_token: str | None = "init_token"  # Dummy token
     total_items = 0
 
     kwargs = dict(kwargs)
@@ -230,12 +230,12 @@ def _read_scan_chunked(
     ex_code="ProvisionedThroughputExceededException",
 )
 def _read_scan(
-    dynamodb_client: Optional["DynamoDBClient"],
+    dynamodb_client: "DynamoDBClient" | None,
     as_dataframe: bool,
-    kwargs: Dict[str, Any],
-    schema: Optional[pa.Schema],
+    kwargs: dict[str, Any],
+    schema: pa.Schema | None,
     segment: int,
-) -> Union[pa.Table, _ItemsListType]:
+) -> pa.Table | _ItemsListType:
     items_iterator: Iterator[_ItemsListType] = _read_scan_chunked(dynamodb_client, False, kwargs, None, segment)
 
     items = list(itertools.chain.from_iterable(items_iterator))
@@ -244,7 +244,7 @@ def _read_scan(
 
 
 def _read_query_chunked(table_name: str, dynamodb_client: "DynamoDBClient", **kwargs: Any) -> Iterator[_ItemsListType]:
-    next_token: Optional[str] = "init_token"  # Dummy token
+    next_token: str | None = "init_token"  # Dummy token
     total_items = 0
 
     # Handle pagination
@@ -265,7 +265,7 @@ def _read_query_chunked(table_name: str, dynamodb_client: "DynamoDBClient", **kw
 @_handle_reserved_keyword_error
 def _read_query(
     table_name: str, dynamodb_client: "DynamoDBClient", chunked: bool, **kwargs: Any
-) -> Union[_ItemsListType, Iterator[_ItemsListType]]:
+) -> _ItemsListType | Iterator[_ItemsListType]:
     items_iterator = _read_query_chunked(table_name, dynamodb_client, **kwargs)
 
     if chunked:
@@ -275,7 +275,7 @@ def _read_query(
 
 
 def _read_batch_items_chunked(
-    table_name: str, dynamodb_client: Optional["DynamoDBClient"], **kwargs: Any
+    table_name: str, dynamodb_client: "DynamoDBClient" | None, **kwargs: Any
 ) -> Iterator[_ItemsListType]:
     dynamodb_client = dynamodb_client if dynamodb_client else _utils.client("dynamodb")
     deserializer = TypeDeserializer()
@@ -298,8 +298,8 @@ def _read_batch_items_chunked(
 
 @_handle_reserved_keyword_error
 def _read_batch_items(
-    table_name: str, dynamodb_client: Optional["DynamoDBClient"], chunked: bool, **kwargs: Any
-) -> Union[_ItemsListType, Iterator[_ItemsListType]]:
+    table_name: str, dynamodb_client: "DynamoDBClient" | None, chunked: bool, **kwargs: Any
+) -> _ItemsListType | Iterator[_ItemsListType]:
     items_iterator = _read_batch_items_chunked(table_name, dynamodb_client, **kwargs)
 
     if chunked:
@@ -314,7 +314,7 @@ def _read_item(
     dynamodb_client: "DynamoDBClient",
     chunked: bool = False,
     **kwargs: Any,
-) -> Union[_ItemsListType, Iterator[_ItemsListType]]:
+) -> _ItemsListType | Iterator[_ItemsListType]:
     item = dynamodb_client.get_item(TableName=table_name, **kwargs).get("Item", {})
     item_list: _ItemsListType = [_deserialize_item(item)]
 
@@ -324,12 +324,12 @@ def _read_item(
 def _read_items_scan(
     table_name: str,
     as_dataframe: bool,
-    arrow_kwargs: Dict[str, Any],
-    use_threads: Union[bool, int],
+    arrow_kwargs: dict[str, Any],
+    use_threads: bool | int,
     dynamodb_client: "DynamoDBClient",
     chunked: bool,
     **kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame], _ItemsListType, Iterator[_ItemsListType]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame] | _ItemsListType | Iterator[_ItemsListType]:
     kwargs["TableName"] = table_name
     schema = arrow_kwargs.pop("schema", None)
 
@@ -366,12 +366,12 @@ def _read_items_scan(
 def _read_items(
     table_name: str,
     as_dataframe: bool,
-    arrow_kwargs: Dict[str, Any],
-    use_threads: Union[bool, int],
+    arrow_kwargs: dict[str, Any],
+    use_threads: bool | int,
     chunked: bool,
     dynamodb_client: "DynamoDBClient",
     **kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame], _ItemsListType, Iterator[_ItemsListType]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame] | _ItemsListType | Iterator[_ItemsListType]:
     # Extract 'Keys', 'IndexName' and 'Limit' from provided kwargs: if needed, will be reinserted later on
     keys = kwargs.pop("Keys", None)
     index = kwargs.pop("IndexName", None)
@@ -431,13 +431,13 @@ def _read_items(
 
 class _ExpressionTuple(NamedTuple):
     condition_expression: str
-    attribute_name_placeholders: Dict[str, str]
-    attribute_value_placeholders: Dict[str, Any]
+    attribute_name_placeholders: dict[str, str]
+    attribute_value_placeholders: dict[str, Any]
 
 
 def _convert_condition_base_to_expression(
     key_condition_expression: ConditionBase, is_key_condition: bool, serializer: TypeSerializer
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     builder = ConditionExpressionBuilder()
     expression = builder.build_expression(key_condition_expression, is_key_condition=is_key_condition)
 
@@ -453,24 +453,24 @@ def _convert_condition_base_to_expression(
 )
 def read_items(  # pylint: disable=too-many-branches
     table_name: str,
-    index_name: Optional[str] = None,
-    partition_values: Optional[Sequence[Any]] = None,
-    sort_values: Optional[Sequence[Any]] = None,
-    filter_expression: Optional[Union[ConditionBase, str]] = None,
-    key_condition_expression: Optional[Union[ConditionBase, str]] = None,
-    expression_attribute_names: Optional[Dict[str, str]] = None,
-    expression_attribute_values: Optional[Dict[str, Any]] = None,
+    index_name: str | None = None,
+    partition_values: Sequence[Any] | None = None,
+    sort_values: Sequence[Any] | None = None,
+    filter_expression: ConditionBase | str | None = None,
+    key_condition_expression: ConditionBase | str | None = None,
+    expression_attribute_names: dict[str, str] | None = None,
+    expression_attribute_values: dict[str, Any] | None = None,
     consistent: bool = False,
-    columns: Optional[Sequence[str]] = None,
+    columns: Sequence[str] | None = None,
     allow_full_scan: bool = False,
-    max_items_evaluated: Optional[int] = None,
+    max_items_evaluated: int | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     as_dataframe: bool = True,
     chunked: bool = False,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame], _ItemsListType, Iterator[_ItemsListType]]:
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame] | _ItemsListType | Iterator[_ItemsListType]:
     """Read items from given DynamoDB table.
 
     This function aims to gracefully handle (some of) the complexity of read actions
@@ -664,7 +664,7 @@ def read_items(  # pylint: disable=too-many-branches
         )
 
     # Build kwargs shared by read methods
-    kwargs: Dict[str, Any] = {"ConsistentRead": consistent}
+    kwargs: dict[str, Any] = {"ConsistentRead": consistent}
     if partition_values:
         if sort_key is None:
             keys = [{partition_key: serializer.serialize(pv)} for pv in partition_values]

@@ -1,8 +1,10 @@
 """Amazon S3 Wait Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import itertools
 import logging
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING
 
 import boto3
 import botocore.exceptions
@@ -19,7 +21,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _wait_object(
-    waiter: Union["ObjectExistsWaiter", "ObjectNotExistsWaiter"], path: str, delay: int, max_attempts: int
+    waiter: "ObjectExistsWaiter" | "ObjectNotExistsWaiter", path: str, delay: int, max_attempts: int
 ) -> None:
     bucket, key = _utils.parse_path(path=path)
     try:
@@ -30,7 +32,7 @@ def _wait_object(
 
 @engine.dispatch_on_engine
 def _wait_object_batch(
-    s3_client: Optional["S3Client"], paths: List[str], waiter_name: str, delay: int, max_attempts: int
+    s3_client: "S3Client" | None, paths: list[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     waiter = s3_client.get_waiter(waiter_name)  # type: ignore[call-overload]
@@ -40,10 +42,10 @@ def _wait_object_batch(
 
 def _wait_objects(
     waiter_name: str,
-    paths: List[str],
-    delay: Optional[float],
-    max_attempts: Optional[int],
-    use_threads: Union[bool, int],
+    paths: list[str],
+    delay: float | None,
+    max_attempts: int | None,
+    use_threads: bool | int,
     s3_client: "S3Client",
 ) -> None:
     delay = 5 if delay is None else delay
@@ -77,11 +79,11 @@ def _wait_objects(
     unsupported_kwargs=["boto3_session"],
 )
 def wait_objects_exist(
-    paths: List[str],
-    delay: Optional[float] = None,
-    max_attempts: Optional[int] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
+    paths: list[str],
+    delay: float | None = None,
+    max_attempts: int | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Wait Amazon S3 objects exist.
 
@@ -135,11 +137,11 @@ def wait_objects_exist(
     unsupported_kwargs=["boto3_session"],
 )
 def wait_objects_not_exist(
-    paths: List[str],
-    delay: Optional[float] = None,
-    max_attempts: Optional[int] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
+    paths: list[str],
+    delay: float | None = None,
+    max_attempts: int | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Wait Amazon S3 objects not exist.
 

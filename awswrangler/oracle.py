@@ -1,19 +1,16 @@
 # mypy: disable-error-code=name-defined
 """Amazon Oracle Database Module."""
 
+from __future__ import annotations
+
 import logging
 from decimal import Decimal
 from typing import (
     Any,
     Callable,
-    Dict,
     Iterator,
-    List,
     Literal,
-    Optional,
-    Tuple,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -43,13 +40,13 @@ def _validate_connection(con: "oracledb.Connection") -> None:
         )
 
 
-def _get_table_identifier(schema: Optional[str], table: str) -> str:
+def _get_table_identifier(schema: str | None, table: str) -> str:
     schema_str = f'{identifier(schema, sql_mode="ansi")}.' if schema else ""
     table_identifier = f'{schema_str}{identifier(table, sql_mode="ansi")}'
     return table_identifier
 
 
-def _drop_table(cursor: "oracledb.Cursor", schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "oracledb.Cursor", schema: str | None, table: str) -> None:
     table_identifier = _get_table_identifier(schema, table)
     sql = f"""
 BEGIN
@@ -65,7 +62,7 @@ END;
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: "oracledb.Cursor", schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "oracledb.Cursor", schema: str | None, table: str) -> bool:
     if schema:
         cursor.execute(
             "SELECT * FROM ALL_TABLES WHERE OWNER = :db_schema AND TABLE_NAME = :db_table",
@@ -84,15 +81,15 @@ def _create_table(
     schema: str,
     mode: str,
     index: bool,
-    dtype: Optional[Dict[str, str]],
-    varchar_lengths: Optional[Dict[str, int]],
-    primary_keys: Optional[List[str]],
+    dtype: dict[str, str] | None,
+    varchar_lengths: dict[str, int] | None,
+    primary_keys: list[str] | None,
 ) -> None:
     if mode == "overwrite":
         _drop_table(cursor=cursor, schema=schema, table=table)
     elif _does_table_exist(cursor=cursor, schema=schema, table=table):
         return
-    oracle_types: Dict[str, str] = _data_types.database_types_from_pandas(
+    oracle_types: dict[str, str] = _data_types.database_types_from_pandas(
         df=df,
         index=index,
         dtype=dtype,
@@ -119,12 +116,12 @@ def _create_table(
 
 @_utils.check_optional_dependency(oracledb, "oracledb")
 def connect(
-    connection: Optional[str] = None,
-    secret_id: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    dbname: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    call_timeout: Optional[int] = 0,
+    connection: str | None = None,
+    secret_id: str | None = None,
+    catalog_id: str | None = None,
+    dbname: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    call_timeout: int | None = 0,
 ) -> "oracledb.Connection":
     """Return a oracledb connection from a Glue Catalog Connection.
 
@@ -202,10 +199,10 @@ def connect(
 def read_sql_query(
     sql: str,
     con: "oracledb.Connection",
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -218,10 +215,10 @@ def read_sql_query(
     sql: str,
     con: "oracledb.Connection",
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -234,14 +231,14 @@ def read_sql_query(
     sql: str,
     con: "oracledb.Connection",
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
+    chunksize: int | None,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ...
 
 
@@ -249,14 +246,14 @@ def read_sql_query(
 def read_sql_query(
     sql: str,
     con: "oracledb.Connection",
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Return a DataFrame corresponding to the result set of the query string.
 
     Parameters
@@ -323,11 +320,11 @@ def read_sql_query(
 def read_sql_table(
     table: str,
     con: "oracledb.Connection",
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -340,11 +337,11 @@ def read_sql_table(
     table: str,
     con: "oracledb.Connection",
     *,
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -357,15 +354,15 @@ def read_sql_table(
     table: str,
     con: "oracledb.Connection",
     *,
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
+    chunksize: int | None,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ...
 
 
@@ -373,15 +370,15 @@ def read_sql_table(
 def read_sql_table(
     table: str,
     con: "oracledb.Connection",
-    schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    schema: str | None = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Return a DataFrame corresponding the table.
 
     Parameters
@@ -468,7 +465,7 @@ def _generate_upsert_statement(
     table_identifier: str,
     df: pd.DataFrame,
     use_column_names: bool,
-    primary_keys: Optional[List[str]],
+    primary_keys: list[str] | None,
 ) -> str:
     if use_column_names is False:
         raise exceptions.InvalidArgumentCombination('`use_column_names` has to be True when `mode="upsert"`')
@@ -514,10 +511,10 @@ def to_sql(
     schema: str,
     mode: Literal["append", "overwrite", "upsert"] = "append",
     index: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
-    varchar_lengths: Optional[Dict[str, int]] = None,
+    dtype: dict[str, str] | None = None,
+    varchar_lengths: dict[str, int] | None = None,
     use_column_names: bool = False,
-    primary_keys: Optional[List[str]] = None,
+    primary_keys: list[str] | None = None,
     chunksize: int = 200,
 ) -> None:
     """Write records stored in a DataFrame into Oracle Database.
@@ -614,7 +611,7 @@ def to_sql(
         raise
 
 
-def detect_oracle_decimal_datatype(cursor: Any) -> Dict[str, pa.DataType]:
+def detect_oracle_decimal_datatype(cursor: Any) -> dict[str, pa.DataType]:
     """Determine if a given Oracle column is a decimal, not just a standard float value."""
     dtype = {}
     _logger.debug("cursor type: %s", type(cursor))
@@ -629,8 +626,8 @@ def detect_oracle_decimal_datatype(cursor: Any) -> Dict[str, pa.DataType]:
 
 
 def handle_oracle_objects(
-    col_values: List[Any], col_name: str, dtype: Optional[Dict[str, pa.DataType]] = None
-) -> List[Any]:
+    col_values: list[Any], col_name: str, dtype: dict[str, pa.DataType] | None = None
+) -> list[Any]:
     """Retrieve Oracle LOB values which may be string or bytes, and convert float to decimal."""
     if any(isinstance(col_value, oracledb.LOB) for col_value in col_values):
         col_values = [

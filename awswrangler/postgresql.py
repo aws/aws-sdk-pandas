@@ -1,10 +1,12 @@
 # mypy: disable-error-code=name-defined
 """Amazon PostgreSQL Module."""
 
+from __future__ import annotations
+
 import logging
 import uuid
 from ssl import SSLContext
-from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast, overload
+from typing import Any, Iterator, Literal, cast, overload
 
 import boto3
 import pyarrow as pa
@@ -29,14 +31,14 @@ def _validate_connection(con: "pg8000.Connection") -> None:
         )
 
 
-def _drop_table(cursor: "pg8000.Cursor", schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "pg8000.Cursor", schema: str | None, table: str) -> None:
     schema_str = f"{pg8000_native.identifier(schema)}." if schema else ""
     sql = f"DROP TABLE IF EXISTS {schema_str}{pg8000_native.identifier(table)}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: "pg8000.Cursor", schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "pg8000.Cursor", schema: str | None, table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = {pg8000_native.literal(schema)} AND" if schema else ""
     cursor.execute(
         f"SELECT true WHERE EXISTS ("
@@ -54,14 +56,14 @@ def _create_table(
     schema: str,
     mode: str,
     index: bool,
-    dtype: Optional[Dict[str, str]],
-    varchar_lengths: Optional[Dict[str, int]],
+    dtype: dict[str, str] | None,
+    varchar_lengths: dict[str, int] | None,
 ) -> None:
     if mode == "overwrite":
         _drop_table(cursor=cursor, schema=schema, table=table)
     elif _does_table_exist(cursor=cursor, schema=schema, table=table):
         return
-    postgresql_types: Dict[str, str] = _data_types.database_types_from_pandas(
+    postgresql_types: dict[str, str] = _data_types.database_types_from_pandas(
         df=df,
         index=index,
         dtype=dtype,
@@ -79,10 +81,10 @@ def _iterate_server_side_cursor(
     sql: str,
     con: Any,
     chunksize: int,
-    index_col: Optional[Union[str, List[str]]],
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]],
+    index_col: str | list[str] | None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None,
     safe: bool,
-    dtype: Optional[Dict[str, pa.DataType]],
+    dtype: dict[str, pa.DataType] | None,
     timestamp_as_object: bool,
     dtype_backend: Literal["numpy_nullable", "pyarrow"],
 ) -> Iterator[pd.DataFrame]:
@@ -125,13 +127,13 @@ def _iterate_server_side_cursor(
 
 @_utils.check_optional_dependency(pg8000, "pg8000")
 def connect(
-    connection: Optional[str] = None,
-    secret_id: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    dbname: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    ssl_context: Optional[Union[bool, SSLContext]] = None,
-    timeout: Optional[int] = None,
+    connection: str | None = None,
+    secret_id: str | None = None,
+    catalog_id: str | None = None,
+    dbname: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    ssl_context: bool | SSLContext | None = None,
+    timeout: int | None = None,
     tcp_keepalive: bool = True,
 ) -> "pg8000.Connection":
     """Return a pg8000 connection from a Glue Catalog Connection.
@@ -217,10 +219,10 @@ def connect(
 def read_sql_query(
     sql: str,
     con: "pg8000.Connection",
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -233,10 +235,10 @@ def read_sql_query(
     sql: str,
     con: "pg8000.Connection",
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -249,14 +251,14 @@ def read_sql_query(
     sql: str,
     con: "pg8000.Connection",
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
+    chunksize: int | None,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ...
 
 
@@ -264,14 +266,14 @@ def read_sql_query(
 def read_sql_query(
     sql: str,
     con: "pg8000.Connection",
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Return a DataFrame corresponding to the result set of the query string.
 
     Parameters
@@ -351,11 +353,11 @@ def read_sql_query(
 def read_sql_table(
     table: str,
     con: "pg8000.Connection",
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -368,11 +370,11 @@ def read_sql_table(
     table: str,
     con: "pg8000.Connection",
     *,
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -385,15 +387,15 @@ def read_sql_table(
     table: str,
     con: "pg8000.Connection",
     *,
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
+    chunksize: int | None,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ...
 
 
@@ -401,15 +403,15 @@ def read_sql_table(
 def read_sql_table(
     table: str,
     con: "pg8000.Connection",
-    schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    schema: str | None = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Return a DataFrame corresponding the table.
 
     Parameters
@@ -493,12 +495,12 @@ def to_sql(
     schema: str,
     mode: _ToSqlModeLiteral = "append",
     index: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
-    varchar_lengths: Optional[Dict[str, int]] = None,
+    dtype: dict[str, str] | None = None,
+    varchar_lengths: dict[str, int] | None = None,
     use_column_names: bool = False,
     chunksize: int = 200,
-    upsert_conflict_columns: Optional[List[str]] = None,
-    insert_conflict_columns: Optional[List[str]] = None,
+    upsert_conflict_columns: list[str] | None = None,
+    insert_conflict_columns: list[str] | None = None,
 ) -> None:
     """Write records stored in a DataFrame into PostgreSQL.
 

@@ -1,7 +1,9 @@
 """Amazon S3 Excel Read Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import boto3
 
@@ -17,10 +19,10 @@ _logger: logging.Logger = logging.getLogger(__name__)
 @_utils.check_optional_dependency(openpyxl, "openpyxl")
 def read_excel(
     path: str,
-    version_id: Optional[str] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    version_id: str | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
     **pandas_kwargs: Any,
 ) -> pd.DataFrame:
     """Read EXCEL file(s) from a received S3 path.

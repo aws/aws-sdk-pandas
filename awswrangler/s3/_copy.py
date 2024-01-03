@@ -1,8 +1,10 @@
 """Amazon S3 Copy Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 import boto3
 from boto3.s3.transfer import TransferConfig
@@ -24,10 +26,10 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 @engine.dispatch_on_engine
 def _copy_objects(
-    s3_client: Optional["S3Client"],
-    batch: List[Tuple[str, str]],
-    use_threads: Union[bool, int],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
+    s3_client: "S3Client" | None,
+    batch: list[tuple[str, str]],
+    use_threads: bool | int,
+    s3_additional_kwargs: dict[str, Any] | None,
 ) -> None:
     _logger.debug("Copying %s objects", len(batch))
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
@@ -45,14 +47,14 @@ def _copy_objects(
 
 
 def _copy(
-    batches: List[List[Tuple[str, str]]],
-    use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
+    batches: list[list[tuple[str, str]]],
+    use_threads: bool | int,
+    boto3_session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, Any] | None,
 ) -> None:
     s3_client = _utils.client(service_name="s3", session=boto3_session)
     if s3_additional_kwargs is None:
-        boto3_kwargs: Optional[Dict[str, Any]] = None
+        boto3_kwargs: dict[str, Any] | None = None
     else:
         boto3_kwargs = get_botocore_valid_kwargs(function_name="copy_object", s3_additional_kwargs=s3_additional_kwargs)
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
@@ -75,10 +77,10 @@ def merge_datasets(
     target_path: str,
     mode: Literal["append", "overwrite", "overwrite_partitions"] = "append",
     ignore_empty: bool = False,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> List[str]:
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+) -> list[str]:
     """Merge a source dataset into a target dataset.
 
     This function accepts Unix shell-style wildcards in the source_path argument.
@@ -153,7 +155,7 @@ def merge_datasets(
     source_path = source_path[:-1] if source_path[-1] == "/" else source_path
     target_path = target_path[:-1] if target_path[-1] == "/" else target_path
 
-    paths: List[str] = list_objects(path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=boto3_session)
+    paths: list[str] = list_objects(path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=boto3_session)
     if len(paths) < 1:
         return []
 
@@ -161,9 +163,9 @@ def merge_datasets(
         _logger.debug("Deleting to overwrite: %s/", target_path)
         delete_objects(path=f"{target_path}/", use_threads=use_threads, boto3_session=boto3_session)
     elif mode == "overwrite_partitions":
-        paths_wo_prefix: List[str] = [x.replace(f"{source_path}/", "") for x in paths]
-        paths_wo_filename: List[str] = [f"{x.rpartition('/')[0]}/" for x in paths_wo_prefix]
-        partitions_paths: List[str] = list(set(paths_wo_filename))
+        paths_wo_prefix: list[str] = [x.replace(f"{source_path}/", "") for x in paths]
+        paths_wo_filename: list[str] = [f"{x.rpartition('/')[0]}/" for x in paths_wo_prefix]
+        partitions_paths: list[str] = list(set(paths_wo_filename))
         target_partitions_paths = [f"{target_path}/{x}" for x in partitions_paths]
         for path in target_partitions_paths:
             _logger.debug("Deleting to overwrite_partitions: %s", path)
@@ -171,7 +173,7 @@ def merge_datasets(
     elif mode != "append":
         raise exceptions.InvalidArgumentValue(f"{mode} is a invalid mode option.")
 
-    new_objects: List[str] = copy_objects(
+    new_objects: list[str] = copy_objects(
         paths=paths,
         source_path=source_path,
         target_path=target_path,
@@ -186,14 +188,14 @@ def merge_datasets(
     unsupported_kwargs=["boto3_session"],
 )
 def copy_objects(
-    paths: List[str],
+    paths: list[str],
     source_path: str,
     target_path: str,
-    replace_filenames: Optional[Dict[str, str]] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> List[str]:
+    replace_filenames: dict[str, str] | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+) -> list[str]:
     """Copy a list of S3 objects to another S3 directory.
 
     Note
@@ -257,13 +259,13 @@ def copy_objects(
         return []
     source_path = source_path[:-1] if source_path[-1] == "/" else source_path
     target_path = target_path[:-1] if target_path[-1] == "/" else target_path
-    batch: List[Tuple[str, str]] = []
-    new_objects: List[str] = []
+    batch: list[tuple[str, str]] = []
+    new_objects: list[str] = []
     for path in paths:
         path_wo_prefix: str = path.replace(f"{source_path}/", "")
         path_final: str = f"{target_path}/{path_wo_prefix}"
         if replace_filenames is not None:
-            parts: List[str] = path_final.rsplit(sep="/", maxsplit=1)
+            parts: list[str] = path_final.rsplit(sep="/", maxsplit=1)
             if len(parts) == 2:
                 path_wo_filename: str = parts[0]
                 filename: str = parts[1]

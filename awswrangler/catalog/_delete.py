@@ -1,7 +1,9 @@
 """AWS Glue Catalog Delete Module."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import boto3
 
@@ -15,7 +17,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 @apply_configs
-def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> None:
+def delete_database(name: str, catalog_id: str | None = None, boto3_session: boto3.Session | None = None) -> None:
     """Delete a database in AWS Glue Catalog.
 
     Parameters
@@ -48,9 +50,9 @@ def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: 
 def delete_table_if_exists(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    transaction_id: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> bool:
     """Delete Glue table if exists.
 
@@ -101,9 +103,9 @@ def delete_table_if_exists(
 def delete_partitions(
     table: str,
     database: str,
-    partitions_values: List[List[str]],
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    partitions_values: list[list[str]],
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Delete specified partitions in a AWS Glue Catalog table.
 
@@ -137,7 +139,7 @@ def delete_partitions(
     ... )
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
-    chunks: List[List[List[str]]] = _utils.chunkify(lst=partitions_values, max_length=25)
+    chunks: list[list[list[str]]] = _utils.chunkify(lst=partitions_values, max_length=25)
     for chunk in chunks:
         client_glue.batch_delete_partition(
             **_catalog_id(
@@ -151,8 +153,8 @@ def delete_partitions(
 
 @apply_configs
 def delete_all_partitions(
-    table: str, database: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[List[str]]:
+    table: str, database: str, catalog_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> list[list[str]]:
     """Delete all partitions in a AWS Glue Catalog table.
 
     Parameters
@@ -181,7 +183,7 @@ def delete_all_partitions(
     ... )
     """
     _logger.debug("Fetching existing partitions...")
-    partitions_values: List[List[str]] = list(
+    partitions_values: list[list[str]] = list(
         _get_partitions(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id).values()
     )
     _logger.debug("Number of old partitions: %s", len(partitions_values))
@@ -201,9 +203,9 @@ def delete_column(
     database: str,
     table: str,
     column_name: str,
-    transaction_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    catalog_id: Optional[str] = None,
+    transaction_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    catalog_id: str | None = None,
 ) -> None:
     """Delete a column in a AWS Glue Catalog table.
 
@@ -244,11 +246,11 @@ def delete_column(
             **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table),
         )
     )
-    table_input: Dict[str, Any] = _update_table_definition(table_res)
+    table_input: dict[str, Any] = _update_table_definition(table_res)
     table_input["StorageDescriptor"]["Columns"] = [
         i for i in table_input["StorageDescriptor"]["Columns"] if i["Name"] != column_name
     ]
-    res: Dict[str, Any] = client_glue.update_table(
+    res: dict[str, Any] = client_glue.update_table(
         **_catalog_id(
             catalog_id=catalog_id,
             **_transaction_id(transaction_id=transaction_id, DatabaseName=database, TableInput=table_input),

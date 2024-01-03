@@ -1,7 +1,9 @@
 """Amazon S3 Upload Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import boto3
 
@@ -11,11 +13,11 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def upload(
-    local_file: Union[str, Any],
+    local_file: str | Any,
     path: str,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
 ) -> None:
     """Upload file from a local file to received S3 path.
 

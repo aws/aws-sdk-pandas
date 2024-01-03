@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import json
 import logging
 import random
 import string
 from decimal import Decimal
-from typing import Any, Dict, Iterator, List, Optional, Type, Union
+from typing import Any, Iterator
 
 import boto3
 import numpy as np
@@ -45,7 +47,7 @@ def test_connection() -> None:
         pass
 
 
-def test_read_sql_query_simple(databases_parameters: Dict[str, Any]) -> None:
+def test_read_sql_query_simple(databases_parameters: dict[str, Any]) -> None:
     con = redshift_connector.connect(
         host=databases_parameters["redshift"]["host"],
         port=int(databases_parameters["redshift"]["port"]),
@@ -125,7 +127,7 @@ def test_sql_types(redshift_table: str, redshift_con: redshift_connector.Connect
         ensure_data_types(df, has_list=False)
 
 
-def test_connection_temp(databases_parameters: Dict[str, Any]) -> None:
+def test_connection_temp(databases_parameters: dict[str, Any]) -> None:
     con: redshift_connector.Connection = wr.redshift.connect_temp(
         cluster_identifier=databases_parameters["redshift"]["identifier"], user="test"
     )
@@ -135,7 +137,7 @@ def test_connection_temp(databases_parameters: Dict[str, Any]) -> None:
             assert cursor.fetchall()[0][0] == 1
 
 
-def test_connection_temp2(databases_parameters: Dict[str, Any]) -> None:
+def test_connection_temp2(databases_parameters: dict[str, Any]) -> None:
     con: redshift_connector.Connection = wr.redshift.connect_temp(
         cluster_identifier=databases_parameters["redshift"]["identifier"], user="john_doe", duration=900, db_groups=[]
     )
@@ -146,7 +148,7 @@ def test_connection_temp2(databases_parameters: Dict[str, Any]) -> None:
 
 
 def test_copy_unload(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = get_df().drop(["binary"], axis=1, inplace=False)
     wr.redshift.copy(
@@ -201,7 +203,7 @@ def generic_test_copy_upsert(
     path: str,
     redshift_table: str,
     redshift_con: redshift_connector.Connection,
-    databases_parameters: Dict[str, Any],
+    databases_parameters: dict[str, Any],
 ) -> None:
     df = pd.DataFrame({"id": list(range(1_000)), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
     df3 = pd.DataFrame(
@@ -281,7 +283,7 @@ def generic_test_copy_upsert(
 
 
 def test_copy_upsert(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     generic_test_copy_upsert(path, redshift_table, redshift_con, databases_parameters)
 
@@ -290,7 +292,7 @@ def test_copy_upsert_hyphenated_name(
     path: str,
     redshift_table_with_hyphenated_name: str,
     redshift_con: redshift_connector.Connection,
-    databases_parameters: Dict[str, Any],
+    databases_parameters: dict[str, Any],
 ) -> None:
     generic_test_copy_upsert(path, redshift_table_with_hyphenated_name, redshift_con, databases_parameters)
 
@@ -310,12 +312,12 @@ def test_exceptions(
     path: str,
     redshift_table: str,
     redshift_con: redshift_connector.Connection,
-    databases_parameters: Dict[str, Any],
-    diststyle: Optional[str],
-    distkey: Optional[str],
-    sortstyle: Optional[str],
-    sortkey: Optional[List[str]],
-    exc: Type[BaseException],
+    databases_parameters: dict[str, Any],
+    diststyle: str | None,
+    distkey: str | None,
+    sortstyle: str | None,
+    sortkey: list[str] | None,
+    exc: type[BaseException],
 ) -> None:
     df = pd.DataFrame({"id": [1], "name": "joe"})
     with pytest.raises(exc):
@@ -363,7 +365,7 @@ def test_spectrum(
 
 @pytest.mark.xfail(raises=NotImplementedError, reason="Unable to create pandas categorical from pyarrow table")
 def test_category(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.redshift.copy(
@@ -402,7 +404,7 @@ def test_unload_extras(
     path: str,
     redshift_table: str,
     redshift_con: redshift_connector.Connection,
-    databases_parameters: Dict[str, Any],
+    databases_parameters: dict[str, Any],
     kms_key_id: str,
 ) -> None:
     table = redshift_table
@@ -443,9 +445,9 @@ def test_unload_with_prefix(
     path: str,
     redshift_table: str,
     redshift_con: redshift_connector.Connection,
-    databases_parameters: Dict[str, Any],
+    databases_parameters: dict[str, Any],
     kms_key_id: str,
-    unload_format: Optional[str],
+    unload_format: str | None,
 ) -> None:
     test_prefix = "my_prefix"
     table = redshift_table
@@ -555,7 +557,7 @@ def test_spectrum_long_string(
 
 
 def test_copy_unload_long_string(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = pd.DataFrame(
         {
@@ -592,7 +594,7 @@ def test_spectrum_decimal_cast(
     glue_table: str,
     glue_database: str,
     redshift_external_schema: str,
-    databases_parameters: Dict[str, Any],
+    databases_parameters: dict[str, Any],
 ) -> None:
     df = pd.DataFrame(
         {"c0": [1, 2], "c1": [1, None], "c2": [2.22222, None], "c3": ["3.33333", None], "c4": [None, None]}
@@ -654,11 +656,11 @@ def test_copy_unload_kms(
     path: str,
     redshift_table: str,
     redshift_con: redshift_connector.Connection,
-    databases_parameters: Dict[str, Any],
+    databases_parameters: dict[str, Any],
     kms_key_id: str,
     use_threads: bool,
     parallel: bool,
-    s3_additional_kwargs: Optional[Dict[str, Any]],
+    s3_additional_kwargs: dict[str, Any] | None,
 ) -> None:
     df = pd.DataFrame({"id": [1, 2, 3]})
     if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
@@ -693,7 +695,7 @@ def test_copy_extras(
     path: str,
     redshift_table: str,
     redshift_con: redshift_connector.Connection,
-    databases_parameters: Dict[str, Any],
+    databases_parameters: dict[str, Any],
     use_threads: bool,
     parquet_infer_sampling: float,
 ) -> None:
@@ -884,7 +886,7 @@ def test_table_name(redshift_con: redshift_connector.Connection) -> None:
 
 
 def test_copy_from_files(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
@@ -903,7 +905,7 @@ def test_copy_from_files(
 
 
 def test_copy_from_files_extra_params(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
@@ -942,7 +944,7 @@ def test_get_paths_from_manifest(path: str) -> None:
 
 
 def test_copy_from_files_manifest(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
@@ -972,8 +974,8 @@ def test_copy_from_files_ignore(
     path: str,
     redshift_table: str,
     redshift_con: redshift_connector.Connection,
-    databases_parameters: Dict[str, Any],
-    path_ignore_suffix: Union[str, List[str]],
+    databases_parameters: dict[str, Any],
+    path_ignore_suffix: str | list[str],
 ) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
@@ -992,7 +994,7 @@ def test_copy_from_files_ignore(
 
 
 def test_copy_from_files_empty(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
@@ -1010,7 +1012,7 @@ def test_copy_from_files_empty(
 
 
 def test_copy_dirty_path(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = pd.DataFrame({"col0": [0, 1, 2]})
 
@@ -1029,7 +1031,7 @@ def test_copy_dirty_path(
 
 
 @pytest.mark.parametrize("dbname", [None, "test"])
-def test_connect_secret_manager(dbname: Optional[str]) -> None:
+def test_connect_secret_manager(dbname: str | None) -> None:
     with wr.redshift.connect(secret_id="aws-sdk-pandas/redshift", dbname=dbname) as con:
         df = wr.redshift.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
@@ -1131,7 +1133,7 @@ def test_copy_unload_creds(path: str, redshift_table: str, redshift_con: redshif
 
 
 def test_column_length(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = pd.DataFrame({"a": ["foo"], "b": ["a" * 5000]}, dtype="string")
     wr.s3.to_parquet(df, f"{path}test.parquet")
@@ -1149,7 +1151,7 @@ def test_column_length(
 
 
 def test_failed_keep_files(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = pd.DataFrame({"c0": [1], "c1": ["foo"]}, dtype="string")
     with pytest.raises(ProgrammingError):
@@ -1241,7 +1243,7 @@ def test_to_sql_multi_transaction(redshift_table: str, redshift_con: redshift_co
 
 
 def test_copy_upsert_with_column_names(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = pd.DataFrame({"id": list(range(1_000)), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
     df3 = pd.DataFrame(
@@ -1354,7 +1356,7 @@ def test_to_sql_with_identity_column(redshift_table: str, redshift_con: redshift
 
 
 def test_unload_escape_quotation_marks(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     df = get_df().drop(["binary"], axis=1, inplace=False)
     schema = "public"

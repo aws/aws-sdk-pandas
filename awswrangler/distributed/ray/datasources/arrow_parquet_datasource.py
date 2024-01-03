@@ -7,8 +7,10 @@ are documented in the comments and marked with (AWS SDK for pandas) prefix.
 """
 # pylint: disable=redefined-outer-name,import-outside-toplevel,reimported
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Union
+from typing import Any, Callable, Iterator
 
 import numpy as np
 
@@ -82,7 +84,7 @@ class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abs
        relative to the root S3 prefix.
     """
 
-    def create_reader(self, **kwargs: Dict[str, Any]) -> Reader:
+    def create_reader(self, **kwargs: dict[str, Any]) -> Reader:
         """Return a Reader for the given read arguments."""
         return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore[arg-type]
 
@@ -90,17 +92,17 @@ class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abs
         self,
         f: "pyarrow.NativeFile",
         block: BlockAccessor,
-        pandas_kwargs: Optional[Dict[str, Any]],
+        pandas_kwargs: dict[str, Any] | None,
         **writer_args: Any,
     ) -> None:
         """Write a block to S3."""
         import pyarrow as pa  # pylint: disable=import-outside-toplevel,reimported
 
         schema: pa.Schema = writer_args.get("schema", None)
-        dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
+        dtype: dict[str, str] | None = writer_args.get("dtype", None)
         index: bool = writer_args.get("index", False)
-        compression: Optional[str] = writer_args.get("compression", None)
-        pyarrow_additional_kwargs: Optional[Dict[str, Any]] = writer_args.get("pyarrow_additional_kwargs", {})
+        compression: str | None = writer_args.get("compression", None)
+        pyarrow_additional_kwargs: dict[str, Any] | None = writer_args.get("pyarrow_additional_kwargs", {})
 
         pa.parquet.write_table(
             _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
@@ -109,7 +111,7 @@ class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abs
             **pyarrow_additional_kwargs,
         )
 
-    def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
+    def _get_file_suffix(self, file_format: str, compression: str | None) -> str:
         if compression is not None:
             return f"{_COMPRESSION_2_EXT.get(compression)[1:]}.{file_format}"  # type: ignore[index]
         return file_format
@@ -133,8 +135,8 @@ class _SerializedPiece:
 
 # Visible for test mocking.
 def _deserialize_pieces(
-    serialized_pieces: List[_SerializedPiece],
-) -> List[ParquetFileFragment]:
+    serialized_pieces: list[_SerializedPiece],
+) -> list[ParquetFileFragment]:
     return [p.deserialize() for p in serialized_pieces]
 
 
@@ -146,10 +148,10 @@ def _deserialize_pieces(
 # with ray.data parallelism setting at high value like the default 200
 # Such connection failure can be restored with some waiting and retry.
 def _deserialize_pieces_with_retry(
-    serialized_pieces: List[_SerializedPiece],
-) -> List[ParquetFileFragment]:
+    serialized_pieces: list[_SerializedPiece],
+) -> list[ParquetFileFragment]:
     min_interval: float = 0
-    final_exception: Optional[Exception] = None
+    final_exception: Exception | None = None
     for i in range(FILE_READING_RETRY):
         try:
             return _deserialize_pieces(serialized_pieces)
@@ -188,13 +190,13 @@ def _deserialize_pieces_with_retry(
 class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         local_uri: bool = False,
-        filesystem: Optional["pyarrow.fs.FileSystem"] = None,
-        columns: Optional[List[str]] = None,
-        schema: Optional[Schema] = None,
+        filesystem: "pyarrow.fs.FileSystem" | None = None,
+        columns: list[str] | None = None,
+        schema: Schema | None = None,
         meta_provider: ParquetMetadataProvider = DefaultParquetMetadataProvider(),
-        _block_udf: Optional[Callable[[Block], Block]] = None,
+        _block_udf: Callable[[Block], Block] | None = None,
         **reader_args: Any,
     ):
         import pyarrow as pa
@@ -257,7 +259,7 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
         self._schema = schema
         self._encoding_ratio = self._estimate_files_encoding_ratio()
 
-    def estimate_inmemory_data_size(self) -> Optional[int]:
+    def estimate_inmemory_data_size(self) -> int | None:
         """Estimate data size."""
         total_size: int = 0
         for file_metadata in self._metadata:
@@ -266,7 +268,7 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
                 total_size += row_group_metadata.total_byte_size
         return total_size * self._encoding_ratio  # type: ignore[return-value]
 
-    def get_read_tasks(self, parallelism: int) -> List[ReadTask]:
+    def get_read_tasks(self, parallelism: int) -> list[ReadTask]:
         """Override the base class FileBasedDatasource.get_read_tasks().
 
         Required in order to leverage pyarrow's ParquetDataset abstraction,
@@ -361,14 +363,14 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
 # 1. Use _add_table_partitions to add partition columns. The behavior is controlled by Pandas SDK
 #    native `dataset` parameter. The partitions are loaded relative to the `path_root` prefix.
 def _read_pieces(
-    block_udf: Optional[Callable[[Block], Block]],
+    block_udf: Callable[[Block], Block] | None,
     reader_args: Any,
-    columns: Optional[List[str]],
-    schema: Optional[Union[type, "pyarrow.lib.Schema"]],
-    serialized_pieces: List[_SerializedPiece],
+    columns: list[str] | None,
+    schema: type | "pyarrow.lib.Schema" | None,
+    serialized_pieces: list[_SerializedPiece],
 ) -> Iterator["pyarrow.Table"]:
     # Deserialize after loading the filesystem class.
-    pieces: List[ParquetFileFragment] = _deserialize_pieces_with_retry(serialized_pieces)
+    pieces: list[ParquetFileFragment] = _deserialize_pieces_with_retry(serialized_pieces)
 
     # Ensure that we're reading at least one dataset fragment.
     assert len(pieces) > 0
@@ -412,8 +414,8 @@ def _read_pieces(
 
 def _sample_piece(
     reader_args: Any,
-    columns: Optional[List[str]],
-    schema: Optional[Union[type, "pyarrow.lib.Schema"]],
+    columns: list[str] | None,
+    schema: type | "pyarrow.lib.Schema" | None,
     file_piece: _SerializedPiece,
 ) -> float:
     # Sample the first rows batch from file piece `serialized_piece`.

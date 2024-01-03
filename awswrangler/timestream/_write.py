@@ -1,10 +1,12 @@
 """Amazon Timestream Module."""
 
+from __future__ import annotations
+
 import itertools
 import logging
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, cast
 
 import boto3
 from botocore.config import Config
@@ -20,7 +22,7 @@ from awswrangler.typing import TimestreamBatchLoadReportS3Configuration
 if TYPE_CHECKING:
     from mypy_boto3_timestream_write.client import TimestreamWriteClient
 
-_BATCH_LOAD_FINAL_STATES: List[str] = ["SUCCEEDED", "FAILED", "PROGRESS_STOPPED", "PENDING_RESUME"]
+_BATCH_LOAD_FINAL_STATES: list[str] = ["SUCCEEDED", "FAILED", "PROGRESS_STOPPED", "PENDING_RESUME"]
 _BATCH_LOAD_WAIT_POLLING_DELAY: float = 2  # SECONDS
 _TIME_UNITS_MAPPING = {
     "SECONDS": (9, 0),
@@ -34,9 +36,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _TimeUnitLiteral = Literal["MILLISECONDS", "SECONDS", "MICROSECONDS", "NANOSECONDS"]
 
 
-def _df2list(df: pd.DataFrame) -> List[List[Any]]:
+def _df2list(df: pd.DataFrame) -> list[list[Any]]:
     """Extract Parameters."""
-    parameters: List[List[Any]] = df.values.tolist()
+    parameters: list[list[Any]] = df.values.tolist()
     for i, row in enumerate(parameters):
         for j, value in enumerate(row):
             if pd.isna(value):
@@ -55,7 +57,7 @@ def _check_time_unit(time_unit: _TimeUnitLiteral) -> str:
     return time_unit
 
 
-def _format_timestamp(timestamp: Union[int, datetime], time_unit: _TimeUnitLiteral) -> str:
+def _format_timestamp(timestamp: int | datetime, time_unit: _TimeUnitLiteral) -> str:
     if isinstance(timestamp, int):
         return str(round(timestamp / pow(10, _TIME_UNITS_MAPPING[time_unit][0])))
     if isinstance(timestamp, datetime):
@@ -65,7 +67,7 @@ def _format_timestamp(timestamp: Union[int, datetime], time_unit: _TimeUnitLiter
 
 def _format_measure(
     measure_name: str, measure_value: Any, measure_type: str, time_unit: _TimeUnitLiteral
-) -> Dict[str, str]:
+) -> dict[str, str]:
     return {
         "Name": measure_name,
         "Value": _format_timestamp(measure_value, time_unit) if measure_type == "TIMESTAMP" else str(measure_value),
@@ -74,11 +76,11 @@ def _format_measure(
 
 
 def _sanitize_common_attributes(
-    common_attributes: Optional[Dict[str, Any]],
+    common_attributes: dict[str, Any] | None,
     version: int,
     time_unit: _TimeUnitLiteral,
-    measure_name: Optional[str],
-) -> Dict[str, Any]:
+    measure_name: str | None,
+) -> dict[str, Any]:
     common_attributes = {} if not common_attributes else common_attributes
     # Values in common_attributes take precedence
     common_attributes.setdefault("Version", version)
@@ -103,18 +105,18 @@ def _sanitize_common_attributes(
 
 @engine.dispatch_on_engine
 def _write_batch(
-    timestream_client: Optional["TimestreamWriteClient"],
+    timestream_client: "TimestreamWriteClient" | None,
     database: str,
     table: str,
-    common_attributes: Dict[str, Any],
-    cols_names: List[Optional[str]],
-    measure_cols: List[Optional[str]],
-    measure_types: List[str],
-    dimensions_cols: List[Optional[str]],
-    batch: List[Any],
-) -> List[Dict[str, str]]:
+    common_attributes: dict[str, Any],
+    cols_names: list[str | None],
+    measure_cols: list[str | None],
+    measure_types: list[str],
+    dimensions_cols: list[str | None],
+    batch: list[Any],
+) -> list[dict[str, str]]:
     client_timestream = timestream_client if timestream_client else _utils.client(service_name="timestream-write")
-    records: List[Dict[str, Any]] = []
+    records: list[dict[str, Any]] = []
     scalar = bool(len(measure_cols) == 1 and "MeasureValues" not in common_attributes)
     time_loc = 0
     measure_cols_loc = 1 if cols_names[0] else 0
@@ -128,7 +130,7 @@ def _write_batch(
     time_unit = common_attributes["TimeUnit"]
 
     for row in batch:
-        record: Dict[str, Any] = {}
+        record: dict[str, Any] = {}
         if "Time" not in common_attributes:
             record["Time"] = _format_timestamp(row[time_loc], time_unit)
         if scalar and "MeasureValue" not in common_attributes:
@@ -187,19 +189,19 @@ def _write_df(
     executor: _BaseExecutor,
     database: str,
     table: str,
-    common_attributes: Dict[str, Any],
-    cols_names: List[Optional[str]],
-    measure_cols: List[Optional[str]],
-    measure_types: List[str],
-    dimensions_cols: List[Optional[str]],
-    boto3_session: Optional[boto3.Session],
-) -> List[Dict[str, str]]:
+    common_attributes: dict[str, Any],
+    cols_names: list[str | None],
+    measure_cols: list[str | None],
+    measure_types: list[str],
+    dimensions_cols: list[str | None],
+    boto3_session: boto3.Session | None,
+) -> list[dict[str, str]]:
     timestream_client = _utils.client(
         service_name="timestream-write",
         session=boto3_session,
         botocore_config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
     )
-    batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df), max_length=100)
+    batches: list[list[Any]] = _utils.chunkify(lst=_df2list(df=df), max_length=100)
     _logger.debug("Writing %d batches of data", len(batches))
     return executor.map(
         _write_batch,  # type: ignore[arg-type]
@@ -222,16 +224,16 @@ def write(
     df: pd.DataFrame,
     database: str,
     table: str,
-    time_col: Optional[str] = None,
-    measure_col: Union[str, List[Optional[str]], None] = None,
-    dimensions_cols: Optional[List[Optional[str]]] = None,
+    time_col: str | None = None,
+    measure_col: str | list[str | None] | None = None,
+    dimensions_cols: list[str | None] | None = None,
     version: int = 1,
     time_unit: _TimeUnitLiteral = "MILLISECONDS",
-    use_threads: Union[bool, int] = True,
-    measure_name: Optional[str] = None,
-    common_attributes: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> List[Dict[str, str]]:
+    use_threads: bool | int = True,
+    measure_name: str | None = None,
+    common_attributes: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[dict[str, str]]:
     """Store a Pandas DataFrame into an Amazon Timestream table.
 
     Note
@@ -326,11 +328,11 @@ def write(
 
     """
     measure_cols = measure_col if isinstance(measure_col, list) else [measure_col]
-    measure_types: List[str] = (
+    measure_types: list[str] = (
         _data_types.timestream_type_from_pandas(df.loc[:, measure_cols]) if all(measure_cols) else []
     )
     dimensions_cols = dimensions_cols if dimensions_cols else [dimensions_cols]  # type: ignore[list-item]
-    cols_names: List[Optional[str]] = [time_col] + measure_cols + dimensions_cols
+    cols_names: list[str | None] = [time_col] + measure_cols + dimensions_cols
     measure_name = measure_name if measure_name else measure_cols[0]
     common_attributes = _sanitize_common_attributes(common_attributes, version, time_unit, measure_name)
 
@@ -387,8 +389,8 @@ def write(
 def wait_batch_load_task(
     task_id: str,
     timestream_batch_load_wait_polling_delay: float = _BATCH_LOAD_WAIT_POLLING_DELAY,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """
     Wait for the Timestream batch load task to complete.
 
@@ -441,18 +443,18 @@ def batch_load(
     database: str,
     table: str,
     time_col: str,
-    dimensions_cols: List[str],
-    measure_cols: List[str],
+    dimensions_cols: list[str],
+    measure_cols: list[str],
     measure_name_col: str,
     report_s3_configuration: TimestreamBatchLoadReportS3Configuration,
     time_unit: _TimeUnitLiteral = "MILLISECONDS",
     record_version: int = 1,
     timestream_batch_load_wait_polling_delay: float = _BATCH_LOAD_WAIT_POLLING_DELAY,
     keep_files: bool = False,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> Dict[str, Any]:
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Batch load a Pandas DataFrame into a Amazon Timestream table.
 
     Note
@@ -540,7 +542,7 @@ def batch_load(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
-        measure_types: List[str] = _data_types.timestream_type_from_pandas(df.loc[:, measure_cols])
+        measure_types: list[str] = _data_types.timestream_type_from_pandas(df.loc[:, measure_cols])
         return batch_load_from_files(
             path=path,
             database=database,
@@ -573,17 +575,17 @@ def batch_load_from_files(
     database: str,
     table: str,
     time_col: str,
-    dimensions_cols: List[str],
-    measure_cols: List[str],
-    measure_types: List[str],
+    dimensions_cols: list[str],
+    measure_cols: list[str],
+    measure_types: list[str],
     measure_name_col: str,
     report_s3_configuration: TimestreamBatchLoadReportS3Configuration,
     time_unit: _TimeUnitLiteral = "MILLISECONDS",
     record_version: int = 1,
-    data_source_csv_configuration: Optional[Dict[str, Union[str, bool]]] = None,
+    data_source_csv_configuration: dict[str, str | bool] | None = None,
     timestream_batch_load_wait_polling_delay: float = _BATCH_LOAD_WAIT_POLLING_DELAY,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """Batch load files from S3 into a Amazon Timestream table.
 
     Note
@@ -649,7 +651,7 @@ def batch_load_from_files(
     timestream_client = _utils.client(service_name="timestream-write", session=boto3_session)
     bucket, prefix = _utils.parse_path(path=path)
 
-    kwargs: Dict[str, Any] = {
+    kwargs: dict[str, Any] = {
         "TargetDatabaseName": database,
         "TargetTableName": table,
         "DataModelConfiguration": {

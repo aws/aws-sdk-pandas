@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import bz2
 import gzip
 import logging
 import lzma
 from io import BytesIO, TextIOWrapper
-from typing import Optional
 
 import boto3
 import pyarrow as pa
@@ -95,7 +96,7 @@ def test_csv_read(bucket: str, path: str, compression: str) -> None:
         None,
     ],
 )
-def test_csv_write(path: str, compression: Optional[str]) -> None:
+def test_csv_write(path: str, compression: str | None) -> None:
     # Ensure we use the pd.read_csv native to Pandas, not Modin.
     # Modin's read_csv has an issue in this scenario, making the test fail.
     import pandas as pd
@@ -109,7 +110,7 @@ def test_csv_write(path: str, compression: Optional[str]) -> None:
 
 
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
-def test_csv_write_dataset_filename_extension(path: str, compression: Optional[str]) -> None:
+def test_csv_write_dataset_filename_extension(path: str, compression: str | None) -> None:
     df = get_df_csv()
     result = wr.s3.to_csv(df, path, compression=compression, index=False, dataset=True)
     for p in result["paths"]:
@@ -117,7 +118,7 @@ def test_csv_write_dataset_filename_extension(path: str, compression: Optional[s
 
 
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
-def test_json(path: str, compression: Optional[str]) -> None:
+def test_json(path: str, compression: str | None) -> None:
     path_file = f"{path}test.json{EXT.get(compression, '')}"
     df = pd.DataFrame({"id": [1, 2, 3]})
     wr.s3.to_json(df=df, path=path_file)
@@ -128,7 +129,7 @@ def test_json(path: str, compression: Optional[str]) -> None:
 
 @pytest.mark.parametrize("chunksize", [None, 1])
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
-def test_partitioned_json(path: str, compression: Optional[str], chunksize: Optional[int]) -> None:
+def test_partitioned_json(path: str, compression: str | None, chunksize: int | None) -> None:
     df = pd.DataFrame(
         {
             "c0": [0, 1, 2, 3],
@@ -157,7 +158,7 @@ def test_partitioned_json(path: str, compression: Optional[str], chunksize: Opti
 
 @pytest.mark.parametrize("chunksize", [None, 1])
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
-def test_partitioned_csv(path: str, compression: Optional[str], chunksize: Optional[int]) -> None:
+def test_partitioned_csv(path: str, compression: str | None, chunksize: int | None) -> None:
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
     paths = [f"{path}year={y}/month={m}/0.csv{EXT.get(compression, '')}" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
     for p in paths:

@@ -1,4 +1,6 @@
-from typing import Any, Dict, Iterator
+from __future__ import annotations
+
+from typing import Any, Iterator
 
 import boto3
 import pytest
@@ -14,7 +16,7 @@ pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture
-def redshift_connector(databases_parameters: Dict[str, Any]) -> Iterator["RedshiftDataApi"]:
+def redshift_connector(databases_parameters: dict[str, Any]) -> Iterator["RedshiftDataApi"]:
     cluster_id = databases_parameters["redshift"]["identifier"]
     database = databases_parameters["redshift"]["database"]
     secret_arn = databases_parameters["redshift"]["secret_arn"]
@@ -25,7 +27,7 @@ def redshift_connector(databases_parameters: Dict[str, Any]) -> Iterator["Redshi
         yield con
 
 
-def create_rds_connector(rds_type: str, parameters: Dict[str, Any]) -> "RdsDataApi":
+def create_rds_connector(rds_type: str, parameters: dict[str, Any]) -> "RdsDataApi":
     cluster_id = parameters[rds_type]["arn"]
     database = parameters[rds_type]["database"]
     secret_arn = parameters[rds_type]["secret_arn"]
@@ -33,20 +35,20 @@ def create_rds_connector(rds_type: str, parameters: Dict[str, Any]) -> "RdsDataA
 
 
 @pytest.fixture
-def mysql_serverless_connector(databases_parameters: Dict[str, Any]) -> "RdsDataApi":
+def mysql_serverless_connector(databases_parameters: dict[str, Any]) -> "RdsDataApi":
     con = create_rds_connector("mysql_serverless", databases_parameters)
     with con:
         yield con
 
 
 @pytest.fixture
-def postgresql_serverless_connector(databases_parameters: Dict[str, Any]) -> "RdsDataApi":
+def postgresql_serverless_connector(databases_parameters: dict[str, Any]) -> "RdsDataApi":
     con = create_rds_connector("postgresql_serverless", databases_parameters)
     with con:
         yield con
 
 
-def test_connect_redshift_serverless_iam_role(databases_parameters: Dict[str, Any]) -> None:
+def test_connect_redshift_serverless_iam_role(databases_parameters: dict[str, Any]) -> None:
     workgroup_name = databases_parameters["redshift_serverless"]["workgroup"]
     database = databases_parameters["redshift_serverless"]["database"]
     con = wr.data_api.redshift.connect(workgroup_name=workgroup_name, database=database, boto3_session=None)
@@ -54,7 +56,7 @@ def test_connect_redshift_serverless_iam_role(databases_parameters: Dict[str, An
     assert df.shape == (1, 1)
 
 
-def test_connect_redshift_cluster_iam_role(databases_parameters: Dict[str, Any]) -> None:
+def test_connect_redshift_cluster_iam_role(databases_parameters: dict[str, Any]) -> None:
     cluster_id = databases_parameters["redshift"]["identifier"]
     database = databases_parameters["redshift"]["database"]
     con = wr.data_api.redshift.connect(cluster_id=cluster_id, database=database, boto3_session=None)
@@ -62,7 +64,7 @@ def test_connect_redshift_cluster_iam_role(databases_parameters: Dict[str, Any])
     assert df.shape == (1, 1)
 
 
-def test_connect_redshift_cluster_db_user(databases_parameters: Dict[str, Any]) -> None:
+def test_connect_redshift_cluster_db_user(databases_parameters: dict[str, Any]) -> None:
     cluster_id = databases_parameters["redshift"]["identifier"]
     database = databases_parameters["redshift"]["database"]
     db_user = databases_parameters["user"]
@@ -71,7 +73,7 @@ def test_connect_redshift_cluster_db_user(databases_parameters: Dict[str, Any]) 
     assert df.shape == (1, 1)
 
 
-def test_connect_redshift_serverless_secrets_manager(databases_parameters: Dict[str, Any]) -> None:
+def test_connect_redshift_serverless_secrets_manager(databases_parameters: dict[str, Any]) -> None:
     workgroup_name = databases_parameters["redshift_serverless"]["workgroup"]
     database = databases_parameters["redshift_serverless"]["database"]
     secret_arn = databases_parameters["redshift_serverless"]["secret_arn"]

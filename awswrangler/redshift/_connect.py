@@ -1,5 +1,7 @@
 """Amazon Redshift Connect Module (PRIVATE)."""
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
+
+from typing import Any
 
 import boto3
 
@@ -20,13 +22,13 @@ def _validate_connection(con: "redshift_connector.Connection") -> None:  # type:
 
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def connect(
-    connection: Optional[str] = None,
-    secret_id: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    dbname: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    connection: str | None = None,
+    secret_id: str | None = None,
+    catalog_id: str | None = None,
+    dbname: str | None = None,
+    boto3_session: boto3.Session | None = None,
     ssl: bool = True,
-    timeout: Optional[int] = None,
+    timeout: int | None = None,
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
     **kwargs: Any,
@@ -134,13 +136,13 @@ def connect(
 def connect_temp(
     cluster_identifier: str,
     user: str,
-    database: Optional[str] = None,
+    database: str | None = None,
     duration: int = 900,
     auto_create: bool = True,
-    db_groups: Optional[List[str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    db_groups: list[str] | None = None,
+    boto3_session: boto3.Session | None = None,
     ssl: bool = True,
-    timeout: Optional[int] = None,
+    timeout: int | None = None,
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
     **kwargs: Any,
@@ -205,7 +207,7 @@ def connect_temp(
 
     """
     client_redshift = _utils.client(service_name="redshift", session=boto3_session)
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "DbUser": user,
         "ClusterIdentifier": cluster_identifier,
         "DurationSeconds": duration,

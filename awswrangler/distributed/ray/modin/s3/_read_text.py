@@ -1,6 +1,8 @@
 """Modin on Ray S3 read text module (PRIVATE)."""
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import modin.pandas as pd
 from pyarrow import csv
@@ -45,12 +47,12 @@ class CSVReadConfiguration(TypedDict):
 
 
 class JSONReadConfiguration(TypedDict):
-    read_options: Dict[str, Any]
-    parse_options: Dict[str, Any]
+    read_options: dict[str, Any]
+    parse_options: dict[str, Any]
 
 
 def _parse_csv_configuration(
-    pandas_kwargs: Dict[str, Any],
+    pandas_kwargs: dict[str, Any],
 ) -> CSVReadConfiguration:
     _check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
 
@@ -75,7 +77,7 @@ def _parse_csv_configuration(
 
 
 def _parse_json_configuration(
-    pandas_kwargs: Dict[str, Any],
+    pandas_kwargs: dict[str, Any],
 ) -> JSONReadConfiguration:
     _check_parameters(pandas_kwargs, _JSON_SUPPORTED_PARAMS)
 
@@ -88,10 +90,10 @@ def _parse_json_configuration(
 
 def _parse_configuration(
     file_format: str,
-    version_ids: Optional[Dict[str, str]],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    pandas_kwargs: Dict[str, Any],
-) -> Union[CSVReadConfiguration, JSONReadConfiguration]:
+    version_ids: dict[str, str] | None,
+    s3_additional_kwargs: dict[str, str] | None,
+    pandas_kwargs: dict[str, Any],
+) -> CSVReadConfiguration | JSONReadConfiguration:
     if version_ids:
         raise exceptions.InvalidArgument("Specific version ID found for object")
 
@@ -119,19 +121,19 @@ def _resolve_format(read_format: str, can_use_arrow: bool) -> Any:
 
 def _read_text_distributed(  # pylint: disable=unused-argument
     read_format: str,
-    paths: List[str],
-    path_root: Optional[str],
-    use_threads: Union[bool, int],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, str]],
+    paths: list[str],
+    path_root: str | None,
+    use_threads: bool | int,
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, str] | None,
     dataset: bool,
     ignore_index: bool,
     parallelism: int,
-    version_ids: Optional[Dict[str, str]],
-    pandas_kwargs: Dict[str, Any],
+    version_ids: dict[str, str] | None,
+    pandas_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
     try:
-        configuration: Dict[str, Any] = _parse_configuration(  # type: ignore[assignment]
+        configuration: dict[str, Any] = _parse_configuration(  # type: ignore[assignment]
             read_format,
             version_ids,
             s3_additional_kwargs,

@@ -1,7 +1,9 @@
 """Amazon Clean Rooms Module hosting read_* functions."""
 
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterator
 
 import boto3
 
@@ -17,7 +19,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _delete_after_iterate(
-    dfs: Iterator[pd.DataFrame], keep_files: bool, kwargs: Dict[str, Any]
+    dfs: Iterator[pd.DataFrame], keep_files: bool, kwargs: dict[str, Any]
 ) -> Iterator[pd.DataFrame]:
     yield from dfs
     if keep_files is False:
@@ -25,18 +27,18 @@ def _delete_after_iterate(
 
 
 def read_sql_query(
-    sql: Optional[str] = None,
-    analysis_template_arn: Optional[str] = None,
+    sql: str | None = None,
+    analysis_template_arn: str | None = None,
     membership_id: str = "",
     output_bucket: str = "",
     output_prefix: str = "",
     keep_files: bool = True,
-    params: Optional[Dict[str, Any]] = None,
-    chunksize: Optional[Union[int, bool]] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[Iterator[pd.DataFrame], pd.DataFrame]:
+    params: dict[str, Any] | None = None,
+    chunksize: int | bool | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+) -> Iterator[pd.DataFrame] | pd.DataFrame:
     """Execute Clean Rooms Protected SQL query and return the results as a Pandas DataFrame.
 
     Note
@@ -139,7 +141,7 @@ def read_sql_query(
     ]["result"]["output"]["s3"]["location"]
 
     _logger.debug("path: %s", path)
-    chunked: Union[bool, int] = False if chunksize is None else chunksize
+    chunked: bool | int = False if chunksize is None else chunksize
     ret = s3.read_parquet(
         path=path,
         use_threads=use_threads,
@@ -149,7 +151,7 @@ def read_sql_query(
     )
 
     _logger.debug("type(ret): %s", type(ret))
-    kwargs: Dict[str, Any] = {
+    kwargs: dict[str, Any] = {
         "path": path,
         "use_threads": use_threads,
         "boto3_session": boto3_session,

@@ -1,9 +1,11 @@
 """Utilities Module for AWS Glue Catalog."""
+from __future__ import annotations
+
 import logging
 import re
 import unicodedata
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 import boto3
 
@@ -17,15 +19,15 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _catalog_id(catalog_id: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
+def _catalog_id(catalog_id: str | None = None, **kwargs: Any) -> dict[str, Any]:
     if catalog_id is not None:
         kwargs["CatalogId"] = catalog_id
     return kwargs
 
 
 def _transaction_id(
-    transaction_id: Optional[str] = None, query_as_of_time: Optional[str] = None, **kwargs: Any
-) -> Dict[str, Any]:
+    transaction_id: str | None = None, query_as_of_time: str | None = None, **kwargs: Any
+) -> dict[str, Any]:
     if transaction_id is not None and query_as_of_time is not None:
         raise exceptions.InvalidArgumentCombination(
             "Please pass only one of `transaction_id` or `query_as_of_time`, not both"
@@ -42,8 +44,8 @@ def _sanitize_name(name: str) -> str:
     return re.sub("[^A-Za-z0-9_]+", "_", name).lower()  # Replacing non alphanumeric characters by underscore
 
 
-def _extract_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> Dict[str, str]:
-    dtypes: Dict[str, str] = {}
+def _extract_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> dict[str, str]:
+    dtypes: dict[str, str] = {}
     for col in response["Table"]["StorageDescriptor"]["Columns"]:
         dtypes[col["Name"]] = col["Type"]
     if "PartitionKeys" in response["Table"]:
@@ -56,9 +58,9 @@ def _extract_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> D
 def does_table_exist(
     database: str,
     table: str,
-    boto3_session: Optional[boto3.Session] = None,
-    catalog_id: Optional[str] = None,
-    transaction_id: Optional[str] = None,
+    boto3_session: boto3.Session | None = None,
+    catalog_id: str | None = None,
+    transaction_id: str | None = None,
 ) -> bool:
     """Check if the table exists.
 
@@ -171,7 +173,7 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def sanitize_dataframe_columns_names(
-    df: pd.DataFrame, handle_duplicate_columns: Optional[str] = "warn"
+    df: pd.DataFrame, handle_duplicate_columns: str | None = "warn"
 ) -> pd.DataFrame:
     """Normalize all columns names to be compatible with Amazon Athena.
 
@@ -305,10 +307,10 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
 def extract_athena_types(
     df: pd.DataFrame,
     index: bool = False,
-    partition_cols: Optional[List[str]] = None,
-    dtype: Optional[Dict[str, str]] = None,
+    partition_cols: list[str] | None = None,
+    dtype: dict[str, str] | None = None,
     file_format: str = "parquet",
-) -> Tuple[Dict[str, str], Dict[str, str]]:
+) -> tuple[dict[str, str], dict[str, str]]:
     """Extract columns and partitions types (Amazon Athena) from Pandas DataFrame.
 
     https://docs.aws.amazon.com/athena/latest/ug/data-types.html

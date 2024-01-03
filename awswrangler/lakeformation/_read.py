@@ -1,7 +1,9 @@
 """Amazon Lake Formation Module gathering all read functions."""
+from __future__ import annotations
+
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 import boto3
 import pandas as pd
@@ -24,9 +26,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 @engine.dispatch_on_engine
 def _get_work_unit_results(
-    client_lakeformation: Optional["LakeFormationClient"],
+    client_lakeformation: "LakeFormationClient" | None,
     query_id: str,
-    token_work_unit: Tuple[str, int],
+    token_work_unit: tuple[str, int],
 ) -> Table:
     client_lakeformation = client_lakeformation if client_lakeformation else _utils.client(service_name="lakeformation")
     token, work_unit = token_work_unit
@@ -39,8 +41,8 @@ def _get_work_unit_results(
 def _resolve_sql_query(
     query_id: str,
     use_threads: bool,
-    boto3_session: Optional[boto3.Session],
-    arrow_kwargs: Dict[str, Any],
+    boto3_session: boto3.Session | None,
+    arrow_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
     client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
@@ -50,9 +52,9 @@ def _resolve_sql_query(
     # Retrieve the tokens and their associated work units until NextToken is ''
     # One Token can span multiple work units
     # PageSize determines the size of the "Units" array in each call
-    scan_kwargs: Dict[str, Union[str, int]] = {"QueryId": query_id, "PageSize": 10}
-    next_token: Optional[str] = "init_token"  # Dummy token
-    token_work_units: List[Tuple[str, int]] = []
+    scan_kwargs: dict[str, str | int] = {"QueryId": query_id, "PageSize": 10}
+    next_token: str | None = "init_token"  # Dummy token
+    token_work_units: list[tuple[str, int]] = []
     while next_token:
         response = client_lakeformation.get_work_units(**scan_kwargs)  # type: ignore[arg-type]
         token_work_units.extend(  # [(Token0, WorkUnitId0), (Token0, WorkUnitId1), (Token1, WorkUnitId2) ... ]
@@ -83,14 +85,14 @@ def _resolve_sql_query(
 def read_sql_query(
     sql: str,
     database: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
-    catalog_id: Optional[str] = None,
+    transaction_id: str | None = None,
+    query_as_of_time: str | None = None,
+    catalog_id: str | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     use_threads: bool = True,
-    boto3_session: Optional[boto3.Session] = None,
-    params: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    boto3_session: boto3.Session | None = None,
+    params: dict[str, Any] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Execute PartiQL query on AWS Glue Table (Transaction ID or time travel timestamp). Return Pandas DataFrame.
 
@@ -183,7 +185,7 @@ def read_sql_query(
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
         transaction_id = start_transaction(read_only=True, boto3_session=boto3_session)
         commit_trans = True
-    args: Dict[str, Optional[str]] = _catalog_id(
+    args: dict[str, str | None] = _catalog_id(
         catalog_id=catalog_id,
         **_transaction_id(transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database),
     )
@@ -213,13 +215,13 @@ def read_sql_query(
 def read_sql_table(
     table: str,
     database: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
-    catalog_id: Optional[str] = None,
+    transaction_id: str | None = None,
+    query_as_of_time: str | None = None,
+    catalog_id: str | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     use_threads: bool = True,
-    boto3_session: Optional[boto3.Session] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    boto3_session: boto3.Session | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Extract all rows from AWS Glue Table (Transaction ID or time travel timestamp). Return Pandas DataFrame.
 

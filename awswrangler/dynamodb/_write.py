@@ -1,10 +1,12 @@
 """Amazon DynamoDB Write Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import itertools
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Mapping
 
 import boto3
 from boto3.dynamodb.types import TypeSerializer
@@ -28,10 +30,10 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 @apply_configs
 def put_json(
-    path: Union[str, Path],
+    path: str | Path,
     table_name: str,
-    boto3_session: Optional[boto3.Session] = None,
-    use_threads: Union[bool, int] = True,
+    boto3_session: boto3.Session | None = None,
+    use_threads: bool | int = True,
 ) -> None:
     """Write all items from JSON file to a DynamoDB.
 
@@ -77,10 +79,10 @@ def put_json(
 
 @apply_configs
 def put_csv(
-    path: Union[str, Path],
+    path: str | Path,
     table_name: str,
-    boto3_session: Optional[boto3.Session] = None,
-    use_threads: Union[bool, int] = True,
+    boto3_session: boto3.Session | None = None,
+    use_threads: bool | int = True,
     **pandas_kwargs: Any,
 ) -> None:
     """Write all items from a CSV file to a DynamoDB.
@@ -136,12 +138,12 @@ def put_csv(
 
 @engine.dispatch_on_engine
 def _put_df(
-    dynamodb_client: Optional["DynamoDBClient"],
+    dynamodb_client: "DynamoDBClient" | None,
     df: pd.DataFrame,
     table_name: str,
-    key_schema: List["KeySchemaElementTypeDef"],
+    key_schema: list["KeySchemaElementTypeDef"],
 ) -> None:
-    items: List[Mapping[str, Any]] = [v.dropna().to_dict() for _, v in df.iterrows()]
+    items: list[Mapping[str, Any]] = [v.dropna().to_dict() for _, v in df.iterrows()]
 
     put_items_func = engine.dispatch_func(_put_items, "python")
     put_items_func(items=items, table_name=table_name, key_schema=key_schema, dynamodb_client=dynamodb_client)
@@ -154,8 +156,8 @@ def _put_df(
 def put_df(
     df: pd.DataFrame,
     table_name: str,
-    boto3_session: Optional[boto3.Session] = None,
-    use_threads: Union[bool, int] = True,
+    boto3_session: boto3.Session | None = None,
+    use_threads: bool | int = True,
 ) -> None:
     """Write all items from a DataFrame to a DynamoDB.
 
@@ -211,10 +213,10 @@ def put_df(
 
 @engine.dispatch_on_engine
 def _put_items(
-    dynamodb_client: Optional["DynamoDBClient"],
-    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]],
+    dynamodb_client: "DynamoDBClient" | None,
+    items: list[dict[str, Any]] | list[Mapping[str, Any]],
     table_name: str,
-    key_schema: List["KeySchemaElementTypeDef"],
+    key_schema: list["KeySchemaElementTypeDef"],
 ) -> None:
     _logger.debug("Inserting %d items", len(items))
     _validate_items(items=items, key_schema=key_schema)
@@ -232,10 +234,10 @@ def _put_items(
     unsupported_kwargs=["boto3_session"],
 )
 def put_items(
-    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]],
+    items: list[dict[str, Any]] | list[Mapping[str, Any]],
     table_name: str,
-    boto3_session: Optional[boto3.Session] = None,
-    use_threads: Union[bool, int] = True,
+    boto3_session: boto3.Session | None = None,
+    use_threads: bool | int = True,
 ) -> None:
     """Insert all items to the specified DynamoDB table.
 

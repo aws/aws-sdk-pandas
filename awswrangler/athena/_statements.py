@@ -1,7 +1,9 @@
 """Amazon Athena Module gathering all functions related to prepared statements."""
 
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, cast
 
 import boto3
 from botocore.exceptions import ClientError
@@ -37,7 +39,7 @@ def create_prepared_statement(
     statement_name: str,
     workgroup: str = "primary",
     mode: Literal["update", "error"] = "update",
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """
     Create a SQL statement with the name statement_name to be run at a later time. The statement can include parameters represented by question marks.
@@ -94,7 +96,7 @@ def create_prepared_statement(
 
 
 @apply_configs
-def list_prepared_statements(workgroup: str = "primary", boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def list_prepared_statements(workgroup: str = "primary", boto3_session: boto3.Session | None = None) -> list[str]:
     """
     List the prepared statements in the specified workgroup.
 
@@ -127,7 +129,7 @@ def list_prepared_statements(workgroup: str = "primary", boto3_session: Optional
 def delete_prepared_statement(
     statement_name: str,
     workgroup: str = "primary",
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """
     Delete the prepared statement with the specified name from the specified workgroup.

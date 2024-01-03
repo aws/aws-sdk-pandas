@@ -1,10 +1,10 @@
 # mypy: disable-error-code=no-untyped-def
+from __future__ import annotations
 
 import itertools
 import logging
 import math
 from datetime import date, datetime
-from typing import Union
 
 import boto3
 import numpy as np
@@ -422,7 +422,7 @@ def test_empty_file(path, use_threads):
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_ignore_files(path: str, use_threads: Union[bool, int]) -> None:
+def test_ignore_files(path: str, use_threads: bool | int) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
 
     wr.s3.to_orc(df, f"{path}data.orc", index=False)

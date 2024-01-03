@@ -1,9 +1,11 @@
 """Amazon S3 Describe Module (INTERNAL)."""
 
+from __future__ import annotations
+
 import datetime
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, cast
 
 import boto3
 
@@ -24,14 +26,14 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _describe_object(
     s3_client: "S3Client",
     path: str,
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    version_id: Optional[str] = None,
-) -> Tuple[str, Dict[str, Any]]:
+    s3_additional_kwargs: dict[str, Any] | None,
+    version_id: str | None = None,
+) -> tuple[str, dict[str, Any]]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
 
     bucket, key = _utils.parse_path(path=path)
     if s3_additional_kwargs:
-        extra_kwargs: Dict[str, Any] = _fs.get_botocore_valid_kwargs(
+        extra_kwargs: dict[str, Any] = _fs.get_botocore_valid_kwargs(
             function_name="head_object", s3_additional_kwargs=s3_additional_kwargs
         )
     else:
@@ -48,14 +50,14 @@ def _describe_object(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
 def describe_objects(
-    path: Union[str, List[str]],
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
-    use_threads: Union[bool, int] = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Dict[str, Any]]:
+    path: str | list[str],
+    version_id: str | dict[str, str] | None = None,
+    use_threads: bool | int = True,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, dict[str, Any]]:
     """Describe Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 
     Fetch attributes like ContentLength, DeleteMarker, last_modified, ContentType, etc
@@ -144,12 +146,12 @@ def describe_objects(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
 def size_objects(
-    path: Union[str, List[str]],
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
-    use_threads: Union[bool, int] = True,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Optional[int]]:
+    path: str | list[str],
+    version_id: str | dict[str, str] | None = None,
+    use_threads: bool | int = True,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, int | None]:
     """Get the size (ContentLength) in bytes of Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -203,7 +205,7 @@ def size_objects(
     return {k: d.get("ContentLength", None) for k, d in desc_list.items()}
 
 
-def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None) -> str:
+def get_bucket_region(bucket: str, boto3_session: boto3.Session | None = None) -> str:
     """Get bucket region name.
 
     Parameters

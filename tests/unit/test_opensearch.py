@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import json
 import logging
 import tempfile
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 import boto3
 import botocore
@@ -149,7 +151,7 @@ def domain_endpoint_elasticsearch_7_10_fgac(cloudformation_outputs):
     return cloudformation_outputs["DomainEndpointsdkpandases710fgac"]
 
 
-def _get_opensearch_data_access_policy() -> List[Dict[str, Any]]:
+def _get_opensearch_data_access_policy() -> list[dict[str, Any]]:
     return [
         {
             "Rules": [
@@ -531,7 +533,7 @@ def test_opensearch_serverless_create_collection(opensearch_serverless_client) -
     client = boto3.client(service_name="opensearchserverless")
 
     try:
-        collection: Dict[str, Any] = wr.opensearch.create_collection(
+        collection: dict[str, Any] = wr.opensearch.create_collection(
             name=collection_name,
             data_policy=_get_opensearch_data_access_policy(),
         )

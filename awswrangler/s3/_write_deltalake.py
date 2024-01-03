@@ -1,6 +1,8 @@
 """Amazon S3 Writer Delta Lake Module (PRIVATE)."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Literal
 
 import boto3
 import pandas as pd
@@ -20,8 +22,8 @@ else:
 
 
 def _set_default_storage_options_kwargs(
-    boto3_session: Optional[boto3.Session], s3_additional_kwargs: Optional[Dict[str, Any]], s3_allow_unsafe_rename: bool
-) -> Dict[str, Any]:
+    boto3_session: boto3.Session | None, s3_additional_kwargs: dict[str, Any] | None, s3_allow_unsafe_rename: bool
+) -> dict[str, Any]:
     defaults = {key.upper(): value for key, value in _utils.boto3_to_primitives(boto3_session=boto3_session).items()}
     defaults["AWS_REGION"] = defaults.pop("REGION_NAME")
     s3_additional_kwargs = s3_additional_kwargs or {}
@@ -39,11 +41,11 @@ def to_deltalake(
     path: str,
     index: bool = False,
     mode: Literal["error", "append", "overwrite", "ignore"] = "append",
-    dtype: Optional[Dict[str, str]] = None,
-    partition_cols: Optional[List[str]] = None,
+    dtype: dict[str, str] | None = None,
+    partition_cols: list[str] | None = None,
     overwrite_schema: bool = False,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
     s3_allow_unsafe_rename: bool = False,
 ) -> None:
     """Write a DataFrame to S3 as a DeltaLake table.

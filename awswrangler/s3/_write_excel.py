@@ -1,7 +1,9 @@
 """Amazon S3 Excel Write Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import boto3
 import pandas as pd
@@ -18,9 +20,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def to_excel(
     df: pd.DataFrame,
     path: str,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    use_threads: Union[bool, int] = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    use_threads: bool | int = True,
     **pandas_kwargs: Any,
 ) -> str:
     """Write EXCEL file on Amazon S3.

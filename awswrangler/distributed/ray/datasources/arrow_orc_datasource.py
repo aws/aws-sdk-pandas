@@ -1,5 +1,7 @@
 """Ray ArrowCSVDatasource Module."""
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
+
+from typing import Any
 
 import pyarrow as pa
 from ray.data.block import BlockAccessor
@@ -22,7 +24,7 @@ class ArrowORCDatasource(PandasFileBasedDatasource):
     ) -> pa.Table:
         from pyarrow import orc
 
-        columns: Optional[List[str]] = reader_args.get("columns", None)
+        columns: list[str] | None = reader_args.get("columns", None)
 
         table: pa.Table = orc.read_table(f, columns=columns)
 
@@ -46,16 +48,16 @@ class ArrowORCDatasource(PandasFileBasedDatasource):
         self,
         f: pa.NativeFile,
         block: BlockAccessor,
-        pandas_kwargs: Optional[Dict[str, Any]],
+        pandas_kwargs: dict[str, Any] | None,
         **writer_args: Any,
     ) -> None:
         from pyarrow import orc
 
-        schema: Optional[pa.schema] = writer_args.get("schema", None)
-        dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
+        schema: pa.schema | None = writer_args.get("schema", None)
+        dtype: dict[str, str] | None = writer_args.get("dtype", None)
         index: bool = writer_args.get("index", False)
         compression: str = writer_args.get("compression", None) or "UNCOMPRESSED"
-        pyarrow_additional_kwargs: Dict[str, Any] = writer_args.get("pyarrow_additional_kwargs", {})
+        pyarrow_additional_kwargs: dict[str, Any] = writer_args.get("pyarrow_additional_kwargs", {})
 
         orc.write_table(
             _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),

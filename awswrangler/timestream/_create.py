@@ -1,7 +1,9 @@
 """Amazon Timestream Create Module."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 import boto3
 
@@ -12,9 +14,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def create_database(
     database: str,
-    kms_key_id: Optional[str] = None,
-    tags: Optional[Dict[str, str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    kms_key_id: str | None = None,
+    tags: dict[str, str] | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Create a new Timestream database.
 
@@ -53,7 +55,7 @@ def create_database(
     """
     _logger.info("Creating Timestream database %s", database)
     client = _utils.client(service_name="timestream-write", session=boto3_session)
-    args: Dict[str, Any] = {"DatabaseName": database}
+    args: dict[str, Any] = {"DatabaseName": database}
     if kms_key_id is not None:
         args["KmsKeyId"] = kms_key_id
     if tags is not None:
@@ -67,9 +69,9 @@ def create_table(
     table: str,
     memory_retention_hours: int,
     magnetic_retention_days: int,
-    tags: Optional[Dict[str, str]] = None,
-    timestream_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    tags: dict[str, str] | None = None,
+    timestream_additional_kwargs: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Create a new Timestream database.
 
@@ -120,7 +122,7 @@ def create_table(
     _logger.info("Creating Timestream table %s in database %s", table, database)
     client = _utils.client(service_name="timestream-write", session=boto3_session)
     timestream_additional_kwargs = {} if timestream_additional_kwargs is None else timestream_additional_kwargs
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "DatabaseName": database,
         "TableName": table,
         "RetentionProperties": {

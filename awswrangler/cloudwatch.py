@@ -1,9 +1,11 @@
 """CloudWatch Logs module."""
 
+from __future__ import annotations
+
 import datetime
 import logging
 import time
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, cast
 
 import boto3
 
@@ -28,11 +30,11 @@ def _validate_args(
 
 def start_query(
     query: str,
-    log_group_names: List[str],
-    start_time: Optional[datetime.datetime] = None,
-    end_time: Optional[datetime.datetime] = None,
-    limit: Optional[int] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    log_group_names: list[str],
+    start_time: datetime.datetime | None = None,
+    end_time: datetime.datetime | None = None,
+    limit: int | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Run a query against AWS CloudWatchLogs Insights.
 
@@ -83,7 +85,7 @@ def start_query(
         start_timestamp=start_timestamp,
         end_timestamp=end_timestamp,
     )
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "logGroupIdentifiers": log_group_names,
         "startTime": start_timestamp,
         "endTime": end_timestamp,
@@ -100,9 +102,9 @@ def start_query(
 @apply_configs
 def wait_query(
     query_id: str,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
     cloudwatch_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Wait query ends.
 
     https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
@@ -131,7 +133,7 @@ def wait_query(
     ... response = wr.cloudwatch.wait_query(query_id=query_id)
 
     """
-    final_states: List[str] = ["Complete", "Failed", "Cancelled"]
+    final_states: list[str] = ["Complete", "Failed", "Cancelled"]
     client_logs = _utils.client(service_name="logs", session=boto3_session)
     response = client_logs.get_query_results(queryId=query_id)
     status = response["status"]
@@ -149,12 +151,12 @@ def wait_query(
 
 def run_query(
     query: str,
-    log_group_names: List[str],
-    start_time: Optional[datetime.datetime] = None,
-    end_time: Optional[datetime.datetime] = None,
-    limit: Optional[int] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> List[List[Dict[str, str]]]:
+    log_group_names: list[str],
+    start_time: datetime.datetime | None = None,
+    end_time: datetime.datetime | None = None,
+    limit: int | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[list[dict[str, str]]]:
     """Run a query against AWS CloudWatchLogs Insights and wait the results.
 
     https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
@@ -196,17 +198,17 @@ def run_query(
         limit=limit,
         boto3_session=boto3_session,
     )
-    response: Dict[str, Any] = wait_query(query_id=query_id, boto3_session=boto3_session)
+    response: dict[str, Any] = wait_query(query_id=query_id, boto3_session=boto3_session)
     return cast(List[List[Dict[str, str]]], response["results"])
 
 
 def read_logs(
     query: str,
-    log_group_names: List[str],
-    start_time: Optional[datetime.datetime] = None,
-    end_time: Optional[datetime.datetime] = None,
-    limit: Optional[int] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    log_group_names: list[str],
+    start_time: datetime.datetime | None = None,
+    end_time: datetime.datetime | None = None,
+    limit: int | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
     """Run a query against AWS CloudWatchLogs Insights and convert the results to Pandas DataFrame.
 
@@ -241,7 +243,7 @@ def read_logs(
     ... )
 
     """
-    results: List[List[Dict[str, str]]] = run_query(
+    results: list[list[dict[str, str]]] = run_query(
         query=query,
         log_group_names=log_group_names,
         start_time=start_time,
@@ -249,9 +251,9 @@ def read_logs(
         limit=limit,
         boto3_session=boto3_session,
     )
-    pre_df: List[Dict[str, str]] = []
+    pre_df: list[dict[str, str]] = []
     for row in results:
-        new_row: Dict[str, str] = {}
+        new_row: dict[str, str] = {}
         for col in row:
             if col["field"].startswith("@"):
                 col_name = col["field"].replace("@", "", 1)
@@ -267,11 +269,11 @@ def read_logs(
 
 def describe_log_streams(
     log_group_name: str,
-    log_stream_name_prefix: Optional[str] = None,
-    order_by: Optional[str] = "LogStreamName",
-    descending: Optional[bool] = False,
-    limit: Optional[int] = 50,
-    boto3_session: Optional[boto3.Session] = None,
+    log_stream_name_prefix: str | None = None,
+    order_by: str | None = "LogStreamName",
+    descending: bool | None = False,
+    limit: int | None = 50,
+    boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
     """List the log streams for the specified log group, return results as a Pandas DataFrame.
 
@@ -311,7 +313,7 @@ def describe_log_streams(
 
     """
     client_logs = _utils.client(service_name="logs", session=boto3_session)
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "logGroupName": log_group_name,
         "descending": descending,
         "orderBy": order_by,
@@ -323,7 +325,7 @@ def describe_log_streams(
         raise exceptions.InvalidArgumentCombination(
             "Cannot call describe_log_streams with both `log_stream_name_prefix` and order_by equal 'LastEventTime'"
         )
-    log_streams: List[Dict[str, Any]] = []
+    log_streams: list[dict[str, Any]] = []
     response = client_logs.describe_log_streams(**args)
 
     log_streams += cast(List[Dict[str, Any]], response["logStreams"])
@@ -342,16 +344,16 @@ def describe_log_streams(
 
 def _filter_log_events(
     log_group_name: str,
-    log_stream_names: List[str],
-    start_timestamp: Optional[int] = None,
-    end_timestamp: Optional[int] = None,
-    filter_pattern: Optional[str] = None,
-    limit: Optional[int] = 10000,
-    boto3_session: Optional[boto3.Session] = None,
-) -> List[Dict[str, Any]]:
+    log_stream_names: list[str],
+    start_timestamp: int | None = None,
+    end_timestamp: int | None = None,
+    filter_pattern: str | None = None,
+    limit: int | None = 10000,
+    boto3_session: boto3.Session | None = None,
+) -> list[dict[str, Any]]:
     client_logs = _utils.client(service_name="logs", session=boto3_session)
-    events: List[Dict[str, Any]] = []
-    args: Dict[str, Any] = {
+    events: list[dict[str, Any]] = []
+    args: dict[str, Any] = {
         "logGroupName": log_group_name,
         "logStreamNames": log_stream_names,
         "limit": limit,
@@ -375,12 +377,12 @@ def _filter_log_events(
 
 def filter_log_events(
     log_group_name: str,
-    log_stream_name_prefix: Optional[str] = None,
-    log_stream_names: Optional[List[str]] = None,
-    filter_pattern: Optional[str] = None,
-    start_time: Optional[datetime.datetime] = None,
-    end_time: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    log_stream_name_prefix: str | None = None,
+    log_stream_names: list[str] | None = None,
+    filter_pattern: str | None = None,
+    start_time: datetime.datetime | None = None,
+    end_time: datetime.datetime | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
     """List log events from the specified log group. The results are returned as Pandas DataFrame.
 
@@ -440,9 +442,9 @@ def filter_log_events(
         )
     _logger.debug("log_group_name: %s", log_group_name)
 
-    events: List[Dict[str, Any]] = []
+    events: list[dict[str, Any]] = []
     if not log_stream_names:
-        describe_log_streams_args: Dict[str, Any] = {
+        describe_log_streams_args: dict[str, Any] = {
             "log_group_name": log_group_name,
         }
         if boto3_session:
@@ -452,7 +454,7 @@ def filter_log_events(
         log_streams = describe_log_streams(**describe_log_streams_args)
         log_stream_names = log_streams["logStreamName"].tolist() if len(log_streams.index) else []
 
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "log_group_name": log_group_name,
     }
     if start_time:

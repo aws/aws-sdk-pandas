@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import calendar
 import logging
 import time
-from typing import Optional
 
 import boto3
 import pytest
@@ -18,7 +19,7 @@ pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("table_type", ["EXTERNAL_TABLE", "GOVERNED"])
-def test_create_table(path: str, glue_database: str, glue_table: str, table_type: Optional[str]) -> None:
+def test_create_table(path: str, glue_database: str, glue_table: str, table_type: str | None) -> None:
     transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" else None
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is False
     wr.catalog.create_csv_table(
@@ -47,7 +48,7 @@ def test_create_table(path: str, glue_database: str, glue_table: str, table_type
     ],
 )
 def test_catalog(
-    path: str, glue_database: str, glue_table: str, table_type: Optional[str], start_transaction: bool, account_id: str
+    path: str, glue_database: str, glue_table: str, table_type: str | None, start_transaction: bool, account_id: str
 ) -> None:
     transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" else None
     wr.catalog.create_parquet_table(

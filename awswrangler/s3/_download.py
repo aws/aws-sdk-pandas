@@ -1,7 +1,9 @@
 """Amazon S3 Download Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional, Union, cast
+from typing import Any, cast
 
 import boto3
 
@@ -12,11 +14,11 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def download(
     path: str,
-    local_file: Union[str, Any],
-    version_id: Optional[str] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    local_file: str | Any,
+    version_id: str | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
 ) -> None:
     """Download file from a received S3 path to local file.
 

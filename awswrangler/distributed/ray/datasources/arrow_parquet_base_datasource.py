@@ -6,7 +6,9 @@ and customized to ensure compatibility with AWS SDK for pandas behavior. Changes
 are documented in the comments and marked with (AWS SDK for pandas) prefix.
 """
 
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
+
+from typing import Any
 
 # fs required to implicitly trigger S3 subsystem initialization
 import pyarrow as pa
@@ -38,10 +40,10 @@ class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=
         **reader_args: Any,
     ) -> pa.Table:
         use_threads: bool = reader_args.get("use_threads", False)
-        columns: Optional[List[str]] = reader_args.get("columns", None)
+        columns: list[str] | None = reader_args.get("columns", None)
 
         dataset_kwargs = reader_args.get("dataset_kwargs", {})
-        coerce_int96_timestamp_unit: Optional[str] = dataset_kwargs.get("coerce_int96_timestamp_unit", None)
+        coerce_int96_timestamp_unit: str | None = dataset_kwargs.get("coerce_int96_timestamp_unit", None)
 
         table = pq.read_table(
             f,
@@ -73,11 +75,11 @@ class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=
         block: BlockAccessor,
         **writer_args: Any,
     ) -> None:
-        schema: Optional[pa.schema] = writer_args.get("schema", None)
-        dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
+        schema: pa.schema | None = writer_args.get("schema", None)
+        dtype: dict[str, str] | None = writer_args.get("dtype", None)
         index: bool = writer_args.get("index", False)
-        compression: Optional[str] = writer_args.get("compression", None)
-        pyarrow_additional_kwargs: Dict[str, Any] = writer_args.get("pyarrow_additional_kwargs", {})
+        compression: str | None = writer_args.get("compression", None)
+        pyarrow_additional_kwargs: dict[str, Any] = writer_args.get("pyarrow_additional_kwargs", {})
 
         pq.write_table(
             _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
