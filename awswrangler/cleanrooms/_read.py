@@ -59,12 +59,12 @@ def read_sql_query(
     keep_files : bool, optional
         Whether files in S3 output bucket/prefix are retained. 'True' by default
     params : Dict[str, any], optional
-        If used in combination with the `sql` parameter, it's the Dict of parameters used
+        (Client-side) If used in combination with the `sql` parameter, it's the Dict of parameters used
         for constructing the SQL query. Only named parameters are supported.
         The dict must be in the form {'name': 'value'} and the SQL query must contain
-        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes
+        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
 
-        If used in combination with the `analysis_template_arn` parameter, it's the Dict of parameters
+        (Server-side) If used in combination with the `analysis_template_arn` parameter, it's the Dict of parameters
         supplied with the analysis template. It must be a string to string dict in the form {'name': 'value'}.
     chunksize : Union[int, bool], optional
         If passed, the data is split into an iterable of DataFrames (Memory friendly).
@@ -109,7 +109,7 @@ def read_sql_query(
     client_cleanrooms = _utils.client(service_name="cleanrooms", session=boto3_session)
 
     if sql:
-        sql_parameters: ProtectedQuerySQLParametersTypeDef = {
+        sql_parameters: "ProtectedQuerySQLParametersTypeDef" = {
             "queryString": _process_sql_params(sql, params, engine_type="partiql")
         }
     elif analysis_template_arn:
