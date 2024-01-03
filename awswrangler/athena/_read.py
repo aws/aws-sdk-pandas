@@ -106,8 +106,7 @@ def _delete_after_iterate(
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Iterator[pd.DataFrame]:
-    for df in dfs:
-        yield df
+    yield from dfs
     s3.delete_objects(
         path=paths, use_threads=use_threads, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
     )

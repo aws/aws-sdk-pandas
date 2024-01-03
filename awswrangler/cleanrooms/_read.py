@@ -19,8 +19,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _delete_after_iterate(
     dfs: Iterator[pd.DataFrame], keep_files: bool, kwargs: Dict[str, Any]
 ) -> Iterator[pd.DataFrame]:
-    for df in dfs:
-        yield df
+    yield from dfs
     if keep_files is False:
         s3.delete_objects(**kwargs)
 
