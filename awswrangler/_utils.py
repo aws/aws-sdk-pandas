@@ -781,13 +781,13 @@ def retry(
 
     Parameters
     ----------
-    ex : Exception
+    ex: Exception
         Exception to retry on
-    ex_code : Optional[str]
+    ex_code: str | None
         Response error code
-    base : float
+    base: float
         Base delay
-    max_num_tries : int
+    max_num_tries: int
         Maximum number of retries
 
     Returns

@@ -141,7 +141,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         String of length 1. Field delimiter for the output file.
     index : bool
         Write row names (index).
-    columns : Optional[List[str]]
+    columns: list[str], optional
         Columns to write.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
@@ -149,7 +149,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool
@@ -741,19 +741,19 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     ----------
     df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    path : str
+    path: str
         Amazon S3 path (e.g. s3://bucket/filename.json).
-    index : bool
+    index: bool
         Write row names (index).
-    columns : Optional[List[str]]
+    columns: list[str], optional
         Columns to write.
-    use_threads : bool, int
+    use_threads: bool | int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwarg: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool
@@ -766,9 +766,9 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         catalog_versioning, projection_params, catalog_id, schema_evolution.
     filename_prefix: str, optional
         If dataset=True, add a filename prefix to the output files.
-    partition_cols: List[str], optional
+    partition_cols: list[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info: tuple[list[str], int], optional
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.

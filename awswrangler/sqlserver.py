@@ -131,21 +131,21 @@ def connect(
 
     Parameters
     ----------
-    connection : Optional[str]
+    connection: str, optional
         Glue Catalog Connection name.
-    secret_id: Optional[str]:
+    secret_id: str, optional
         Specifies the secret containing the connection details that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
-    catalog_id : str, optional
+    catalog_id: str, optional
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
-    dbname: Optional[str]
+    dbname: str, optional
         Optional database name to overwrite the stored one.
-    odbc_driver_version : int
+    odbc_driver_version: int
         Major version of the OBDC Driver version that is installed and should be used.
-    boto3_session : boto3.Session(), optional
+    boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    timeout: Optional[int]
+    timeout: int, optional
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forwarded to pyodbc.

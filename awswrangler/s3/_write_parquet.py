@@ -374,7 +374,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         Is not supported in conjunction with `max_rows_by_file` when running the library with Ray/Modin.
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``, ``zstd``).
-    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+    pyarrow_additional_kwargs: dict[str, Any], optional
         Additional parameters forwarded to pyarrow.
         e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
         'allow_truncated_timestamps'=False}
@@ -389,7 +389,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool
@@ -901,7 +901,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
                a typical `.../column=value/...` pattern.
                https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
                (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs : dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     boto3_session : boto3.Session(), optional
@@ -909,7 +909,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-local
 
     Returns
     -------
-    Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]
+    tuple[dict[str, str], dict[str, str] | None, dict[str, list[str]] | None]
         The metadata used to create the Glue Table.
         columns_types: Dictionary with keys as column names and values as
         data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /

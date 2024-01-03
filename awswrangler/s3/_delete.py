@@ -106,7 +106,7 @@ def delete_objects(
     last_modified_end: datetime, optional
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional

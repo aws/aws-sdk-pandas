@@ -639,7 +639,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     maximize_resource_allocation : bool
         Configure your executors to utilize the maximum resources possible
         https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#emr-spark-maximizeresourceallocation
-    custom_ami_id : Optional[str]
+    custom_ami_id : str, optional
         The custom AMI ID to use for the provisioned instance group
     steps : List[Dict[str, Any]], optional
         Steps definitions (Obs : str Use EMR.build_step() to build it)
@@ -650,7 +650,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
         Specifies whether the Amazon EC2 instances in the cluster are
         protected from termination by API calls, user intervention,
         or in the event of a job-flow error.
-    auto_termination_policy: Optional[Dict[str, int]]
+    auto_termination_policy: Dict[str, int], optional
         Specifies the auto-termination policy that is attached to an Amazon EMR cluster
         eg. auto_termination_policy = {'IdleTimeout': 123}
         IdleTimeout specifies the amount of idle time in seconds after which the cluster automatically terminates.

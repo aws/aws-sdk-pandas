@@ -252,15 +252,15 @@ def to_iceberg(
         For SSE-KMS, this is the KMS key ARN or ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    additional_table_properties : Optional[Dict[str, Any]]
+    additional_table_properties: dict[str, Any], optional
         Additional table properties.
         e.g. additional_table_properties={'write_target_data_file_size_bytes': '536870912'}
 
         https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-table-properties
-    dtype: Optional[Dict[str, str]]
+    dtype: dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         e.g. {'col name': 'bigint', 'col2 name': 'int'}
@@ -269,7 +269,7 @@ def to_iceberg(
         If none is provided, the AWS account ID is used by default
     schema_evolution: bool
         If True allows schema evolution for new columns or changes in column types.
-    columns_comments: Optional[GlueTableSettings]
+    columns_comments: GlueTableSettings, optional
         Glue/Athena catalog: Settings for writing to the Glue table.
         Currently only the 'columns_comments' attribute is supported for this function.
         Columns comments can only be added with this function when creating a new table.

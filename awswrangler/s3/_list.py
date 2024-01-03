@@ -193,7 +193,7 @@ def does_object_exist(
     ----------
     path: str
         S3 path (e.g. s3://bucket/key).
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
@@ -270,7 +270,7 @@ def list_directories(
         S3 path (e.g. s3://bucket/prefix).
     chunked: bool
         If True returns iterator, and a single list otherwise. False by default.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
@@ -353,7 +353,7 @@ def list_objects(
         Ignore files with 0 bytes.
     chunked: bool
         If True returns iterator, and a single list otherwise. False by default.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional

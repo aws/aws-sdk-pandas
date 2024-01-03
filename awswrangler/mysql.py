@@ -125,23 +125,23 @@ def connect(
 
     Parameters
     ----------
-    connection : str
+    connection: str
         Glue Catalog Connection name.
-    secret_id: Optional[str]:
+    secret_id: str, optional
         Specifies the secret containing the connection details that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
-    catalog_id : str, optional
+    catalog_id: str, optional
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
-    dbname: Optional[str]
+    dbname: str, optional
         Optional database name to overwrite the stored one.
-    boto3_session : boto3.Session(), optional
+    boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    read_timeout: Optional[int]
+    read_timeout: int, optional
         The timeout for reading from the connection in seconds (default: None - no timeout).
         This parameter is forward to pymysql.
         https://pymysql.readthedocs.io/en/latest/modules/connections.html
-    write_timeout: Optional[int]
+    write_timeout: int, optional
         The timeout for writing to the connection in seconds (default: None - no timeout)
         This parameter is forward to pymysql.
         https://pymysql.readthedocs.io/en/latest/modules/connections.html

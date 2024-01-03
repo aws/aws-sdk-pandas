@@ -71,9 +71,9 @@ def to_deltalake(
         List of columns to partition the table by. Only required when creating a new table.
     overwrite_schema: bool
         If True, allows updating the schema of the table.
-    boto3_session: Optional[boto3.Session()]
+    boto3_session: boto3.Session, optional
         Boto3 Session. If None, the default boto3 session is used.
-    s3_additional_kwargs: Optional[Dict[str, str]]
+    pyarrow_additional_kwargs: dict[str, Any], optional
         Forwarded to the Delta Table class for the storage options of the S3 backend.
     s3_allow_unsafe_rename: bool
         Allows using the default S3 backend without support for concurrent writers.

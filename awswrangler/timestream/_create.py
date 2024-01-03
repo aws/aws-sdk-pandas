@@ -29,10 +29,10 @@ def create_database(
     ----------
     database: str
         Database name.
-    kms_key_id: Optional[str]
+    kms_key_id: str, optional
         The KMS key for the database. If the KMS key is not specified,
         the database will be encrypted with a Timestream managed KMS key located in your account.
-    tags: Optional[Dict[str, str]]
+    tags: Dict[str, str], optional
         Key/Value dict to put on the database.
         Tags enable you to categorize databases and/or tables, for example,
         by purpose, owner, or environment.
@@ -90,12 +90,12 @@ def create_table(
         The duration for which data must be stored in the memory store.
     magnetic_retention_days: int
         The duration for which data must be stored in the magnetic store.
-    tags: Optional[Dict[str, str]]
+    tags: dict[str, str], optional
         Key/Value dict to put on the table.
         Tags enable you to categorize databases and/or tables, for example,
         by purpose, owner, or environment.
         e.g. {"foo": "boo", "bar": "xoo"})
-    timestream_additional_kwargs : Optional[Dict[str, Any]]
+    timestream_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. timestream_additional_kwargs={'MagneticStoreWriteProperties': {'EnableMagneticStoreWrites': True}}
     boto3_session : boto3.Session(), optional

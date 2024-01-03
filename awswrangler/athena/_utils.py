@@ -497,7 +497,7 @@ def repair_table(
         Table name.
     database : str, optional
         AWS Glue/Athena database name.
-    data_source : Optional[str], optional
+    data_source: str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' is used.
     s3_output : str, optional
         AWS S3 path.
@@ -585,7 +585,7 @@ def describe_table(
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs : dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
@@ -659,36 +659,36 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     ----------
     sql : str
         SELECT SQL query.
-    database : Optional[str], optional
+    database: str, optional
         The name of the database where the original table is stored.
-    ctas_table : Optional[str], optional
+    ctas_table: str, optional
         The name of the CTAS table.
         If None, a name with a random string is used.
-    ctas_database : Optional[str], optional
+    ctas_database: str, optional
         The name of the alternative database where the CTAS table should be stored.
         If None, `database` is used, that is the CTAS table is stored in the same database as the original table.
-    s3_output : Optional[str], optional
+    s3_output: str, optional
         The output Amazon S3 path.
         If None, either the Athena workgroup or client-side location setting is used.
         If a workgroup enforces a query results location, then it overrides this argument.
-    storage_format : Optional[str], optional
+    storage_format: str, optional
         The storage format for the CTAS query results, such as ORC, PARQUET, AVRO, JSON, or TEXTFILE.
         PARQUET by default.
-    write_compression : Optional[str], optional
+    write_compression: str, optional
         The compression type to use for any storage format that allows compression to be specified.
-    partitioning_info : Optional[List[str]], optional
+    partitioning_info: list[str], optional
         A list of columns by which the CTAS table will be partitioned.
-    bucketing_info : Optional[Tuple[List[str], int]], optional
+    bucketing_info : tuple[list[str], int], optional
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    field_delimiter : Optional[str], optional
+    field_delimiter: str, optional
         The single-character field delimiter for files in CSV, TSV, and text files.
     schema_only : bool, optional
         _description_, by default False
     workgroup : str
         Athena workgroup. Primary by default.
-    data_source : Optional[str], optional
+    data_source: str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' is used.
     encryption : str, optional
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Note: 'CSE_KMS' is not supported.
@@ -701,7 +701,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
         Whether to wait for the query to finish and return a dictionary with the Query metadata.
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
-    boto3_session : Optional[boto3.Session], optional
+    boto3_session: boto3.Session, optional
         Boto3 Session. The default boto3 session is used if boto3_session is None.
 
     Returns
@@ -888,7 +888,7 @@ def show_create_table(
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional

@@ -50,7 +50,7 @@ def start_query(
         The beginning of the time range to query.
     end_time: datetime.datetime
         The end of the time range to query.
-    limit: Optional[int]
+    limit: int, optional
         The maximum number of log events to return in the query.
     boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
@@ -171,7 +171,7 @@ def run_query(
         The beginning of the time range to query.
     end_time : datetime.datetime
         The end of the time range to query.
-    limit : Optional[int]
+    limit : int, optional
         The maximum number of log events to return in the query.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
@@ -224,7 +224,7 @@ def read_logs(
         The beginning of the time range to query.
     end_time: datetime.datetime
         The end of the time range to query.
-    limit: Optional[int]
+    limit: int, optional
         The maximum number of log events to return in the query.
     boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
@@ -293,8 +293,8 @@ def describe_log_streams(
         If the value is True, results are returned in descending order.
         If the value is to False, results are returned in ascending order.
         The default value is False.
-    limit : Optional[int]
-         The maximum number of items returned. The default is up to 50 items.
+    limit : int, optional
+        The maximum number of items returned. The default is up to 50 items.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 

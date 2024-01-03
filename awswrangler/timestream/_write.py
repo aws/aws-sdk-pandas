@@ -257,31 +257,31 @@ def write(
         Amazon Timestream database name.
     table : str
         Amazon Timestream table name.
-    time_col : Optional[str]
+    time_col: str, optional
         DataFrame column name to be used as time. MUST be a timestamp column.
-    measure_col : Union[str, List[str], None]
+    measure_col: str | List[str] | None
         DataFrame column name(s) to be used as measure.
-    dimensions_cols : Optional[List[str]]
+    dimensions_cols: list[str]
         List of DataFrame column names to be used as dimensions.
     version : int
         Version number used for upserts.
         Documentation https://docs.aws.amazon.com/timestream/latest/developerguide/API_WriteRecords.html.
-    time_unit : str, optional
+    time_unit: str, optional
         Time unit for the time column. MILLISECONDS by default.
-    use_threads : bool, int
+    use_threads: bool | int
         True to enable concurrent writing, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the number of threads.
         If integer is provided, specified number is used.
-    measure_name : Optional[str]
+    measure_name: str, optional
         Name that represents the data attribute of the time series.
         Overrides ``measure_col`` if specified.
-    common_attributes : Optional[Dict[str, Any]]
+    common_attributes: dict[str, Any], optional
         Dictionary of attributes shared across all records in the request.
         Using common attributes can optimize the cost of writes by reducing the size of request payloads.
         Values in ``common_attributes`` take precedence over all other arguments and data frame values.
         Dimension attributes are merged with attributes in record objects.
         Example: ``{"Dimensions": [{"Name": "device_id", "Value": "12345"}], "MeasureValueType": "DOUBLE"}``.
-    boto3_session : boto3.Session(), optional
+    boto3_session: boto3.Session(), optional
         Boto3 Session. If None, the default boto3 Session is used.
 
     Returns
@@ -500,7 +500,7 @@ def batch_load(
         True to enable concurrent requests, False to disable multiple threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None.
-    s3_additional_kwargs : Optional[Dict[str, str]]
+    s3_additional_kwargs: dict[str, str], optional
         Forwarded to S3 botocore requests.
 
     Returns

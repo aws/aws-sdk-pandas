@@ -140,9 +140,9 @@ def initialize_ray(
 
     Parameters
     ----------
-    address : Optional[str]
+    address : str, optional
         Address of the Ray cluster to connect to, by default None
-    redis_password : Optional[str]
+    redis_password : str, optional
         Password to the Redis cluster, by default None
     ignore_reinit_error : bool
         If true, Ray suppress errors from calling ray.init() twice, by default True
