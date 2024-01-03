@@ -10,6 +10,7 @@ import math
 import socket
 from contextlib import contextmanager
 from errno import ESPIPE
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, cast
 
 import boto3
@@ -235,11 +236,16 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
     def __enter__(self) -> "_S3ObjectBase":
         return self
 
-    def __exit__(self, exc_type: Any, exc_value: Any, exc_traceback: Any) -> None:
+    def __exit__(
+        self,
+        exception_type: type[BaseException] | None,
+        exception_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         """Close the context."""
-        _logger.debug("exc_type: %s", exc_type)
-        _logger.debug("exc_value: %s", exc_value)
-        _logger.debug("exc_traceback: %s", exc_traceback)
+        _logger.debug("exc_type: %s", exception_type)
+        _logger.debug("exc_value: %s", exception_value)
+        _logger.debug("exc_traceback: %s", traceback)
         self.close()
 
     def __del__(self) -> None:

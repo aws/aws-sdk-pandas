@@ -132,7 +132,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
-select = ["D", "E", "F", "I", "PL", "RUF100", "W", "FA", "UP"]
+select = ["D", "E", "F", "I", "PL", "RUF100", "W", "FA", "UP", "PYI036"]
 ignore = ["E501", "PLR2004", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "UP037"]
 fixable = ["ALL"]
 extend-include = ["*.ipynb"]
