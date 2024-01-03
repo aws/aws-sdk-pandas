@@ -140,7 +140,7 @@ def test_describe_one_object_succeed(moto_s3_client: "S3Client") -> None:
         Body=b"foo",
     )
 
-    desc = wr.s3.describe_objects("s3://{}/{}".format(bucket, key))
+    desc = wr.s3.describe_objects(f"s3://{bucket}/{key}")
 
     assert isinstance(desc, dict)
     assert list(desc.keys()) == ["s3://bucket/foo/foo.tmp"]
@@ -157,7 +157,7 @@ def test_describe_list_of_objects_succeed(moto_s3_client: "S3Client") -> None:
             Body=b"test",
         )
 
-    desc = wr.s3.describe_objects(["s3://{}/{}".format(bucket, key) for key in keys])
+    desc = wr.s3.describe_objects([f"s3://{bucket}/{key}" for key in keys])
 
     assert isinstance(desc, dict)
     assert sorted(list(desc.keys())) == sorted(["s3://bucket/foo/foo.tmp", "s3://bucket/bar/bar.tmp"])
@@ -174,7 +174,7 @@ def test_describe_list_of_objects_under_same_prefix_succeed(moto_s3_client: "S3C
             Body=b"test",
         )
 
-    desc = wr.s3.describe_objects("s3://{}".format(bucket))
+    desc = wr.s3.describe_objects(f"s3://{bucket}")
 
     assert isinstance(desc, dict)
     assert sorted(list(desc.keys())) == sorted(["s3://bucket/foo/foo.tmp", "s3://bucket/bar/bar.tmp"])
@@ -200,7 +200,7 @@ def test_size_list_of_objects_succeed(moto_s3_client: "S3Client") -> None:
         Body=b"bar",
     )
 
-    size = wr.s3.size_objects("s3://{}".format(bucket))
+    size = wr.s3.size_objects(f"s3://{bucket}")
 
     assert isinstance(size, dict)
     assert size == {"s3://bucket/foo/foo.tmp": 6, "s3://bucket/bar/bar.tmp": 3}
@@ -216,8 +216,8 @@ def test_copy_one_object_without_replace_filename_succeed(moto_s3_client: "S3Cli
     )
 
     wr.s3.copy_objects(
-        paths=["s3://{}/{}".format(bucket, key)],
-        source_path="s3://{}/foo".format(bucket),
+        paths=[f"s3://{bucket}/{key}"],
+        source_path=f"s3://{bucket}/foo",
         target_path="s3://bucket/bar",
     )
 
@@ -239,8 +239,8 @@ def test_copy_one_object_with_replace_filename_succeed(moto_s3_client: "S3Client
     )
 
     wr.s3.copy_objects(
-        paths=["s3://{}/{}".format(bucket, key)],
-        source_path="s3://{}/foo".format(bucket),
+        paths=[f"s3://{bucket}/{key}"],
+        source_path=f"s3://{bucket}/foo",
         target_path="s3://bucket/bar",
         replace_filenames={"foo.tmp": "bar.tmp"},
     )
@@ -265,13 +265,13 @@ def test_copy_objects_without_replace_filename_succeed(moto_s3_client: "S3Client
         )
 
     wr.s3.copy_objects(
-        paths=["s3://{}/{}".format(bucket, key) for key in keys],
-        source_path="s3://{}/foo".format(bucket),
+        paths=[f"s3://{bucket}/{key}" for key in keys],
+        source_path=f"s3://{bucket}/foo",
         target_path="s3://bucket/bar",
     )
 
-    desc_source = wr.s3.describe_objects("s3://{}/foo".format(bucket))
-    desc_target = wr.s3.describe_objects("s3://{}/bar".format(bucket))
+    desc_source = wr.s3.describe_objects(f"s3://{bucket}/foo")
+    desc_target = wr.s3.describe_objects(f"s3://{bucket}/bar")
 
     assert isinstance(desc_target, dict)
     assert len(desc_source) == 3
@@ -300,7 +300,7 @@ def test_download_file(moto_s3_client: "S3Client", tmp_path: str) -> None:
         Body=content,
     )
 
-    path = "s3://{}/{}".format(bucket, key)
+    path = f"s3://{bucket}/{key}"
     local_file = tmp_path / key
     wr.s3.download(path=path, local_file=str(local_file))
     assert local_file.read_bytes() == content
@@ -317,7 +317,7 @@ def test_download_fileobj(moto_s3_client: "S3Client", tmp_path: str) -> None:
         Body=content,
     )
 
-    path = "s3://{}/{}".format(bucket, key)
+    path = f"s3://{bucket}/{key}"
     local_file = tmp_path / key
 
     with open(local_file, "wb") as local_f:
@@ -330,7 +330,7 @@ def test_upload_file(moto_s3_client: "S3Client", tmp_path: str) -> None:
     key = "foo.tmp"
     content = b"foo"
 
-    path = "s3://{}/{}".format(bucket, key)
+    path = f"s3://{bucket}/{key}"
     local_file = tmp_path / key
 
     local_file.write_bytes(content)
@@ -348,7 +348,7 @@ def test_upload_fileobj(moto_s3_client: "S3Client", tmp_path: str) -> None:
     key = "foo.tmp"
     content = b"foo"
 
-    path = "s3://{}/{}".format(bucket, key)
+    path = f"s3://{bucket}/{key}"
     local_file = tmp_path / key
 
     local_file.write_bytes(content)
@@ -378,7 +378,7 @@ def test_read_csv_pass_pandas_arguments_and_encoding_succeed(
 ) -> None:
     bucket = "bucket"
     key = "foo/foo.csv"
-    path = "s3://{}/{}".format(bucket, key)
+    path = f"s3://{bucket}/{key}"
     moto_s3_client.put_object(
         Bucket=bucket,
         Key=key,

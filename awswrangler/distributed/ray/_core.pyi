@@ -1,7 +1,7 @@
 """Ray Module."""
 
 import logging
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 class RayLogger:
     def __init__(
@@ -14,7 +14,7 @@ class RayLogger:
 
 def ray_logger(function: Callable[..., Any]) -> Callable[..., Any]: ...
 def ray_remote(**options: Any) -> Callable[..., Any]: ...
-def ray_get(futures: List[Any]) -> Any: ...
+def ray_get(futures: list[Any]) -> Any: ...
 def initialize_ray(
     address: Optional[str] = None,
     redis_password: Optional[str] = None,

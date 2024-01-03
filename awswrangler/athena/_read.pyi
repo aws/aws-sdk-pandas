@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterator, List, Literal, Optional, Union, overload
+from typing import Any, Iterator, Literal, Optional, Union, overload
 
 import boto3
 import pandas as pd
@@ -11,11 +11,11 @@ def get_query_results(
     query_execution_id: str,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: Union[None, Literal[False]] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> pd.DataFrame: ...
 @overload
 def get_query_results(
@@ -23,11 +23,11 @@ def get_query_results(
     *,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: Literal[True],
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def get_query_results(
@@ -35,11 +35,11 @@ def get_query_results(
     *,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: bool,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
 @overload
 def get_query_results(
@@ -47,11 +47,11 @@ def get_query_results(
     *,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: int,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_query(  # pylint: disable=too-many-arguments
@@ -61,7 +61,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments
     unload_approach: bool = ...,
     ctas_parameters: Optional[typing.AthenaCTASSettings] = ...,
     unload_parameters: Optional[typing.AthenaUNLOADSettings] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: Union[None, Literal[False]] = ...,
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
@@ -73,11 +73,11 @@ def read_sql_query(  # pylint: disable=too-many-arguments
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     athena_query_wait_polling_delay: float = ...,
-    params: Union[Dict[str, Any], List[str], None] = ...,
+    params: Union[dict[str, Any], list[str], None] = ...,
     paramstyle: Literal["qmark", "named"] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> pd.DataFrame: ...
 @overload
 def read_sql_query(
@@ -88,7 +88,7 @@ def read_sql_query(
     unload_approach: bool = ...,
     ctas_parameters: Optional[typing.AthenaCTASSettings] = ...,
     unload_parameters: Optional[typing.AthenaUNLOADSettings] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: Literal[True],
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
@@ -100,11 +100,11 @@ def read_sql_query(
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     athena_query_wait_polling_delay: float = ...,
-    params: Union[Dict[str, Any], List[str], None] = ...,
+    params: Union[dict[str, Any], list[str], None] = ...,
     paramstyle: Literal["qmark", "named"] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_query(
@@ -115,7 +115,7 @@ def read_sql_query(
     unload_approach: bool = ...,
     ctas_parameters: Optional[typing.AthenaCTASSettings] = ...,
     unload_parameters: Optional[typing.AthenaUNLOADSettings] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: bool,
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
@@ -127,11 +127,11 @@ def read_sql_query(
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     athena_query_wait_polling_delay: float = ...,
-    params: Union[Dict[str, Any], List[str], None] = ...,
+    params: Union[dict[str, Any], list[str], None] = ...,
     paramstyle: Literal["qmark", "named"] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
 @overload
 def read_sql_query(
@@ -142,7 +142,7 @@ def read_sql_query(
     unload_approach: bool = ...,
     ctas_parameters: Optional[typing.AthenaCTASSettings] = ...,
     unload_parameters: Optional[typing.AthenaUNLOADSettings] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: int,
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
@@ -154,11 +154,11 @@ def read_sql_query(
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     athena_query_wait_polling_delay: float = ...,
-    params: Union[Dict[str, Any], List[str], None] = ...,
+    params: Union[dict[str, Any], list[str], None] = ...,
     paramstyle: Literal["qmark", "named"] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_query(
@@ -169,7 +169,7 @@ def read_sql_query(
     unload_approach: bool = ...,
     ctas_parameters: Optional[typing.AthenaCTASSettings] = ...,
     unload_parameters: Optional[typing.AthenaUNLOADSettings] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: Optional[Union[int, bool]],
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
@@ -181,11 +181,11 @@ def read_sql_query(
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     athena_query_wait_polling_delay: float = ...,
-    params: Union[Dict[str, Any], List[str], None] = ...,
+    params: Union[dict[str, Any], list[str], None] = ...,
     paramstyle: Literal["qmark", "named"] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
 @overload
 def read_sql_table(
@@ -196,7 +196,7 @@ def read_sql_table(
     unload_parameters: Optional[typing.AthenaUNLOADSettings] = ...,
     ctas_approach: bool = ...,
     ctas_parameters: Optional[typing.AthenaCTASSettings] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: Union[None, Literal[False]] = ...,
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
@@ -208,8 +208,8 @@ def read_sql_table(
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> pd.DataFrame: ...
 @overload
 def read_sql_table(
@@ -220,7 +220,7 @@ def read_sql_table(
     unload_parameters: Optional[typing.AthenaUNLOADSettings] = ...,
     ctas_approach: bool = ...,
     ctas_parameters: Optional[typing.AthenaCTASSettings] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: Literal[True],
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
@@ -232,8 +232,8 @@ def read_sql_table(
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_table(
@@ -244,7 +244,7 @@ def read_sql_table(
     unload_parameters: Optional[typing.AthenaUNLOADSettings] = ...,
     ctas_approach: bool = ...,
     ctas_parameters: Optional[typing.AthenaCTASSettings] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: bool,
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
@@ -256,8 +256,8 @@ def read_sql_table(
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
 @overload
 def read_sql_table(
@@ -268,7 +268,7 @@ def read_sql_table(
     unload_parameters: Optional[typing.AthenaUNLOADSettings] = ...,
     ctas_approach: bool = ...,
     ctas_parameters: Optional[typing.AthenaCTASSettings] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: int,
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
@@ -280,8 +280,8 @@ def read_sql_table(
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_table(
@@ -292,7 +292,7 @@ def read_sql_table(
     unload_parameters: Optional[typing.AthenaUNLOADSettings] = ...,
     ctas_approach: bool = ...,
     ctas_parameters: Optional[typing.AthenaCTASSettings] = ...,
-    categories: Optional[List[str]] = ...,
+    categories: Optional[list[str]] = ...,
     chunksize: Optional[Union[int, bool]],
     s3_output: Optional[str] = ...,
     workgroup: str = ...,
@@ -304,8 +304,8 @@ def read_sql_table(
     athena_cache_settings: Optional[typing.AthenaCacheSettings] = ...,
     data_source: Optional[str] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
 def unload(
     sql: str,
@@ -314,13 +314,13 @@ def unload(
     file_format: str = ...,
     compression: Optional[str] = ...,
     field_delimiter: Optional[str] = ...,
-    partitioned_by: Optional[List[str]] = ...,
+    partitioned_by: Optional[list[str]] = ...,
     workgroup: str = ...,
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     data_source: Optional[str] = ...,
-    params: Union[Dict[str, Any], List[str], None] = ...,
+    params: Union[dict[str, Any], list[str], None] = ...,
     paramstyle: Literal["qmark", "named"] = ...,
     athena_query_wait_polling_delay: float = ...,
 ) -> _QueryMetadata: ...

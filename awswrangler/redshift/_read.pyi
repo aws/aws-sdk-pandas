@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Iterator, Literal, Optional, Union, overload
 
 import boto3
 import pandas as pd
@@ -14,11 +14,11 @@ if TYPE_CHECKING:
 def read_sql_query(
     sql: str,
     con: "redshift_connector.Connection",
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: Optional[Union[str, list[str]]] = ...,
+    params: Optional[Union[list[Any], tuple[Any, ...], dict[Any, Any]]] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: Optional[dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
 ) -> pd.DataFrame: ...
@@ -27,11 +27,11 @@ def read_sql_query(
     sql: str,
     con: "redshift_connector.Connection",
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: Optional[Union[str, list[str]]] = ...,
+    params: Optional[Union[list[Any], tuple[Any, ...], dict[Any, Any]]] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: Optional[dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
 ) -> Iterator[pd.DataFrame]: ...
@@ -40,11 +40,11 @@ def read_sql_query(
     sql: str,
     con: "redshift_connector.Connection",
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: Optional[Union[str, list[str]]] = ...,
+    params: Optional[Union[list[Any], tuple[Any, ...], dict[Any, Any]]] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: Optional[dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
@@ -54,11 +54,11 @@ def read_sql_table(
     con: "redshift_connector.Connection",
     *,
     schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: Optional[Union[str, list[str]]] = ...,
+    params: Optional[Union[list[Any], tuple[Any, ...], dict[Any, Any]]] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: Optional[dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
 ) -> pd.DataFrame: ...
@@ -68,11 +68,11 @@ def read_sql_table(
     con: "redshift_connector.Connection",
     *,
     schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: Optional[Union[str, list[str]]] = ...,
+    params: Optional[Union[list[Any], tuple[Any, ...], dict[Any, Any]]] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: Optional[dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
 ) -> Iterator[pd.DataFrame]: ...
@@ -82,11 +82,11 @@ def read_sql_table(
     con: "redshift_connector.Connection",
     *,
     schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: Optional[Union[str, list[str]]] = ...,
+    params: Optional[Union[list[Any], tuple[Any, ...], dict[Any, Any]]] = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: Optional[dict[str, pa.DataType]] = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
@@ -104,7 +104,7 @@ def unload_to_files(
     max_file_size: Optional[float] = ...,
     kms_key_id: Optional[str] = ...,
     manifest: bool = ...,
-    partition_cols: Optional[List[str]] = ...,
+    partition_cols: Optional[list[str]] = ...,
     boto3_session: Optional[boto3.Session] = ...,
 ) -> None: ...
 @overload
@@ -125,8 +125,8 @@ def unload(
     parallel: bool = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, str]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, str]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> pd.DataFrame: ...
 @overload
 def unload(
@@ -147,8 +147,8 @@ def unload(
     parallel: bool = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, str]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, str]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def unload(
@@ -169,8 +169,8 @@ def unload(
     parallel: bool = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, str]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, str]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
 @overload
 def unload(
@@ -191,6 +191,6 @@ def unload(
     parallel: bool = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, str]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    s3_additional_kwargs: Optional[dict[str, str]] = ...,
+    pyarrow_additional_kwargs: Optional[dict[str, Any]] = ...,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...

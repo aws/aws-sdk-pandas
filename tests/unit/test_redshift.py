@@ -203,9 +203,9 @@ def generic_test_copy_upsert(
     redshift_con: redshift_connector.Connection,
     databases_parameters: Dict[str, Any],
 ) -> None:
-    df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
+    df = pd.DataFrame({"id": list(range(1_000)), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
     df3 = pd.DataFrame(
-        {"id": list((range(1_000, 1_500))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])}
+        {"id": list(range(1_000, 1_500)), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])}
     )
 
     # CREATE
@@ -763,8 +763,8 @@ def test_decimal_cast(redshift_table: str, redshift_con: redshift_connector.Conn
 
 
 def test_upsert(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
-    df = pd.DataFrame({"id": list((range(10))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(10)])})
-    df3 = pd.DataFrame({"id": list((range(10, 15))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(5)])})
+    df = pd.DataFrame({"id": list(range(10)), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(10)])})
+    df3 = pd.DataFrame({"id": list(range(10, 15)), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(5)])})
 
     # CREATE
     wr.redshift.to_sql(
@@ -811,8 +811,8 @@ def test_upsert(redshift_table: str, redshift_con: redshift_connector.Connection
 
 
 def test_upsert_precombine(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
-    df = pd.DataFrame({"id": list((range(10))), "val": list([1.0 if i % 2 == 0 else 10.0 for i in range(10)])})
-    df3 = pd.DataFrame({"id": list((range(6, 14))), "val": list([10.0 if i % 2 == 0 else 1.0 for i in range(8)])})
+    df = pd.DataFrame({"id": list(range(10)), "val": list([1.0 if i % 2 == 0 else 10.0 for i in range(10)])})
+    df3 = pd.DataFrame({"id": list(range(6, 14)), "val": list([10.0 if i % 2 == 0 else 1.0 for i in range(8)])})
 
     # Do upsert in pandas
     df_m = to_pandas(pd.merge(df, df3, on="id", how="outer"))
@@ -1210,8 +1210,8 @@ def test_dfs_are_equal_for_different_chunksizes(
 
 
 def test_to_sql_multi_transaction(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
-    df = pd.DataFrame({"id": list((range(10))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(10)])})
-    df2 = pd.DataFrame({"id": list((range(10, 15))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(5)])})
+    df = pd.DataFrame({"id": list(range(10)), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(10)])})
+    df2 = pd.DataFrame({"id": list(range(10, 15)), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(5)])})
 
     wr.redshift.to_sql(
         df=df,
@@ -1243,9 +1243,9 @@ def test_to_sql_multi_transaction(redshift_table: str, redshift_con: redshift_co
 def test_copy_upsert_with_column_names(
     path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: Dict[str, Any]
 ) -> None:
-    df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
+    df = pd.DataFrame({"id": list(range(1_000)), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
     df3 = pd.DataFrame(
-        {"id": list((range(1_000, 1_500))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])}
+        {"id": list(range(1_000, 1_500)), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])}
     )
 
     # CREATE
