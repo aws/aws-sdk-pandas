@@ -70,13 +70,11 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
         block_path_provider=UserProvidedKeyBlockWritePathProvider()
         if path and not path.endswith("/") and not max_rows_by_file
         else DefaultBlockWritePathProvider(),
-        arrow_parquet_args={
-            "index": index,
-            "dtype": dtype,
-            "compression": compression,
-            # "pyarrow_additional_kwargs": pyarrow_additional_kwargs,
-            "schema": schema,
-        },
+        index=index,
+        dtype=dtype,
+        compression=compression,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        schema=schema,
     )
     ds.write_datasink(datasink)
     return datasink.get_write_paths()
