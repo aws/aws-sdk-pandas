@@ -480,6 +480,11 @@ def cleanrooms_membership_id(cloudformation_outputs):
 
 
 @pytest.fixture(scope="session")
+def cleanrooms_analysis_template_arn(cloudformation_outputs):
+    return cloudformation_outputs["CleanRoomsAnalysisTemplateArn"]
+
+
+@pytest.fixture(scope="session")
 def cleanrooms_glue_database_name(cloudformation_outputs):
     return cloudformation_outputs["CleanRoomsGlueDatabaseName"]
 
