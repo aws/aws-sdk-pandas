@@ -256,9 +256,7 @@ class _TableBatchWriter:
                     item,
                 )
 
-    def _extract_pkey_values(
-        self, request: "WriteRequestTypeDef", overwrite_by_pkeys: list[str]
-    ) -> list[Any] | None:
+    def _extract_pkey_values(self, request: "WriteRequestTypeDef", overwrite_by_pkeys: list[str]) -> list[Any] | None:
         if request.get("PutRequest"):
             return [request["PutRequest"]["Item"][key] for key in overwrite_by_pkeys]
         if request.get("DeleteRequest"):

@@ -58,9 +58,7 @@ def _get_table_input(
     return table_input
 
 
-def _append_partitions(
-    partitions_values: dict[str, list[str]], response: "GetPartitionsResponseTypeDef"
-) -> str | None:
+def _append_partitions(partitions_values: dict[str, list[str]], response: "GetPartitionsResponseTypeDef") -> str | None:
     _logger.debug("response: %s", response)
     token: str | None = response.get("NextToken", None)
     if (response is not None) and ("Partitions" in response):

@@ -172,9 +172,7 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def sanitize_dataframe_columns_names(
-    df: pd.DataFrame, handle_duplicate_columns: str | None = "warn"
-) -> pd.DataFrame:
+def sanitize_dataframe_columns_names(df: pd.DataFrame, handle_duplicate_columns: str | None = "warn") -> pd.DataFrame:
     """Normalize all columns names to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html

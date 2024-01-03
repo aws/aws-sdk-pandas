@@ -810,9 +810,7 @@ def terminate_cluster(cluster_id: str, boto3_session: boto3.Session | None = Non
     _logger.debug("response: \n%s", pprint.pformat(response))
 
 
-def submit_steps(
-    cluster_id: str, steps: list[dict[str, Any]], boto3_session: boto3.Session | None = None
-) -> list[str]:
+def submit_steps(cluster_id: str, steps: list[dict[str, Any]], boto3_session: boto3.Session | None = None) -> list[str]:
     """Submit a list of steps.
 
     Parameters

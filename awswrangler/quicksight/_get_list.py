@@ -37,9 +37,7 @@ def _list(
     return result
 
 
-def list_dashboards(
-    account_id: str | None = None, boto3_session: boto3.Session | None = None
-) -> list[dict[str, Any]]:
+def list_dashboards(account_id: str | None = None, boto3_session: boto3.Session | None = None) -> list[dict[str, Any]]:
     """List dashboards in an AWS account.
 
     Parameters
@@ -67,9 +65,7 @@ def list_dashboards(
     )
 
 
-def list_datasets(
-    account_id: str | None = None, boto3_session: boto3.Session | None = None
-) -> list[dict[str, Any]]:
+def list_datasets(account_id: str | None = None, boto3_session: boto3.Session | None = None) -> list[dict[str, Any]]:
     """List all QuickSight datasets summaries.
 
     Parameters
@@ -121,9 +117,7 @@ def list_data_sources(
     )
 
 
-def list_templates(
-    account_id: str | None = None, boto3_session: boto3.Session | None = None
-) -> list[dict[str, Any]]:
+def list_templates(account_id: str | None = None, boto3_session: boto3.Session | None = None) -> list[dict[str, Any]]:
     """List all QuickSight templates.
 
     Parameters
@@ -516,9 +510,7 @@ def get_dashboard_id(name: str, account_id: str | None = None, boto3_session: bo
     )
 
 
-def get_dataset_ids(
-    name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None
-) -> list[str]:
+def get_dataset_ids(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> list[str]:
     """Get QuickSight dataset IDs given a name.
 
     Note
@@ -611,9 +603,7 @@ def get_data_source_ids(
     )
 
 
-def get_data_source_id(
-    name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None
-) -> str:
+def get_data_source_id(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> str:
     """Get QuickSight data source ID given a name and fails if there is more than 1 ID associated with this name.
 
     Parameters
@@ -640,9 +630,7 @@ def get_data_source_id(
     )
 
 
-def get_template_ids(
-    name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None
-) -> list[str]:
+def get_template_ids(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> list[str]:
     """Get QuickSight template IDs given a name.
 
     Note
@@ -737,9 +725,7 @@ def get_data_source_arns(
     return arns
 
 
-def get_data_source_arn(
-    name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None
-) -> str:
+def get_data_source_arn(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> str:
     """Get QuickSight data source ARN given a name and fails if there is more than 1 ARN associated with this name.
 
     Note
