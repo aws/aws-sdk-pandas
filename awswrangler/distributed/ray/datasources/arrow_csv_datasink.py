@@ -2,7 +2,7 @@
 
 import io
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 from pyarrow import csv
 from ray.data.block import BlockAccessor
@@ -19,7 +19,6 @@ class ArrowCSVDatasink(_BlockFileDatasink):
     def __init__(
         self,
         path: str,
-        write_text_func: Optional[Callable[..., None]],
         *,
         block_path_provider: Optional[BlockWritePathProvider] = None,
         dataset_uuid: Optional[str] = None,
@@ -36,8 +35,6 @@ class ArrowCSVDatasink(_BlockFileDatasink):
             pandas_kwargs=pandas_kwargs,
             **write_args,
         )
-
-        self.write_text_func = write_text_func
 
     def write_block(self, file: io.TextIOWrapper, block: BlockAccessor):
         """

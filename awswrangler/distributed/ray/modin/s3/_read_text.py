@@ -78,14 +78,16 @@ def _parse_csv_configuration(
 
 def _parse_json_configuration(
     pandas_kwargs: Dict[str, Any],
-) -> JSONReadConfiguration:
+) -> Dict[str, JSONReadConfiguration]:
     _check_parameters(pandas_kwargs, _JSON_SUPPORTED_PARAMS)
 
     # json.ReadOptions and json.ParseOptions cannot be pickled for some reason so we're building a Python dict
-    return JSONReadConfiguration(
-        read_options=dict(use_threads=False),
-        parse_options={},
-    )
+    return {
+        "arrow_json_args": JSONReadConfiguration(
+            read_options=dict(use_threads=False),
+            parse_options={},
+        )
+    }
 
 
 def _parse_configuration(

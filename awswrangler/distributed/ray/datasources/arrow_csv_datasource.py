@@ -18,6 +18,9 @@ class ArrowCSVDatasource(FileBasedDatasource):
         paths: Union[str, List[str]],
         dataset: bool,
         path_root: str,
+        version_ids: Optional[Dict[str, str]] = None,
+        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        pandas_kwargs: Optional[Dict[str, Any]] = None,
         arrow_csv_args: Optional[Dict[str, Any]] = None,
         **file_based_datasource_kwargs,
     ):
