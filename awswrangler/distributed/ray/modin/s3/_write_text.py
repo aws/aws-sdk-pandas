@@ -12,7 +12,6 @@ from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungroup
     PandasJSONDatasink,
     UserProvidedKeyBlockWritePathProvider,
 )
-from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters, _ray_dataset_from_df
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
@@ -65,7 +64,7 @@ def _datasink_for_format(
     can_use_arrow: bool,
     *args: Any,
     **kwargs: Any,
-) -> PandasFileBasedDatasource:
+) -> Any:
     if write_format == "csv":
         return ArrowCSVDatasink(*args, **kwargs) if can_use_arrow else PandasCSVDatasink(*args, **kwargs)
     if write_format == "json":

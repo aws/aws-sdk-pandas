@@ -51,7 +51,7 @@ class JSONReadConfiguration(TypedDict):
 
 def _parse_csv_configuration(
     pandas_kwargs: Dict[str, Any],
-) -> CSVReadConfiguration:
+) -> Dict[str, CSVReadConfiguration]:
     _check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
 
     read_options = csv.ReadOptions(
@@ -67,11 +67,13 @@ def _parse_csv_configuration(
     )
     convert_options = csv.ConvertOptions()
 
-    return CSVReadConfiguration(
-        read_options=read_options,
-        parse_options=parse_options,
-        convert_options=convert_options,
-    )
+    return {
+        "arrow_csv_args": CSVReadConfiguration(
+            read_options=read_options,
+            parse_options=parse_options,
+            convert_options=convert_options,
+        )
+    }
 
 
 def _parse_json_configuration(
@@ -107,13 +109,18 @@ def _parse_configuration(
     raise exceptions.InvalidArgument(f"File is in the {file_format} format")
 
 
-def _resolve_format(read_format: str, can_use_arrow: bool) -> Any:
+def _resolve_datasource(
+    read_format: str,
+    can_use_arrow: bool,
+    *args,
+    **kwargs,
+) -> Any:
     if read_format == "csv":
-        return ArrowCSVDatasource() if can_use_arrow else PandasCSVDataSource()
+        return ArrowCSVDatasource(*args, **kwargs) if can_use_arrow else PandasCSVDataSource(*args, **kwargs)
     if read_format == "fwf":
-        return PandasFWFDataSource()
+        return PandasFWFDataSource(*args, **kwargs)
     if read_format == "json":
-        return ArrowJSONDatasource() if can_use_arrow else PandasJSONDatasource()
+        return ArrowJSONDatasource(*args, **kwargs) if can_use_arrow else PandasJSONDatasource(*args, **kwargs)
     raise exceptions.UnsupportedType("Unsupported read format")
 
 
@@ -148,15 +155,18 @@ def _read_text_distributed(  # pylint: disable=unused-argument
         can_use_arrow = False
 
     ray_dataset = read_datasource(
-        datasource=_resolve_format(read_format, can_use_arrow),
+        datasource=_resolve_datasource(
+            read_format,
+            can_use_arrow,
+            paths,
+            dataset,
+            path_root,
+            version_ids=version_ids,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pandas_kwargs=pandas_kwargs,
+            meta_provider=FastFileMetadataProvider(),
+            **configuration,
+        ),
         parallelism=parallelism,
-        paths=paths,
-        path_root=path_root,
-        dataset=dataset,
-        version_ids=version_ids,
-        s3_additional_kwargs=s3_additional_kwargs,
-        pandas_kwargs=pandas_kwargs,
-        meta_provider=FastFileMetadataProvider(),
-        **configuration,
     )
     return _to_modin(dataset=ray_dataset, ignore_index=ignore_index)
