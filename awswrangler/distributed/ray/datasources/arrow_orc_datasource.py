@@ -1,38 +1,51 @@
 """Ray ArrowCSVDatasource Module."""
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 import pyarrow as pa
-from ray.data.block import BlockAccessor
+from ray.data.datasource.file_based_datasource import FileBasedDatasource
 
-from awswrangler._arrow import _add_table_partitions, _df_to_table
-from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
+from awswrangler._arrow import _add_table_partitions
 
 
-class ArrowORCDatasource(PandasFileBasedDatasource):
+class ArrowORCDatasource(FileBasedDatasource):
     """ORC datasource, for reading and writing ORC files using PyArrow."""
 
-    _FILE_EXTENSION = "orc"
+    _FILE_EXTENSIONS = ["orc"]
 
-    def _read_file(  # type: ignore[override]
+    def __init__(
         self,
-        f: pa.NativeFile,
-        path: str,
+        paths: Union[str, List[str]],
+        dataset: bool,
         path_root: str,
-        **reader_args: Any,
-    ) -> pa.Table:
+        use_threads: Union[bool, int],
+        schema: pa.Schema,
+        arrow_orc_args: Optional[Dict[str, Any]] = None,
+        **file_based_datasource_kwargs,
+    ):
+        super().__init__(paths, **file_based_datasource_kwargs)
+
+        self.dataset = dataset
+        self.path_root = path_root
+
+        if arrow_orc_args is None:
+            arrow_orc_args = {}
+
+        self.columns: Optional[List[str]] = arrow_orc_args.get("columns", None)
+        self.arrow_orc_args = arrow_orc_args
+
+    def _read_stream(self, f: pa.NativeFile, path: str) -> Iterator[pa.Table]:
         from pyarrow import orc
 
-        columns: Optional[List[str]] = reader_args.get("columns", None)
+        table: pa.Table = orc.read_table(f, columns=self.columns)
 
-        table: pa.Table = orc.read_table(f, columns=columns)
+        if self.dataset:
+            table = _add_table_partitions(
+                table=table,
+                path=f"s3://{path}",
+                path_root=self.path_root,
+            )
 
-        table = _add_table_partitions(
-            table=table,
-            path=f"s3://{path}",
-            path_root=path_root,
-        )
-
-        return table
+        return [table]
 
     def _open_input_source(
         self,
@@ -41,25 +54,3 @@ class ArrowORCDatasource(PandasFileBasedDatasource):
         **open_args: Any,
     ) -> pa.NativeFile:
         return filesystem.open_input_file(path, **open_args)
-
-    def _write_block(  # type: ignore[override]
-        self,
-        f: pa.NativeFile,
-        block: BlockAccessor,
-        pandas_kwargs: Optional[Dict[str, Any]],
-        **writer_args: Any,
-    ) -> None:
-        from pyarrow import orc
-
-        schema: Optional[pa.schema] = writer_args.get("schema", None)
-        dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
-        index: bool = writer_args.get("index", False)
-        compression: str = writer_args.get("compression", None) or "UNCOMPRESSED"
-        pyarrow_additional_kwargs: Dict[str, Any] = writer_args.get("pyarrow_additional_kwargs", {})
-
-        orc.write_table(
-            _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
-            f,
-            compression=compression,
-            **pyarrow_additional_kwargs,
-        )

@@ -3,6 +3,7 @@
 from awswrangler.distributed.ray.datasources.arrow_csv_datasink import ArrowCSVDatasink
 from awswrangler.distributed.ray.datasources.arrow_csv_datasource import ArrowCSVDatasource
 from awswrangler.distributed.ray.datasources.arrow_json_datasource import ArrowJSONDatasource
+from awswrangler.distributed.ray.datasources.arrow_orc_datasink import ArrowORCDatasink
 from awswrangler.distributed.ray.datasources.arrow_orc_datasource import ArrowORCDatasource
 from awswrangler.distributed.ray.datasources.arrow_parquet_base_datasource import ArrowParquetBaseDatasource
 from awswrangler.distributed.ray.datasources.arrow_parquet_datasource import ArrowParquetDatasource
@@ -31,4 +32,5 @@ __all__ = [
     "PandasCSVDatasink",
     "PandasJSONDatasink",
     "ArrowCSVDatasink",
+    "ArrowORCDatasink",
 ]
