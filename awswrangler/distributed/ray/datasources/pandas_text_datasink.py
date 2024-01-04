@@ -40,7 +40,7 @@ class _PandasTextDatasink(_BlockFileDatasink):
 
         self.write_text_func = write_text_func
 
-    def write_block_to_file(self, file: io.TextIOWrapper, block: BlockAccessor):
+    def write_block(self, file: io.TextIOWrapper, block: BlockAccessor):
         """
         Write a block of data to a file.
 
@@ -51,7 +51,7 @@ class _PandasTextDatasink(_BlockFileDatasink):
         """
         write_text_func = self.write_text_func
 
-        write_text_func(block.to_pandas(), file, **self.pandas_args)  # type: ignore[misc]
+        write_text_func(block.to_pandas(), file, **self.pandas_kwargs)  # type: ignore[misc]
 
 
 class PandasCSVDatasink(_PandasTextDatasink):  # pylint: disable=abstract-method

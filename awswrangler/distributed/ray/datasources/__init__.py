@@ -1,5 +1,6 @@
 """Ray Datasources Module."""
 
+from awswrangler.distributed.ray.datasources.arrow_csv_datasink import ArrowCSVDatasink
 from awswrangler.distributed.ray.datasources.arrow_csv_datasource import ArrowCSVDatasource
 from awswrangler.distributed.ray.datasources.arrow_json_datasource import ArrowJSONDatasource
 from awswrangler.distributed.ray.datasources.arrow_orc_datasource import ArrowORCDatasource
@@ -29,4 +30,5 @@ __all__ = [
     "ParquetDatasink",
     "PandasCSVDatasink",
     "PandasJSONDatasink",
+    "ArrowCSVDatasink",
 ]

@@ -7,9 +7,9 @@ from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvide
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
-    ArrowCSVDatasource,
-    PandasCSVDataSource,
-    PandasJSONDatasource,
+    ArrowCSVDatasink,
+    PandasCSVDatasink,
+    PandasJSONDatasink,
     UserProvidedKeyBlockWritePathProvider,
 )
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
@@ -60,11 +60,16 @@ def _parse_configuration(
     raise exceptions.InvalidArgument(f"File is in the {file_format} format")
 
 
-def _datasource_for_format(write_format: str, can_use_arrow: bool) -> PandasFileBasedDatasource:
+def _datasink_for_format(
+    write_format: str,
+    can_use_arrow: bool,
+    *args: Any,
+    **kwargs: Any,
+) -> PandasFileBasedDatasource:
     if write_format == "csv":
-        return ArrowCSVDatasource() if can_use_arrow else PandasCSVDataSource()
+        return ArrowCSVDatasink(*args, **kwargs) if can_use_arrow else PandasCSVDatasink(*args, **kwargs)
     if write_format == "json":
-        return PandasJSONDatasource()
+        return PandasJSONDatasink(*args, **kwargs)
     raise exceptions.UnsupportedType(f"Unsupported write format {write_format}")
 
 
@@ -127,26 +132,28 @@ def _to_text_distributed(  # pylint: disable=unused-argument
         write_options = None
         can_use_arrow = False
 
-    datasource = _datasource_for_format(file_format, can_use_arrow)
-
     mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
-    ds.write_datasource(
-        datasource,
-        path=file_path,
+
+    datasink = _datasink_for_format(
+        file_format,
+        can_use_arrow,
+        file_path,
         block_path_provider=(
             UserProvidedKeyBlockWritePathProvider()
             if path and not path.endswith("/")
             else DefaultBlockWritePathProvider()
         ),
-        file_path=file_path,
         dataset_uuid=filename_prefix,
-        boto3_session=None,
         s3_additional_kwargs=s3_additional_kwargs,
+        pandas_kwargs=pandas_kwargs,
+        file_path=file_path,
+        boto3_session=None,
         mode="wb" if can_use_arrow else mode,
         encoding=encoding,
         newline=newline,
-        pandas_kwargs=pandas_kwargs,
         write_options=write_options,
     )
 
-    return datasource.get_write_paths()
+    ds.write_datasink(datasink)
+
+    return datasink.get_write_paths()
