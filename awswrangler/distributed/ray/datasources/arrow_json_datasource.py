@@ -46,4 +46,4 @@ class ArrowJSONDatasource(FileBasedDatasource):  # pylint: disable=abstract-meth
                 path_root=self.path_root,
             )
 
-        return table
+        return [table]

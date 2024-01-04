@@ -42,8 +42,8 @@ class ParquetDatasink(_BlockFileDatasink):
 
         Parameters
         ----------
-        block : BlockAccessor
         file : pa.NativeFile
+        block : BlockAccessor
         """
         write_args = self.write_args
 
