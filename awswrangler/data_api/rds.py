@@ -323,7 +323,7 @@ def _create_table(
     con.execute(sql, database=database, transaction_id=transaction_id)
 
 
-def _create_value_dict(  # pylint: disable=too-many-return-statements
+def _create_value_dict(  # noqa: PLR0911
     value: Any,
 ) -> Tuple[Dict[str, Any], Optional[str]]:
     if value is None or pd.isnull(value):

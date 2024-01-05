@@ -107,7 +107,7 @@ class DataApiConnector(ABC):
         pass
 
     @staticmethod
-    def _get_column_value(  # pylint: disable=too-many-return-statements
+    def _get_column_value(  # noqa: PLR0911
         column_value: Dict[str, Any], col_type: Optional[str] = None
     ) -> Any:
         """Return the first non-null key value for a given dictionary.

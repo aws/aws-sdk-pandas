@@ -111,7 +111,7 @@ def _list_objects(
 
 
 @engine.dispatch_on_engine
-def _list_objects_paginate(  # pylint: disable=too-many-branches
+def _list_objects_paginate(  # noqa: PLR0912
     bucket: str,
     pattern: str,
     prefix: str,

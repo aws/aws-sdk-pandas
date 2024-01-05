@@ -32,7 +32,7 @@ def _update_if_necessary(dic: Dict[str, str], key: str, value: Optional[str], mo
     return mode
 
 
-def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+def _create_table(  # noqa: PLR0912,PLR0915
     database: str,
     table: str,
     description: Optional[str],

@@ -451,7 +451,7 @@ def _convert_condition_base_to_expression(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "dtype_backend"],
 )
-def read_items(  # pylint: disable=too-many-branches
+def read_items(  # noqa: PLR0912
     table_name: str,
     index_name: Optional[str] = None,
     partition_values: Optional[Sequence[Any]] = None,

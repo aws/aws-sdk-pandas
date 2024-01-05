@@ -235,7 +235,7 @@ class _S3WriteStrategy(ABC):
     ) -> None:
         pass
 
-    def write(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
+    def write(  # noqa: PLR0912,PLR0913,PLR0915
         self,
         df: pd.DataFrame,
         path: Optional[str],

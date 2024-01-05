@@ -81,7 +81,7 @@ def _to_text(  # pylint: disable=unused-argument
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
-def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
+def to_csv(  # noqa: PLR0912,PLR0915
     df: pd.DataFrame,
     path: Optional[str] = None,
     sep: str = ",",
@@ -703,7 +703,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
-def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
+def to_json(  # noqa: PLR0912,PLR0915
     df: pd.DataFrame,
     path: Optional[str] = None,
     index: bool = True,

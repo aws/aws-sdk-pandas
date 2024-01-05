@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from mypy_boto3_timestream_query.type_defs import PaginatorConfigTypeDef, QueryResponseTypeDef, RowTypeDef
 
 
-def _cast_value(value: str, dtype: str) -> Any:  # pylint: disable=too-many-branches,too-many-return-statements
+def _cast_value(value: str, dtype: str) -> Any:  # noqa: PLR0911
     if dtype == "VARCHAR":
         return value
     if dtype in ("INTEGER", "BIGINT"):
