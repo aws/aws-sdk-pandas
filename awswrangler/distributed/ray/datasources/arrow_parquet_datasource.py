@@ -19,9 +19,8 @@ from typing import (
 )
 
 import numpy as np
-import pyarrow as pa
 import ray
-import ray.cloudpickle as cloudpickle
+from ray import cloudpickle
 from ray.data._internal.progress_bar import ProgressBar
 from ray.data._internal.remote_fn import cached_remote_fn
 from ray.data._internal.util import _check_pyarrow_version, _is_local_scheme
@@ -224,9 +223,8 @@ class ArrowParquetDatasource(Datasource):
             filtered_paths = set(expanded_paths) - set(paths)
             if filtered_paths:
                 _logger.info(f"Filtered out {len(filtered_paths)} paths")
-        else:
-            if len(paths) == 1:
-                paths = paths[0]
+        elif len(paths) == 1:
+            paths = paths[0]
 
         schema = arrow_parquet_args.pop("schema")
         columns = arrow_parquet_args.pop("columns")
@@ -294,6 +292,10 @@ class ArrowParquetDatasource(Datasource):
             self._file_metadata_shuffler = np.random.default_rng()
 
     def estimate_inmemory_data_size(self) -> Optional[int]:
+        """Return an estimate of the Parquet files encoding ratio.
+
+        To avoid OOMs, it is safer to return an over-estimate than an underestimate.
+        """
         total_size = 0
         for file_metadata in self._metadata:
             for row_group_idx in range(file_metadata.num_row_groups):
@@ -302,10 +304,11 @@ class ArrowParquetDatasource(Datasource):
         return total_size * self._encoding_ratio
 
     def get_read_tasks(self, parallelism: int) -> List[ReadTask]:
-        # NOTE: We override the base class FileBasedDatasource.get_read_tasks()
-        # method in order to leverage pyarrow's ParquetDataset abstraction,
-        # which simplifies partitioning logic. We still use
-        # FileBasedDatasource's write side, however.
+        """Override the base class FileBasedDatasource.get_read_tasks().
+
+        Required in order to leverage pyarrow's ParquetDataset abstraction,
+        which simplifies partitioning logic.
+        """
         pq_metadata = self._metadata
         if len(pq_metadata) < len(self._pq_fragments):
             # Pad `pq_metadata` to be same length of `self._pq_fragments`.
@@ -319,10 +322,9 @@ class ArrowParquetDatasource(Datasource):
             ]
             pq_fragments, pq_paths, pq_metadata = list(map(list, zip(*shuffled_files_metadata)))
         else:
-            pq_fragments, pq_paths, pq_metadata = (
+            pq_fragments, pq_paths = (
                 self._pq_fragments,
                 self._pq_paths,
-                pq_metadata,
             )
 
         read_tasks = []
@@ -437,6 +439,7 @@ class ArrowParquetDatasource(Datasource):
 
     def get_name(self):
         """Return a human-readable name for this datasource.
+
         This will be used as the names of the read tasks.
         Note: overrides the base `ParquetBaseDatasource` method.
         """
@@ -444,6 +447,7 @@ class ArrowParquetDatasource(Datasource):
 
     @property
     def supports_distributed_reads(self) -> bool:
+        """If ``False``, only launch read tasks on the driver's node."""
         return self._supports_distributed_reads
 
 
