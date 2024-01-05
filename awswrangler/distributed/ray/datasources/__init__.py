@@ -8,6 +8,7 @@ from awswrangler.distributed.ray.datasources.arrow_orc_datasource import ArrowOR
 from awswrangler.distributed.ray.datasources.arrow_parquet_base_datasource import ArrowParquetBaseDatasource
 from awswrangler.distributed.ray.datasources.arrow_parquet_datasource import ArrowParquetDatasource
 from awswrangler.distributed.ray.datasources.block_path_provider import UserProvidedKeyBlockWritePathProvider
+from awswrangler.distributed.ray.datasources.file_datasink import _BlockFileDatasink
 from awswrangler.distributed.ray.datasources.pandas_text_datasink import PandasCSVDatasink, PandasJSONDatasink
 from awswrangler.distributed.ray.datasources.pandas_text_datasource import (
     PandasCSVDataSource,
@@ -33,4 +34,5 @@ __all__ = [
     "PandasJSONDatasink",
     "ArrowCSVDatasink",
     "ArrowORCDatasink",
+    "_BlockFileDatasink",
 ]

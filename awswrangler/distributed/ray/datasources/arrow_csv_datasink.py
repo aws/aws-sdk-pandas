@@ -36,7 +36,7 @@ class ArrowCSVDatasink(_BlockFileDatasink):
             **write_args,
         )
 
-    def write_block(self, file: io.TextIOWrapper, block: BlockAccessor):
+    def write_block(self, file: io.TextIOWrapper, block: BlockAccessor) -> None:
         """
         Write a block of data to a file.
 

@@ -1,7 +1,7 @@
 """Modin on Ray S3 write parquet module (PRIVATE)."""
 import logging
 import math
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
 
 import modin.pandas as pd
 import pyarrow as pa
@@ -63,7 +63,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
 
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
     datasink = ParquetDatasink(
-        path=path or path_root,
+        path=cast(str, path or path_root),
         dataset_uuid=filename_prefix,
         # If user has provided a single key, use that instead of generating a path per block
         # The dataset will be repartitioned into a single block

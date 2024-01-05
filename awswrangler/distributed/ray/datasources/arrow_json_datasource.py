@@ -22,7 +22,7 @@ class ArrowJSONDatasource(FileBasedDatasource):  # pylint: disable=abstract-meth
         s3_additional_kwargs: Optional[Dict[str, str]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
         arrow_json_args: Optional[Dict[str, Any]] = None,
-        **file_based_datasource_kwargs,
+        **file_based_datasource_kwargs: Any,
     ):
         super().__init__(paths, **file_based_datasource_kwargs)
 
@@ -46,4 +46,4 @@ class ArrowJSONDatasource(FileBasedDatasource):  # pylint: disable=abstract-meth
                 path_root=self.path_root,
             )
 
-        return [table]
+        return [table]  # type: ignore[return-value]

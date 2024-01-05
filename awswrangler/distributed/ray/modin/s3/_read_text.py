@@ -95,7 +95,7 @@ def _parse_configuration(
     version_ids: Optional[Dict[str, str]],
     s3_additional_kwargs: Optional[Dict[str, str]],
     pandas_kwargs: Dict[str, Any],
-) -> Union[CSVReadConfiguration, JSONReadConfiguration]:
+) -> Union[Dict[str, CSVReadConfiguration], Dict[str, JSONReadConfiguration]]:
     if version_ids:
         raise exceptions.InvalidArgument("Specific version ID found for object")
 
@@ -114,8 +114,8 @@ def _parse_configuration(
 def _resolve_datasource(
     read_format: str,
     can_use_arrow: bool,
-    *args,
-    **kwargs,
+    *args: Any,
+    **kwargs: Any,
 ) -> Any:
     if read_format == "csv":
         return ArrowCSVDatasource(*args, **kwargs) if can_use_arrow else PandasCSVDataSource(*args, **kwargs)
@@ -140,7 +140,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
     pandas_kwargs: Dict[str, Any],
 ) -> pd.DataFrame:
     try:
-        configuration: Dict[str, Any] = _parse_configuration(  # type: ignore[assignment]
+        configuration: Dict[str, Any] = _parse_configuration(
             read_format,
             version_ids,
             s3_additional_kwargs,

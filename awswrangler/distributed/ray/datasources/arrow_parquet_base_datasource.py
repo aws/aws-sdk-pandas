@@ -21,7 +21,7 @@ class ArrowParquetBaseDatasource(FileBasedDatasource):  # pylint: disable=abstra
         paths: Union[str, List[str]],
         path_root: str,
         arrow_parquet_args: Optional[Dict[str, Any]] = None,
-        **file_based_datasource_kwargs,
+        **file_based_datasource_kwargs: Any,
     ):
         super().__init__(paths, **file_based_datasource_kwargs)
 
@@ -53,7 +53,7 @@ class ArrowParquetBaseDatasource(FileBasedDatasource):  # pylint: disable=abstra
             path_root=self.path_root,
         )
 
-        return [table]
+        return [table]  # type: ignore[return-value]
 
     def _open_input_source(
         self,
@@ -64,6 +64,6 @@ class ArrowParquetBaseDatasource(FileBasedDatasource):  # pylint: disable=abstra
         # Parquet requires `open_input_file` due to random access reads
         return filesystem.open_input_file(path, **open_args)
 
-    def get_name(self):
+    def get_name(self) -> str:
         """Return a human-readable name for this datasource."""
         return "ParquetBulk"

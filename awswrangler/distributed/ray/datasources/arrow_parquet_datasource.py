@@ -23,7 +23,7 @@ import ray
 from ray import cloudpickle
 from ray.data._internal.progress_bar import ProgressBar
 from ray.data._internal.remote_fn import cached_remote_fn
-from ray.data._internal.util import _check_pyarrow_version, _is_local_scheme
+from ray.data._internal.util import _is_local_scheme
 from ray.data.block import Block
 from ray.data.context import DataContext
 from ray.data.datasource import Datasource
@@ -95,7 +95,9 @@ PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS = 1024
 # raw pyarrow file fragment causes S3 network calls.
 class _SerializedFragment:
     def __init__(self, frag: "ParquetFileFragment"):
-        self._data = cloudpickle.dumps((frag.format, frag.path, frag.filesystem, frag.partition_expression))
+        self._data = cloudpickle.dumps(  # type: ignore[attr-defined,no-untyped-call]
+            (frag.format, frag.path, frag.filesystem, frag.partition_expression)
+        )
 
     def deserialize(self) -> "ParquetFileFragment":
         # Implicitly trigger S3 subsystem initialization by importing
@@ -123,8 +125,8 @@ def _deserialize_fragments(
 def _deserialize_fragments_with_retry(
     serialized_fragments: List[_SerializedFragment],
 ) -> List["pyarrow._dataset.ParquetFileFragment"]:
-    min_interval = 0
-    final_exception = None
+    min_interval: float = 0
+    final_exception: Optional[Exception] = None
     for i in range(FILE_READING_RETRY):
         try:
             return _deserialize_fragments(serialized_fragments)
@@ -156,7 +158,7 @@ def _deserialize_fragments_with_retry(
             time.sleep(min_interval)
             min_interval = min_interval * 2
             final_exception = e
-    raise final_exception
+    raise final_exception  # type: ignore[misc]
 
 
 @PublicAPI
@@ -169,7 +171,7 @@ class ArrowParquetDatasource(Datasource):
     cost of some potential performance and/or compatibility penalties.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-branches,too-many-statements
         self,
         paths: Union[str, List[str]],
         path_root: str,
@@ -178,13 +180,11 @@ class ArrowParquetDatasource(Datasource):
         _block_udf: Optional[Callable[[Block], Block]] = None,
         filesystem: Optional["pyarrow.fs.FileSystem"] = None,
         meta_provider: ParquetMetadataProvider = DefaultParquetMetadataProvider(),
-        partition_filter: PathPartitionFilter = None,
+        partition_filter: Optional[PathPartitionFilter] = None,
         shuffle: Union[Literal["files"], None] = None,
         include_paths: bool = False,
         file_extensions: Optional[List[str]] = None,
     ):
-        _check_pyarrow_version()
-
         if arrow_parquet_args is None:
             arrow_parquet_args = {}
 
@@ -192,7 +192,7 @@ class ArrowParquetDatasource(Datasource):
         import pyarrow.parquet as pq
 
         self._supports_distributed_reads = not _is_local_scheme(paths)
-        if not self._supports_distributed_reads and ray.util.client.ray.is_connected():
+        if not self._supports_distributed_reads and ray.util.client.ray.is_connected():  # type: ignore[no-untyped-call]
             raise ValueError(
                 "Because you're using Ray Client, read tasks scheduled on the Ray "
                 "cluster can't access your local files. To fix this issue, store "
@@ -296,12 +296,12 @@ class ArrowParquetDatasource(Datasource):
 
         To avoid OOMs, it is safer to return an over-estimate than an underestimate.
         """
-        total_size = 0
+        total_size: int = 0
         for file_metadata in self._metadata:
             for row_group_idx in range(file_metadata.num_row_groups):
                 row_group_metadata = file_metadata.row_group(row_group_idx)
                 total_size += row_group_metadata.total_byte_size
-        return total_size * self._encoding_ratio
+        return total_size * self._encoding_ratio  # type: ignore[return-value]
 
     def get_read_tasks(self, parallelism: int) -> List[ReadTask]:
         """Override the base class FileBasedDatasource.get_read_tasks().
@@ -337,7 +337,7 @@ class ArrowParquetDatasource(Datasource):
                 continue
 
             meta = self._meta_provider(
-                paths,
+                paths,  # type: ignore[arg-type]
                 self._inferred_schema,
                 num_fragments=len(fragments),
                 prefetched_metadata=metadata,
@@ -376,7 +376,7 @@ class ArrowParquetDatasource(Datasource):
             )
             read_tasks.append(
                 ReadTask(
-                    lambda f=fragments: _read_fragments(
+                    lambda f=fragments: _read_fragments(  # type: ignore[misc]
                         block_udf,
                         arrow_parquet_args,
                         default_read_batch_size_rows,
@@ -432,12 +432,12 @@ class ArrowParquetDatasource(Datasource):
             )
         sample_bar = ProgressBar("Parquet Files Sample", len(futures))
         sample_ratios = sample_bar.fetch_until_complete(futures)
-        sample_bar.close()
+        sample_bar.close()  # type: ignore[no-untyped-call]
         ratio = np.mean(sample_ratios)
         _logger.debug(f"Estimated Parquet encoding ratio from sampling is {ratio}.")
-        return max(ratio, PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND)
+        return max(ratio, PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND)  # type: ignore[no-any-return]
 
-    def get_name(self):
+    def get_name(self) -> str:
         """Return a human-readable name for this datasource.
 
         This will be used as the names of the read tasks.
@@ -452,17 +452,17 @@ class ArrowParquetDatasource(Datasource):
 
 
 def _read_fragments(
-    block_udf,
-    arrow_parquet_args,
-    default_read_batch_size_rows,
-    columns,
-    schema,
-    path_root,
+    block_udf: Optional[Callable[[Block], Block]],
+    arrow_parquet_args: Any,
+    default_read_batch_size_rows: float,
+    columns: Optional[List[str]],
+    schema: Optional[Union[type, "pyarrow.lib.Schema"]],
+    path_root: Optional[str],
     serialized_fragments: List[_SerializedFragment],
     include_paths: bool,
 ) -> Iterator["pyarrow.Table"]:
     # This import is necessary to load the tensor extension type.
-    from ray.data.extensions.tensor_extension import ArrowTensorType  # noqa
+    from ray.data.extensions.tensor_extension import ArrowTensorType  # type: ignore[attr-defined] # noqa
 
     # Deserialize after loading the filesystem class.
     fragments: List["pyarrow._dataset.ParquetFileFragment"] = _deserialize_fragments_with_retry(serialized_fragments)
@@ -516,7 +516,7 @@ def _read_fragments(
 def _fetch_metadata_serialization_wrapper(
     fragments: List[_SerializedFragment],
 ) -> List["pyarrow.parquet.FileMetaData"]:
-    fragments: List["pyarrow._dataset.ParquetFileFragment"] = _deserialize_fragments_with_retry(fragments)
+    fragments: List["pyarrow._dataset.ParquetFileFragment"] = _deserialize_fragments_with_retry(fragments)  # type: ignore[no-redef]
 
     return _fetch_metadata(fragments)
 
@@ -534,8 +534,8 @@ def _fetch_metadata(
 
 
 def _sample_fragment(
-    columns,
-    schema,
+    columns: Optional[List[str]],
+    schema: Optional[Union[type, "pyarrow.lib.Schema"]],
     file_fragment: _SerializedFragment,
 ) -> float:
     # Sample the first rows batch from file fragment `serialized_fragment`.

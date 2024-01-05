@@ -16,11 +16,11 @@ class ArrowORCDatasource(FileBasedDatasource):
         self,
         paths: Union[str, List[str]],
         dataset: bool,
-        path_root: str,
+        path_root: Optional[str],
         use_threads: Union[bool, int],
         schema: pa.Schema,
         arrow_orc_args: Optional[Dict[str, Any]] = None,
-        **file_based_datasource_kwargs,
+        **file_based_datasource_kwargs: Any,
     ):
         super().__init__(paths, **file_based_datasource_kwargs)
 
@@ -45,7 +45,7 @@ class ArrowORCDatasource(FileBasedDatasource):
                 path_root=self.path_root,
             )
 
-        return [table]
+        return [table]  # type: ignore[return-value]
 
     def _open_input_source(
         self,

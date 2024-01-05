@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 
-def _resolve_datasource_parameters(bulk_read: bool, *args, **kwargs) -> Dict[str, Any]:
+def _resolve_datasource_parameters(bulk_read: bool, *args: Any, **kwargs: Any) -> Dict[str, Any]:
     if bulk_read:
         return {
             "datasource": ArrowParquetBaseDatasource(*args, **kwargs),

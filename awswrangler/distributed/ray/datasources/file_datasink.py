@@ -1,6 +1,5 @@
 """Ray FileDatasink Module."""
 
-import io
 import logging
 from typing import Any, Dict, Iterable, List, Optional, Union
 
@@ -8,7 +7,7 @@ import pandas as pd
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data._internal.execution.interfaces import TaskContext
 from ray.data.block import Block, BlockAccessor
-from ray.data.datasource.block_path_provider import BlockWritePathProvider
+from ray.data.datasource.block_path_provider import BlockWritePathProvider, DefaultBlockWritePathProvider
 from ray.data.datasource.datasink import Datasink
 from ray.types import ObjectRef
 
@@ -25,7 +24,7 @@ class _BlockFileDatasink(Datasink):
         path: str,
         file_format: str,
         *,
-        block_path_provider: Optional[BlockWritePathProvider] = None,
+        block_path_provider: Optional[BlockWritePathProvider] = DefaultBlockWritePathProvider(),
         dataset_uuid: Optional[str] = None,
         s3_additional_kwargs: Optional[Dict[str, str]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
@@ -49,10 +48,10 @@ class _BlockFileDatasink(Datasink):
         _write_block_to_file = self.write_block
         write_args = self.write_args
 
-        mode: str = write_args.get("mode", "wb")
-        compression: str = write_args.get("compression")
-        encoding: str = write_args.get("encoding")
-        newline: str = write_args.get("newline")
+        mode = write_args.get("mode", "wb")
+        compression = write_args.get("compression")
+        encoding = write_args.get("encoding")
+        newline = write_args.get("newline")
 
         def _write_block(write_path: str, block: pd.DataFrame) -> str:
             with open_s3_object(
@@ -73,7 +72,7 @@ class _BlockFileDatasink(Datasink):
             builder.add_block(ray_get(block) if isinstance(block, ObjectRef) else block)  # type: ignore[arg-type]
         block = builder.build()
 
-        write_path = self.block_path_provider(
+        write_path = self.block_path_provider(  # type: ignore[misc]
             self.path,
             dataset_uuid=self.dataset_uuid,
             block_index=ctx.task_idx,
@@ -83,7 +82,7 @@ class _BlockFileDatasink(Datasink):
 
         return _write_block(write_path, block)
 
-    def write_block(self, file: io.TextIOWrapper, block: BlockAccessor):
+    def write_block(self, file: Any, block: BlockAccessor) -> None:
         raise NotImplementedError
 
     def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:

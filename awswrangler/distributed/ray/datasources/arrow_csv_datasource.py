@@ -22,7 +22,7 @@ class ArrowCSVDatasource(FileBasedDatasource):
         s3_additional_kwargs: Optional[Dict[str, str]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
         arrow_csv_args: Optional[Dict[str, Any]] = None,
-        **file_based_datasource_kwargs,
+        **file_based_datasource_kwargs: Any,
     ):
         from pyarrow import csv
 

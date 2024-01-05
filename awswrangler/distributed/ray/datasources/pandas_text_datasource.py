@@ -28,7 +28,7 @@ class PandasTextDatasource(FileBasedDatasource):  # pylint: disable=abstract-met
         version_ids: Optional[Dict[str, str]] = None,
         s3_additional_kwargs: Optional[Dict[str, str]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
-        **file_based_datasource_kwargs,
+        **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(paths, **file_based_datasource_kwargs)
 
@@ -71,7 +71,7 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         version_ids: Optional[Dict[str, str]] = None,
         s3_additional_kwargs: Optional[Dict[str, str]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
-        **file_based_datasource_kwargs,
+        **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(
             paths,
@@ -109,7 +109,7 @@ class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         version_ids: Optional[Dict[str, str]] = None,
         s3_additional_kwargs: Optional[Dict[str, str]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
-        **file_based_datasource_kwargs,
+        **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(
             paths,
@@ -136,7 +136,7 @@ class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-me
         version_ids: Optional[Dict[str, str]] = None,
         s3_additional_kwargs: Optional[Dict[str, str]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
-        **file_based_datasource_kwargs,
+        **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(
             paths,
