@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _read_orc_distributed(  # pylint: disable=unused-argument
+def _read_orc_distributed(
     paths: List[str],
     path_root: Optional[str],
     schema: Optional[pa.schema],

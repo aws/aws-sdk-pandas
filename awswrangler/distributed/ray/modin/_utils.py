@@ -26,7 +26,7 @@ def _block_to_df(
         return block
 
     block = BlockAccessor.for_block(block)
-    return _table_to_df(table=block._table, kwargs=to_pandas_kwargs)  # pylint: disable=protected-access
+    return _table_to_df(table=block._table, kwargs=to_pandas_kwargs)
 
 
 def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset:
@@ -55,7 +55,7 @@ def _to_modin(
     )
 
 
-def _split_modin_frame(df: modin_pd.DataFrame, splits: int) -> List[ObjectRef[Any]]:  # pylint: disable=unused-argument
+def _split_modin_frame(df: modin_pd.DataFrame, splits: int) -> List[ObjectRef[Any]]:
     object_refs: List[ObjectRef[Any]] = _ray_dataset_from_df(df).get_internal_block_refs()
     return object_refs
 

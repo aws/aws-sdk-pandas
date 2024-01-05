@@ -211,7 +211,7 @@ def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(data=target_df_dict)
 
 
-def _get_query_metadata(  # pylint: disable=too-many-statements
+def _get_query_metadata(
     query_execution_id: str,
     boto3_session: Optional[boto3.Session] = None,
     categories: Optional[List[str]] = None,
@@ -629,7 +629,7 @@ def describe_table(
 
 
 @apply_configs
-def create_ctas_table(  # pylint: disable=too-many-locals
+def create_ctas_table(
     sql: str,
     database: Optional[str] = None,
     ctas_table: Optional[str] = None,

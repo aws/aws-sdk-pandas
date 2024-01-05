@@ -185,7 +185,7 @@ def validate_kwargs(
             message=message,
         )
         inner.__name__ = func.__name__
-        inner.__setattr__("__signature__", signature)  # pylint: disable=no-member
+        inner.__setattr__("__signature__", signature)
 
         return cast(FunctionType, inner)
 
@@ -620,7 +620,7 @@ def ensure_cpu_count(use_threads: Union[bool, int] = True) -> int:
     1
 
     """
-    if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck  # noqa: E721
+    if type(use_threads) == int:  # noqa: E721
         if use_threads < 1:
             return 1
         return use_threads

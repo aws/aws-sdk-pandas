@@ -29,7 +29,7 @@ def _add_partitions(
 ) -> None:
     chunks: List[List[Dict[str, Any]]] = _utils.chunkify(lst=inputs, max_length=100)
     client_glue = _utils.client(service_name="glue", session=boto3_session)
-    for chunk in chunks:  # pylint: disable=too-many-nested-blocks
+    for chunk in chunks:
         res = client_glue.batch_create_partition(
             **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableName=table, PartitionInputList=chunk)
         )

@@ -5,7 +5,6 @@ This module is pulled from Ray's [ParquetDatasource]
 and customized to ensure compatibility with AWS SDK for pandas behavior. Changes from the original implementation,
 are documented in the comments and marked with (AWS SDK for pandas) prefix.
 """
-# pylint: disable=redefined-outer-name,import-outside-toplevel,reimported
 
 import logging
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
@@ -13,7 +12,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 import numpy as np
 
 # fs required to implicitly trigger S3 subsystem initialization
-import pyarrow.fs  # pylint: disable=unused-import
+import pyarrow.fs
 from pyarrow.dataset import ParquetFileFragment
 from pyarrow.lib import Schema
 from ray import cloudpickle
@@ -72,7 +71,7 @@ PARQUET_ENCODING_RATIO_ESTIMATE_MAX_NUM_SAMPLES = 10
 PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS = 5
 
 
-class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abstract-method
+class ArrowParquetDatasource(ArrowParquetBaseDatasource):
     """(AWS SDK for pandas) Parquet datasource, for reading and writing Parquet files.
 
     The following are the changes to the original Ray implementation:
@@ -86,7 +85,7 @@ class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abs
         """Return a Reader for the given read arguments."""
         return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore[arg-type]
 
-    def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
+    def _write_block(  # type: ignore[override]
         self,
         f: "pyarrow.NativeFile",
         block: BlockAccessor,
@@ -94,7 +93,7 @@ class ArrowParquetDatasource(ArrowParquetBaseDatasource):  # pylint: disable=abs
         **writer_args: Any,
     ) -> None:
         """Write a block to S3."""
-        import pyarrow as pa  # pylint: disable=import-outside-toplevel,reimported
+        import pyarrow as pa
 
         schema: pa.Schema = writer_args.get("schema", None)
         dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
@@ -125,7 +124,7 @@ class _SerializedPiece:
 
     def deserialize(self) -> ParquetFileFragment:
         """Implicitly trigger S3 subsystem initialization by importing pyarrow.fs."""
-        import pyarrow.fs  # noqa: F401 pylint: disable=unused-import
+        import pyarrow.fs  # noqa: F401
 
         (file_format, path, filesystem, partition_expression) = cloudpickle.loads(self._data)
         return file_format.make_fragment(path, filesystem, partition_expression)
@@ -153,7 +152,7 @@ def _deserialize_pieces_with_retry(
     for i in range(FILE_READING_RETRY):
         try:
             return _deserialize_pieces(serialized_pieces)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             import random
             import time
 
@@ -185,7 +184,7 @@ def _deserialize_pieces_with_retry(
     raise final_exception  # type: ignore[misc]
 
 
-class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instance-attributes
+class _ArrowParquetDatasourceReader(Reader):
     def __init__(
         self,
         paths: Union[str, List[str]],
@@ -227,7 +226,7 @@ class _ArrowParquetDatasourceReader(Reader):  # pylint: disable=too-many-instanc
             try:
                 inferred_schema = _block_udf(dummy_table).schema
                 inferred_schema = inferred_schema.with_metadata(schema.metadata)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 _logger.debug(
                     "Failed to infer schema of dataset by passing dummy table "
                     "through UDF due to the following exception:",
@@ -373,7 +372,7 @@ def _read_pieces(
     # Ensure that we're reading at least one dataset fragment.
     assert len(pieces) > 0
 
-    import pyarrow as pa  # pylint: disable=import-outside-toplevel
+    import pyarrow as pa
 
     ctx = DatasetContext.get_current()
     output_buffer = BlockOutputBuffer(

@@ -1,6 +1,4 @@
 """EMR (Elastic Map Reduce) module."""
-# pylint: disable=line-too-long
-
 import logging
 import pprint
 import re

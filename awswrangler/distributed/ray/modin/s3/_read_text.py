@@ -117,7 +117,7 @@ def _resolve_format(read_format: str, can_use_arrow: bool) -> Any:
     raise exceptions.UnsupportedType("Unsupported read format")
 
 
-def _read_text_distributed(  # pylint: disable=unused-argument
+def _read_text_distributed(
     read_format: str,
     paths: List[str],
     path_root: Optional[str],

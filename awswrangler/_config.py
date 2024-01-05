@@ -81,7 +81,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
 }
 
 
-class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
+class _Config:
     """AWS Wrangler's Configuration class."""
 
     def __init__(self) -> None:
@@ -734,7 +734,7 @@ def apply_configs(function: FunctionType) -> FunctionType:
 
     wrapper.__doc__ = _inject_config_doc(doc=function.__doc__, available_configs=available_configs)
     wrapper.__name__ = function.__name__
-    wrapper.__setattr__("__signature__", signature)  # pylint: disable=no-member
+    wrapper.__setattr__("__signature__", signature)
     return wrapper  # type: ignore[return-value]
 
 

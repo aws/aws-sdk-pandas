@@ -9,12 +9,12 @@ from awswrangler._arrow import _add_table_partitions
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 
 
-class ArrowCSVDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
+class ArrowCSVDatasource(PandasFileBasedDatasource):
     """CSV datasource, for reading and writing CSV files using PyArrow."""
 
     _FILE_EXTENSION = "csv"
 
-    def _read_stream(  # type: ignore[override]  # pylint: disable=arguments-differ
+    def _read_stream(  # type: ignore[override]
         self,
         f: pa.NativeFile,
         path: str,
@@ -56,7 +56,7 @@ class ArrowCSVDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract
             except StopIteration:
                 return
 
-    def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ
+    def _write_block(  # type: ignore[override]
         self,
         f: pa.NativeFile,
         block: BlockAccessor,

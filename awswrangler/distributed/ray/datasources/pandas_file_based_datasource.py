@@ -51,7 +51,7 @@ class TaskContext:
     task_idx: int
 
 
-class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
+class PandasFileBasedDatasource(FileBasedDatasource):
     """Pandas file based datasource, for reading and writing Pandas blocks."""
 
     _FILE_EXTENSION: str
@@ -64,7 +64,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
-    def do_write(  # pylint: disable=arguments-differ
+    def do_write(
         self,
         blocks: List[ObjectRef[pd.DataFrame]],
         metadata: List[BlockMetadata],

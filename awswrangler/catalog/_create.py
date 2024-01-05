@@ -404,7 +404,7 @@ def _create_orc_table(
     )
 
 
-def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
+def _create_csv_table(
     database: str,
     table: str,
     path: Optional[str],
@@ -480,7 +480,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     )
 
 
-def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
+def _create_json_table(
     database: str,
     table: str,
     path: str,
@@ -1062,7 +1062,7 @@ def create_orc_table(
 
 
 @apply_configs
-def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
+def create_csv_table(
     database: str,
     table: str,
     path: str,
@@ -1255,7 +1255,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
 
 
 @apply_configs
-def create_json_table(  # pylint: disable=too-many-arguments
+def create_json_table(
     database: str,
     table: str,
     path: str,

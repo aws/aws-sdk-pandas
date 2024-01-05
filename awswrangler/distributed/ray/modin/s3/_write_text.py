@@ -6,7 +6,7 @@ import modin.pandas as pd
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
+from awswrangler.distributed.ray.datasources import (
     ArrowCSVDatasource,
     PandasCSVDataSource,
     PandasJSONDatasource,
@@ -68,7 +68,7 @@ def _datasource_for_format(write_format: str, can_use_arrow: bool) -> PandasFile
     raise exceptions.UnsupportedType(f"Unsupported write format {write_format}")
 
 
-def _to_text_distributed(  # pylint: disable=unused-argument
+def _to_text_distributed(
     df: pd.DataFrame,
     file_format: str,
     use_threads: Union[bool, int],

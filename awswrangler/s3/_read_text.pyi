@@ -10,7 +10,7 @@ from awswrangler.typing import RaySettings
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
-def _read_text(  # pylint: disable=W0613
+def _read_text(
     read_format: str,
     paths: List[str],
     path_root: Optional[str],

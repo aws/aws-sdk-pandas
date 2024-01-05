@@ -293,7 +293,7 @@ class _S3WriteStrategy(ABC):
         # Evaluating dtype
         catalog_table_input: Optional[Dict[str, Any]] = None
         if database is not None and table is not None:
-            catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+            catalog_table_input = catalog._get_table_input(
                 database=database,
                 table=table,
                 boto3_session=boto3_session,
@@ -380,8 +380,8 @@ class _S3WriteStrategy(ABC):
                 }
 
                 if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                    self._create_glue_table(**create_table_args)  # pylint: disable=protected-access
-                    create_table_args["catalog_table_input"] = catalog._get_table_input(  # pylint: disable=protected-access
+                    self._create_glue_table(**create_table_args)
+                    create_table_args["catalog_table_input"] = catalog._get_table_input(
                         database=database,
                         table=table,
                         boto3_session=boto3_session,
@@ -418,7 +418,7 @@ class _S3WriteStrategy(ABC):
             )
             if database and table:
                 try:
-                    self._create_glue_table(**create_table_args)  # pylint: disable=protected-access
+                    self._create_glue_table(**create_table_args)
                     if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                         self._add_glue_partitions(
                             database=database,

@@ -21,7 +21,7 @@ def _read_parquet_metadata_file(
     version_id: Optional[str] = ...,
     coerce_int96_timestamp_unit: Optional[str] = ...,
 ) -> pa.schema: ...
-def _read_parquet(  # pylint: disable=W0613
+def _read_parquet(
     paths: List[str],
     path_root: Optional[str],
     schema: Optional[pa.schema],

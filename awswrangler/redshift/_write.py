@@ -63,7 +63,7 @@ def _copy(
 
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 @apply_configs
-def to_sql(  # pylint: disable=too-many-locals
+def to_sql(
     df: pd.DataFrame,
     con: "redshift_connector.Connection",  # type: ignore[name-defined]
     table: str,

@@ -1,5 +1,4 @@
 """Modin on Ray Core module (PRIVATE)."""
-# pylint: disable=import-outside-toplevel
 import logging
 from functools import wraps
 from typing import Any, Callable, Optional, TypeVar

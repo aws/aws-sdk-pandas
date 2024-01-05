@@ -305,7 +305,7 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
 @apply_configs
-def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
+def to_orc(
     df: pd.DataFrame,
     path: Optional[str] = None,
     index: bool = False,

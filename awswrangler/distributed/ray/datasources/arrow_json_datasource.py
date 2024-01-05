@@ -8,12 +8,12 @@ from awswrangler._arrow import _add_table_partitions
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 
 
-class ArrowJSONDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
+class ArrowJSONDatasource(PandasFileBasedDatasource):
     """JSON datasource, for reading and writing JSON files using PyArrow."""
 
     _FILE_EXTENSION = "json"
 
-    def _read_file(  # type: ignore[override]  # pylint: disable=arguments-differ
+    def _read_file(  # type: ignore[override]
         self,
         f: pa.NativeFile,
         path: str,

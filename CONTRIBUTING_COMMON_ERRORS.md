@@ -80,7 +80,7 @@ tests/conftest.py:6: in <module>
 awswrangler/__init__.py:10: in <module>
     from awswrangler import (  # noqa
 awswrangler/sqlserver.py:20: in <module>
-    import pyodbc  # pylint: disable=import-error
+    import pyodbc
 E   ImportError: dlopen(/Users/$USER/Projects/aws-sdk-pandas/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/unixodbc/lib/libodbc.2.dylib
 E     Referenced from: /Users/$USER/Projects/aws-sdk-pandas/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so
 E     Reason: image not found
@@ -94,7 +94,7 @@ Traceback (most recent call last):
   File "/Users/$USER/Projects/aws-sdk-pandas/awswrangler/__init__.py", line 10, in <module>
     from awswrangler import (  # noqa
   File "/Users/$USER/Projects/aws-sdk-pandas/awswrangler/sqlserver.py", line 20, in <module>
-    import pyodbc  # pylint: disable=import-error
+    import pyodbc
 ImportError: dlopen(/Users/$USER/Projects/aws-sdk-pandas/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/unixodbc/lib/libodbc.2.dylib
   Referenced from: /Users/$USER/Projects/aws-sdk-pandas/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so
   Reason: image not found

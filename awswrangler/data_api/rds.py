@@ -218,7 +218,7 @@ class RdsDataApi(_connector.DataApiConnector):
 
         for record in result["records"]:
             row: List[Any] = [
-                _connector.DataApiConnector._get_column_value(column, col_type)  # type: ignore[arg-type]  # pylint: disable=protected-access
+                _connector.DataApiConnector._get_column_value(column, col_type)  # type: ignore[arg-type]
                 for column, col_type in zip(record, column_types)
             ]
             rows.append(row)

@@ -50,7 +50,7 @@ class _RayMaxConcurrencyExecutor(_BaseExecutor):
         return [self._actor.run_concurrent.remote(func_python, *arg) for arg in zip(*iterables)]
 
 
-def _get_ray_executor(use_threads: Union[bool, int], **kwargs: Any) -> _BaseExecutor:  # pylint: disable=unused-argument
+def _get_ray_executor(use_threads: Union[bool, int], **kwargs: Any) -> _BaseExecutor:
     # We want the _RayMaxConcurrencyExecutor only to be used when the `parallelism` parameter is specified
     parallelism: Optional[int] = kwargs.get("ray_parallelism")
     return _RayMaxConcurrencyExecutor(parallelism) if parallelism else _RayExecutor()

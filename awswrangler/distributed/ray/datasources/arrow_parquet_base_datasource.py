@@ -18,7 +18,7 @@ from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 
 
-class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
+class ArrowParquetBaseDatasource(PandasFileBasedDatasource):
     """(AWS SDK for pandas) Parquet datasource, for reading and writing Parquet files.
 
     The following are the changes to the original Ray implementation:

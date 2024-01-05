@@ -144,7 +144,7 @@ def _to_parquet_chunked(
 
 
 @engine.dispatch_on_engine
-def _to_parquet(  # pylint: disable=unused-argument
+def _to_parquet(
     df: pd.DataFrame,
     schema: pa.Schema,
     index: bool,
@@ -313,7 +313,7 @@ class _S3ParquetWriteStrategy(_S3WriteStrategy):
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
-def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
+def to_parquet(
     df: pd.DataFrame,
     path: Optional[str] = None,
     index: bool = False,
@@ -752,7 +752,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
-def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-locals
+def store_parquet_metadata(
     path: str,
     database: str,
     table: str,

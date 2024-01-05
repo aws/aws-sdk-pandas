@@ -24,7 +24,7 @@ def _resolve_datasource_parameters(bulk_read: bool) -> Dict[str, Any]:
     }
 
 
-def _read_parquet_distributed(  # pylint: disable=unused-argument
+def _read_parquet_distributed(
     paths: List[str],
     path_root: Optional[str],
     schema: Optional[pa.schema],

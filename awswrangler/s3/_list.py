@@ -143,7 +143,7 @@ def _list_objects_paginate(  # noqa: PLR0912
     response_iterator = paginator.paginate(**args)
     paths: List[str] = []
 
-    for page in response_iterator:  # pylint: disable=too-many-nested-blocks
+    for page in response_iterator:
         if delimiter is None:
             contents = page.get("Contents")
             if contents is not None:

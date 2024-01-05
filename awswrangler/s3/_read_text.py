@@ -40,7 +40,7 @@ def _resolve_format(read_format: str) -> Any:
 
 
 @engine.dispatch_on_engine
-def _read_text(  # pylint: disable=W0613
+def _read_text(
     read_format: str,
     paths: List[str],
     path_root: Optional[str],

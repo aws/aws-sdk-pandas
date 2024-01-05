@@ -1,6 +1,4 @@
 """AWS Glue Catalog Get Module."""
-# pylint: disable=redefined-outer-name
-
 import base64
 import itertools
 import logging

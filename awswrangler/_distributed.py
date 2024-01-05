@@ -1,7 +1,5 @@
 """Distributed engine and memory format configuration."""
 
-# pylint: disable=import-outside-toplevel
-
 import importlib.util
 import os
 import threading
@@ -105,7 +103,7 @@ class Engine:
             return cls.dispatch_func(func)(*args, **kw)
 
         # Save the original function
-        wrapper._source_func = func  # type: ignore[attr-defined]  # pylint: disable=protected-access
+        wrapper._source_func = func  # type: ignore[attr-defined]
         return wrapper  # type: ignore[return-value]
 
     @classmethod

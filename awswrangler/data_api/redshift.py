@@ -160,7 +160,7 @@ class RedshiftDataApi(_connector.DataApiConnector):
             column_metadata = response["ColumnMetadata"]
             for record in response["Records"]:
                 row: List[Any] = [
-                    _connector.DataApiConnector._get_column_value(column)  # type: ignore[arg-type]  # pylint: disable=protected-access
+                    _connector.DataApiConnector._get_column_value(column)  # type: ignore[arg-type]
                     for column in record
                 ]
                 rows.append(row)

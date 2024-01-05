@@ -1,5 +1,4 @@
 """Apache Spark on Amazon Athena Module."""
-# pylint: disable=too-many-lines
 import logging
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
