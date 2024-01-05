@@ -9,6 +9,7 @@ from ray.data.datasource.block_path_provider import BlockWritePathProvider
 
 from awswrangler._arrow import _df_to_table
 from awswrangler.distributed.ray.datasources.file_datasink import _BlockFileDatasink
+from awswrangler.s3._write import _COMPRESSION_2_EXT
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -57,3 +58,8 @@ class ParquetDatasink(_BlockFileDatasink):
             file,
             **pyarrow_additional_kwargs,
         )
+
+    def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
+        if compression is not None:
+            return f"{_COMPRESSION_2_EXT.get(compression)[1:]}.{file_format}"  # type: ignore[index]
+        return file_format
