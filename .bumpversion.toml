@@ -1,0 +1,78 @@
+[tool.bumpversion]
+current_version = "3.5.0"
+commit = false
+tag = false
+tag_name = "{new_version}"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)((?P<release>[a-z]+)(?P<build>\\d+))?"
+serialize = [
+	"{major}.{minor}.{patch}{release}{build}",
+	"{major}.{minor}.{patch}"
+]
+
+[tool.bumpversion.parts.release]
+optional_value = "rc"
+values = [
+	"a",
+	"b",
+	"rc"
+]
+
+[tool.bumpversion.parts.build]
+first_value = 1
+
+[[tool.bumpversion.files]]
+filename = "VERSION"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+
+[[tool.bumpversion.files]]
+filename = "test_infra/pyproject.toml"
+
+[[tool.bumpversion.files]]
+filename = "README.md"
+
+[[tool.bumpversion.files]]
+filename = "CONTRIBUTING_COMMON_ERRORS.md"
+
+[[tool.bumpversion.files]]
+filename = "tests/unit/test_metadata.py"
+
+[[tool.bumpversion.files]]
+filename = "docs/source/install.rst"
+
+[[tool.bumpversion.files]]
+filename = "awswrangler/__metadata__.py"
+
+[[tool.bumpversion.files]]
+filename = "awswrangler/athena/_read.py"
+
+[[tool.bumpversion.files]]
+filename = "awswrangler/s3/_read_parquet.py"
+
+[[tool.bumpversion.files]]
+filename = "awswrangler/s3/_read_text.py"
+
+[[tool.bumpversion.files]]
+filename = "awswrangler/s3/_write_parquet.py"
+
+[[tool.bumpversion.files]]
+filename = "awswrangler/s3/_write_text.py"
+
+[[tool.bumpversion.files]]
+filename = "tutorials/001 - Introduction.ipynb"
+
+[[tool.bumpversion.files]]
+filename = "tutorials/007 - Redshift, MySQL, PostgreSQL, SQL Server, Oracle.ipynb"
+
+[[tool.bumpversion.files]]
+filename = "tutorials/014 - Schema Evolution.ipynb"
+
+[[tool.bumpversion.files]]
+filename = "tutorials/021 - Global Configurations.ipynb"
+
+[[tool.bumpversion.files]]
+filename = "tutorials/022 - Writing Partitions Concurrently.ipynb"
+
+[[tool.bumpversion.files]]
+filename = "tutorials/023 - Flexible Partitions Filter.ipynb"
