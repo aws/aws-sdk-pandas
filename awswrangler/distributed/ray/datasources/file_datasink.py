@@ -26,7 +26,7 @@ class _BlockFileDatasink(Datasink):
         *,
         block_path_provider: Optional[BlockWritePathProvider] = DefaultBlockWritePathProvider(),
         dataset_uuid: Optional[str] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        open_s3_object_args: Optional[Dict[str, Any]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
         **write_args: Any,
     ):
@@ -34,7 +34,7 @@ class _BlockFileDatasink(Datasink):
         self.file_format = file_format
         self.block_path_provider = block_path_provider
         self.dataset_uuid = dataset_uuid
-        self.s3_additional_kwargs = s3_additional_kwargs
+        self.open_s3_object_args = open_s3_object_args or {}
         self.pandas_kwargs = pandas_kwargs or {}
         self.write_args = write_args or {}
 
@@ -46,23 +46,13 @@ class _BlockFileDatasink(Datasink):
         ctx: TaskContext,
     ) -> Any:
         _write_block_to_file = self.write_block
-        write_args = self.write_args
 
-        mode = write_args.get("mode", "wb")
-        compression = write_args.get("compression")
-        encoding = write_args.get("encoding")
-        newline = write_args.get("newline")
-
-        if not compression:
-            compression = self.pandas_kwargs.get("compression")
+        compression = self.pandas_kwargs.get("compression", None)
 
         def _write_block(write_path: str, block: pd.DataFrame) -> str:
             with open_s3_object(
                 path=write_path,
-                mode=mode,
-                s3_additional_kwargs=self.s3_additional_kwargs,
-                encoding=encoding,
-                newline=newline,
+                **self.open_s3_object_args,
             ) as f:
                 _write_block_to_file(f, BlockAccessor.for_block(block))
                 return write_path

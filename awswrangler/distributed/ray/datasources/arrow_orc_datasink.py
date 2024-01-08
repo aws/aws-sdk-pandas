@@ -23,7 +23,7 @@ class ArrowORCDatasink(_BlockFileDatasink):
         *,
         block_path_provider: Optional[BlockWritePathProvider] = None,
         dataset_uuid: Optional[str] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        open_s3_object_args: Optional[Dict[str, Any]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
         schema: Optional[pa.Schema] = None,
         pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -34,7 +34,7 @@ class ArrowORCDatasink(_BlockFileDatasink):
             file_format="orc",
             block_path_provider=block_path_provider,
             dataset_uuid=dataset_uuid,
-            s3_additional_kwargs=s3_additional_kwargs,
+            open_s3_object_args=open_s3_object_args,
             pandas_kwargs=pandas_kwargs,
             **write_args,
         )

@@ -144,13 +144,13 @@ def _to_text_distributed(  # pylint: disable=unused-argument
             else DefaultBlockWritePathProvider()
         ),
         dataset_uuid=filename_prefix,
-        s3_additional_kwargs=s3_additional_kwargs,
+        open_s3_object_args={
+            "mode": "wb" if can_use_arrow else mode,
+            "encoding": encoding,
+            "newline": newline,
+            "s3_additional_kwargs": s3_additional_kwargs,
+        },
         pandas_kwargs=pandas_kwargs,
-        file_path=file_path,
-        boto3_session=None,
-        mode="wb" if can_use_arrow else mode,
-        encoding=encoding,
-        newline=newline,
         write_options=write_options,
     )
 

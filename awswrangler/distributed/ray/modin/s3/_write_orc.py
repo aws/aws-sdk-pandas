@@ -66,6 +66,9 @@ def _to_orc_distributed(  # pylint: disable=unused-argument
         block_path_provider=UserProvidedKeyBlockWritePathProvider()
         if path and not path.endswith("/") and not max_rows_by_file
         else DefaultBlockWritePathProvider(),
+        open_s3_object_args={
+            "s3_additional_kwargs": s3_additional_kwargs,
+        },
         index=index,
         dtype=dtype,
         compression=compression,

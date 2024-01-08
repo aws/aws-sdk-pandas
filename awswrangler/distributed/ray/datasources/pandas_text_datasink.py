@@ -24,7 +24,7 @@ class _PandasTextDatasink(_BlockFileDatasink):
         *,
         block_path_provider: Optional[BlockWritePathProvider] = None,
         dataset_uuid: Optional[str] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        open_s3_object_args: Optional[Dict[str, Any]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
         **write_args: Any,
     ):
@@ -33,7 +33,7 @@ class _PandasTextDatasink(_BlockFileDatasink):
             file_format=file_format,
             block_path_provider=block_path_provider,
             dataset_uuid=dataset_uuid,
-            s3_additional_kwargs=s3_additional_kwargs,
+            open_s3_object_args=open_s3_object_args,
             pandas_kwargs=pandas_kwargs,
             **write_args,
         )
@@ -63,7 +63,7 @@ class PandasCSVDatasink(_PandasTextDatasink):  # pylint: disable=abstract-method
         *,
         block_path_provider: Optional[BlockWritePathProvider] = None,
         dataset_uuid: Optional[str] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        open_s3_object_args: Optional[Dict[str, Any]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
         **write_args: Any,
     ):
@@ -73,7 +73,7 @@ class PandasCSVDatasink(_PandasTextDatasink):  # pylint: disable=abstract-method
             pd.DataFrame.to_csv,
             block_path_provider=block_path_provider,
             dataset_uuid=dataset_uuid,
-            s3_additional_kwargs=s3_additional_kwargs,
+            open_s3_object_args=open_s3_object_args,
             pandas_kwargs=pandas_kwargs,
             **write_args,
         )
@@ -88,7 +88,7 @@ class PandasJSONDatasink(_PandasTextDatasink):  # pylint: disable=abstract-metho
         *,
         block_path_provider: Optional[BlockWritePathProvider] = None,
         dataset_uuid: Optional[str] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        open_s3_object_args: Optional[Dict[str, Any]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
         **write_args: Any,
     ):
@@ -98,7 +98,7 @@ class PandasJSONDatasink(_PandasTextDatasink):  # pylint: disable=abstract-metho
             pd.DataFrame.to_json,
             block_path_provider=block_path_provider,
             dataset_uuid=dataset_uuid,
-            s3_additional_kwargs=s3_additional_kwargs,
+            open_s3_object_args=open_s3_object_args,
             pandas_kwargs=pandas_kwargs,
             **write_args,
         )
