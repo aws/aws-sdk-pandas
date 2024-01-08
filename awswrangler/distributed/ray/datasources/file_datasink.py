@@ -53,6 +53,9 @@ class _BlockFileDatasink(Datasink):
         encoding = write_args.get("encoding")
         newline = write_args.get("newline")
 
+        if not compression:
+            compression = self.pandas_kwargs.get("compression")
+
         def _write_block(write_path: str, block: pd.DataFrame) -> str:
             with open_s3_object(
                 path=write_path,
