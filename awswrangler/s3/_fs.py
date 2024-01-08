@@ -547,7 +547,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
 @apply_configs
 def open_s3_object(
     path: str,
-    mode: str,
+    mode: str = "wb",
     version_id: Optional[str] = None,
     use_threads: Union[bool, int] = False,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
