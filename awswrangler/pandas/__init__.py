@@ -8,7 +8,7 @@ if TYPE_CHECKING or memory_format.get() == MemoryFormatEnum.PANDAS:
     from pandas import *  # noqa: F403
 
     # Explicit import because mypy doesn't support forward references to a star import
-    from pandas import (  # noqa: F401
+    from pandas import (
         DataFrame,
         Series,
         concat,
@@ -24,7 +24,7 @@ elif memory_format.get() == MemoryFormatEnum.MODIN:
     from modin.pandas import *  # noqa: F403
 
     # Explicit import because mypy doesn't support forward references to a star import
-    from modin.pandas import (  # noqa: F401
+    from modin.pandas import (
         DataFrame,
         Series,
         concat,

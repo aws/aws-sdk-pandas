@@ -127,6 +127,26 @@ class CleanRoomsStack(Stack):  # type: ignore
             ),
         )
 
+        self.custom_table = glue.Table(
+            self,
+            "Custom Table",
+            database=self.database,
+            table_name="custom",
+            columns=[
+                glue.Column(name="a", type=glue.Type(input_string="int", is_primitive=True)),
+                glue.Column(name="b", type=glue.Type(input_string="string", is_primitive=True)),
+            ],
+            bucket=self.bucket,
+            s3_prefix="custom",
+            data_format=glue.DataFormat(
+                input_format=glue.InputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"),
+                output_format=glue.OutputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"),
+                serialization_library=glue.SerializationLibrary(
+                    "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+                ),
+            ),
+        )
+
         self.users_configured_table = cleanrooms.CfnConfiguredTable(
             self,
             "Users Configured Table",
@@ -211,6 +231,49 @@ class CleanRoomsStack(Stack):  # type: ignore
             ],
         )
 
+        self.analysis_template = cleanrooms.CfnAnalysisTemplate(
+            self,
+            "AnalysisTemplate",
+            format="SQL",
+            membership_identifier=self.membership.attr_membership_identifier,
+            name="custom_analysis",
+            source=cleanrooms.CfnAnalysisTemplate.AnalysisSourceProperty(
+                text="SELECT a FROM custom WHERE custom.b = :param1"
+            ),
+            analysis_parameters=[
+                cleanrooms.CfnAnalysisTemplate.AnalysisParameterProperty(
+                    name="param1",
+                    type="VARCHAR",
+                )
+            ],
+        )
+
+        self.custom_configured_table = cleanrooms.CfnConfiguredTable(
+            self,
+            "Custom Configured Table",
+            allowed_columns=["a", "b"],
+            analysis_method="DIRECT_QUERY",
+            name="custom",
+            table_reference=cleanrooms.CfnConfiguredTable.TableReferenceProperty(
+                glue=cleanrooms.CfnConfiguredTable.GlueTableReferenceProperty(
+                    database_name=self.database.database_name,
+                    table_name=self.custom_table.table_name,
+                )
+            ),
+            analysis_rules=[
+                cleanrooms.CfnConfiguredTable.AnalysisRuleProperty(
+                    policy=cleanrooms.CfnConfiguredTable.ConfiguredTableAnalysisRulePolicyProperty(
+                        v1=cleanrooms.CfnConfiguredTable.ConfiguredTableAnalysisRulePolicyV1Property(
+                            custom=cleanrooms.CfnConfiguredTable.AnalysisRuleCustomProperty(
+                                allowed_analyses=[self.analysis_template.attr_arn],
+                            ),
+                        )
+                    ),
+                    type="CUSTOM",
+                )
+            ],
+        )
+
         self.users_configured_table_association = cleanrooms.CfnConfiguredTableAssociation(
             self,
             "Users Configured Table Association",
@@ -229,7 +292,17 @@ class CleanRoomsStack(Stack):  # type: ignore
             role_arn=self.cleanrooms_service_role.role_arn,
         )
 
+        self.custom_configured_table_association = cleanrooms.CfnConfiguredTableAssociation(
+            self,
+            "Custom Configured Table Association",
+            configured_table_identifier=self.custom_configured_table.attr_configured_table_identifier,
+            membership_identifier=self.membership.attr_membership_identifier,
+            name="custom",
+            role_arn=self.cleanrooms_service_role.role_arn,
+        )
+
         CfnOutput(self, "CleanRoomsMembershipId", value=self.membership.attr_membership_identifier)
+        CfnOutput(self, "CleanRoomsAnalysisTemplateArn", value=self.analysis_template.attr_arn)
         CfnOutput(self, "CleanRoomsGlueDatabaseName", value=self.database.database_name)
         CfnOutput(self, "CleanRoomsS3BucketName", value=self.bucket.bucket_name)
 

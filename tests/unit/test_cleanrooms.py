@@ -39,8 +39,28 @@ def data(cleanrooms_s3_bucket_name: str, cleanrooms_glue_database_name: str) -> 
         mode="overwrite",
     )
 
+    df_custom = pd.DataFrame(
+        {
+            "a": list(range(1, 9)),
+            "b": ["A", "A", "B", "C", "C", "C", "D", "E"],
+        }
+    )
+    wr.s3.to_parquet(
+        df_custom,
+        f"s3://{cleanrooms_s3_bucket_name}/custom/",
+        dataset=True,
+        database=cleanrooms_glue_database_name,
+        table="custom",
+        mode="overwrite",
+    )
 
-def test_read_sql_query(data: None, cleanrooms_membership_id: str, cleanrooms_s3_bucket_name: str):
+
+def test_read_sql_query(
+    data: None,
+    cleanrooms_membership_id: str,
+    cleanrooms_analysis_template_arn: str,
+    cleanrooms_s3_bucket_name: str,
+):
     sql = """SELECT city, AVG(p.sale_value)
     FROM users u
         INNER JOIN purchases p ON u.user_id = p.user_id
@@ -71,3 +91,13 @@ def test_read_sql_query(data: None, cleanrooms_membership_id: str, cleanrooms_s3
         keep_files=False,
     )
     assert df.shape == (2, 3)
+
+    df = wr.cleanrooms.read_sql_query(
+        analysis_template_arn=cleanrooms_analysis_template_arn,
+        params={"param1": "C"},
+        membership_id=cleanrooms_membership_id,
+        output_bucket=cleanrooms_s3_bucket_name,
+        output_prefix="results",
+        keep_files=False,
+    )
+    assert df.shape == (3, 1)

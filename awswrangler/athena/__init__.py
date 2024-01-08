@@ -12,13 +12,13 @@ from awswrangler.athena._statements import (
     delete_prepared_statement,
     list_prepared_statements,
 )
-from awswrangler.athena._read import (  # noqa
+from awswrangler.athena._read import (
     get_query_results,
     read_sql_query,
     read_sql_table,
     unload,
 )
-from awswrangler.athena._utils import (  # noqa
+from awswrangler.athena._utils import (
     create_athena_bucket,
     create_ctas_table,
     describe_table,

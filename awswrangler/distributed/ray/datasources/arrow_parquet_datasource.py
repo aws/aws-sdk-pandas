@@ -19,6 +19,9 @@ from typing import (
 )
 
 import numpy as np
+
+# fs required to implicitly trigger S3 subsystem initialization
+import pyarrow.fs  # pylint: disable=unused-import
 import ray
 from ray import cloudpickle
 from ray.data._internal.progress_bar import ProgressBar

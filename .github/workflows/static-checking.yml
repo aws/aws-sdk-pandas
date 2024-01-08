@@ -32,12 +32,10 @@ jobs:
           python -m pip install poetry
           poetry config virtualenvs.create false --local
           poetry install --all-extras -vvv
-      - name: Run ruff format
+      - name: ruff format check
         run: ruff format --check .
-      - name: Run ruff check on source code
-        run: ruff awswrangler --output-format=github
-      - name: Run ruff check on tests and tutorials
-        run: ruff . --ignore "PL" --ignore "D" --output-format=github
+      - name: ruff check
+        run: ruff check --output-format=github .
       - name: mypy check
         run: mypy --install-types --non-interactive awswrangler
       - name: Pylint Lint
