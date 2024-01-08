@@ -24,6 +24,7 @@ class ArrowCSVDatasink(_BlockFileDatasink):
         dataset_uuid: Optional[str] = None,
         open_s3_object_args: Optional[Dict[str, Any]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
+        write_options: Optional[Dict[str, Any]] = None,
         **write_args: Any,
     ):
         super().__init__(
@@ -36,6 +37,8 @@ class ArrowCSVDatasink(_BlockFileDatasink):
             **write_args,
         )
 
+        self.write_options = write_options or {}
+
     def write_block(self, file: io.TextIOWrapper, block: BlockAccessor) -> None:
         """
         Write a block of data to a file.
@@ -45,7 +48,4 @@ class ArrowCSVDatasink(_BlockFileDatasink):
         block : BlockAccessor
         file : io.TextIOWrapper
         """
-        write_options_dict = self.write_args.get("write_options", {})
-        write_options = csv.WriteOptions(**write_options_dict)
-
-        csv.write_csv(block.to_arrow(), file, write_options)
+        csv.write_csv(block.to_arrow(), file, csv.WriteOptions(**self.write_options))
