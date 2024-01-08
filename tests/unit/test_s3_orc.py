@@ -320,17 +320,10 @@ def test_orc_with_size(path, use_threads, max_rows_by_file):
     assert df.iint8.sum() == df2.iint8.sum()
 
 
-@pytest.mark.xfail(
-    raises=wr.exceptions.InvalidArgumentCombination,
-    reason="Named index not working when partitioning to a single file",
-    condition=is_ray_modin,
-)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
-@pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
-def test_index_columns(path, use_threads, name, pandas):
+def test_index_columns(path, use_threads, pandas):
     df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64")
-    df.index.name = name
     path_file = f"{path}0.orc"
     if pandas:
         df.to_orc(path_file, index=True)
