@@ -25,54 +25,48 @@ filename = "VERSION"
 
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"
+search = "version = \"{current_version}\""
+replace = "version = \"{new_version}\""
 
 [[tool.bumpversion.files]]
 filename = "test_infra/pyproject.toml"
+search = "version = \"{current_version}\""
+replace = "version = \"{new_version}\""
 
 [[tool.bumpversion.files]]
 filename = "README.md"
+search = "https://aws-sdk-pandas.readthedocs.io/en/{current_version}/"
+replace = "https://aws-sdk-pandas.readthedocs.io/en/{new_version}/"
+
+[[tool.bumpversion.files]]
+filename = "README.md"
+search = "https://img.shields.io/badge/{current_version}-brightgreen.svg"
+replace = "https://img.shields.io/badge/{new_version}-brightgreen.svg"
 
 [[tool.bumpversion.files]]
 filename = "CONTRIBUTING_COMMON_ERRORS.md"
 
 [[tool.bumpversion.files]]
-filename = "tests/unit/test_metadata.py"
-
-[[tool.bumpversion.files]]
 filename = "docs/source/install.rst"
+search = "awswrangler=={current_version}"
+replace = "awswrangler=={new_version}"
 
 [[tool.bumpversion.files]]
 filename = "awswrangler/__metadata__.py"
 
 [[tool.bumpversion.files]]
-filename = "awswrangler/athena/_read.py"
+filename = "tests/unit/test_metadata.py"
+search = "assert wr.__version__ == \"{current_version}\""
+replace = "assert wr.__version__ == \"{new_version}\""
 
 [[tool.bumpversion.files]]
-filename = "awswrangler/s3/_read_parquet.py"
+glob = "awswrangler/**/*.py"
+search = "https://aws-sdk-pandas.readthedocs.io/en/{current_version}/"
+replace = "https://aws-sdk-pandas.readthedocs.io/en/{new_version}/"
+ignore_missing_version = true
 
 [[tool.bumpversion.files]]
-filename = "awswrangler/s3/_read_text.py"
-
-[[tool.bumpversion.files]]
-filename = "awswrangler/s3/_write_parquet.py"
-
-[[tool.bumpversion.files]]
-filename = "awswrangler/s3/_write_text.py"
-
-[[tool.bumpversion.files]]
-filename = "tutorials/001 - Introduction.ipynb"
-
-[[tool.bumpversion.files]]
-filename = "tutorials/007 - Redshift, MySQL, PostgreSQL, SQL Server, Oracle.ipynb"
-
-[[tool.bumpversion.files]]
-filename = "tutorials/014 - Schema Evolution.ipynb"
-
-[[tool.bumpversion.files]]
-filename = "tutorials/021 - Global Configurations.ipynb"
-
-[[tool.bumpversion.files]]
-filename = "tutorials/022 - Writing Partitions Concurrently.ipynb"
-
-[[tool.bumpversion.files]]
-filename = "tutorials/023 - Flexible Partitions Filter.ipynb"
+glob = "tutorials/*.ipynb"
+search = "https://aws-sdk-pandas.readthedocs.io/en/{current_version}/"
+replace = "https://aws-sdk-pandas.readthedocs.io/en/{new_version}/"
+ignore_missing_version = true
