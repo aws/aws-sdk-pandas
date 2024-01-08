@@ -26,6 +26,8 @@ class ArrowORCDatasink(_BlockFileDatasink):
         open_s3_object_args: Optional[Dict[str, Any]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
         schema: Optional[pa.Schema] = None,
+        index: bool = False,
+        dtype: Optional[Dict[str, str]] = None,
         pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
         **write_args: Any,
     ):
@@ -41,6 +43,8 @@ class ArrowORCDatasink(_BlockFileDatasink):
 
         self.pyarrow_additional_kwargs = pyarrow_additional_kwargs or {}
         self.schema = schema
+        self.index = index
+        self.dtype = dtype
 
     def write_block(self, file: io.TextIOWrapper, block: BlockAccessor) -> None:
         """
@@ -53,14 +57,10 @@ class ArrowORCDatasink(_BlockFileDatasink):
         """
         from pyarrow import orc
 
-        write_args = self.write_args
-
-        dtype: Optional[Dict[str, str]] = write_args.get("dtype", None)
-        index: bool = write_args.get("index", False)
-        compression: str = write_args.get("compression", None) or "UNCOMPRESSED"
+        compression: str = self.write_args.get("compression", None) or "UNCOMPRESSED"
 
         orc.write_table(
-            _df_to_table(block.to_pandas(), schema=self.schema, index=index, dtype=dtype),
+            _df_to_table(block.to_pandas(), schema=self.schema, index=self.index, dtype=self.dtype),
             file,
             compression=compression,
             **self.pyarrow_additional_kwargs,

@@ -26,6 +26,8 @@ class ArrowParquetDatasink(_BlockFileDatasink):
         open_s3_object_args: Optional[Dict[str, Any]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
         schema: Optional[pa.Schema] = None,
+        index: bool = False,
+        dtype: Optional[Dict[str, str]] = None,
         pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
         **write_args: Any,
     ):
@@ -41,6 +43,8 @@ class ArrowParquetDatasink(_BlockFileDatasink):
 
         self.pyarrow_additional_kwargs = pyarrow_additional_kwargs or {}
         self.schema = schema
+        self.index = index
+        self.dtype = dtype
 
     def write_block(self, file: pa.NativeFile, block: BlockAccessor) -> None:
         """
@@ -51,13 +55,8 @@ class ArrowParquetDatasink(_BlockFileDatasink):
         file : pa.NativeFile
         block : BlockAccessor
         """
-        write_args = self.write_args
-
-        dtype: Optional[Dict[str, str]] = write_args.pop("dtype", None)
-        index: bool = write_args.pop("index", False)
-
         pa.parquet.write_table(
-            _df_to_table(block.to_pandas(), schema=self.schema, index=index, dtype=dtype),
+            _df_to_table(block.to_pandas(), schema=self.schema, index=self.index, dtype=self.dtype),
             file,
             **self.pyarrow_additional_kwargs,
         )
