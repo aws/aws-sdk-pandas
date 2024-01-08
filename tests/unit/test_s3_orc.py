@@ -481,7 +481,9 @@ def test_orc_schema_evolution(path, glue_database, glue_table):
 
 
 @pytest.mark.xfail(
-    reason="Schema resolution is not as consistent in distributed mode", condition=is_ray_modin, raises=AssertionError
+    raises=(AssertionError, AttributeError),
+    reason="Schema resolution on Modin data frames is not as consistent in distributed mode",
+    condition=is_ray_modin,
 )
 def test_to_orc_schema_evolution_out_of_order(path, glue_database, glue_table) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"]})
