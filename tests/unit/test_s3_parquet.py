@@ -768,7 +768,7 @@ def test_parquet_schema_evolution(path, glue_database, glue_table):
 
 
 @pytest.mark.xfail(
-    raises=(AssertionError,AttributeError),
+    raises=(AssertionError, AttributeError),
     reason="Schema resolution on Modin data frames is not as consistent in distributed mode",
     condition=is_ray_modin,
 )

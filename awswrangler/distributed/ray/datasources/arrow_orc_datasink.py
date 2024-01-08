@@ -25,6 +25,8 @@ class ArrowORCDatasink(_BlockFileDatasink):
         dataset_uuid: Optional[str] = None,
         s3_additional_kwargs: Optional[Dict[str, str]] = None,
         pandas_kwargs: Optional[Dict[str, Any]] = None,
+        schema: Optional[pa.Schema] = None,
+        pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
         **write_args: Any,
     ):
         super().__init__(
@@ -36,6 +38,9 @@ class ArrowORCDatasink(_BlockFileDatasink):
             pandas_kwargs=pandas_kwargs,
             **write_args,
         )
+
+        self.pyarrow_additional_kwargs = pyarrow_additional_kwargs or {}
+        self.schema = schema
 
     def write_block(self, file: io.TextIOWrapper, block: BlockAccessor) -> None:
         """
@@ -50,15 +55,13 @@ class ArrowORCDatasink(_BlockFileDatasink):
 
         write_args = self.write_args
 
-        schema: Optional[pa.schema] = write_args.get("schema", None)
         dtype: Optional[Dict[str, str]] = write_args.get("dtype", None)
         index: bool = write_args.get("index", False)
         compression: str = write_args.get("compression", None) or "UNCOMPRESSED"
-        pyarrow_additional_kwargs: Dict[str, Any] = write_args.get("pyarrow_additional_kwargs", {})
 
         orc.write_table(
-            _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
+            _df_to_table(block.to_pandas(), schema=self.schema, index=index, dtype=dtype),
             file,
             compression=compression,
-            **pyarrow_additional_kwargs,
+            **self.pyarrow_additional_kwargs,
         )
