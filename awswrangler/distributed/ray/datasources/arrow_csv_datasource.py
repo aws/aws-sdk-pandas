@@ -1,39 +1,50 @@
 """Ray ArrowCSVDatasource Module."""
-from typing import Any, Iterator
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 import pyarrow as pa
 from pyarrow import csv
-from ray.data.block import BlockAccessor
+from ray.data.datasource.file_based_datasource import FileBasedDatasource
 
 from awswrangler._arrow import _add_table_partitions
-from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 
 
-class ArrowCSVDatasource(PandasFileBasedDatasource):
-    """CSV datasource, for reading and writing CSV files using PyArrow."""
+class ArrowCSVDatasource(FileBasedDatasource):
+    """CSV datasource, for reading CSV files using PyArrow."""
 
-    _FILE_EXTENSION = "csv"
+    _FILE_EXTENSIONS = ["csv"]
 
-    def _read_stream(  # type: ignore[override]
+    def __init__(
         self,
-        f: pa.NativeFile,
-        path: str,
-        path_root: str,
+        paths: Union[str, List[str]],
         dataset: bool,
-        **reader_args: Any,
-    ) -> Iterator[pa.Table]:
-        read_options = reader_args.get("read_options", csv.ReadOptions(use_threads=False))
-        parse_options = reader_args.get(
-            "parse_options",
-            csv.ParseOptions(),
-        )
-        convert_options = reader_args.get("convert_options", csv.ConvertOptions())
+        path_root: str,
+        version_ids: Optional[Dict[str, str]] = None,
+        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        arrow_csv_args: Optional[Dict[str, Any]] = None,
+        **file_based_datasource_kwargs: Any,
+    ):
+        from pyarrow import csv
 
+        super().__init__(paths, **file_based_datasource_kwargs)
+
+        self.dataset = dataset
+        self.path_root = path_root
+
+        if arrow_csv_args is None:
+            arrow_csv_args = {}
+
+        self.read_options = arrow_csv_args.pop("read_options", csv.ReadOptions(use_threads=False))
+        self.parse_options = arrow_csv_args.pop("parse_options", csv.ParseOptions())
+        self.convert_options = arrow_csv_args.get("convert_options", csv.ConvertOptions())
+        self.arrow_csv_args = arrow_csv_args
+
+    def _read_stream(self, f: pa.NativeFile, path: str) -> Iterator[pa.Table]:
         reader = csv.open_csv(
             f,
-            read_options=read_options,
-            parse_options=parse_options,
-            convert_options=convert_options,
+            read_options=self.read_options,
+            parse_options=self.parse_options,
+            convert_options=self.convert_options,
         )
 
         schema = None
@@ -44,25 +55,14 @@ class ArrowCSVDatasource(PandasFileBasedDatasource):
                 if schema is None:
                     schema = table.schema
 
-                if dataset:
+                if self.dataset:
                     table = _add_table_partitions(
                         table=table,
                         path=f"s3://{path}",
-                        path_root=path_root,
+                        path_root=self.path_root,
                     )
 
                 yield table
 
             except StopIteration:
                 return
-
-    def _write_block(  # type: ignore[override]
-        self,
-        f: pa.NativeFile,
-        block: BlockAccessor,
-        **writer_args: Any,
-    ) -> None:
-        write_options_dict = writer_args.get("write_options", {})
-        write_options = csv.WriteOptions(**write_options_dict)
-
-        csv.write_csv(block.to_arrow(), f, write_options)

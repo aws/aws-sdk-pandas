@@ -53,7 +53,7 @@ def test_full_table(path, use_threads):
     assert df.shape == df3.shape
 
     # JSON
-    wr.s3.to_json(df, path=path, dataset=True, orient="records")
+    wr.s3.to_json(df, path=path, dataset=True, index=False, orient="records")
     df4 = wr.s3.select_query(
         sql="select * from s3object[*][*]",
         path=path,

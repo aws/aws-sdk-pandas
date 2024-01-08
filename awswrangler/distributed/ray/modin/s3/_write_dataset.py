@@ -194,10 +194,9 @@ def _to_partitions_distributed(
         boto3_session=None,
         **func_kwargs,
     )
-    paths = [path for metadata in df_write_metadata.values for _, _, paths in metadata for path in paths]
+    paths = [path for _, _, paths in df_write_metadata.values for path in paths]
     partitions_values = {
         prefix: list(str(p) for p in partitions) if isinstance(partitions, tuple) else [str(partitions)]
-        for metadata in df_write_metadata.values
-        for prefix, partitions, _ in metadata
+        for prefix, partitions, _ in df_write_metadata.values
     }
     return paths, partitions_values

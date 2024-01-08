@@ -1,39 +1,49 @@
 """Ray ArrowCSVDatasource Module."""
-from typing import Any
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 import pyarrow as pa
 from pyarrow import json
+from ray.data.datasource.file_based_datasource import FileBasedDatasource
 
 from awswrangler._arrow import _add_table_partitions
-from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 
 
-class ArrowJSONDatasource(PandasFileBasedDatasource):
-    """JSON datasource, for reading and writing JSON files using PyArrow."""
+class ArrowJSONDatasource(FileBasedDatasource):
+    """JSON datasource, for reading JSON files using PyArrow."""
 
-    _FILE_EXTENSION = "json"
+    _FILE_EXTENSIONS = ["json"]
 
-    def _read_file(  # type: ignore[override]
+    def __init__(
         self,
-        f: pa.NativeFile,
-        path: str,
-        path_root: str,
+        paths: Union[str, List[str]],
         dataset: bool,
-        **reader_args: Any,
-    ) -> pa.Table:
-        read_options_dict = reader_args.get("read_options", dict(use_threads=False))
-        parse_options_dict = reader_args.get("parse_options", {})
+        path_root: str,
+        version_ids: Optional[Dict[str, str]] = None,
+        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        arrow_json_args: Optional[Dict[str, Any]] = None,
+        **file_based_datasource_kwargs: Any,
+    ):
+        super().__init__(paths, **file_based_datasource_kwargs)
 
-        read_options = json.ReadOptions(**read_options_dict)
-        parse_options = json.ParseOptions(**parse_options_dict)
+        self.dataset = dataset
+        self.path_root = path_root
 
-        table = json.read_json(f, read_options=read_options, parse_options=parse_options)
+        if arrow_json_args is None:
+            arrow_json_args = {}
 
-        if dataset:
+        self.read_options = json.ReadOptions(arrow_json_args.pop("read_options", dict(use_threads=False)))
+        self.parse_options = json.ParseOptions(arrow_json_args.pop("parse_options", {}))
+        self.arrow_json_args = arrow_json_args
+
+    def _read_stream(self, f: pa.NativeFile, path: str) -> Iterator[pa.Table]:
+        table = json.read_json(f, read_options=self.read_options, parse_options=self.parse_options)
+
+        if self.dataset:
             table = _add_table_partitions(
                 table=table,
                 path=f"s3://{path}",
-                path_root=path_root,
+                path_root=self.path_root,
             )
 
-        return table
+        return [table]  # type: ignore[return-value]
