@@ -15,14 +15,14 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 
-def _resolve_datasource_parameters(bulk_read: bool) -> dict[str, Any]:
+def _resolve_datasource_parameters(bulk_read: bool, *args: Any, **kwargs: Any) -> dict[str, Any]:
     if bulk_read:
         return {
-            "datasource": ArrowParquetBaseDatasource(),
+            "datasource": ArrowParquetBaseDatasource(*args, **kwargs),
             "meta_provider": FastFileMetadataProvider(),
         }
     return {
-        "datasource": ArrowParquetDatasource(),
+        "datasource": ArrowParquetDatasource(*args, **kwargs),
     }
 
 
@@ -45,14 +45,18 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
         dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
 
     dataset = read_datasource(
-        **_resolve_datasource_parameters(bulk_read),
+        **_resolve_datasource_parameters(
+            bulk_read,
+            paths=paths,
+            path_root=path_root,
+            arrow_parquet_args={
+                "use_threads": use_threads,
+                "schema": schema,
+                "columns": columns,
+                "dataset_kwargs": dataset_kwargs,
+            },
+        ),
         parallelism=parallelism,
-        use_threads=use_threads,
-        paths=paths,
-        schema=schema,
-        columns=columns,
-        path_root=path_root,
-        dataset_kwargs=dataset_kwargs,
     )
     return _to_modin(
         dataset=dataset,

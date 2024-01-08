@@ -141,6 +141,7 @@ def test_partitioned_json(path: str, compression: str | None, chunksize: int | N
     wr.s3.to_json(
         df,
         path=path,
+        index=False,
         orient="records",
         lines=True,
         compression=compression,

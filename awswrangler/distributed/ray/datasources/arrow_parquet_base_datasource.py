@@ -1,48 +1,44 @@
-"""Ray ParquetBaseDatasource Module.
-
-This module is pulled from Ray's [ParquetBaseDatasource]
-(https://github.com/ray-project/ray/blob/master/python/ray/data/datasource/parquet_base_datasource.py) with a few changes
-and customized to ensure compatibility with AWS SDK for pandas behavior. Changes from the original implementation,
-are documented in the comments and marked with (AWS SDK for pandas) prefix.
-"""
-
+"""Ray ParquetBaseDatasource Module."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Iterator
 
 # fs required to implicitly trigger S3 subsystem initialization
 import pyarrow as pa
 import pyarrow.fs
 import pyarrow.parquet as pq
-from ray.data.block import BlockAccessor
+from ray.data.datasource.file_based_datasource import FileBasedDatasource
 
-from awswrangler._arrow import _add_table_partitions, _df_to_table
-from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
+from awswrangler._arrow import _add_table_partitions
 
 
-class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
-    """(AWS SDK for pandas) Parquet datasource, for reading and writing Parquet files.
+class ArrowParquetBaseDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
+    """Parquet datasource, for reading Parquet files."""
 
-    The following are the changes to the original Ray implementation:
-    1. Added handling of additional parameters `dtype`, `index`, `compression` and added the ability
-       to pass through additional `pyarrow_additional_kwargs` and `s3_additional_kwargs` for writes.
-    3. Added `dataset` and `path_root` parameters to allow user to control loading partitions
-       relative to the root S3 prefix.
-    """
+    _FILE_EXTENSIONS = ["parquet"]
 
-    _FILE_EXTENSION = "parquet"
-
-    def _read_file(  # type: ignore[override]
+    def __init__(
         self,
-        f: pa.NativeFile,
-        path: str,
+        paths: str | list[str],
         path_root: str,
-        **reader_args: Any,
-    ) -> pa.Table:
-        use_threads: bool = reader_args.get("use_threads", False)
-        columns: list[str] | None = reader_args.get("columns", None)
+        arrow_parquet_args: dict[str, Any] | None = None,
+        **file_based_datasource_kwargs: Any,
+    ):
+        super().__init__(paths, **file_based_datasource_kwargs)
 
-        dataset_kwargs = reader_args.get("dataset_kwargs", {})
+        if arrow_parquet_args is None:
+            arrow_parquet_args = {}
+
+        self.path_root = path_root
+        self.arrow_parquet_args = arrow_parquet_args
+
+    def _read_stream(self, f: pa.NativeFile, path: str) -> Iterator[pa.Table]:
+        arrow_parquet_args = self.arrow_parquet_args
+
+        use_threads: bool = arrow_parquet_args.get("use_threads", False)
+        columns: list[str] | None = arrow_parquet_args.get("columns", None)
+
+        dataset_kwargs = arrow_parquet_args.get("dataset_kwargs", {})
         coerce_int96_timestamp_unit: str | None = dataset_kwargs.get("coerce_int96_timestamp_unit", None)
 
         table = pq.read_table(
@@ -55,10 +51,10 @@ class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=
         table = _add_table_partitions(
             table=table,
             path=f"s3://{path}",
-            path_root=path_root,
+            path_root=self.path_root,
         )
 
-        return table
+        return [table]  # type: ignore[return-value]
 
     def _open_input_source(
         self,
@@ -69,21 +65,6 @@ class ArrowParquetBaseDatasource(PandasFileBasedDatasource):  # pylint: disable=
         # Parquet requires `open_input_file` due to random access reads
         return filesystem.open_input_file(path, **open_args)
 
-    def _write_block(  # type: ignore[override]
-        self,
-        f: pa.NativeFile,
-        block: BlockAccessor,
-        **writer_args: Any,
-    ) -> None:
-        schema: pa.schema | None = writer_args.get("schema", None)
-        dtype: dict[str, str] | None = writer_args.get("dtype", None)
-        index: bool = writer_args.get("index", False)
-        compression: str | None = writer_args.get("compression", None)
-        pyarrow_additional_kwargs: dict[str, Any] = writer_args.get("pyarrow_additional_kwargs", {})
-
-        pq.write_table(
-            _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
-            f,
-            compression=compression,
-            **pyarrow_additional_kwargs,
-        )
+    def get_name(self) -> str:
+        """Return a human-readable name for this datasource."""
+        return "ParquetBulk"

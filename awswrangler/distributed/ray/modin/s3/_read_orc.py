@@ -31,15 +31,18 @@ def _read_orc_distributed(  # pylint: disable=unused-argument
     s3_additional_kwargs: dict[str, Any] | None,
     arrow_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
-    ray_dataset = read_datasource(
-        datasource=ArrowORCDatasource(),
-        meta_provider=FastFileMetadataProvider(),
-        parallelism=parallelism,
-        use_threads=use_threads,
+    datasource = ArrowORCDatasource(
         paths=paths,
-        schema=schema,
-        columns=columns,
+        dataset=True,
         path_root=path_root,
+        use_threads=use_threads,
+        schema=schema,
+        arrow_orc_args={"columns": columns},
+        meta_provider=FastFileMetadataProvider(),
+    )
+    ray_dataset = read_datasource(
+        datasource,
+        parallelism=parallelism,
     )
     to_pandas_kwargs = _data_types.pyarrow2pandas_defaults(
         use_threads=use_threads,
