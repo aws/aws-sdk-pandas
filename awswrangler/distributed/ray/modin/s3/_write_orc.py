@@ -1,14 +1,14 @@
 """Modin on Ray S3 write parquet module (PRIVATE)."""
 import logging
 import math
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
 
 import modin.pandas as pd
 import pyarrow as pa
-from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
+from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray.datasources import ArrowORCDatasource, UserProvidedKeyBlockWritePathProvider
+from awswrangler.distributed.ray.datasources import ArrowORCDatasink, UserProvidedKeyBlockWritePathProvider
 from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
 
 if TYPE_CHECKING:
@@ -42,6 +42,9 @@ def _to_orc_distributed(  # pylint: disable=unused-argument
     # Create Ray Dataset
     ds = _ray_dataset_from_df(df)
 
+    if df.index.name is not None:
+        raise exceptions.InvalidArgumentCombination("Orc does not serialize index metadata on a default index.")
+
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
     if ds.count() > 0 and (path or bucketing) and not max_rows_by_file:
         _logger.warning(
@@ -49,37 +52,28 @@ def _to_orc_distributed(  # pylint: disable=unused-argument
             "This operation is inefficient for large datasets.",
             path,
         )
-
-        if index and df.index.name:
-            raise exceptions.InvalidArgumentCombination(
-                "Cannot write a named index when repartitioning to a single file"
-            )
-
         ds = ds.repartition(1)
 
     # Repartition by max_rows_by_file
     elif max_rows_by_file and (max_rows_by_file > 0):
-        if index:
-            raise exceptions.InvalidArgumentCombination(
-                "Cannot write indexed file when `max_rows_by_file` is specified"
-            )
-
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
 
-    datasource = ArrowORCDatasource()
-    ds.write_datasource(
-        datasource,
-        path=path or path_root,
+    datasink = ArrowORCDatasink(
+        path=cast(str, path or path_root),
         dataset_uuid=filename_prefix,
         # If user has provided a single key, use that instead of generating a path per block
         # The dataset will be repartitioned into a single block
         block_path_provider=UserProvidedKeyBlockWritePathProvider()
         if path and not path.endswith("/") and not max_rows_by_file
         else DefaultBlockWritePathProvider(),
+        open_s3_object_args={
+            "s3_additional_kwargs": s3_additional_kwargs,
+        },
         index=index,
         dtype=dtype,
         compression=compression,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         schema=schema,
     )
-    return datasource.get_write_paths()
+    ds.write_datasink(datasink)
+    return datasink.get_write_paths()
