@@ -1,5 +1,4 @@
 """Modin on Ray Core module (PRIVATE)."""
-# pylint: disable=import-outside-toplevel
 from __future__ import annotations
 
 import logging

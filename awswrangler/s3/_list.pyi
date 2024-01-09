@@ -17,7 +17,7 @@ def _path2list(
     ignore_empty: bool = ...,
 ) -> list[str]: ...
 def _prefix_cleanup(prefix: str) -> str: ...
-def _list_objects_paginate(  # pylint: disable=too-many-branches
+def _list_objects_paginate(
     bucket: str,
     pattern: str,
     prefix: str,

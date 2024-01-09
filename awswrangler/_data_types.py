@@ -20,7 +20,7 @@ from awswrangler._distributed import engine
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def pyarrow2athena(  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2athena(  # noqa: PLR0911,PLR0912
     dtype: pa.DataType, ignore_null: bool = False
 ) -> str:
     """Pyarrow to Athena data types conversion."""
@@ -65,7 +65,7 @@ def pyarrow2athena(  # pylint: disable=too-many-branches,too-many-return-stateme
     raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
-def pyarrow2redshift(  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2redshift(  # noqa: PLR0911
     dtype: pa.DataType, string_type: str
 ) -> str:
     """Pyarrow to Redshift data types conversion."""
@@ -102,7 +102,7 @@ def pyarrow2redshift(  # pylint: disable=too-many-branches,too-many-return-state
     raise exceptions.UnsupportedType(f"Unsupported Redshift type: {dtype}")
 
 
-def pyarrow2mysql(  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2mysql(  # noqa: PLR0911,PLR0912
     dtype: pa.DataType, string_type: str
 ) -> str:
     """Pyarrow to MySQL data types conversion."""
@@ -143,7 +143,7 @@ def pyarrow2mysql(  # pylint: disable=too-many-branches,too-many-return-statemen
     raise exceptions.UnsupportedType(f"Unsupported MySQL type: {dtype}")
 
 
-def pyarrow2oracle(  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2oracle(  # noqa: PLR0911
     dtype: pa.DataType, string_type: str
 ) -> str:
     """Pyarrow to Oracle Database data types conversion."""
@@ -178,7 +178,7 @@ def pyarrow2oracle(  # pylint: disable=too-many-branches,too-many-return-stateme
     raise exceptions.UnsupportedType(f"Unsupported Oracle type: {dtype}")
 
 
-def pyarrow2postgresql(  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2postgresql(  # noqa: PLR0911
     dtype: pa.DataType, string_type: str
 ) -> str:
     """Pyarrow to PostgreSQL data types conversion."""
@@ -213,7 +213,7 @@ def pyarrow2postgresql(  # pylint: disable=too-many-branches,too-many-return-sta
     raise exceptions.UnsupportedType(f"Unsupported PostgreSQL type: {dtype}")
 
 
-def pyarrow2sqlserver(  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2sqlserver(  # noqa: PLR0911
     dtype: pa.DataType, string_type: str
 ) -> str:
     """Pyarrow to Microsoft SQL Server data types conversion."""
@@ -248,7 +248,7 @@ def pyarrow2sqlserver(  # pylint: disable=too-many-branches,too-many-return-stat
     raise exceptions.UnsupportedType(f"Unsupported SQL Server type: {dtype}")
 
 
-def pyarrow2timestream(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2timestream(dtype: pa.DataType) -> str:  # noqa: PLR0911
     """Pyarrow to Amazon Timestream data types conversion."""
     if pa.types.is_int8(dtype):
         return "BIGINT"
@@ -302,7 +302,7 @@ def _split_map(s: str) -> list[str]:
     return parts
 
 
-def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-return-statements,too-many-branches
+def athena2pyarrow(dtype: str) -> pa.DataType:  # noqa: PLR0911,PLR0912
     """Athena to PyArrow data types conversion."""
     if dtype.startswith(("array", "struct", "map")):
         orig_dtype: str = dtype
@@ -344,7 +344,7 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2pandas(dtype: str, dtype_backend: str | None = None) -> str:  # pylint: disable=too-many-return-statements
+def athena2pandas(dtype: str, dtype_backend: str | None = None) -> str:  # noqa: PLR0911
     """Athena to Pandas data types conversion."""
     dtype = dtype.lower()
     if dtype == "tinyint":
@@ -378,7 +378,7 @@ def athena2pandas(dtype: str, dtype_backend: str | None = None) -> str:  # pylin
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+def athena2quicksight(dtype: str) -> str:  # noqa: PLR0911
     """Athena to Quicksight data types conversion."""
     dtype = dtype.lower()
     if dtype == "tinyint":
@@ -410,7 +410,7 @@ def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,t
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statements
+def athena2redshift(  # noqa: PLR0911
     dtype: str, varchar_length: int = 256
 ) -> str:
     """Athena to Redshift data types conversion."""
@@ -442,7 +442,7 @@ def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statem
     raise exceptions.UnsupportedType(f"Unsupported Redshift type: {dtype}")
 
 
-def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2pandas_extension(  # noqa: PLR0911
     dtype: pa.DataType,
 ) -> pd.api.extensions.ExtensionDtype | None:
     """Pyarrow to Pandas data types conversion."""
@@ -469,7 +469,7 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
     return None
 
 
-def pyarrow2pyarrow_backed_pandas_extension(  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2pyarrow_backed_pandas_extension(
     dtype: pa.DataType,
 ) -> pd.api.extensions.ExtensionDtype | None:
     """Pyarrow to Pandas PyArrow-backed data types conversion."""
@@ -486,7 +486,7 @@ def get_pyarrow2pandas_type_mapper(
 
 
 @engine.dispatch_on_engine
-def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches,too-many-statements
+def pyarrow_types_from_pandas(  # noqa: PLR0912,PLR0915
     df: pd.DataFrame, index: bool, ignore_cols: list[str] | None = None, index_left: bool = False
 ) -> dict[str, pa.DataType]:
     """Extract the related Pyarrow data types from any Pandas DataFrame."""

@@ -98,7 +98,7 @@ def _delete_objects(
     if mode == "overwrite_partitions":
         if (table_type == "GOVERNED") and (table is not None) and (database is not None):
             transaction_id = cast(str, transaction_id)
-            del_objects: list[dict[str, Any]] = lakeformation._get_table_objects(  # pylint: disable=protected-access
+            del_objects: list[dict[str, Any]] = lakeformation._get_table_objects(
                 catalog_id=catalog_id,
                 database=database,
                 table=table,
@@ -109,7 +109,7 @@ def _delete_objects(
                 boto3_session=boto3_session,
             )
             if del_objects:
-                lakeformation._update_table_objects(  # pylint: disable=protected-access
+                lakeformation._update_table_objects(
                     catalog_id=catalog_id,
                     database=database,
                     table=table,
@@ -263,7 +263,7 @@ def _to_dataset(
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
         if (table_type == "GOVERNED") and (table is not None) and (database is not None):
             transaction_id = cast(str, transaction_id)
-            del_objects: list[dict[str, Any]] = lakeformation._get_table_objects(  # pylint: disable=protected-access
+            del_objects: list[dict[str, Any]] = lakeformation._get_table_objects(
                 catalog_id=catalog_id,
                 database=database,
                 table=table,
@@ -271,7 +271,7 @@ def _to_dataset(
                 boto3_session=boto3_session,
             )
             if del_objects:
-                lakeformation._update_table_objects(  # pylint: disable=protected-access
+                lakeformation._update_table_objects(
                     catalog_id=catalog_id,
                     database=database,
                     table=table,
@@ -332,13 +332,13 @@ def _to_dataset(
     _logger.debug("Wrote %s paths", len(paths))
     _logger.debug("Created partitions_values: %s", partitions_values)
     if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-        list_add_objects: list[list[dict[str, Any]]] = lakeformation._build_table_objects(  # pylint: disable=protected-access
+        list_add_objects: list[list[dict[str, Any]]] = lakeformation._build_table_objects(
             paths, partitions_values, use_threads=use_threads, boto3_session=boto3_session
         )
         try:
             if list_add_objects:
                 for add_objects in list_add_objects:
-                    lakeformation._update_table_objects(  # pylint: disable=protected-access
+                    lakeformation._update_table_objects(
                         catalog_id=catalog_id,
                         database=database,
                         table=table,

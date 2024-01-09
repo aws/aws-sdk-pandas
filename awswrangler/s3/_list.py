@@ -113,7 +113,7 @@ def _list_objects(
 
 
 @engine.dispatch_on_engine
-def _list_objects_paginate(  # pylint: disable=too-many-branches
+def _list_objects_paginate(  # noqa: PLR0912
     bucket: str,
     pattern: str,
     prefix: str,
@@ -145,7 +145,7 @@ def _list_objects_paginate(  # pylint: disable=too-many-branches
     response_iterator = paginator.paginate(**args)
     paths: list[str] = []
 
-    for page in response_iterator:  # pylint: disable=too-many-nested-blocks
+    for page in response_iterator:
         if delimiter is None:
             contents = page.get("Contents")
             if contents is not None:

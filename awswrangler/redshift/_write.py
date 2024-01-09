@@ -65,7 +65,7 @@ def _copy(
 
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 @apply_configs
-def to_sql(  # pylint: disable=too-many-locals
+def to_sql(
     df: pd.DataFrame,
     con: "redshift_connector.Connection",  # type: ignore[name-defined]
     table: str,
@@ -236,7 +236,7 @@ def to_sql(  # pylint: disable=too-many-locals
 
 
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
-def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
+def copy_from_files(  # noqa: PLR0913
     path: str,
     con: "redshift_connector.Connection",  # type: ignore[name-defined]
     table: str,
@@ -462,7 +462,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
-def copy(  # pylint: disable=too-many-arguments,too-many-locals
+def copy(  # noqa: PLR0913
     df: pd.DataFrame,
     path: str,
     con: "redshift_connector.Connection",  # type: ignore[name-defined]

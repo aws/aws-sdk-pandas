@@ -220,7 +220,7 @@ class RdsDataApi(_connector.DataApiConnector):
 
         for record in result["records"]:
             row: list[Any] = [
-                _connector.DataApiConnector._get_column_value(column, col_type)  # type: ignore[arg-type]  # pylint: disable=protected-access
+                _connector.DataApiConnector._get_column_value(column, col_type)  # type: ignore[arg-type]
                 for column, col_type in zip(record, column_types)
             ]
             rows.append(row)
@@ -325,7 +325,7 @@ def _create_table(
     con.execute(sql, database=database, transaction_id=transaction_id)
 
 
-def _create_value_dict(  # pylint: disable=too-many-return-statements
+def _create_value_dict(  # noqa: PLR0911
     value: Any,
 ) -> tuple[dict[str, Any], str | None]:
     if value is None or pd.isnull(value):

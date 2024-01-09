@@ -31,7 +31,7 @@ def post_message(webhook: str, message: str) -> Any | None:
     chime_message = {"Content": f"Message: {message}"}
     req = Request(webhook, json.dumps(chime_message).encode("utf-8"))
     try:
-        response = urlopen(req)  # pylint: disable=R1732
+        response = urlopen(req)
         _logger.info("Message posted on Chime. Got respone as %s", response.read())
     except HTTPError as e:
         _logger.exception("Request failed: %d %s", e.code, e.reason)

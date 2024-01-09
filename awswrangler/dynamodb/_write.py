@@ -69,7 +69,7 @@ def put_json(
     ... )
     """
     # Loading data from file
-    with open(path) as f:  # pylint: disable=W1514
+    with open(path) as f:
         items = json.load(f)
     if isinstance(items, dict):
         items = [items]

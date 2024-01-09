@@ -260,7 +260,7 @@ def _read_parquet_chunked(
 
 
 @engine.dispatch_on_engine
-def _read_parquet(  # pylint: disable=W0613
+def _read_parquet(
     paths: list[str],
     path_root: str | None,
     schema: pa.schema | None,

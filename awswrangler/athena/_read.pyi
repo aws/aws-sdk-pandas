@@ -54,7 +54,7 @@ def get_query_results(
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
-def read_sql_query(  # pylint: disable=too-many-arguments
+def read_sql_query(
     sql: str,
     database: str,
     ctas_approach: bool = ...,

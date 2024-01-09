@@ -131,7 +131,7 @@ def _read_orc_file(
 
 
 @engine.dispatch_on_engine
-def _read_orc(  # pylint: disable=W0613
+def _read_orc(
     paths: list[str],
     path_root: str | None,
     schema: pa.schema | None,

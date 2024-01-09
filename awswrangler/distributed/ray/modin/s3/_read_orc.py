@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _read_orc_distributed(  # pylint: disable=unused-argument
+def _read_orc_distributed(
     paths: list[str],
     path_root: str | None,
     schema: pa.schema | None,

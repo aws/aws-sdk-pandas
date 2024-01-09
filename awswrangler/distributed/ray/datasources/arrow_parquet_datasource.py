@@ -19,7 +19,7 @@ from typing import (
 import numpy as np
 
 # fs required to implicitly trigger S3 subsystem initialization
-import pyarrow.fs  # pylint: disable=unused-import
+import pyarrow.fs
 import ray
 from ray import cloudpickle
 from ray.data._internal.progress_bar import ProgressBar
@@ -172,7 +172,7 @@ class ArrowParquetDatasource(Datasource):
     cost of some potential performance and/or compatibility penalties.
     """
 
-    def __init__(  # pylint: disable=too-many-branches,too-many-statements
+    def __init__(  # noqa: PLR0912,PLR0915
         self,
         paths: str | list[str],
         path_root: str,
