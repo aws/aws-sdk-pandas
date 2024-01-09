@@ -6,7 +6,7 @@ import itertools
 import logging
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, cast
 
 import boto3
 from botocore.config import Config
@@ -179,7 +179,7 @@ def _write_batch(
                 Records=records,
             )
     except client_timestream.exceptions.RejectedRecordsException as ex:
-        return cast(list[dict[str, str]], ex.response["RejectedRecords"])
+        return cast(List[Dict[str, str]], ex.response["RejectedRecords"])
     return []
 
 

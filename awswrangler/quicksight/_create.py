@@ -95,7 +95,7 @@ def _generate_permissions_base(
     if (allowed_to_use_set is not None) and (allowed_to_manage_set is not None):
         allowed_to_use_set = allowed_to_use_set - allowed_to_manage_set
 
-    all_principals = cast(list[_PrincipalTypeDef], list_principals(namespace, account_id, boto3_session))
+    all_principals = cast(List[_PrincipalTypeDef], list_principals(namespace, account_id, boto3_session))
 
     if allowed_to_use_set is not None:
         allowed_arns: list[str] = principal_names_to_arns_func(allowed_to_use_set, all_principals)

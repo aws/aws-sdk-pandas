@@ -129,7 +129,7 @@ def _get_ruleset_run(
         max_num_tries=5,
         RunId=run_id,
     )
-    return cast(dict[str, Any], response)
+    return cast(Dict[str, Any], response)
 
 
 def _wait_ruleset_run(
@@ -163,7 +163,7 @@ def _get_ruleset(
         max_num_tries=5,
         Name=ruleset_name,
     )
-    return cast(dict[str, Any], response)
+    return cast(Dict[str, Any], response)
 
 
 def _get_data_quality_results(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime
 import logging
 import time
-from typing import Any, cast
+from typing import Any, Dict, List, cast
 
 import boto3
 
@@ -146,7 +146,7 @@ def wait_query(
         raise exceptions.QueryFailed(f"query ID: {query_id}")
     if status == "Cancelled":
         raise exceptions.QueryCancelled(f"query ID: {query_id}")
-    return cast(dict[str, Any], response)
+    return cast(Dict[str, Any], response)
 
 
 def run_query(
@@ -199,7 +199,7 @@ def run_query(
         boto3_session=boto3_session,
     )
     response: dict[str, Any] = wait_query(query_id=query_id, boto3_session=boto3_session)
-    return cast(list[list[dict[str, str]]], response["results"])
+    return cast(List[List[Dict[str, str]]], response["results"])
 
 
 def read_logs(
@@ -328,13 +328,13 @@ def describe_log_streams(
     log_streams: list[dict[str, Any]] = []
     response = client_logs.describe_log_streams(**args)
 
-    log_streams += cast(list[dict[str, Any]], response["logStreams"])
+    log_streams += cast(List[Dict[str, Any]], response["logStreams"])
     while "nextToken" in response:
         response = client_logs.describe_log_streams(
             **args,
             nextToken=response["nextToken"],
         )
-        log_streams += cast(list[dict[str, Any]], response["logStreams"])
+        log_streams += cast(List[Dict[str, Any]], response["logStreams"])
     if log_streams:
         df: pd.DataFrame = pd.DataFrame(log_streams)
         df["logGroupName"] = log_group_name
@@ -365,13 +365,13 @@ def _filter_log_events(
     if filter_pattern:
         args["filterPattern"] = filter_pattern
     response = client_logs.filter_log_events(**args)
-    events += cast(list[dict[str, Any]], response["events"])
+    events += cast(List[Dict[str, Any]], response["events"])
     while "nextToken" in response:
         response = client_logs.filter_log_events(
             **args,
             nextToken=response["nextToken"],
         )
-        events += cast(list[dict[str, Any]], response["events"])
+        events += cast(List[Dict[str, Any]], response["events"])
     return events
 
 

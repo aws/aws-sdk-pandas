@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-from typing import Any, cast
+from typing import Any, Tuple, cast
 
 import pyarrow as pa
 import pytz
@@ -25,7 +25,7 @@ def _extract_partitions_from_path(path_root: str, path: str) -> dict[str, str]:
     dirs: tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if x and (x.count("=") > 0))
     if not dirs:
         return {}
-    values_tups = cast(tuple[tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
+    values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
     values_dics: dict[str, str] = dict(values_tups)
     return values_dics
 
