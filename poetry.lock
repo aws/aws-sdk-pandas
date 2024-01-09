@@ -421,19 +421,19 @@ wcwidth = ">=0.1.4"
 
 [[package]]
 name = "boto3"
-version = "1.34.2"
+version = "1.34.6"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">= 3.8"
 files = [
-    {file = "boto3-1.34.2-py3-none-any.whl", hash = "sha256:aad3f305fe3cd4f2bba545c9580cd460c366af56a8aabb6094528dd32317f8d2"},
-    {file = "boto3-1.34.2.tar.gz", hash = "sha256:970fd9f9f522eb48f3cd5574e927b369279ebf5bcf0f2fae5ed9cc6306e58558"},
+    {file = "boto3-1.34.6-py3-none-any.whl", hash = "sha256:1dd6d952a175da45d05cf9eb2b8d5be31f4863cc54444ac27fbcbba966fc4053"},
+    {file = "boto3-1.34.6.tar.gz", hash = "sha256:ae47b84db94fc3b8e635c6d1b93da85a5fdca961b212260e5dbf5166435fe7b0"},
 ]
 
 [package.dependencies]
-botocore = ">=1.34.2,<1.35.0"
+botocore = ">=1.34.6,<1.35.0"
 jmespath = ">=0.7.1,<2.0.0"
-s3transfer = ">=0.9.0,<0.10.0"
+s3transfer = ">=0.10.0,<0.11.0"
 
 [package.extras]
 crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
@@ -863,13 +863,13 @@ xray = ["mypy-boto3-xray (>=1.34.0,<1.35.0)"]
 
 [[package]]
 name = "botocore"
-version = "1.34.6"
+version = "1.34.14"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">= 3.8"
 files = [
-    {file = "botocore-1.34.6-py3-none-any.whl", hash = "sha256:697000cb756b8f469c10ed0a8a8590f799a90a98b814ebfccd2add4048084ff1"},
-    {file = "botocore-1.34.6.tar.gz", hash = "sha256:bfe587f48e154a3a836f85af165116b7d5dba9b3b746ce0b94e6d2ed1e06c206"},
+    {file = "botocore-1.34.14-py3-none-any.whl", hash = "sha256:3b592f50f0406e236782a3a0a9ad1c3976060fdb2e04a23d18c3df5b7dfad3e0"},
+    {file = "botocore-1.34.14.tar.gz", hash = "sha256:041bed0852649cab7e4dcd4d87f9d1cc084467fb846e5b60015e014761d96414"},
 ]
 
 [package.dependencies]
@@ -1361,22 +1361,22 @@ files = [
 
 [[package]]
 name = "deltalake"
-version = "0.14.0"
+version = "0.15.1"
 description = "Native Delta Lake Python binding based on delta-rs with Pandas integration"
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "deltalake-0.14.0-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:48ce48c246e5f3dfe078b8d77a81f76e9b5da61c0e317756c27388e8e42b539e"},
-    {file = "deltalake-0.14.0-cp38-abi3-macosx_10_7_x86_64.whl", hash = "sha256:6123362ea7210d50c32fea79b3ad06a1240cac3df34c6a95a28ed073152588d4"},
-    {file = "deltalake-0.14.0-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:fbb379dd4ad6e9a14de64ac4d91ef7ca4f7d1039323c9ac13f08716699ef73e1"},
-    {file = "deltalake-0.14.0-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9645ab49127d04e74db64201ab1903fc098d38e69bb97f150b67cf545fb249fe"},
-    {file = "deltalake-0.14.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:19c8b72f41ca6b32794b937830858e581fb1d8ba1c796843df6ec7ca6d27b8d2"},
-    {file = "deltalake-0.14.0-cp38-abi3-win_amd64.whl", hash = "sha256:a70017f8ddd3bb1dce005dfbae0d71cbddf7db9261d1daed0e48bb85b2a1101d"},
-    {file = "deltalake-0.14.0.tar.gz", hash = "sha256:6aaeac1423c16fa574515f7a0c76b85c4d5fd8e409b0ffcd2c4763f96a6cdb44"},
+    {file = "deltalake-0.15.1-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:346f76e71b1bd1b3d807ed76db7c5f9288f32dae83d830017e6599e6e848d585"},
+    {file = "deltalake-0.15.1-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:80269d4f8a7d404fec126f54e392a88c3e6480d7be8d0271bff0058bd44e98c4"},
+    {file = "deltalake-0.15.1-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7ce6ccc4397486fb91274085017b997e084c03a980c912f467aea12f14c0e845"},
+    {file = "deltalake-0.15.1-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a17c1b3455123027cecbfe8cad6bf9ac0c6eb303d91aae10b74e6b768076ad2f"},
+    {file = "deltalake-0.15.1-cp38-abi3-win_amd64.whl", hash = "sha256:66aabc524cfca11731d0244fc93df62d2d5c7cb4d5581c9859bd8bc803226ac9"},
+    {file = "deltalake-0.15.1.tar.gz", hash = "sha256:77ca8e239297c7db99ae0dd4c13097550f4dca64d6b6f9bd493d9084fdf25fb3"},
 ]
 
 [package.dependencies]
 pyarrow = ">=8"
+pyarrow-hotfix = "*"
 
 [package.extras]
 devel = ["mypy", "packaging (>=20)", "pytest", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-timeout", "ruff (>=0.1.5)", "sphinx (<=4.5)", "sphinx-rtd-theme", "toml", "wheel"]
@@ -3918,13 +3918,13 @@ ptyprocess = ">=0.5"
 
 [[package]]
 name = "pg8000"
-version = "1.30.3"
+version = "1.30.4"
 description = "PostgreSQL interface library"
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "pg8000-1.30.3-py3-none-any.whl", hash = "sha256:42bc7fd0db5ceef7dcf8e07819e6427fcfb44384e2d6683928306916b0d696eb"},
-    {file = "pg8000-1.30.3.tar.gz", hash = "sha256:4e7c75747a43a49c15623f92583bb6e1d023eae6eaf2c2e1e6de4d7fb7fa404f"},
+    {file = "pg8000-1.30.4-py3-none-any.whl", hash = "sha256:64bbe27b11588a53cee08e840988416227263dc5191b649fab963949f3ddd84d"},
+    {file = "pg8000-1.30.4.tar.gz", hash = "sha256:2fa6964fff591a5e076fa6dd21a317c74de2caaa52991bb1f8b3d8ef2e56d172"},
 ]
 
 [package.dependencies]
@@ -4176,6 +4176,17 @@ files = [
 
 [package.dependencies]
 numpy = ">=1.16.6"
+
+[[package]]
+name = "pyarrow-hotfix"
+version = "0.6"
+description = ""
+optional = true
+python-versions = ">=3.5"
+files = [
+    {file = "pyarrow_hotfix-0.6-py3-none-any.whl", hash = "sha256:dcc9ae2d220dff0083be6a9aa8e0cdee5182ad358d4931fce825c545e5c89178"},
+    {file = "pyarrow_hotfix-0.6.tar.gz", hash = "sha256:79d3e030f7ff890d408a100ac16d6f00b14d44a502d7897cd9fc3e3a534e9945"},
+]
 
 [[package]]
 name = "pyasn1"
@@ -5210,13 +5221,13 @@ fsspec = ">=0.6.0"
 
 [[package]]
 name = "s3transfer"
-version = "0.9.0"
+version = "0.10.0"
 description = "An Amazon S3 Transfer Manager"
 optional = false
 python-versions = ">= 3.8"
 files = [
-    {file = "s3transfer-0.9.0-py3-none-any.whl", hash = "sha256:01d4d2c35a016db8cb14f9a4d5e84c1f8c96e7ffc211422555eed45c11fa7eb1"},
-    {file = "s3transfer-0.9.0.tar.gz", hash = "sha256:9e1b186ec8bb5907a1e82b51237091889a9973a2bb799a924bcd9f301ff79d3d"},
+    {file = "s3transfer-0.10.0-py3-none-any.whl", hash = "sha256:3cdb40f5cfa6966e812209d0994f2a4709b561c88e90cf00c2696d2df4e56b2e"},
+    {file = "s3transfer-0.10.0.tar.gz", hash = "sha256:d0c8bbf672d5eebbe4e57945e23b972d963f07d82f661cabf678a5c88831595b"},
 ]
 
 [package.dependencies]
@@ -5257,13 +5268,13 @@ win32 = ["pywin32"]
 
 [[package]]
 name = "setuptools"
-version = "69.0.2"
+version = "69.0.3"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "setuptools-69.0.2-py3-none-any.whl", hash = "sha256:1e8fdff6797d3865f37397be788a4e3cba233608e9b509382a2777d25ebde7f2"},
-    {file = "setuptools-69.0.2.tar.gz", hash = "sha256:735896e78a4742605974de002ac60562d286fa8051a7e2299445e8e8fbb01aa6"},
+    {file = "setuptools-69.0.3-py3-none-any.whl", hash = "sha256:385eb4edd9c9d5c17540511303e39a147ce2fc04bc55289c322b9e5904fe2c05"},
+    {file = "setuptools-69.0.3.tar.gz", hash = "sha256:be1af57fc409f93647f2e8e4573a142ed38724b8cdd389706a867bb4efcf1e78"},
 ]
 
 [package.extras]
@@ -6066,4 +6077,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "59f63bf1f274f87aff04cca8a4106bd8bf95d0b0228c3a14f381df7499d49ce8"
+content-hash = "91c2a002b4df6386d1818d22568b44e0e4c4b83b5bab78118938c26546d44ff1"
