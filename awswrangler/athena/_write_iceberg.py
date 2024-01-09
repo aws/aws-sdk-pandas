@@ -82,7 +82,7 @@ def _create_iceberg_table(
 class _SchemaChanges(TypedDict):
     to_add: dict[str, str]
     to_change: dict[str, str]
-    to_remove: set[str]
+    to_drop: set[str]
 
 
 def _determine_differences(
@@ -109,7 +109,7 @@ def _determine_differences(
     new_columns = set(frame_columns_types)
 
     to_add = {col: frame_columns_types[col] for col in new_columns - original_columns}
-    to_remove = original_columns - new_columns
+    to_drop = original_columns - new_columns
 
     columns_to_change = [
         col
@@ -118,7 +118,7 @@ def _determine_differences(
     ]
     to_change = {col: frame_columns_types[col] for col in columns_to_change}
 
-    return _SchemaChanges(to_add=to_add, to_change=to_change, to_remove=to_remove)
+    return _SchemaChanges(to_add=to_add, to_change=to_change, to_drop=to_drop)
 
 
 def _alter_iceberg_table(
@@ -146,8 +146,11 @@ def _alter_iceberg_table(
             columns_to_change=schema_changes["to_change"],
         )
 
-    if schema_changes["to_remove"]:
-        raise exceptions.InvalidArgumentCombination("Removing columns of Iceberg tables is not currently supported.")
+    if schema_changes["to_drop"]:
+        sql_statements += _alter_iceberg_table_drop_columns_sql(
+            table=table,
+            columns_to_drop=schema_changes["to_drop"],
+        )
 
     for statement in sql_statements:
         query_execution_id: str = _start_query_execution(
@@ -180,6 +183,18 @@ def _alter_iceberg_table_change_columns_sql(
 
     for col_name, col_type in columns_to_change.items():
         sql_statements.append(f"ALTER TABLE {table} CHANGE COLUMN {col_name} {col_name} {col_type}")
+
+    return sql_statements
+
+
+def _alter_iceberg_table_drop_columns_sql(
+    table: str,
+    columns_to_drop: set[str],
+) -> list[str]:
+    sql_statements = []
+
+    for col_name in columns_to_drop:
+        sql_statements.append(f"ALTER TABLE {table} DROP COLUMN {col_name}")
 
     return sql_statements
 
