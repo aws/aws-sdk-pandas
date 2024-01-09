@@ -1,4 +1,6 @@
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 import pytest
 
@@ -11,7 +13,7 @@ import awswrangler.pandas as pd
     "pyarrow_additional_kwargs", [{"safe": True, "deduplicate_objects": False, "types_mapper": None}]
 )
 def test_read_deltalake(
-    path: str, s3_additional_kwargs: Optional[Dict[str, Any]], pyarrow_additional_kwargs: Dict[str, Any]
+    path: str, s3_additional_kwargs: dict[str, Any] | None, pyarrow_additional_kwargs: dict[str, Any]
 ) -> None:
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", None, "bar"], "c2": [3.0, 4.0, 5.0], "c3": [True, False, None]})
     wr.s3.to_deltalake(path=path, df=df, s3_additional_kwargs=s3_additional_kwargs, s3_allow_unsafe_rename=True)
@@ -23,7 +25,7 @@ def test_read_deltalake(
 
 
 @pytest.mark.parametrize("pyarrow_additional_kwargs", [{"types_mapper": None}])
-def test_read_deltalake_versioned(path: str, pyarrow_additional_kwargs: Dict[str, Any]) -> None:
+def test_read_deltalake_versioned(path: str, pyarrow_additional_kwargs: dict[str, Any]) -> None:
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "baz", "bar"]})
     wr.s3.to_deltalake(path=path, df=df, s3_allow_unsafe_rename=True)
 

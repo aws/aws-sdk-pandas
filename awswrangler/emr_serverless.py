@@ -1,9 +1,11 @@
 """EMR Serverless module."""
 
+from __future__ import annotations
+
 import logging
 import pprint
 import time
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
+from typing import Any, Literal, TypedDict
 
 import boto3
 from typing_extensions import NotRequired, Required
@@ -15,7 +17,7 @@ from awswrangler.annotations import Experimental
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _EMR_SERVERLESS_JOB_WAIT_POLLING_DELAY: float = 5  # SECONDS
-_EMR_SERVERLESS_JOB_FINAL_STATES: List[str] = ["SUCCESS", "FAILED", "CANCELLED"]
+_EMR_SERVERLESS_JOB_FINAL_STATES: list[str] = ["SUCCESS", "FAILED", "CANCELLED"]
 
 
 class SparkSubmitJobArgs(TypedDict):
@@ -23,7 +25,7 @@ class SparkSubmitJobArgs(TypedDict):
 
     entryPoint: Required[str]
     """The entry point for the Spark submit job run."""
-    entryPointArguments: NotRequired[List[str]]
+    entryPointArguments: NotRequired[list[str]]
     """The arguments for the Spark submit job run."""
     sparkSubmitParameters: NotRequired[str]
     """The parameters for the Spark submit job run."""
@@ -45,17 +47,17 @@ def create_application(
     name: str,
     release_label: str,
     application_type: Literal["Spark", "Hive"] = "Spark",
-    initial_capacity: Optional[Dict[str, str]] = None,
-    maximum_capacity: Optional[Dict[str, str]] = None,
-    tags: Optional[Dict[str, str]] = None,
+    initial_capacity: dict[str, str] | None = None,
+    maximum_capacity: dict[str, str] | None = None,
+    tags: dict[str, str] | None = None,
     autostart: bool = True,
     autostop: bool = True,
     idle_timeout: int = 15,
-    network_configuration: Optional[Dict[str, str]] = None,
+    network_configuration: dict[str, str] | None = None,
     architecture: Literal["ARM64", "X86_64"] = "X86_64",
-    image_uri: Optional[str] = None,
-    worker_type_specifications: Optional[Dict[str, str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    image_uri: str | None = None,
+    worker_type_specifications: dict[str, str] | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """
     Create an EMR Serverless application.
@@ -103,7 +105,7 @@ def create_application(
         Application Id.
     """
     emr_serverless = _utils.client(service_name="emr-serverless", session=boto3_session)
-    application_args: Dict[str, Any] = {
+    application_args: dict[str, Any] = {
         "name": name,
         "releaseLabel": release_label,
         "type": application_type,
@@ -130,7 +132,7 @@ def create_application(
         application_args["imageConfiguration"] = {
             "imageUri": image_uri,
         }
-    response: Dict[str, str] = emr_serverless.create_application(**application_args)  # type: ignore[assignment]
+    response: dict[str, str] = emr_serverless.create_application(**application_args)  # type: ignore[assignment]
     _logger.debug("response: \n%s", pprint.pformat(response))
     return response["applicationId"]
 
@@ -140,16 +142,16 @@ def create_application(
 def run_job(
     application_id: str,
     execution_role_arn: str,
-    job_driver_args: Union[Dict[str, Any], SparkSubmitJobArgs, HiveRunJobArgs],
+    job_driver_args: dict[str, Any] | SparkSubmitJobArgs | HiveRunJobArgs,
     job_type: Literal["Spark", "Hive"] = "Spark",
     wait: bool = True,
-    configuration_overrides: Optional[Dict[str, Any]] = None,
-    tags: Optional[Dict[str, str]] = None,
-    execution_timeout: Optional[int] = None,
-    name: Optional[str] = None,
+    configuration_overrides: dict[str, Any] | None = None,
+    tags: dict[str, str] | None = None,
+    execution_timeout: int | None = None,
+    name: str | None = None,
     emr_serverless_job_wait_polling_delay: float = _EMR_SERVERLESS_JOB_WAIT_POLLING_DELAY,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Union[str, Dict[str, Any]]:
+    boto3_session: boto3.Session | None = None,
+) -> str | dict[str, Any]:
     """
     Run an EMR serverless job.
 
@@ -188,7 +190,7 @@ def run_job(
         Job Id if wait=False, or job run details.
     """
     emr_serverless = _utils.client(service_name="emr-serverless", session=boto3_session)
-    job_args: Dict[str, Any] = {
+    job_args: dict[str, Any] = {
         "applicationId": application_id,
         "executionRoleArn": execution_role_arn,
     }
@@ -229,8 +231,8 @@ def wait_job(
     application_id: str,
     job_run_id: str,
     emr_serverless_job_wait_polling_delay: float = _EMR_SERVERLESS_JOB_WAIT_POLLING_DELAY,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """
     Wait for the EMR Serverless job to finish.
 

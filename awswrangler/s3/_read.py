@@ -1,5 +1,7 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import itertools
 import logging
 from abc import ABC, abstractmethod
@@ -7,15 +9,10 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterable,
     Iterator,
-    List,
     NamedTuple,
-    Optional,
-    Set,
     Tuple,
-    Union,
     cast,
 )
 
@@ -40,13 +37,13 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_path_root(path: Union[str, List[str]], dataset: bool) -> Optional[str]:
+def _get_path_root(path: str | list[str], dataset: bool) -> str | None:
     if (dataset is True) and (not isinstance(path, str)):
         raise exceptions.InvalidArgument("The path argument must be a string if dataset=True (Amazon S3 prefix).")
     return _prefix_cleanup(str(path)) if dataset is True else None
 
 
-def _get_path_ignore_suffix(path_ignore_suffix: Union[str, List[str], None]) -> Union[List[str], None]:
+def _get_path_ignore_suffix(path_ignore_suffix: str | list[str] | None) -> list[str] | None:
     if isinstance(path_ignore_suffix, str):
         path_ignore_suffix = [path_ignore_suffix, "/_SUCCESS"]
     elif path_ignore_suffix is None:
@@ -57,24 +54,24 @@ def _get_path_ignore_suffix(path_ignore_suffix: Union[str, List[str], None]) -> 
 
 
 def _extract_partitions_metadata_from_paths(
-    path: str, paths: List[str]
-) -> Tuple[Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
+    path: str, paths: list[str]
+) -> tuple[dict[str, str] | None, dict[str, list[str]] | None]:
     """Extract partitions metadata from Amazon S3 paths."""
     path = path if path.endswith("/") else f"{path}/"
-    partitions_types: Dict[str, str] = {}
-    partitions_values: Dict[str, List[str]] = {}
+    partitions_types: dict[str, str] = {}
+    partitions_values: dict[str, list[str]] = {}
     for p in paths:
         if path not in p:
             raise exceptions.InvalidArgumentValue(f"Object {p} is not under the root path ({path}).")
         path_wo_filename: str = p.rpartition("/")[0] + "/"
         if path_wo_filename not in partitions_values:
             path_wo_prefix: str = path_wo_filename.replace(f"{path}", "")
-            dirs: Tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if x and (x.count("=") > 0))
+            dirs: tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if x and (x.count("=") > 0))
             if dirs:
                 values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
-                values_dics: Dict[str, str] = dict(values_tups)
-                p_values: List[str] = list(values_dics.values())
-                p_types: Dict[str, str] = {x: "string" for x in values_dics.keys()}
+                values_dics: dict[str, str] = dict(values_tups)
+                p_values: list[str] = list(values_dics.values())
+                p_types: dict[str, str] = {x: "string" for x in values_dics.keys()}
                 if not partitions_types:
                     partitions_types = p_types
                 if p_values:
@@ -90,19 +87,19 @@ def _extract_partitions_metadata_from_paths(
 
 
 def _apply_partition_filter(
-    path_root: str, paths: List[str], filter_func: Optional[Callable[[Dict[str, str]], bool]]
-) -> List[str]:
+    path_root: str, paths: list[str], filter_func: Callable[[dict[str, str]], bool] | None
+) -> list[str]:
     if filter_func is None:
         return paths
     return [p for p in paths if filter_func(_extract_partitions_from_path(path_root=path_root, path=p)) is True]
 
 
-def _apply_partitions(df: pd.DataFrame, dataset: bool, path: str, path_root: Optional[str]) -> pd.DataFrame:
+def _apply_partitions(df: pd.DataFrame, dataset: bool, path: str, path_root: str | None) -> pd.DataFrame:
     if dataset is False:
         return df
     if dataset is True and path_root is None:
         raise exceptions.InvalidArgument("A path_root is required when dataset=True.")
-    partitions: Dict[str, str] = _extract_partitions_from_path(path_root=path_root, path=path)
+    partitions: dict[str, str] = _extract_partitions_from_path(path_root=path_root, path=path)
     _logger.debug("partitions: %s", partitions)
     count: int = len(df.index)
     _logger.debug("count: %s", count)
@@ -111,15 +108,15 @@ def _apply_partitions(df: pd.DataFrame, dataset: bool, path: str, path_root: Opt
     return df
 
 
-def _extract_partitions_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> Dict[str, str]:
-    dtypes: Dict[str, str] = {}
+def _extract_partitions_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> dict[str, str]:
+    dtypes: dict[str, str] = {}
     for par in response["Table"].get("PartitionKeys", []):
         dtypes[par["Name"]] = par["Type"]
     return dtypes
 
 
-def _union(dfs: List[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
-    cats: Tuple[Set[str], ...] = tuple(set(df.select_dtypes(include="category").columns) for df in dfs)
+def _union(dfs: list[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
+    cats: tuple[set[str], ...] = tuple(set(df.select_dtypes(include="category").columns) for df in dfs)
     for col in set.intersection(*cats):
         cat = union_categoricals([df[col] for df in dfs])
         for df in dfs:
@@ -127,9 +124,7 @@ def _union(dfs: List[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
     return pd.concat(objs=dfs, sort=False, copy=False, ignore_index=ignore_index)
 
 
-def _check_version_id(
-    paths: List[str], version_id: Optional[Union[str, Dict[str, str]]] = None
-) -> Optional[Dict[str, str]]:
+def _check_version_id(paths: list[str], version_id: str | dict[str, str] | None = None) -> dict[str, str] | None:
     if len(paths) > 1 and version_id is not None and not isinstance(version_id, dict):
         raise exceptions.InvalidArgumentCombination(
             "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
@@ -142,34 +137,34 @@ def _check_version_id(
 
 
 class _InternalReadTableMetadataReturnValue(NamedTuple):
-    columns_types: Dict[str, str]
-    partitions_types: Optional[Dict[str, str]]
-    partitions_values: Optional[Dict[str, List[str]]]
+    columns_types: dict[str, str]
+    partitions_types: dict[str, str] | None
+    partitions_values: dict[str, list[str]] | None
 
 
 class _TableMetadataReader(ABC):
     @abstractmethod
     def _read_metadata_file(
         self,
-        s3_client: Optional["S3Client"],
+        s3_client: "S3Client" | None,
         path: str,
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        use_threads: Union[bool, int],
-        version_id: Optional[str] = None,
-        coerce_int96_timestamp_unit: Optional[str] = None,
+        s3_additional_kwargs: dict[str, str] | None,
+        use_threads: bool | int,
+        version_id: str | None = None,
+        coerce_int96_timestamp_unit: str | None = None,
     ) -> pa.schema:
         pass
 
     def _read_schemas_from_files(
         self,
-        paths: List[str],
+        paths: list[str],
         sampling: float,
-        use_threads: Union[bool, int],
+        use_threads: bool | int,
         s3_client: "S3Client",
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        version_ids: Optional[Dict[str, str]],
-        coerce_int96_timestamp_unit: Optional[str] = None,
-    ) -> List[pa.schema]:
+        s3_additional_kwargs: dict[str, str] | None,
+        version_ids: dict[str, str] | None,
+        coerce_int96_timestamp_unit: str | None = None,
+    ) -> list[pa.schema]:
         paths = _utils.list_sampling(lst=paths, sampling=sampling)
 
         executor: _BaseExecutor = _get_executor(use_threads=use_threads)
@@ -189,15 +184,15 @@ class _TableMetadataReader(ABC):
     def _validate_schemas_from_files(
         self,
         validate_schema: bool,
-        paths: List[str],
+        paths: list[str],
         sampling: float,
-        use_threads: Union[bool, int],
+        use_threads: bool | int,
         s3_client: "S3Client",
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        version_ids: Optional[Dict[str, str]],
-        coerce_int96_timestamp_unit: Optional[str] = None,
+        s3_additional_kwargs: dict[str, str] | None,
+        version_ids: dict[str, str] | None,
+        coerce_int96_timestamp_unit: str | None = None,
     ) -> pa.schema:
-        schemas: List[pa.schema] = self._read_schemas_from_files(
+        schemas: list[pa.schema] = self._read_schemas_from_files(
             paths=paths,
             sampling=sampling,
             use_threads=use_threads,
@@ -210,15 +205,15 @@ class _TableMetadataReader(ABC):
 
     def validate_schemas(
         self,
-        paths: List[str],
-        path_root: Optional[str],
-        columns: Optional[List[str]],
+        paths: list[str],
+        path_root: str | None,
+        columns: list[str] | None,
         validate_schema: bool,
         s3_client: "S3Client",
-        version_ids: Optional[Dict[str, str]] = None,
-        use_threads: Union[bool, int] = True,
-        coerce_int96_timestamp_unit: Optional[str] = None,
-        s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+        version_ids: dict[str, str] | None = None,
+        use_threads: bool | int = True,
+        coerce_int96_timestamp_unit: str | None = None,
+        s3_additional_kwargs: dict[str, Any] | None = None,
     ) -> pa.schema:
         schema = self._validate_schemas_from_files(
             validate_schema=validate_schema,
@@ -245,24 +240,24 @@ class _TableMetadataReader(ABC):
 
     def read_table_metadata(
         self,
-        path: Union[str, List[str]],
-        path_suffix: Optional[str],
-        path_ignore_suffix: Union[str, List[str], None],
+        path: str | list[str],
+        path_suffix: str | None,
+        path_ignore_suffix: str | list[str] | None,
         ignore_empty: bool,
         ignore_null: bool,
-        dtype: Optional[Dict[str, str]],
+        dtype: dict[str, str] | None,
         sampling: float,
         dataset: bool,
-        use_threads: Union[bool, int],
-        boto3_session: Optional[boto3.Session],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        version_id: Optional[Union[str, Dict[str, str]]] = None,
-        coerce_int96_timestamp_unit: Optional[str] = None,
+        use_threads: bool | int,
+        boto3_session: boto3.Session | None,
+        s3_additional_kwargs: dict[str, str] | None,
+        version_id: str | dict[str, str] | None = None,
+        coerce_int96_timestamp_unit: str | None = None,
     ) -> _InternalReadTableMetadataReturnValue:
         """Handle table metadata internally."""
         s3_client = _utils.client(service_name="s3", session=boto3_session)
-        path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
-        paths: List[str] = _path2list(
+        path_root: str | None = _get_path_root(path=path, dataset=dataset)
+        paths: list[str] = _path2list(
             path=path,
             s3_client=s3_client,
             suffix=path_suffix,
@@ -273,7 +268,7 @@ class _TableMetadataReader(ABC):
         version_ids = _check_version_id(paths=paths, version_id=version_id)
 
         # Files
-        schemas: List[pa.schema] = self._read_schemas_from_files(
+        schemas: list[pa.schema] = self._read_schemas_from_files(
             paths=paths,
             sampling=sampling,
             use_threads=use_threads,
@@ -284,13 +279,13 @@ class _TableMetadataReader(ABC):
         )
         merged_schemas = _validate_schemas(schemas=schemas, validate_schema=False)
 
-        columns_types: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
+        columns_types: dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
             schema=merged_schemas, partitions=None, ignore_null=ignore_null
         )[0]
 
         # Partitions
-        partitions_types: Optional[Dict[str, str]] = None
-        partitions_values: Optional[Dict[str, List[str]]] = None
+        partitions_types: dict[str, str] | None = None
+        partitions_values: dict[str, list[str]] | None = None
         if (dataset is True) and (path_root is not None):
             partitions_types, partitions_values = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
 
@@ -305,7 +300,7 @@ class _TableMetadataReader(ABC):
         return _InternalReadTableMetadataReturnValue(columns_types, partitions_types, partitions_values)
 
 
-def _validate_schemas(schemas: List[pa.schema], validate_schema: bool) -> pa.schema:
+def _validate_schemas(schemas: list[pa.schema], validate_schema: bool) -> pa.schema:
     first: pa.schema = schemas[0]
     if len(schemas) == 1:
         return first
@@ -332,13 +327,13 @@ def _ensure_locations_are_valid(paths: Iterable[str]) -> Iterator[str]:
 def _get_paths_for_glue_table(
     table: str,
     database: str,
-    filename_suffix: Union[str, List[str], None] = None,
-    filename_ignore_suffix: Union[str, List[str], None] = None,
-    catalog_id: Optional[str] = None,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Tuple[Union[str, List[str]], Optional[str], "GetTableResponseTypeDef"]:
+    filename_suffix: str | list[str] | None = None,
+    filename_ignore_suffix: str | list[str] | None = None,
+    catalog_id: str | None = None,
+    partition_filter: Callable[[dict[str, str]], bool] | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+) -> tuple[str | list[str], str | None, "GetTableResponseTypeDef"]:
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     s3_client = _utils.client(service_name="s3", session=boto3_session)
 
@@ -349,8 +344,8 @@ def _get_paths_for_glue_table(
     except KeyError as ex:
         raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
 
-    path_root: Optional[str] = None
-    paths: Union[str, List[str]] = path
+    path_root: str | None = None
+    paths: str | list[str] = path
 
     # If filter is available, fetch & filter out partitions
     # Then list objects & process individual object keys under path_root
@@ -365,7 +360,7 @@ def _get_paths_for_glue_table(
         if available_partitions:
             paths = []
             path_root = path
-            partitions: Union[str, List[str]] = _apply_partition_filter(
+            partitions: str | list[str] = _apply_partition_filter(
                 path_root=path_root, paths=available_partitions, filter_func=partition_filter
             )
             for partition in partitions:

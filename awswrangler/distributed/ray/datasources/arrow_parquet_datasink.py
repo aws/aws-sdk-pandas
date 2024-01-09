@@ -1,7 +1,8 @@
 """Ray ArrowParquetDatasink Module."""
+from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pyarrow as pa
 from ray.data.block import BlockAccessor
@@ -21,14 +22,14 @@ class ArrowParquetDatasink(_BlockFileDatasink):
         self,
         path: str,
         *,
-        block_path_provider: Optional[BlockWritePathProvider] = None,
-        dataset_uuid: Optional[str] = None,
-        open_s3_object_args: Optional[Dict[str, Any]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
-        schema: Optional[pa.Schema] = None,
+        block_path_provider: BlockWritePathProvider | None = None,
+        dataset_uuid: str | None = None,
+        open_s3_object_args: dict[str, Any] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
+        schema: pa.Schema | None = None,
         index: bool = False,
-        dtype: Optional[Dict[str, str]] = None,
-        pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+        dtype: dict[str, str] | None = None,
+        pyarrow_additional_kwargs: dict[str, Any] | None = None,
         **write_args: Any,
     ):
         super().__init__(
@@ -61,7 +62,7 @@ class ArrowParquetDatasink(_BlockFileDatasink):
             **self.pyarrow_additional_kwargs,
         )
 
-    def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
+    def _get_file_suffix(self, file_format: str, compression: str | None) -> str:
         if compression is not None:
             return f"{_COMPRESSION_2_EXT.get(compression)[1:]}.{file_format}"  # type: ignore[index]
         return file_format

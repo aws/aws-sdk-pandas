@@ -1,10 +1,12 @@
 """Data API Connector base class."""
+from __future__ import annotations
+
 import datetime as dt
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from decimal import Decimal
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any
 
 import awswrangler.pandas as pd
 
@@ -15,9 +17,9 @@ class DataApiConnector(ABC):
     def execute(
         self,
         sql: str,
-        database: Optional[str] = None,
-        transaction_id: Optional[str] = None,
-        parameters: Optional[List[Dict[str, Any]]] = None,
+        database: str | None = None,
+        transaction_id: str | None = None,
+        parameters: list[dict[str, Any]] | None = None,
     ) -> pd.DataFrame:
         """Execute SQL statement against a Data API Service.
 
@@ -37,10 +39,10 @@ class DataApiConnector(ABC):
 
     def batch_execute(
         self,
-        sql: Union[str, List[str]],
-        database: Optional[str] = None,
-        transaction_id: Optional[str] = None,
-        parameter_sets: Optional[List[List[Dict[str, Any]]]] = None,
+        sql: str | list[str],
+        database: str | None = None,
+        transaction_id: str | None = None,
+        parameter_sets: list[list[dict[str, Any]]] | None = None,
     ) -> None:
         """Batch execute SQL statements against a Data API Service.
 
@@ -63,15 +65,15 @@ class DataApiConnector(ABC):
 
     def __exit__(
         self,
-        exception_type: Optional[Type[BaseException]],
-        exception_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
-    ) -> Optional[bool]:
+        exception_type: type[BaseException] | None,
+        exception_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
         self.close()
         return None
 
     @abstractmethod
-    def begin_transaction(self, database: Optional[str] = None, schema: Optional[str] = None) -> str:
+    def begin_transaction(self, database: str | None = None, schema: str | None = None) -> str:
         pass
 
     @abstractmethod
@@ -86,19 +88,19 @@ class DataApiConnector(ABC):
     def _execute_statement(
         self,
         sql: str,
-        database: Optional[str] = None,
-        transaction_id: Optional[str] = None,
-        parameters: Optional[List[Dict[str, Any]]] = None,
+        database: str | None = None,
+        transaction_id: str | None = None,
+        parameters: list[dict[str, Any]] | None = None,
     ) -> str:
         pass
 
     @abstractmethod
     def _batch_execute_statement(
         self,
-        sql: Union[str, List[str]],
-        database: Optional[str] = None,
-        transaction_id: Optional[str] = None,
-        parameter_sets: Optional[List[List[Dict[str, Any]]]] = None,
+        sql: str | list[str],
+        database: str | None = None,
+        transaction_id: str | None = None,
+        parameter_sets: list[list[dict[str, Any]]] | None = None,
     ) -> str:
         pass
 
@@ -108,7 +110,7 @@ class DataApiConnector(ABC):
 
     @staticmethod
     def _get_column_value(  # noqa: PLR0911
-        column_value: Dict[str, Any], col_type: Optional[str] = None
+        column_value: dict[str, Any], col_type: str | None = None
     ) -> Any:
         """Return the first non-null key value for a given dictionary.
 

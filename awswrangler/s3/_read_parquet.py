@@ -1,5 +1,7 @@
 """Amazon S3 Read PARQUET Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import datetime
 import functools
 import itertools
@@ -9,11 +11,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterator,
-    List,
-    Optional,
-    Union,
 )
 
 import boto3
@@ -57,7 +55,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def _pyarrow_parquet_file_wrapper(
     source: Any,
-    coerce_int96_timestamp_unit: Optional[str] = None,
+    coerce_int96_timestamp_unit: str | None = None,
 ) -> pyarrow.parquet.ParquetFile:
     try:
         return pyarrow.parquet.ParquetFile(source=source, coerce_int96_timestamp_unit=coerce_int96_timestamp_unit)
@@ -70,12 +68,12 @@ def _pyarrow_parquet_file_wrapper(
 
 @engine.dispatch_on_engine
 def _read_parquet_metadata_file(
-    s3_client: Optional["S3Client"],
+    s3_client: "S3Client" | None,
     path: str,
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    version_id: Optional[str] = None,
-    coerce_int96_timestamp_unit: Optional[str] = None,
+    s3_additional_kwargs: dict[str, str] | None,
+    use_threads: bool | int,
+    version_id: str | None = None,
+    coerce_int96_timestamp_unit: str | None = None,
 ) -> pa.schema:
     with open_s3_object(
         path=path,
@@ -86,7 +84,7 @@ def _read_parquet_metadata_file(
         s3_block_size=METADATA_READ_S3_BLOCK_SIZE,
         s3_additional_kwargs=s3_additional_kwargs,
     ) as f:
-        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+        pq_file: pyarrow.parquet.ParquetFile | None = _pyarrow_parquet_file_wrapper(
             source=f, coerce_int96_timestamp_unit=coerce_int96_timestamp_unit
         )
         if pq_file:
@@ -97,12 +95,12 @@ def _read_parquet_metadata_file(
 class _ParquetTableMetadataReader(_TableMetadataReader):
     def _read_metadata_file(
         self,
-        s3_client: Optional["S3Client"],
+        s3_client: "S3Client" | None,
         path: str,
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        use_threads: Union[bool, int],
-        version_id: Optional[str] = None,
-        coerce_int96_timestamp_unit: Optional[str] = None,
+        s3_additional_kwargs: dict[str, str] | None,
+        use_threads: bool | int,
+        version_id: str | None = None,
+        coerce_int96_timestamp_unit: str | None = None,
     ) -> pa.schema:
         return _read_parquet_metadata_file(
             s3_client=s3_client,
@@ -115,19 +113,19 @@ class _ParquetTableMetadataReader(_TableMetadataReader):
 
 
 def _read_parquet_metadata(
-    path: Union[str, List[str]],
-    path_suffix: Optional[str],
-    path_ignore_suffix: Union[str, List[str], None],
+    path: str | list[str],
+    path_suffix: str | None,
+    path_ignore_suffix: str | list[str] | None,
     ignore_empty: bool,
     ignore_null: bool,
-    dtype: Optional[Dict[str, str]],
+    dtype: dict[str, str] | None,
     sampling: float,
     dataset: bool,
-    use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
-    coerce_int96_timestamp_unit: Optional[str] = None,
+    use_threads: bool | int,
+    boto3_session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, str] | None,
+    version_id: str | dict[str, str] | None = None,
+    coerce_int96_timestamp_unit: str | None = None,
 ) -> _InternalReadTableMetadataReturnValue:
     """Handle wr.s3.read_parquet_metadata internally."""
     reader = _ParquetTableMetadataReader()
@@ -149,15 +147,15 @@ def _read_parquet_metadata(
 
 
 def _read_parquet_file(
-    s3_client: Optional["S3Client"],
+    s3_client: "S3Client" | None,
     path: str,
-    path_root: Optional[str],
-    columns: Optional[List[str]],
-    coerce_int96_timestamp_unit: Optional[str],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    version_id: Optional[str] = None,
-    schema: Optional[pa.schema] = None,
+    path_root: str | None,
+    columns: list[str] | None,
+    coerce_int96_timestamp_unit: str | None,
+    s3_additional_kwargs: dict[str, str] | None,
+    use_threads: bool | int,
+    version_id: str | None = None,
+    schema: pa.schema | None = None,
 ) -> pa.Table:
     s3_block_size: int = FULL_READ_S3_BLOCK_SIZE if columns else -1  # One shot for a full read or see constant
     with open_s3_object(
@@ -189,7 +187,7 @@ def _read_parquet_file(
                     "Your version of pyarrow does not support reading with schema. Consider an upgrade to pyarrow 8+.",
                     UserWarning,
                 )
-            pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+            pq_file: pyarrow.parquet.ParquetFile | None = _pyarrow_parquet_file_wrapper(
                 source=f,
                 coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
             )
@@ -204,18 +202,18 @@ def _read_parquet_file(
 
 
 def _read_parquet_chunked(
-    s3_client: Optional["S3Client"],
-    paths: List[str],
-    path_root: Optional[str],
-    columns: Optional[List[str]],
-    coerce_int96_timestamp_unit: Optional[str],
-    chunked: Union[int, bool],
-    use_threads: Union[bool, int],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    arrow_kwargs: Dict[str, Any],
-    version_ids: Optional[Dict[str, str]] = None,
+    s3_client: "S3Client" | None,
+    paths: list[str],
+    path_root: str | None,
+    columns: list[str] | None,
+    coerce_int96_timestamp_unit: str | None,
+    chunked: int | bool,
+    use_threads: bool | int,
+    s3_additional_kwargs: dict[str, str] | None,
+    arrow_kwargs: dict[str, Any],
+    version_ids: dict[str, str] | None = None,
 ) -> Iterator[pd.DataFrame]:
-    next_slice: Optional[pd.DataFrame] = None
+    next_slice: pd.DataFrame | None = None
     batch_size = BATCH_READ_BLOCK_SIZE if chunked is True else chunked
 
     for path in paths:
@@ -228,7 +226,7 @@ def _read_parquet_chunked(
             s3_block_size=CHUNKED_READ_S3_BLOCK_SIZE,
             s3_additional_kwargs=s3_additional_kwargs,
         ) as f:
-            pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+            pq_file: pyarrow.parquet.ParquetFile | None = _pyarrow_parquet_file_wrapper(
                 source=f,
                 coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
             )
@@ -263,17 +261,17 @@ def _read_parquet_chunked(
 
 @engine.dispatch_on_engine
 def _read_parquet(
-    paths: List[str],
-    path_root: Optional[str],
-    schema: Optional[pa.schema],
-    columns: Optional[List[str]],
-    coerce_int96_timestamp_unit: Optional[str],
-    use_threads: Union[bool, int],
+    paths: list[str],
+    path_root: str | None,
+    schema: pa.schema | None,
+    columns: list[str] | None,
+    coerce_int96_timestamp_unit: str | None,
+    use_threads: bool | int,
     parallelism: int,
-    version_ids: Optional[Dict[str, str]],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    arrow_kwargs: Dict[str, Any],
+    version_ids: dict[str, str] | None,
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    arrow_kwargs: dict[str, Any],
     bulk_read: bool,
 ) -> pd.DataFrame:
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
@@ -297,28 +295,28 @@ def _read_parquet(
 )
 @apply_configs
 def read_parquet(
-    path: Union[str, List[str]],
-    path_root: Optional[str] = None,
+    path: str | list[str],
+    path_root: str | None = None,
     dataset: bool = False,
-    path_suffix: Union[str, List[str], None] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
+    path_suffix: str | list[str] | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
     ignore_empty: bool = True,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    columns: Optional[List[str]] = None,
+    partition_filter: Callable[[dict[str, str]], bool] | None = None,
+    columns: list[str] | None = None,
     validate_schema: bool = False,
-    coerce_int96_timestamp_unit: Optional[str] = None,
-    schema: Optional[pa.Schema] = None,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
+    coerce_int96_timestamp_unit: str | None = None,
+    schema: pa.Schema | None = None,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
+    version_id: str | dict[str, str] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    chunked: Union[bool, int] = False,
-    use_threads: Union[bool, int] = True,
-    ray_args: Optional[RayReadParquetSettings] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    chunked: bool | int = False,
+    use_threads: bool | int = True,
+    ray_args: RayReadParquetSettings | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read Parquet file(s) from an S3 prefix or list of S3 objects paths.
 
     The concept of `dataset` enables more complex features like partitioning
@@ -416,7 +414,7 @@ def read_parquet(
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forward to S3 botocore requests.
     pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
@@ -471,7 +469,7 @@ def read_parquet(
         exceptions.InvalidArgumentCombination("Cannot validate schema when bulk reading data files.")
 
     s3_client = _utils.client(service_name="s3", session=boto3_session)
-    paths: List[str] = _path2list(
+    paths: list[str] = _path2list(
         path=path,
         s3_client=s3_client,
         suffix=path_suffix,
@@ -546,21 +544,21 @@ def read_parquet(
 def read_parquet_table(
     table: str,
     database: str,
-    filename_suffix: Union[str, List[str], None] = None,
-    filename_ignore_suffix: Union[str, List[str], None] = None,
-    catalog_id: Optional[str] = None,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    columns: Optional[List[str]] = None,
+    filename_suffix: str | list[str] | None = None,
+    filename_ignore_suffix: str | list[str] | None = None,
+    catalog_id: str | None = None,
+    partition_filter: Callable[[dict[str, str]], bool] | None = None,
+    columns: list[str] | None = None,
     validate_schema: bool = True,
-    coerce_int96_timestamp_unit: Optional[str] = None,
+    coerce_int96_timestamp_unit: str | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    chunked: Union[bool, int] = False,
-    use_threads: Union[bool, int] = True,
-    ray_args: Optional[RayReadParquetSettings] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    chunked: bool | int = False,
+    use_threads: bool | int = True,
+    ray_args: RayReadParquetSettings | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read Apache Parquet table registered in the AWS Glue Catalog.
 
     Note
@@ -632,7 +630,7 @@ def read_parquet_table(
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forward to S3 botocore requests.
     pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
@@ -665,8 +663,8 @@ def read_parquet_table(
     >>> df = wr.s3.read_parquet_table(path, dataset=True, partition_filter=my_filter)
 
     """
-    paths: Union[str, List[str]]
-    path_root: Optional[str]
+    paths: str | list[str]
+    path_root: str | None
 
     paths, path_root, res = _get_paths_for_glue_table(
         table=table,
@@ -713,19 +711,19 @@ def read_parquet_table(
     unsupported_kwargs=["boto3_session"],
 )
 def read_parquet_metadata(
-    path: Union[str, List[str]],
+    path: str | list[str],
     dataset: bool = False,
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
-    path_suffix: Optional[str] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
+    version_id: str | dict[str, str] | None = None,
+    path_suffix: str | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
     ignore_empty: bool = True,
     ignore_null: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
+    dtype: dict[str, str] | None = None,
     sampling: float = 1.0,
-    coerce_int96_timestamp_unit: Optional[str] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    coerce_int96_timestamp_unit: str | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
 ) -> _ReadTableMetadataReturnValue:
     """Read Apache Parquet file(s) metadata from an S3 prefix or list of S3 objects paths.
 
@@ -777,7 +775,7 @@ def read_parquet_metadata(
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forward to S3 botocore requests.
 
     Returns

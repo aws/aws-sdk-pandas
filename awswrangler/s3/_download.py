@@ -1,7 +1,9 @@
 """Amazon S3 Download Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional, Union, cast
+from typing import Any, cast
 
 import boto3
 
@@ -12,11 +14,11 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def download(
     path: str,
-    local_file: Union[str, Any],
-    version_id: Optional[str] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    local_file: str | Any,
+    version_id: str | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
 ) -> None:
     """Download file from a received S3 path to local file.
 
@@ -31,7 +33,7 @@ def download(
         S3 path (e.g. ``s3://bucket/key0``).
     local_file : Union[str, Any]
         A file-like object in binary mode or a path to local file (e.g. ``./local/path/to/key0``).
-    version_id: Optional[str]
+    version_id: str, optional
         Version id of the object.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
@@ -39,7 +41,7 @@ def download(
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forward to botocore requests, only "SSECustomerAlgorithm", "SSECustomerKey" and "RequestPayer"
         arguments will be considered.
 

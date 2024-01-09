@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import pyarrow as pa
 import pytest
@@ -144,7 +146,7 @@ def test_athena_csv_dtype_backend(
         }
     ],
 )
-def test_dynamodb_read_items(params: Dict[str, Any], dynamodb_table: str) -> None:
+def test_dynamodb_read_items(params: dict[str, Any], dynamodb_table: str) -> None:
     df = pd.DataFrame({"id": pa.array([1, 2, 3], type=pa.decimal128(1)), "val": ["foo", "boo", "bar"]})
     df.id = df.id.astype(pd.ArrowDtype(pa.decimal128(1)))
     df.val = df.val.astype(pd.ArrowDtype(pa.string()))

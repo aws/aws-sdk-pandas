@@ -1,5 +1,7 @@
 """Ray ArrowCSVDatasource Module."""
-from typing import Any, Dict, Iterator, List, Optional, Union
+from __future__ import annotations
+
+from typing import Any, Iterator
 
 import pyarrow as pa
 from ray.data.datasource.file_based_datasource import FileBasedDatasource
@@ -14,12 +16,12 @@ class ArrowORCDatasource(FileBasedDatasource):
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         dataset: bool,
-        path_root: Optional[str],
-        use_threads: Union[bool, int],
+        path_root: str | None,
+        use_threads: bool | int,
         schema: pa.Schema,
-        arrow_orc_args: Optional[Dict[str, Any]] = None,
+        arrow_orc_args: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ):
         super().__init__(paths, **file_based_datasource_kwargs)
@@ -30,7 +32,7 @@ class ArrowORCDatasource(FileBasedDatasource):
         if arrow_orc_args is None:
             arrow_orc_args = {}
 
-        self.columns: Optional[List[str]] = arrow_orc_args.get("columns", None)
+        self.columns: list[str] | None = arrow_orc_args.get("columns", None)
         self.arrow_orc_args = arrow_orc_args
 
     def _read_stream(self, f: pa.NativeFile, path: str) -> Iterator[pa.Table]:

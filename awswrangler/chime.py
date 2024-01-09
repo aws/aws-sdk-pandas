@@ -1,16 +1,18 @@
 """Chime Message/Notification module."""
 
 
+from __future__ import annotations
+
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def post_message(webhook: str, message: str) -> Optional[Any]:
+def post_message(webhook: str, message: str) -> Any | None:
     """Send message on an existing Chime Chat rooms.
 
     Parameters

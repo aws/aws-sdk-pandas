@@ -1,10 +1,12 @@
 """Cache Module for Amazon Athena."""
+from __future__ import annotations
+
 import datetime
 import logging
 import re
 import threading
 from heapq import heappop, heappush
-from typing import TYPE_CHECKING, Any, Dict, List, Match, NamedTuple, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Match, NamedTuple
 
 import boto3
 
@@ -18,19 +20,19 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 class _CacheInfo(NamedTuple):
     has_valid_cache: bool
-    file_format: Optional[str] = None
-    query_execution_id: Optional[str] = None
-    query_execution_payload: Optional[Dict[str, Any]] = None
+    file_format: str | None = None
+    query_execution_id: str | None = None
+    query_execution_payload: dict[str, Any] | None = None
 
 
 class _LocalMetadataCacheManager:
     def __init__(self) -> None:
         self._lock: threading.Lock = threading.Lock()
-        self._cache: Dict[str, Any] = {}
-        self._pqueue: List[Tuple[datetime.datetime, str]] = []
+        self._cache: dict[str, Any] = {}
+        self._pqueue: list[tuple[datetime.datetime, str]] = []
         self._max_cache_size = 100
 
-    def update_cache(self, items: List[Dict[str, Any]]) -> None:
+    def update_cache(self, items: list[dict[str, Any]]) -> None:
         """
         Update the local metadata cache with new query metadata.
 
@@ -64,7 +66,7 @@ class _LocalMetadataCacheManager:
                 heappush(self._pqueue, (item["Status"]["SubmissionDateTime"], item["QueryExecutionId"]))
                 self._cache[item["QueryExecutionId"]] = item
 
-    def sorted_successful_generator(self) -> List[Dict[str, Any]]:
+    def sorted_successful_generator(self) -> list[dict[str, Any]]:
         """
         Sorts the entries in the local cache based on query Completion DateTime.
 
@@ -75,7 +77,7 @@ class _LocalMetadataCacheManager:
         List[Dict[str, Any]]
             Returns successful DDL and DML queries sorted by query completion time.
         """
-        filtered: List[Dict[str, Any]] = []
+        filtered: list[dict[str, Any]] = []
         for query in self._cache.values():
             if (query["Status"].get("State") == "SUCCEEDED") and (query.get("StatementType") in ["DDL", "DML"]):
                 filtered.append(query)
@@ -94,18 +96,18 @@ class _LocalMetadataCacheManager:
         self._max_cache_size = value
 
 
-def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
+def _parse_select_query_from_possible_ctas(possible_ctas: str) -> str | None:
     """Check if `possible_ctas` is a valid parquet-generating CTAS and returns the full SELECT statement."""
     possible_ctas = possible_ctas.lower()
     parquet_format_regex: str = r"format\s*=\s*\'parquet\'\s*"
-    is_parquet_format: Optional[Match[str]] = re.search(pattern=parquet_format_regex, string=possible_ctas)
+    is_parquet_format: Match[str] | None = re.search(pattern=parquet_format_regex, string=possible_ctas)
     if is_parquet_format is not None:
         unstripped_select_statement_regex: str = r"\s+as\s+\(*(select|with).*"
-        unstripped_select_statement_match: Optional[Match[str]] = re.search(
+        unstripped_select_statement_match: Match[str] | None = re.search(
             unstripped_select_statement_regex, possible_ctas, re.DOTALL
         )
         if unstripped_select_statement_match is not None:
-            stripped_select_statement_match: Optional[Match[str]] = re.search(
+            stripped_select_statement_match: Match[str] | None = re.search(
                 r"(select|with).*", unstripped_select_statement_match.group(0), re.DOTALL
             )
             if stripped_select_statement_match is not None:
@@ -135,27 +137,27 @@ def _prepare_query_string_for_comparison(query_string: str) -> str:
 
 def _get_last_query_infos(
     max_remote_cache_entries: int,
-    boto3_session: Optional[boto3.Session] = None,
-    workgroup: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    boto3_session: boto3.Session | None = None,
+    workgroup: str | None = None,
+) -> list[dict[str, Any]]:
     """Return an iterator of `query_execution_info`s run by the workgroup in Athena."""
     client_athena = _utils.client(service_name="athena", session=boto3_session)
     page_size = 50
-    args: Dict[str, Union[str, Dict[str, int]]] = {
+    args: dict[str, str | dict[str, int]] = {
         "PaginationConfig": {"MaxItems": max_remote_cache_entries, "PageSize": page_size}
     }
     if workgroup is not None:
         args["WorkGroup"] = workgroup
     paginator = client_athena.get_paginator("list_query_executions")
-    uncached_ids: List[str] = []
+    uncached_ids: list[str] = []
     for page in paginator.paginate(**args):  # type: ignore[arg-type]
         _logger.debug("paginating Athena's queries history...")
-        query_execution_id_list: List[str] = page["QueryExecutionIds"]
+        query_execution_id_list: list[str] = page["QueryExecutionIds"]
         for query_execution_id in query_execution_id_list:
             if query_execution_id not in _cache_manager:
                 uncached_ids.append(query_execution_id)
     if uncached_ids:
-        new_execution_data: List[QueryExecutionTypeDef] = []
+        new_execution_data: list[QueryExecutionTypeDef] = []
         for i in range(0, len(uncached_ids), page_size):
             new_execution_data.extend(
                 client_athena.batch_get_query_execution(  # type: ignore[arg-type]
@@ -168,9 +170,9 @@ def _get_last_query_infos(
 
 def _check_for_cached_results(
     sql: str,
-    boto3_session: Optional[boto3.Session],
-    workgroup: Optional[str],
-    athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
+    boto3_session: boto3.Session | None,
+    workgroup: str | None,
+    athena_cache_settings: typing.AthenaCacheSettings | None = None,
 ) -> _CacheInfo:
     """
     Check whether `sql` has been run before, within the `max_cache_seconds` window, by the `workgroup`.
@@ -205,9 +207,9 @@ def _check_for_cached_results(
             return _CacheInfo(
                 has_valid_cache=False, query_execution_id=query_execution_id, query_execution_payload=query_info
             )
-        statement_type: Optional[str] = query_info.get("StatementType")
+        statement_type: str | None = query_info.get("StatementType")
         if statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
-            parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(possible_ctas=query_info["Query"])
+            parsed_query: str | None = _parse_select_query_from_possible_ctas(possible_ctas=query_info["Query"])
             if parsed_query is not None:
                 if _compare_query_string(sql=comparable_sql, other=parsed_query):
                     return _CacheInfo(

@@ -1,5 +1,5 @@
 """Ray BlockPathProvider Module."""
-from typing import Optional
+from __future__ import annotations
 
 import pyarrow
 from ray.data.block import Block
@@ -16,11 +16,11 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
         self,
         base_path: str,
         *,
-        filesystem: Optional["pyarrow.fs.FileSystem"] = None,
-        dataset_uuid: Optional[str] = None,
-        block: Optional[Block] = None,
-        block_index: Optional[int] = None,
-        task_index: Optional[int] = None,
-        file_format: Optional[str] = None,
+        filesystem: "pyarrow.fs.FileSystem" | None = None,
+        dataset_uuid: str | None = None,
+        block: Block | None = None,
+        block_index: int | None = None,
+        task_index: int | None = None,
+        file_format: str | None = None,
     ) -> str:
         return base_path

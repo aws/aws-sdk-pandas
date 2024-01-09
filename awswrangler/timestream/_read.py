@@ -1,9 +1,11 @@
 """Amazon Timestream Read Module."""
 
+from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Iterator, Literal, cast
 
 import boto3
 import pandas as pd
@@ -38,8 +40,8 @@ def _cast_value(value: str, dtype: str) -> Any:  # noqa: PLR0911
     raise ValueError(f"Not supported Amazon Timestream type: {dtype}")
 
 
-def _process_row(schema: List[Dict[str, str]], row: "RowTypeDef") -> List[Any]:
-    row_processed: List[Any] = []
+def _process_row(schema: list[dict[str, str]], row: "RowTypeDef") -> list[Any]:
+    row_processed: list[Any] = []
     for col_schema, col in zip(schema, row["Data"]):
         if col.get("NullValue", False):
             row_processed.append(None)
@@ -56,7 +58,7 @@ def _process_row(schema: List[Dict[str, str]], row: "RowTypeDef") -> List[Any]:
 
 
 def _rows_to_df(
-    rows: List[List[Any]], schema: List[Dict[str, str]], df_metadata: Optional[Dict[str, str]] = None
+    rows: list[list[Any]], schema: list[dict[str, str]], df_metadata: dict[str, str] | None = None
 ) -> pd.DataFrame:
     df = pd.DataFrame(data=rows, columns=[c["name"] for c in schema])
     if df_metadata:
@@ -71,8 +73,8 @@ def _rows_to_df(
     return df
 
 
-def _process_schema(page: "QueryResponseTypeDef") -> List[Dict[str, str]]:
-    schema: List[Dict[str, str]] = []
+def _process_schema(page: "QueryResponseTypeDef") -> list[dict[str, str]]:
+    schema: list[dict[str, str]] = []
     for col in page["ColumnInfo"]:
         if "ScalarType" in col["Type"]:
             schema.append({"name": col["Name"], "type": col["Type"]["ScalarType"]})
@@ -86,8 +88,8 @@ def _process_schema(page: "QueryResponseTypeDef") -> List[Dict[str, str]]:
 def _paginate_query(
     sql: str,
     chunked: bool,
-    pagination_config: Optional["PaginatorConfigTypeDef"],
-    boto3_session: Optional[boto3.Session] = None,
+    pagination_config: "PaginatorConfigTypeDef" | None,
+    boto3_session: boto3.Session | None = None,
 ) -> Iterator[pd.DataFrame]:
     client = _utils.client(
         service_name="timestream-query",
@@ -95,8 +97,8 @@ def _paginate_query(
         botocore_config=Config(read_timeout=60, retries={"max_attempts": 10}),
     )
     paginator = client.get_paginator("query")
-    rows: List[List[Any]] = []
-    schema: List[Dict[str, str]] = []
+    rows: list[list[Any]] = []
+    schema: list[dict[str, str]] = []
     page_iterator = paginator.paginate(QueryString=sql, PaginationConfig=pagination_config or {})
     for page in page_iterator:
         if not schema:
@@ -115,7 +117,7 @@ def _paginate_query(
         rows = []
 
 
-def _get_column_names_from_metadata(unload_path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def _get_column_names_from_metadata(unload_path: str, boto3_session: boto3.Session | None = None) -> list[str]:
     client_s3 = _utils.client(service_name="s3", session=boto3_session)
     metadata_path = s3.list_objects(path=unload_path, suffix="_metadata.json", boto3_session=boto3_session)[0]
     bucket, key = _utils.parse_path(metadata_path)
@@ -128,9 +130,9 @@ def _get_column_names_from_metadata(unload_path: str, boto3_session: Optional[bo
 def query(
     sql: str,
     chunked: bool = False,
-    pagination_config: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    pagination_config: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Run a query and retrieve the result as a Pandas DataFrame.
 
     Parameters
@@ -176,20 +178,20 @@ def query(
 def unload(
     sql: str,
     path: str,
-    unload_format: Optional[Literal["CSV", "PARQUET"]] = None,
-    compression: Optional[Literal["GZIP", "NONE"]] = None,
-    partition_cols: Optional[List[str]] = None,
-    encryption: Optional[Literal["SSE_KMS", "SSE_S3"]] = None,
-    kms_key_id: Optional[str] = None,
-    field_delimiter: Optional[str] = ",",
-    escaped_by: Optional[str] = "\\",
-    chunked: Union[bool, int] = False,
+    unload_format: Literal["CSV", "PARQUET"] | None = None,
+    compression: Literal["GZIP", "NONE"] | None = None,
+    partition_cols: list[str] | None = None,
+    encryption: Literal["SSE_KMS", "SSE_S3"] | None = None,
+    kms_key_id: str | None = None,
+    field_delimiter: str | None = ",",
+    escaped_by: str | None = "\\",
+    chunked: bool | int = False,
     keep_files: bool = False,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """
     Unload query results to Amazon S3 and read the results as Pandas Data Frame.
 
@@ -294,7 +296,7 @@ def unload(
     results_path = f"{path}results/"
     try:
         if unload_format == "CSV":
-            column_names: List[str] = _get_column_names_from_metadata(path, boto3_session)
+            column_names: list[str] = _get_column_names_from_metadata(path, boto3_session)
             return s3.read_csv(
                 path=results_path,
                 header=None,
@@ -334,14 +336,14 @@ def unload(
 def unload_to_files(
     sql: str,
     path: str,
-    unload_format: Optional[Literal["CSV", "PARQUET"]] = None,
-    compression: Optional[Literal["GZIP", "NONE"]] = None,
-    partition_cols: Optional[List[str]] = None,
-    encryption: Optional[Literal["SSE_KMS", "SSE_S3"]] = None,
-    kms_key_id: Optional[str] = None,
-    field_delimiter: Optional[str] = ",",
-    escaped_by: Optional[str] = "\\",
-    boto3_session: Optional[boto3.Session] = None,
+    unload_format: Literal["CSV", "PARQUET"] | None = None,
+    compression: Literal["GZIP", "NONE"] | None = None,
+    partition_cols: list[str] | None = None,
+    encryption: Literal["SSE_KMS", "SSE_S3"] | None = None,
+    kms_key_id: str | None = None,
+    field_delimiter: str | None = ",",
+    escaped_by: str | None = "\\",
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """
     Unload query results to Amazon S3.

@@ -1,5 +1,5 @@
 """Internal (private) Data Types Module."""
-from typing import Dict, List, Optional
+from __future__ import annotations
 
 import modin.pandas as pd
 import pyarrow as pa
@@ -10,8 +10,8 @@ from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
 
 
 def pyarrow_types_from_pandas_distributed(
-    df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, index_left: bool = False
-) -> Dict[str, pa.DataType]:
+    df: pd.DataFrame, index: bool, ignore_cols: list[str] | None = None, index_left: bool = False
+) -> dict[str, pa.DataType]:
     """Extract the related Pyarrow data types from a pandas DataFrame."""
     func = ray_remote()(pyarrow_types_from_pandas)
     first_block_object_ref = _ray_dataset_from_df(df).get_internal_block_refs()[0]

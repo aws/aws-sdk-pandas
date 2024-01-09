@@ -1,7 +1,9 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, cast
 
 import boto3
 import numpy as np
@@ -35,7 +37,7 @@ def _simulate_overflow(value: int, bits: int = 31, signed: bool = False) -> int:
     return value - base if signed and value.bit_length() == bits else value
 
 
-def _get_bucket_number(number_of_buckets: int, values: List[Union[str, int, bool]]) -> int:
+def _get_bucket_number(number_of_buckets: int, values: list[str | int | bool]) -> int:
     hash_code = 0
     for value in values:
         hash_code = 31 * hash_code + _get_value_hash(value)
@@ -44,7 +46,7 @@ def _get_bucket_number(number_of_buckets: int, values: List[Union[str, int, bool
     return hash_code % number_of_buckets
 
 
-def _get_value_hash(value: Union[str, int, bool]) -> int:
+def _get_value_hash(value: str | int | bool) -> int:
     if isinstance(value, (int, np.int_)):
         value = int(value)
         bigint_min, bigint_max = -(2**63), 2**63 - 1
@@ -70,24 +72,24 @@ def _get_value_hash(value: Union[str, int, bool]) -> int:
     )
 
 
-def _get_subgroup_prefix(keys: Tuple[str, None], partition_cols: List[str], path_root: str) -> str:
+def _get_subgroup_prefix(keys: tuple[str, None], partition_cols: list[str], path_root: str) -> str:
     subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
     return f"{path_root}{subdir}/"
 
 
 def _delete_objects(
-    keys: Tuple[str, None],
+    keys: tuple[str, None],
     path_root: str,
-    use_threads: Union[bool, int],
+    use_threads: bool | int,
     mode: str,
-    partition_cols: List[str],
-    partitions_types: Optional[Dict[str, str]],
-    catalog_id: Optional[str],
-    database: Optional[str],
-    table: Optional[str],
-    table_type: Optional[str],
-    transaction_id: Optional[str],
-    boto3_session: Optional[boto3.Session] = None,
+    partition_cols: list[str],
+    partitions_types: dict[str, str] | None,
+    catalog_id: str | None,
+    database: str | None,
+    table: str | None,
+    table_type: str | None,
+    transaction_id: str | None,
+    boto3_session: boto3.Session | None = None,
     **func_kwargs: Any,
 ) -> str:
     # Keys are either a primitive type or a tuple if partitioning by multiple cols
@@ -96,7 +98,7 @@ def _delete_objects(
     if mode == "overwrite_partitions":
         if (table_type == "GOVERNED") and (table is not None) and (database is not None):
             transaction_id = cast(str, transaction_id)
-            del_objects: List[Dict[str, Any]] = lakeformation._get_table_objects(
+            del_objects: list[dict[str, Any]] = lakeformation._get_table_objects(
                 catalog_id=catalog_id,
                 database=database,
                 table=table,
@@ -128,24 +130,24 @@ def _delete_objects(
 @engine.dispatch_on_engine
 def _to_partitions(
     df: pd.DataFrame,
-    func: Callable[..., List[str]],
+    func: Callable[..., list[str]],
     concurrent_partitioning: bool,
     path_root: str,
-    use_threads: Union[bool, int],
+    use_threads: bool | int,
     mode: str,
-    partition_cols: List[str],
-    partitions_types: Optional[Dict[str, str]],
-    catalog_id: Optional[str],
-    database: Optional[str],
-    table: Optional[str],
-    table_type: Optional[str],
-    transaction_id: Optional[str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
+    partition_cols: list[str],
+    partitions_types: dict[str, str] | None,
+    catalog_id: str | None,
+    database: str | None,
+    table: str | None,
+    table_type: str | None,
+    transaction_id: str | None,
+    bucketing_info: typing.BucketingInfoTuple | None,
     filename_prefix: str,
-    boto3_session: Optional[boto3.Session],
+    boto3_session: boto3.Session | None,
     **func_kwargs: Any,
-) -> Tuple[List[str], Dict[str, List[str]]]:
-    partitions_values: Dict[str, List[str]] = {}
+) -> tuple[list[str], dict[str, list[str]]]:
+    partitions_values: dict[str, list[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
     s3_client = client(service_name="s3", session=boto3_session)
     for keys, subgroup in df.groupby(by=partition_cols, observed=True):
@@ -198,22 +200,22 @@ def _to_partitions(
                 **func_kwargs,
             )
         partitions_values[prefix] = [str(k) for k in keys]
-    paths: List[str] = proxy.close()  # blocking
+    paths: list[str] = proxy.close()  # blocking
     return paths, partitions_values
 
 
 @engine.dispatch_on_engine
 def _to_buckets(
     df: pd.DataFrame,
-    func: Callable[..., List[str]],
+    func: Callable[..., list[str]],
     path_root: str,
     bucketing_info: typing.BucketingInfoTuple,
     filename_prefix: str,
-    boto3_session: Optional[boto3.Session],
-    use_threads: Union[bool, int],
-    proxy: Optional[_WriteProxy] = None,
+    boto3_session: boto3.Session | None,
+    use_threads: bool | int,
+    proxy: _WriteProxy | None = None,
     **func_kwargs: Any,
-) -> List[str]:
+) -> list[str]:
     _proxy: _WriteProxy = proxy if proxy else _WriteProxy(use_threads=False)
     s3_client = client(service_name="s3", session=boto3_session)
     for bucket_number, subgroup in df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info)):
@@ -228,30 +230,30 @@ def _to_buckets(
         )
     if proxy:
         return []
-    paths: List[str] = _proxy.close()  # blocking
+    paths: list[str] = _proxy.close()  # blocking
     return paths
 
 
 def _to_dataset(
-    func: Callable[..., List[str]],
+    func: Callable[..., list[str]],
     concurrent_partitioning: bool,
     df: pd.DataFrame,
     path_root: str,
     filename_prefix: str,
     index: bool,
-    use_threads: Union[bool, int],
+    use_threads: bool | int,
     mode: str,
-    partition_cols: Optional[List[str]],
-    partitions_types: Optional[Dict[str, str]],
-    catalog_id: Optional[str],
-    database: Optional[str],
-    table: Optional[str],
-    table_type: Optional[str],
-    transaction_id: Optional[str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    boto3_session: Optional[boto3.Session],
+    partition_cols: list[str] | None,
+    partitions_types: dict[str, str] | None,
+    catalog_id: str | None,
+    database: str | None,
+    table: str | None,
+    table_type: str | None,
+    transaction_id: str | None,
+    bucketing_info: typing.BucketingInfoTuple | None,
+    boto3_session: boto3.Session | None,
     **func_kwargs: Any,
-) -> Tuple[List[str], Dict[str, List[str]]]:
+) -> tuple[list[str], dict[str, list[str]]]:
     path_root = path_root if path_root.endswith("/") else f"{path_root}/"
     # Evaluate mode
     if mode not in ["append", "overwrite", "overwrite_partitions"]:
@@ -261,7 +263,7 @@ def _to_dataset(
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
         if (table_type == "GOVERNED") and (table is not None) and (database is not None):
             transaction_id = cast(str, transaction_id)
-            del_objects: List[Dict[str, Any]] = lakeformation._get_table_objects(
+            del_objects: list[dict[str, Any]] = lakeformation._get_table_objects(
                 catalog_id=catalog_id,
                 database=database,
                 table=table,
@@ -281,8 +283,8 @@ def _to_dataset(
             delete_objects(path=path_root, use_threads=use_threads, boto3_session=boto3_session)
 
     # Writing
-    partitions_values: Dict[str, List[str]] = {}
-    paths: List[str]
+    partitions_values: dict[str, list[str]] = {}
+    paths: list[str]
     if partition_cols:
         paths, partitions_values = _to_partitions(
             df,
@@ -330,7 +332,7 @@ def _to_dataset(
     _logger.debug("Wrote %s paths", len(paths))
     _logger.debug("Created partitions_values: %s", partitions_values)
     if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-        list_add_objects: List[List[Dict[str, Any]]] = lakeformation._build_table_objects(
+        list_add_objects: list[list[dict[str, Any]]] = lakeformation._build_table_objects(
             paths, partitions_values, use_threads=use_threads, boto3_session=boto3_session
         )
         try:

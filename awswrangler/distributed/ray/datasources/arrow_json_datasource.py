@@ -1,5 +1,7 @@
 """Ray ArrowCSVDatasource Module."""
-from typing import Any, Dict, Iterator, List, Optional, Union
+from __future__ import annotations
+
+from typing import Any, Iterator
 
 import pyarrow as pa
 from pyarrow import json
@@ -15,13 +17,13 @@ class ArrowJSONDatasource(FileBasedDatasource):
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         dataset: bool,
         path_root: str,
-        version_ids: Optional[Dict[str, str]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
-        arrow_json_args: Optional[Dict[str, Any]] = None,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
+        arrow_json_args: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ):
         super().__init__(paths, **file_based_datasource_kwargs)

@@ -1,8 +1,10 @@
 """Annotations Module."""
 
+from __future__ import annotations
+
 import warnings
 from functools import wraps
-from typing import Any, Callable, Optional, Type, TypeVar, cast
+from typing import Any, Callable, TypeVar, cast
 
 from awswrangler._config import _insert_str, config
 
@@ -18,9 +20,9 @@ class SDKPandasExperimentalWarning(Warning):
 
 
 def _inject_note(
-    doc: Optional[str],
+    doc: str | None,
     message: str,
-) -> Optional[str]:
+) -> str | None:
     token: str = "\n    Parameters"
     if not doc or token not in doc:
         return doc
@@ -30,7 +32,7 @@ def _inject_note(
 
 def warn_message(
     message: str,
-    warning_class: Type[Warning],
+    warning_class: type[Warning],
     stacklevel: int = 2,
 ) -> Callable[[FunctionType], FunctionType]:
     """Decorate functions with this to print warnings."""

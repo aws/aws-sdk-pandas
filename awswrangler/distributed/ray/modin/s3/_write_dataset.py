@@ -1,5 +1,7 @@
 """Modin on Ray S3 write dataset module (PRIVATE)."""
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import Any, Callable, Iterator
 
 import boto3
 import modin.pandas as pd
@@ -14,7 +16,7 @@ from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _delete_objects, _get_bucketing_series, _to_partitions
 
 
-def _retrieve_paths(values: Union[str, List[Any]]) -> Iterator[str]:
+def _retrieve_paths(values: str | list[Any]) -> Iterator[str]:
     if isinstance(values, (list, np.ndarray)):
         for v in values:
             yield from _retrieve_paths(v)
@@ -26,17 +28,17 @@ def _retrieve_paths(values: Union[str, List[Any]]) -> Iterator[str]:
 @modin_repartition
 def _to_buckets_distributed(
     df: pd.DataFrame,
-    func: Callable[..., List[str]],
+    func: Callable[..., list[str]],
     path_root: str,
     bucketing_info: typing.BucketingInfoTuple,
     filename_prefix: str,
-    boto3_session: Optional["boto3.Session"],
-    use_threads: Union[bool, int],
-    proxy: Optional[_WriteProxy] = None,
+    boto3_session: "boto3.Session" | None,
+    use_threads: bool | int,
+    proxy: _WriteProxy | None = None,
     **func_kwargs: Any,
-) -> List[str]:
+) -> list[str]:
     df_groups = df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info))
-    paths: List[str] = []
+    paths: list[str] = []
 
     df_paths = df_groups.apply(
         engine.dispatch_func(func),
@@ -57,20 +59,20 @@ def _to_buckets_distributed(
 
 def _write_partitions_distributed(
     df_group: pd.DataFrame,
-    write_func: Callable[..., List[str]],
+    write_func: Callable[..., list[str]],
     path_root: str,
-    use_threads: Union[bool, int],
+    use_threads: bool | int,
     mode: str,
-    partition_cols: List[str],
-    partitions_types: Optional[Dict[str, str]],
-    catalog_id: Optional[str],
-    database: Optional[str],
-    table: Optional[str],
-    table_type: Optional[str],
-    transaction_id: Optional[str],
+    partition_cols: list[str],
+    partitions_types: dict[str, str] | None,
+    catalog_id: str | None,
+    database: str | None,
+    table: str | None,
+    table_type: str | None,
+    transaction_id: str | None,
     filename_prefix: str,
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    boto3_session: Optional["boto3.Session"] = None,
+    bucketing_info: typing.BucketingInfoTuple | None,
+    boto3_session: "boto3.Session" | None = None,
     **func_kwargs: Any,
 ) -> pd.DataFrame:
     prefix = _delete_objects(
@@ -115,25 +117,25 @@ def _write_partitions_distributed(
 @modin_repartition
 def _to_partitions_distributed(
     df: pd.DataFrame,
-    func: Callable[..., List[str]],
+    func: Callable[..., list[str]],
     concurrent_partitioning: bool,
     path_root: str,
-    use_threads: Union[bool, int],
+    use_threads: bool | int,
     mode: str,
-    partition_cols: List[str],
-    partitions_types: Optional[Dict[str, str]],
-    catalog_id: Optional[str],
-    database: Optional[str],
-    table: Optional[str],
-    table_type: Optional[str],
-    transaction_id: Optional[str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
+    partition_cols: list[str],
+    partitions_types: dict[str, str] | None,
+    catalog_id: str | None,
+    database: str | None,
+    table: str | None,
+    table_type: str | None,
+    transaction_id: str | None,
+    bucketing_info: typing.BucketingInfoTuple | None,
     filename_prefix: str,
-    boto3_session: Optional["boto3.Session"],
+    boto3_session: "boto3.Session" | None,
     **func_kwargs: Any,
-) -> Tuple[List[str], Dict[str, List[str]]]:
-    paths: List[str]
-    partitions_values: Dict[str, List[str]]
+) -> tuple[list[str], dict[str, list[str]]]:
+    paths: list[str]
+    partitions_values: dict[str, list[str]]
 
     if not bucketing_info:
         # If only partitioning (without bucketing), avoid expensive modin groupby
@@ -142,7 +144,7 @@ def _to_partitions_distributed(
         func = engine.dispatch_func(func, "python")
 
         @ray_remote()
-        def write_partitions(df: pd.DataFrame, block_index: int) -> Tuple[List[str], Dict[str, List[str]]]:
+        def write_partitions(df: pd.DataFrame, block_index: int) -> tuple[list[str], dict[str, list[str]]]:
             paths, partitions_values = _to_partitions_func(
                 # Passing a copy of the data frame because data in ray object store is immutable
                 # and that leads to "ValueError: buffer source array is read-only" during df.groupby()

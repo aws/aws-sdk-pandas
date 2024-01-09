@@ -1,8 +1,10 @@
 """Ray Executor Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 import ray
 import ray.actor
@@ -19,7 +21,7 @@ MapOutputType = TypeVar("MapOutputType")
 
 
 class _RayExecutor(_BaseExecutor):
-    def map(self, func: Callable[..., MapOutputType], _: Optional["BaseClient"], *args: Any) -> List[MapOutputType]:
+    def map(self, func: Callable[..., MapOutputType], _: "BaseClient" | None, *args: Any) -> list[MapOutputType]:
         """Map func and return ray futures."""
         _logger.debug("Ray map: %s", func)
         # Discard boto3 client
@@ -39,7 +41,7 @@ class _RayMaxConcurrencyExecutor(_BaseExecutor):
         _logger.debug("Initializing Ray Actor with maximum concurrency %d", max_concurrency)
         self._actor: ray.actor.ActorHandle = AsyncActor.options(max_concurrency=max_concurrency).remote()  # type: ignore[attr-defined]
 
-    def map(self, func: Callable[..., MapOutputType], _: Optional["BaseClient"], *args: Any) -> List[MapOutputType]:
+    def map(self, func: Callable[..., MapOutputType], _: "BaseClient" | None, *args: Any) -> list[MapOutputType]:
         """Map func and return ray futures."""
         _logger.debug("Ray map: %s", func)
 
@@ -50,7 +52,7 @@ class _RayMaxConcurrencyExecutor(_BaseExecutor):
         return [self._actor.run_concurrent.remote(func_python, *arg) for arg in zip(*iterables)]
 
 
-def _get_ray_executor(use_threads: Union[bool, int], **kwargs: Any) -> _BaseExecutor:
+def _get_ray_executor(use_threads: bool | int, **kwargs: Any) -> _BaseExecutor:
     # We want the _RayMaxConcurrencyExecutor only to be used when the `parallelism` parameter is specified
-    parallelism: Optional[int] = kwargs.get("ray_parallelism")
+    parallelism: int | None = kwargs.get("ray_parallelism")
     return _RayMaxConcurrencyExecutor(parallelism) if parallelism else _RayExecutor()

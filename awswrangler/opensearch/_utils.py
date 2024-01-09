@@ -1,11 +1,13 @@
 # mypy: disable-error-code=name-defined
 """Amazon OpenSearch Utils Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import json
 import logging
 import re
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Sequence, cast
 
 import boto3
 import botocore
@@ -36,7 +38,7 @@ if TYPE_CHECKING:
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_CREATE_COLLECTION_FINAL_STATUSES: List[str] = ["ACTIVE", "FAILED"]
+_CREATE_COLLECTION_FINAL_STATUSES: list[str] = ["ACTIVE", "FAILED"]
 _CREATE_COLLECTION_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 
@@ -72,12 +74,12 @@ def _strip_endpoint(endpoint: str) -> str:
     return uri_schema.sub("", endpoint).strip().strip("/")
 
 
-def _is_https(port: Optional[int]) -> bool:
+def _is_https(port: int | None) -> bool:
     return port == 443
 
 
-def _get_default_encryption_policy(collection_name: str, kms_key_arn: Optional[str]) -> Dict[str, Any]:
-    policy: Dict[str, Any] = {
+def _get_default_encryption_policy(collection_name: str, kms_key_arn: str | None) -> dict[str, Any]:
+    policy: dict[str, Any] = {
         "Rules": [
             {
                 "ResourceType": "collection",
@@ -94,8 +96,8 @@ def _get_default_encryption_policy(collection_name: str, kms_key_arn: Optional[s
     return policy
 
 
-def _get_default_network_policy(collection_name: str, vpc_endpoints: Optional[List[str]]) -> List[Dict[str, Any]]:
-    policy: List[Dict[str, Any]] = [
+def _get_default_network_policy(collection_name: str, vpc_endpoints: list[str] | None) -> list[dict[str, Any]]:
+    policy: list[dict[str, Any]] = [
         {
             "Rules": [
                 {
@@ -123,7 +125,7 @@ def _get_default_network_policy(collection_name: str, vpc_endpoints: Optional[Li
 
 def _create_security_policy(
     collection_name: str,
-    policy: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
+    policy: dict[str, Any] | list[dict[str, Any]] | None,
     policy_type: "SecurityPolicyTypeType",
     client: "OpenSearchServiceServerlessClient",
     **kwargs: Any,
@@ -152,7 +154,7 @@ def _create_security_policy(
 
 
 def _create_data_policy(
-    collection_name: str, policy: List[Dict[str, Any]], client: "OpenSearchServiceServerlessClient"
+    collection_name: str, policy: list[dict[str, Any]], client: "OpenSearchServiceServerlessClient"
 ) -> None:
     try:
         client.create_access_policy(
@@ -185,16 +187,16 @@ def _build_aws4_auth(
 @_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def connect(
     host: str,
-    port: Optional[int] = 443,
-    boto3_session: Optional[boto3.Session] = None,
-    region: Optional[str] = None,
-    username: Optional[str] = None,
-    password: Optional[str] = None,
-    service: Optional[str] = None,
+    port: int | None = 443,
+    boto3_session: boto3.Session | None = None,
+    region: str | None = None,
+    username: str | None = None,
+    password: str | None = None,
+    service: str | None = None,
     timeout: int = 30,
     max_retries: int = 5,
     retry_on_timeout: bool = True,
-    retry_on_status: Optional[Sequence[int]] = None,
+    retry_on_status: Sequence[int] | None = None,
 ) -> "opensearchpy.OpenSearch":
     """Create a secure connection to the specified Amazon OpenSearch domain.
 
@@ -289,13 +291,13 @@ def create_collection(
     name: str,
     collection_type: str = "SEARCH",
     description: str = "",
-    encryption_policy: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
-    kms_key_arn: Optional[str] = None,
-    network_policy: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
-    vpc_endpoints: Optional[List[str]] = None,
-    data_policy: Optional[List[Dict[str, Any]]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    encryption_policy: dict[str, Any] | list[dict[str, Any]] | None = None,
+    kms_key_arn: str | None = None,
+    network_policy: dict[str, Any] | list[dict[str, Any]] | None = None,
+    vpc_endpoints: list[str] | None = None,
+    data_policy: list[dict[str, Any]] | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """Create Amazon OpenSearch Serverless collection.
 
     Creates Amazon OpenSearch Serverless collection, corresponding encryption and network
@@ -366,8 +368,8 @@ def create_collection(
             description=description,
         )
         # Wait for the collection to become active
-        status: Optional[str] = None
-        response: Optional["BatchGetCollectionResponseTypeDef"] = None
+        status: str | None = None
+        response: "BatchGetCollectionResponseTypeDef" | None = None
         while status not in _CREATE_COLLECTION_FINAL_STATUSES:
             time.sleep(_CREATE_COLLECTION_WAIT_POLLING_DELAY)
             response = client.batch_get_collection(names=[name])

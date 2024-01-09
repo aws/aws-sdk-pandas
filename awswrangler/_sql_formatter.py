@@ -1,9 +1,11 @@
 """Formatting logic for SQL parameters."""
+from __future__ import annotations
+
 import datetime
 import decimal
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Optional, Sequence, Type
+from typing import Any, Callable, Sequence
 
 from typing_extensions import Literal
 
@@ -47,7 +49,7 @@ class _Engine(ABC):
     def format_array(self, value: Sequence[Any]) -> str:
         return f"ARRAY [{', '.join(map(self.format, value))}]"
 
-    def format_dict(self, value: Dict[Any, Any]) -> str:
+    def format_dict(self, value: dict[Any, Any]) -> str:
         if not value:
             return "MAP()"
 
@@ -65,7 +67,7 @@ class _Engine(ABC):
         )
 
     def format(self, data: Any) -> str:
-        formats_dict: Dict[Type[Any], Callable[[Any], str]] = {
+        formats_dict: dict[type[Any], Callable[[Any], str]] = {
             bool: self.format_bool,
             str: self.format_string,
             int: self.format_integer,
@@ -139,11 +141,11 @@ class _PartiQLEngine(_Engine):
     def format_array(self, value: Sequence[Any]) -> str:
         raise NotImplementedError(f"format_array not implemented for engine={self.engine_name}.")
 
-    def format_dict(self, value: Dict[Any, Any]) -> str:
+    def format_dict(self, value: dict[Any, Any]) -> str:
         raise NotImplementedError(f"format_dict not implemented for engine={self.engine_name}.")
 
 
-def _format_parameters(params: Dict[str, Any], engine: _Engine) -> Dict[str, Any]:
+def _format_parameters(params: dict[str, Any], engine: _Engine) -> dict[str, Any]:
     processed_params = {}
 
     for k, v in params.items():
@@ -168,7 +170,7 @@ def _create_engine(engine_type: _EngineTypeLiteral) -> _Engine:
     raise exceptions.InvalidArgumentValue(f"Unknown engine type: {engine_type}")
 
 
-def _process_sql_params(sql: str, params: Optional[Dict[str, Any]], engine_type: _EngineTypeLiteral = "presto") -> str:
+def _process_sql_params(sql: str, params: dict[str, Any] | None, engine_type: _EngineTypeLiteral = "presto") -> str:
     if params is None:
         params = {}
 

@@ -1,9 +1,11 @@
 # mypy: disable-error-code=name-defined
 """Amazon NeptuneClient Module."""
 
+from __future__ import annotations
+
 import json
 import logging
-from typing import Any, Dict, List, Optional, TypedDict, Union, cast
+from typing import Any, TypedDict, cast
 
 import boto3
 from botocore.auth import SigV4Auth
@@ -60,8 +62,8 @@ class NeptuneClient:
         host: str,
         port: int = DEFAULT_PORT,
         iam_enabled: bool = False,
-        boto3_session: Optional[boto3.Session] = None,
-        region: Optional[str] = None,
+        boto3_session: boto3.Session | None = None,
+        region: str | None = None,
     ):
         self.host = host
         self.port = port
@@ -81,13 +83,13 @@ class NeptuneClient:
 
     def __get_region_from_session(self) -> str:
         """Extract region from session."""
-        region: Optional[str] = self.boto3_session.region_name
+        region: str | None = self.boto3_session.region_name
         if region is not None:
             return region
         raise exceptions.InvalidArgument("There is no region_name defined on boto3, please configure it.")
 
     @staticmethod
-    def __ensure_session(session: Optional[boto3.Session] = None) -> boto3.Session:
+    def __ensure_session(session: boto3.Session | None = None) -> boto3.Session:
         """Ensure that a valid boto3.Session will be returned."""
         if session is not None:
             return session
@@ -124,7 +126,7 @@ class NeptuneClient:
         params: Any = None,
         headers: Any = None,
         service: str = NEPTUNE_SERVICE_NAME,
-    ) -> Union[AWSRequest, AWSPreparedRequest]:
+    ) -> AWSRequest | AWSPreparedRequest:
         req = AWSRequest(method=method, url=url, data=data, params=params, headers=headers)
         if self.iam_enabled:
             credentials: Credentials = self.boto3_session.get_credentials()  # type: ignore[assignment]
@@ -177,7 +179,7 @@ class NeptuneClient:
             return res.json()["results"]
         raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
-    def read_gremlin(self, query: str, headers: Any = None) -> List[Dict[str, Any]]:
+    def read_gremlin(self, query: str, headers: Any = None) -> list[dict[str, Any]]:
         """Execute the provided Gremlin traversal and returns the results.
 
         Parameters
@@ -208,7 +210,7 @@ class NeptuneClient:
         _logger.debug(res)
         return True
 
-    def _execute_gremlin(self, query: str, headers: Any = None) -> List[Dict[str, Any]]:
+    def _execute_gremlin(self, query: str, headers: Any = None) -> list[dict[str, Any]]:
         try:
             c = self._get_gremlin_connection(headers)
             result = c.submit(query)
@@ -312,10 +314,10 @@ class NeptuneClient:
         parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
         mode: Literal["RESUME", "NEW", "AUTO"] = "AUTO",
         format: str = "csv",
-        parser_configuration: Optional[BulkLoadParserConfiguration] = None,
+        parser_configuration: BulkLoadParserConfiguration | None = None,
         update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
         queue_request: Literal["TRUE", "FALSE"] = "FALSE",
-        dependencies: Optional[List[str]] = None,
+        dependencies: list[str] | None = None,
     ) -> str:
         """
         Start the Neptune Loader command for loading CSV data from external files on S3 into a Neptune DB cluster.
@@ -362,7 +364,7 @@ class NeptuneClient:
         str
             ID of the load job
         """
-        data: Dict[str, Any] = {
+        data: dict[str, Any] = {
             "source": s3_path,
             "format": format,
             "iamRoleArn": role_arn,

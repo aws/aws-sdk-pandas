@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import time
 import uuid
-from typing import Any, Dict, Iterable
+from typing import Any, Iterable
 
 import boto3
 import pytest
@@ -9,17 +11,17 @@ from .._utils import ExecutionTimer
 
 
 @pytest.fixture(scope="session")
-def wrangler_zip_location(cloudformation_outputs: Dict[str, str]) -> str:
+def wrangler_zip_location(cloudformation_outputs: dict[str, str]) -> str:
     return cloudformation_outputs["AWSSDKforpandasZIPLocation"]
 
 
 @pytest.fixture(scope="session")
-def glue_job_role_arn(cloudformation_outputs: Dict[str, str]) -> str:
+def glue_job_role_arn(cloudformation_outputs: dict[str, str]) -> str:
     return cloudformation_outputs["GlueJobRoleArn"]
 
 
 @pytest.fixture(scope="session")
-def glue_ray_athena_workgroup_name(cloudformation_outputs: Dict[str, str]) -> str:
+def glue_ray_athena_workgroup_name(cloudformation_outputs: dict[str, str]) -> str:
     return cloudformation_outputs["GlueRayAthenaWorkgroupName"]
 
 
@@ -69,7 +71,7 @@ def glue_job(
     glue_client.delete_job(JobName=glue_job_name)
 
 
-def run_glue_job_get_status(job_name: str, arguments: Dict[str, str] = {}, num_workers: int = 2) -> str:
+def run_glue_job_get_status(job_name: str, arguments: dict[str, str] = {}, num_workers: int = 2) -> str:
     session = boto3.session.Session()
     glue_client = session.client("glue")
     job_run_id = glue_client.start_job_run(

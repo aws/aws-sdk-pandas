@@ -1,5 +1,7 @@
 """Modin on Ray S3 read parquet module (PRIVATE)."""
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import modin.pandas as pd
 import pyarrow as pa
@@ -13,7 +15,7 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 
-def _resolve_datasource_parameters(bulk_read: bool, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+def _resolve_datasource_parameters(bulk_read: bool, *args: Any, **kwargs: Any) -> dict[str, Any]:
     if bulk_read:
         return {
             "datasource": ArrowParquetBaseDatasource(*args, **kwargs),
@@ -25,17 +27,17 @@ def _resolve_datasource_parameters(bulk_read: bool, *args: Any, **kwargs: Any) -
 
 
 def _read_parquet_distributed(
-    paths: List[str],
-    path_root: Optional[str],
-    schema: Optional[pa.schema],
-    columns: Optional[List[str]],
-    coerce_int96_timestamp_unit: Optional[str],
-    use_threads: Union[bool, int],
+    paths: list[str],
+    path_root: str | None,
+    schema: pa.schema | None,
+    columns: list[str] | None,
+    coerce_int96_timestamp_unit: str | None,
+    use_threads: bool | int,
     parallelism: int,
-    version_ids: Optional[Dict[str, str]],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    arrow_kwargs: Dict[str, Any],
+    version_ids: dict[str, str] | None,
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    arrow_kwargs: dict[str, Any],
     bulk_read: bool,
 ) -> pd.DataFrame:
     dataset_kwargs = {}

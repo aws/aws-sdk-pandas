@@ -1,8 +1,10 @@
 """Ray S3 List module (PRIVATE)."""
+from __future__ import annotations
+
 import datetime
 import fnmatch
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterator
 
 from pyarrow.fs import FileSelector, FileType, _resolve_filesystem_and_path
 
@@ -17,17 +19,17 @@ def _list_objects_s3fs(
     pattern: str,
     prefix: str,
     s3_client: "S3Client",
-    delimiter: Optional[str],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    suffix: Union[List[str], None],
-    ignore_suffix: Union[List[str], None],
-    last_modified_begin: Optional[datetime.datetime],
-    last_modified_end: Optional[datetime.datetime],
+    delimiter: str | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    suffix: list[str] | None,
+    ignore_suffix: list[str] | None,
+    last_modified_begin: datetime.datetime | None,
+    last_modified_end: datetime.datetime | None,
     ignore_empty: bool,
-) -> Iterator[List[str]]:
+) -> Iterator[list[str]]:
     """Expand the provided S3 directory path to a list of object paths."""
     resolved_filesystem, resolved_path = _resolve_filesystem_and_path(f"s3://{bucket}/{prefix}", None)
-    paths: List[str] = []
+    paths: list[str] = []
 
     path_info = resolved_filesystem.get_file_info(resolved_path)
 

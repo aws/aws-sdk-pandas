@@ -1,7 +1,9 @@
 """Amazon QuickSight Describe Module."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional, cast
+from typing import Any, cast
 
 import boto3
 
@@ -12,11 +14,11 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def describe_dashboard(
-    name: Optional[str] = None,
-    dashboard_id: Optional[str] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    name: str | None = None,
+    dashboard_id: str | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """Describe a QuickSight dashboard by name or ID.
 
     Note
@@ -59,11 +61,11 @@ def describe_dashboard(
 
 
 def describe_data_source(
-    name: Optional[str] = None,
-    data_source_id: Optional[str] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    name: str | None = None,
+    data_source_id: str | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """Describe a QuickSight data source by name or ID.
 
     Note
@@ -106,11 +108,11 @@ def describe_data_source(
 
 
 def describe_data_source_permissions(
-    name: Optional[str] = None,
-    data_source_id: Optional[str] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    name: str | None = None,
+    data_source_id: str | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """Describe a QuickSight data source permissions by name or ID.
 
     Note
@@ -153,11 +155,11 @@ def describe_data_source_permissions(
 
 
 def describe_dataset(
-    name: Optional[str] = None,
-    dataset_id: Optional[str] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    name: str | None = None,
+    dataset_id: str | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """Describe a QuickSight dataset by name or ID.
 
     Note
@@ -201,11 +203,11 @@ def describe_dataset(
 
 def describe_ingestion(
     ingestion_id: str,
-    dataset_name: Optional[str] = None,
-    dataset_id: Optional[str] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    dataset_name: str | None = None,
+    dataset_id: str | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """Describe a QuickSight ingestion by ID.
 
     Note

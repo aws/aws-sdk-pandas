@@ -1,9 +1,11 @@
 # mypy: disable-error-code=name-defined
 """Amazon MySQL Module."""
 
+from __future__ import annotations
+
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Literal, Optional, Tuple, Type, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Iterator, Literal, cast, overload
 
 import boto3
 import pyarrow as pa
@@ -37,14 +39,14 @@ def _validate_connection(con: "Connection[Any]") -> None:
         )
 
 
-def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "Cursor", schema: str | None, table: str) -> None:
     schema_str = f"{identifier(schema)}." if schema else ""
     sql = f"DROP TABLE IF EXISTS {schema_str}{identifier(table)}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: "Cursor", schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "Cursor", schema: str | None, table: str) -> bool:
     if schema:
         cursor.execute(
             "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s", args=[schema, table]
@@ -61,14 +63,14 @@ def _create_table(
     schema: str,
     mode: str,
     index: bool,
-    dtype: Optional[Dict[str, str]],
-    varchar_lengths: Optional[Dict[str, int]],
+    dtype: dict[str, str] | None,
+    varchar_lengths: dict[str, int] | None,
 ) -> None:
     if mode == "overwrite":
         _drop_table(cursor=cursor, schema=schema, table=table)
     elif _does_table_exist(cursor=cursor, schema=schema, table=table):
         return
-    mysql_types: Dict[str, str] = _data_types.database_types_from_pandas(
+    mysql_types: dict[str, str] = _data_types.database_types_from_pandas(
         df=df,
         index=index,
         dtype=dtype,
@@ -84,15 +86,15 @@ def _create_table(
 
 @_utils.check_optional_dependency(pymysql, "pymysql")
 def connect(
-    connection: Optional[str] = None,
-    secret_id: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    dbname: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    read_timeout: Optional[int] = None,
-    write_timeout: Optional[int] = None,
+    connection: str | None = None,
+    secret_id: str | None = None,
+    catalog_id: str | None = None,
+    dbname: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    read_timeout: int | None = None,
+    write_timeout: int | None = None,
     connect_timeout: int = 10,
-    cursorclass: Optional[Type["pymysql.cursors.Cursor"]] = None,
+    cursorclass: type["pymysql.cursors.Cursor"] | None = None,
 ) -> "pymysql.connections.Connection[Any]":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
@@ -123,23 +125,23 @@ def connect(
 
     Parameters
     ----------
-    connection : str
+    connection: str
         Glue Catalog Connection name.
-    secret_id: Optional[str]:
+    secret_id: str, optional
         Specifies the secret containing the connection details that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
-    catalog_id : str, optional
+    catalog_id: str, optional
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
-    dbname: Optional[str]
+    dbname: str, optional
         Optional database name to overwrite the stored one.
-    boto3_session : boto3.Session(), optional
+    boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    read_timeout: Optional[int]
+    read_timeout: int, optional
         The timeout for reading from the connection in seconds (default: None - no timeout).
         This parameter is forward to pymysql.
         https://pymysql.readthedocs.io/en/latest/modules/connections.html
-    write_timeout: Optional[int]
+    write_timeout: int, optional
         The timeout for writing to the connection in seconds (default: None - no timeout)
         This parameter is forward to pymysql.
         https://pymysql.readthedocs.io/en/latest/modules/connections.html
@@ -190,10 +192,10 @@ def connect(
 def read_sql_query(
     sql: str,
     con: "pymysql.connections.Connection[Any]",
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -206,10 +208,10 @@ def read_sql_query(
     sql: str,
     con: "pymysql.connections.Connection[Any]",
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -222,14 +224,14 @@ def read_sql_query(
     sql: str,
     con: "pymysql.connections.Connection[Any]",
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
+    chunksize: int | None,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ...
 
 
@@ -237,14 +239,14 @@ def read_sql_query(
 def read_sql_query(
     sql: str,
     con: "pymysql.connections.Connection[Any]",
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Return a DataFrame corresponding to the result set of the query string.
 
     Parameters
@@ -312,11 +314,11 @@ def read_sql_query(
 def read_sql_table(
     table: str,
     con: "pymysql.connections.Connection[Any]",
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -329,11 +331,11 @@ def read_sql_table(
     table: str,
     con: "pymysql.connections.Connection[Any]",
     *,
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -346,15 +348,15 @@ def read_sql_table(
     table: str,
     con: "pymysql.connections.Connection[Any]",
     *,
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
+    chunksize: int | None,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ...
 
 
@@ -362,15 +364,15 @@ def read_sql_table(
 def read_sql_table(
     table: str,
     con: "pymysql.connections.Connection[Any]",
-    schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    schema: str | None = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Return a DataFrame corresponding the table.
 
     Parameters
@@ -456,11 +458,11 @@ def to_sql(
     schema: str,
     mode: _ToSqlModeLiteral = "append",
     index: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
-    varchar_lengths: Optional[Dict[str, int]] = None,
+    dtype: dict[str, str] | None = None,
+    varchar_lengths: dict[str, int] | None = None,
     use_column_names: bool = False,
     chunksize: int = 200,
-    cursorclass: Optional[Type["pymysql.cursors.Cursor"]] = None,
+    cursorclass: type["pymysql.cursors.Cursor"] | None = None,
 ) -> None:
     """Write records stored in a DataFrame into MySQL.
 

@@ -1,7 +1,9 @@
 """Redshift Data API Connector."""
+from __future__ import annotations
+
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import boto3
 
@@ -57,7 +59,7 @@ class RedshiftDataApi(_connector.DataApiConnector):
         sleep: float = 0.25,
         backoff: float = 1.5,
         retries: int = 15,
-        boto3_session: Optional[boto3.Session] = None,
+        boto3_session: boto3.Session | None = None,
     ) -> None:
         super().__init__()
 
@@ -74,7 +76,7 @@ class RedshiftDataApi(_connector.DataApiConnector):
         """Close underlying endpoint connections."""
         self.client.close()
 
-    def begin_transaction(self, database: Optional[str] = None, schema: Optional[str] = None) -> str:
+    def begin_transaction(self, database: str | None = None, schema: str | None = None) -> str:
         """Start an SQL transaction."""
         raise NotImplementedError("Redshift Data API does not support transactions.")
 
@@ -103,9 +105,9 @@ class RedshiftDataApi(_connector.DataApiConnector):
     def _execute_statement(
         self,
         sql: str,
-        database: Optional[str] = None,
-        transaction_id: Optional[str] = None,
-        parameters: Optional[List[Dict[str, Any]]] = None,
+        database: str | None = None,
+        transaction_id: str | None = None,
+        parameters: list[dict[str, Any]] | None = None,
     ) -> str:
         if transaction_id:
             exceptions.InvalidArgument("`transaction_id` not supported for Redshift Data API")
@@ -138,10 +140,10 @@ class RedshiftDataApi(_connector.DataApiConnector):
 
     def _batch_execute_statement(
         self,
-        sql: Union[str, List[str]],
-        database: Optional[str] = None,
-        transaction_id: Optional[str] = None,
-        parameter_sets: Optional[List[List[Dict[str, Any]]]] = None,
+        sql: str | list[str],
+        database: str | None = None,
+        transaction_id: str | None = None,
+        parameter_sets: list[list[dict[str, Any]]] | None = None,
     ) -> str:
         raise NotImplementedError("Batch execute statement not support for Redshift Data API.")
 
@@ -154,18 +156,18 @@ class RedshiftDataApi(_connector.DataApiConnector):
         paginator = self.client.get_paginator("get_statement_result")
         response_iterator = paginator.paginate(Id=request_id)
 
-        rows: List[List[Any]] = []
-        column_metadata: List["ColumnMetadataTypeDef"]
+        rows: list[list[Any]] = []
+        column_metadata: list["ColumnMetadataTypeDef"]
         for response in response_iterator:
             column_metadata = response["ColumnMetadata"]
             for record in response["Records"]:
-                row: List[Any] = [
+                row: list[Any] = [
                     _connector.DataApiConnector._get_column_value(column)  # type: ignore[arg-type]
                     for column in record
                 ]
                 rows.append(row)
 
-        column_names: List[str] = [column["name"] for column in column_metadata]
+        column_names: list[str] = [column["name"] for column in column_metadata]
         dataframe = pd.DataFrame(rows, columns=column_names)
         return dataframe
 
@@ -240,7 +242,7 @@ def connect(
     workgroup_name: str = "",
     secret_arn: str = "",
     db_user: str = "",
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
     **kwargs: Any,
 ) -> RedshiftDataApi:
     """Create a Redshift Data API connection.
@@ -282,7 +284,7 @@ def connect(
     )
 
 
-def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = None) -> pd.DataFrame:
+def read_sql_query(sql: str, con: RedshiftDataApi, database: str | None = None) -> pd.DataFrame:
     """Run an SQL query on a RedshiftDataApi connection and return the result as a DataFrame.
 
     Parameters

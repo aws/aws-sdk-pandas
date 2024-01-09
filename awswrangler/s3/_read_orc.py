@@ -1,5 +1,7 @@
 """Amazon S3 Read ORC Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import datetime
 import itertools
 import logging
@@ -7,10 +9,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
-    List,
-    Optional,
-    Union,
 )
 
 import boto3
@@ -61,11 +59,11 @@ def _pyarrow_orc_file_wrapper(source: Any) -> "ORCFile":
 
 @engine.dispatch_on_engine
 def _read_orc_metadata_file(
-    s3_client: Optional["S3Client"],
+    s3_client: "S3Client" | None,
     path: str,
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    version_id: Optional[str] = None,
+    s3_additional_kwargs: dict[str, str] | None,
+    use_threads: bool | int,
+    version_id: str | None = None,
 ) -> pa.schema:
     with open_s3_object(
         path=path,
@@ -76,7 +74,7 @@ def _read_orc_metadata_file(
         s3_block_size=METADATA_READ_S3_BLOCK_SIZE,
         s3_additional_kwargs=s3_additional_kwargs,
     ) as f:
-        orc_file: Optional["ORCFile"] = _pyarrow_orc_file_wrapper(source=f)
+        orc_file: "ORCFile" | None = _pyarrow_orc_file_wrapper(source=f)
         if orc_file:
             return orc_file.schema
         return None
@@ -85,12 +83,12 @@ def _read_orc_metadata_file(
 class _ORCTableMetadataReader(_TableMetadataReader):
     def _read_metadata_file(
         self,
-        s3_client: Optional["S3Client"],
+        s3_client: "S3Client" | None,
         path: str,
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        use_threads: Union[bool, int],
-        version_id: Optional[str] = None,
-        coerce_int96_timestamp_unit: Optional[str] = None,
+        s3_additional_kwargs: dict[str, str] | None,
+        use_threads: bool | int,
+        version_id: str | None = None,
+        coerce_int96_timestamp_unit: str | None = None,
     ) -> pa.schema:
         return _read_orc_metadata_file(
             s3_client=s3_client,
@@ -102,13 +100,13 @@ class _ORCTableMetadataReader(_TableMetadataReader):
 
 
 def _read_orc_file(
-    s3_client: Optional["S3Client"],
+    s3_client: "S3Client" | None,
     path: str,
-    path_root: Optional[str],
-    columns: Optional[List[str]],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    version_id: Optional[str] = None,
+    path_root: str | None,
+    columns: list[str] | None,
+    s3_additional_kwargs: dict[str, str] | None,
+    use_threads: bool | int,
+    version_id: str | None = None,
 ) -> pa.Table:
     s3_block_size: int = FULL_READ_S3_BLOCK_SIZE if columns else -1  # One shot for a full read or see constant
     with open_s3_object(
@@ -120,7 +118,7 @@ def _read_orc_file(
         s3_additional_kwargs=s3_additional_kwargs,
         s3_client=s3_client,
     ) as f:
-        orc_file: Optional["ORCFile"] = _pyarrow_orc_file_wrapper(
+        orc_file: "ORCFile" | None = _pyarrow_orc_file_wrapper(
             source=f,
         )
         if orc_file is None:
@@ -134,16 +132,16 @@ def _read_orc_file(
 
 @engine.dispatch_on_engine
 def _read_orc(
-    paths: List[str],
-    path_root: Optional[str],
-    schema: Optional[pa.schema],
-    columns: Optional[List[str]],
-    use_threads: Union[bool, int],
+    paths: list[str],
+    path_root: str | None,
+    schema: pa.schema | None,
+    columns: list[str] | None,
+    use_threads: bool | int,
     parallelism: int,
-    version_ids: Optional[Dict[str, str]],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    arrow_kwargs: Dict[str, Any],
+    version_ids: dict[str, str] | None,
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    arrow_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     tables = executor.map(
@@ -164,24 +162,24 @@ def _read_orc(
 )
 @apply_configs
 def read_orc(
-    path: Union[str, List[str]],
-    path_root: Optional[str] = None,
+    path: str | list[str],
+    path_root: str | None = None,
     dataset: bool = False,
-    path_suffix: Union[str, List[str], None] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
+    path_suffix: str | list[str] | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
     ignore_empty: bool = True,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    columns: Optional[List[str]] = None,
+    partition_filter: Callable[[dict[str, str]], bool] | None = None,
+    columns: list[str] | None = None,
     validate_schema: bool = False,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
+    version_id: str | dict[str, str] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    use_threads: Union[bool, int] = True,
-    ray_args: Optional[RaySettings] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    use_threads: bool | int = True,
+    ray_args: RaySettings | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Read ORC file(s) from an S3 prefix or list of S3 objects paths.
 
@@ -254,7 +252,7 @@ def read_orc(
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forward to S3 botocore requests.
     pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
@@ -288,7 +286,7 @@ def read_orc(
     ray_args = ray_args if ray_args else {}
 
     s3_client = _utils.client(service_name="s3", session=boto3_session)
-    paths: List[str] = _path2list(
+    paths: list[str] = _path2list(
         path=path,
         s3_client=s3_client,
         suffix=path_suffix,
@@ -308,7 +306,7 @@ def read_orc(
     version_ids = _check_version_id(paths=paths, version_id=version_id)
 
     # Create PyArrow schema based on file metadata, columns filter, and partitions
-    schema: Optional[pa.schema] = None
+    schema: pa.schema | None = None
     if validate_schema:
         metadata_reader = _ORCTableMetadataReader()
         schema = metadata_reader.validate_schemas(
@@ -347,18 +345,18 @@ def read_orc(
 def read_orc_table(
     table: str,
     database: str,
-    filename_suffix: Union[str, List[str], None] = None,
-    filename_ignore_suffix: Union[str, List[str], None] = None,
-    catalog_id: Optional[str] = None,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    columns: Optional[List[str]] = None,
+    filename_suffix: str | list[str] | None = None,
+    filename_ignore_suffix: str | list[str] | None = None,
+    catalog_id: str | None = None,
+    partition_filter: Callable[[dict[str, str]], bool] | None = None,
+    columns: list[str] | None = None,
     validate_schema: bool = True,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    use_threads: Union[bool, int] = True,
-    ray_args: Optional[RaySettings] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    use_threads: bool | int = True,
+    ray_args: RaySettings | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Read Apache ORC table registered in the AWS Glue Catalog.
 
@@ -407,7 +405,7 @@ def read_orc_table(
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forward to S3 botocore requests.
     pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
@@ -433,8 +431,8 @@ def read_orc_table(
     >>> df = wr.s3.read_orc_table(path, dataset=True, partition_filter=my_filter)
 
     """
-    paths: Union[str, List[str]]
-    path_root: Optional[str]
+    paths: str | list[str]
+    path_root: str | None
 
     paths, path_root, res = _get_paths_for_glue_table(
         table=table,
@@ -475,18 +473,18 @@ def read_orc_table(
 )
 @apply_configs
 def read_orc_metadata(
-    path: Union[str, List[str]],
+    path: str | list[str],
     dataset: bool = False,
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
-    path_suffix: Optional[str] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
+    version_id: str | dict[str, str] | None = None,
+    path_suffix: str | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
     ignore_empty: bool = True,
     ignore_null: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
+    dtype: dict[str, str] | None = None,
     sampling: float = 1.0,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
 ) -> _ReadTableMetadataReturnValue:
     """Read Apache ORC file(s) metadata from an S3 prefix or list of S3 objects paths.
 
@@ -538,7 +536,7 @@ def read_orc_metadata(
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forward to S3 botocore requests.
 
     Returns
