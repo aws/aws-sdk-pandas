@@ -1,4 +1,4 @@
-from typing import List, Optional
+from __future__ import annotations
 
 import modin.pandas as pd
 import pytest
@@ -67,7 +67,7 @@ def test_modin_s3_write_parquet_simple(
 def test_modin_s3_write_parquet_dataset(
     df_s: pd.DataFrame,
     path: str,
-    partition_cols: Optional[List[str]],
+    partition_cols: list[str] | None,
     benchmark_time: float,
     request: pytest.FixtureRequest,
 ) -> None:

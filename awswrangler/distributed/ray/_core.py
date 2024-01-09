@@ -1,8 +1,10 @@
 """Ray Module."""
+from __future__ import annotations
+
 import logging
 import os
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
@@ -27,7 +29,7 @@ class RayLogger:
     ):
         logging.basicConfig(level=logging_level, format=format, datefmt=datefmt)
 
-    def get_logger(self, name: Union[str, Any] = None) -> Optional[logging.Logger]:
+    def get_logger(self, name: str | Any = None) -> logging.Logger | None:
         """Return logger object."""
         return logging.getLogger(name)
 
@@ -102,7 +104,7 @@ def ray_remote(**options: Any) -> Callable[[FunctionType], FunctionType]:
     return remote_decorator
 
 
-def ray_get(futures: Union["ray.ObjectRef[Any]", List["ray.ObjectRef[Any]"]]) -> Any:
+def ray_get(futures: "ray.ObjectRef[Any]" | list["ray.ObjectRef[Any]"]) -> Any:
     """
     Run ray.get on futures if distributed.
 
@@ -122,25 +124,25 @@ def ray_get(futures: Union["ray.ObjectRef[Any]", List["ray.ObjectRef[Any]"]]) ->
 
 @apply_configs
 def initialize_ray(
-    address: Optional[str] = None,
-    redis_password: Optional[str] = None,
+    address: str | None = None,
+    redis_password: str | None = None,
     ignore_reinit_error: bool = True,
-    include_dashboard: Optional[bool] = False,
+    include_dashboard: bool | None = False,
     configure_logging: bool = True,
     log_to_driver: bool = False,
     logging_level: int = logging.INFO,
-    object_store_memory: Optional[int] = None,
-    cpu_count: Optional[int] = None,
-    gpu_count: Optional[int] = None,
+    object_store_memory: int | None = None,
+    cpu_count: int | None = None,
+    gpu_count: int | None = None,
 ) -> None:
     """
     Connect to an existing Ray cluster or start one and connect to it.
 
     Parameters
     ----------
-    address : Optional[str]
+    address : str, optional
         Address of the Ray cluster to connect to, by default None
-    redis_password : Optional[str]
+    redis_password : str, optional
         Password to the Redis cluster, by default None
     ignore_reinit_error : bool
         If true, Ray suppress errors from calling ray.init() twice, by default True

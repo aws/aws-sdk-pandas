@@ -1,9 +1,11 @@
 """Arrow Utilities Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import datetime
 import json
 import logging
-from typing import Any, Dict, Optional, Tuple, cast
+from typing import Any, Tuple, cast
 
 import pyarrow as pa
 import pytz
@@ -14,24 +16,24 @@ from awswrangler._data_types import athena2pyarrow
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _extract_partitions_from_path(path_root: str, path: str) -> Dict[str, str]:
+def _extract_partitions_from_path(path_root: str, path: str) -> dict[str, str]:
     path_root = path_root if path_root.endswith("/") else f"{path_root}/"
     if path_root not in path:
         raise Exception(f"Object {path} is not under the root path ({path_root}).")
     path_wo_filename: str = path.rpartition("/")[0] + "/"
     path_wo_prefix: str = path_wo_filename.replace(f"{path_root}/", "")
-    dirs: Tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if x and (x.count("=") > 0))
+    dirs: tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if x and (x.count("=") > 0))
     if not dirs:
         return {}
     values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
-    values_dics: Dict[str, str] = dict(values_tups)
+    values_dics: dict[str, str] = dict(values_tups)
     return values_dics
 
 
 def _add_table_partitions(
     table: pa.Table,
     path: str,
-    path_root: Optional[str],
+    path_root: str | None,
 ) -> pa.Table:
     part = _extract_partitions_from_path(path_root, path) if path_root else None
     if part:
@@ -59,7 +61,7 @@ def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _apply_timezone(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
+def _apply_timezone(df: pd.DataFrame, metadata: dict[str, Any]) -> pd.DataFrame:
     for c in metadata["columns"]:
         if "field_name" in c and c["field_name"] is not None:
             col_name = str(c["field_name"])
@@ -79,13 +81,13 @@ def _apply_timezone(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
 
 def _table_to_df(
     table: pa.Table,
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
 ) -> pd.DataFrame:
     """Convert a PyArrow table to a Pandas DataFrame and apply metadata.
 
     This method should be used across to codebase to ensure this conversion is consistent.
     """
-    metadata: Dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
     if table.schema.metadata is not None and b"pandas" in table.schema.metadata:
         metadata = json.loads(table.schema.metadata[b"pandas"])
 
@@ -100,10 +102,10 @@ def _table_to_df(
 
 def _df_to_table(
     df: pd.DataFrame,
-    schema: Optional[pa.Schema] = None,
-    index: Optional[bool] = None,
-    dtype: Optional[Dict[str, str]] = None,
-    cpus: Optional[int] = None,
+    schema: pa.Schema | None = None,
+    index: bool | None = None,
+    dtype: dict[str, str] | None = None,
+    cpus: int | None = None,
 ) -> pa.Table:
     table: pa.Table = pa.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
     if dtype:

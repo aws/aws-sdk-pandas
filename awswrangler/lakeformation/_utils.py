@@ -1,9 +1,11 @@
 """Utilities Module for Amazon Lake Formation."""
+from __future__ import annotations
+
 import logging
 import time
 from math import inf
 from threading import Thread
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
 
 import boto3
 import botocore.exceptions
@@ -13,25 +15,25 @@ from awswrangler._config import apply_configs
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from awswrangler.s3._describe import describe_objects
 
-_QUERY_FINAL_STATES: List[str] = ["ERROR", "FINISHED"]
+_QUERY_FINAL_STATES: list[str] = ["ERROR", "FINISHED"]
 _QUERY_WAIT_POLLING_DELAY: float = 2  # SECONDS
-_TRANSACTION_FINAL_STATES: List[str] = ["aborted", "committed"]
+_TRANSACTION_FINAL_STATES: list[str] = ["aborted", "committed"]
 _TRANSACTION_WAIT_COMMIT_DELAY: float = 5  # SECONDS
 _TRANSACTION_WAIT_POLLING_DELAY: float = 10  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _without_keys(d: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
+def _without_keys(d: dict[str, Any], keys: list[str]) -> dict[str, Any]:
     return {x: d[x] for x in d if x not in keys}
 
 
 def _build_partition_predicate(
-    partition_cols: List[str],
-    partitions_types: Dict[str, str],
-    partitions_values: List[str],
+    partition_cols: list[str],
+    partitions_types: dict[str, str],
+    partitions_values: list[str],
 ) -> str:
-    partition_predicates: List[str] = []
+    partition_predicates: list[str] = []
     for col, val in zip(partition_cols, partitions_values):
         if partitions_types[col].startswith(("tinyint", "smallint", "int", "bigint", "float", "double", "decimal")):
             partition_predicates.append(f"{col}={str(val)}")
@@ -41,17 +43,17 @@ def _build_partition_predicate(
 
 
 def _build_table_objects(
-    paths: List[str],
-    partitions_values: Dict[str, List[str]],
-    use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
-) -> List[List[Dict[str, Any]]]:
-    table_objects: List[Dict[str, Any]] = []
-    paths_desc: Dict[str, Dict[str, Any]] = describe_objects(
+    paths: list[str],
+    partitions_values: dict[str, list[str]],
+    use_threads: bool | int,
+    boto3_session: boto3.Session | None,
+) -> list[list[dict[str, Any]]]:
+    table_objects: list[dict[str, Any]] = []
+    paths_desc: dict[str, dict[str, Any]] = describe_objects(
         path=paths, use_threads=use_threads, boto3_session=boto3_session
     )
     for path, path_desc in paths_desc.items():
-        table_object: Dict[str, Any] = {
+        table_object: dict[str, Any] = {
             "Uri": path,
             "ETag": path_desc["ETag"],
             "Size": path_desc["ContentLength"],
@@ -63,19 +65,19 @@ def _build_table_objects(
 
 
 def _get_table_objects(
-    catalog_id: Optional[str],
+    catalog_id: str | None,
     database: str,
     table: str,
     transaction_id: str,
-    boto3_session: Optional[boto3.Session],
-    partition_cols: Optional[List[str]] = None,
-    partitions_types: Optional[Dict[str, str]] = None,
-    partitions_values: Optional[List[str]] = None,
-) -> List[Dict[str, Any]]:
+    boto3_session: boto3.Session | None,
+    partition_cols: list[str] | None = None,
+    partitions_types: dict[str, str] | None = None,
+    partitions_values: list[str] | None = None,
+) -> list[dict[str, Any]]:
     """Get Governed Table Objects from Lake Formation Engine."""
     client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
-    scan_kwargs: Dict[str, Union[str, int, None]] = _catalog_id(
+    scan_kwargs: dict[str, str | int | None] = _catalog_id(
         catalog_id=catalog_id,
         **_transaction_id(transaction_id=transaction_id, DatabaseName=database, TableName=table, MaxResults=100),
     )
@@ -84,8 +86,8 @@ def _get_table_objects(
             partition_cols=partition_cols, partitions_types=partitions_types, partitions_values=partitions_values
         )
 
-    next_token: Optional[str] = "init_token"  # Dummy token
-    table_objects: List[Dict[str, Any]] = []
+    next_token: str | None = "init_token"  # Dummy token
+    table_objects: list[dict[str, Any]] = []
     while next_token:
         response = _utils.try_it(
             f=client_lakeformation.get_table_objects,
@@ -106,22 +108,22 @@ def _get_table_objects(
 
 
 def _update_table_objects(
-    catalog_id: Optional[str],
+    catalog_id: str | None,
     database: str,
     table: str,
     transaction_id: str,
-    boto3_session: Optional[boto3.Session],
-    add_objects: Optional[List[Dict[str, Any]]] = None,
-    del_objects: Optional[List[Dict[str, Any]]] = None,
+    boto3_session: boto3.Session | None,
+    add_objects: list[dict[str, Any]] | None = None,
+    del_objects: list[dict[str, Any]] | None = None,
 ) -> None:
     """Register Governed Table Objects changes to Lake Formation Engine."""
     client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
-    update_kwargs: Dict[str, Union[str, int, List[Dict[str, Dict[str, Any]]]]] = _catalog_id(
+    update_kwargs: dict[str, str | int | list[dict[str, dict[str, Any]]]] = _catalog_id(
         catalog_id=catalog_id, **_transaction_id(transaction_id=transaction_id, DatabaseName=database, TableName=table)
     )
 
-    write_operations: List[Dict[str, Dict[str, Any]]] = []
+    write_operations: list[dict[str, dict[str, Any]]] = []
     if add_objects:
         write_operations.extend({"AddObject": obj} for obj in add_objects)
     if del_objects:
@@ -131,7 +133,7 @@ def _update_table_objects(
     client_lakeformation.update_table_objects(**update_kwargs)  # type: ignore[arg-type]
 
 
-def _monitor_transaction(transaction_id: str, time_out: float, boto3_session: Optional[boto3.Session] = None) -> None:
+def _monitor_transaction(transaction_id: str, time_out: float, boto3_session: boto3.Session | None = None) -> None:
     start = time.time()
     elapsed_time = 0.0
     state: str = describe_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
@@ -149,7 +151,7 @@ def _monitor_transaction(transaction_id: str, time_out: float, boto3_session: Op
         _logger.debug("Transaction state: %s", state)
 
 
-def describe_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
+def describe_transaction(transaction_id: str, boto3_session: boto3.Session | None = None) -> str:
     """Return the status of a single transaction.
 
     Parameters
@@ -175,7 +177,7 @@ def describe_transaction(transaction_id: str, boto3_session: Optional[boto3.Sess
     return details["TransactionStatus"]
 
 
-def cancel_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
+def cancel_transaction(transaction_id: str, boto3_session: boto3.Session | None = None) -> None:
     """Cancel the specified transaction. Returns exception if the transaction was previously committed.
 
     Parameters
@@ -202,7 +204,7 @@ def cancel_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
 
 
 def start_transaction(
-    read_only: Optional[bool] = False, time_out: Optional[float] = inf, boto3_session: Optional[boto3.Session] = None
+    read_only: bool | None = False, time_out: float | None = inf, boto3_session: boto3.Session | None = None
 ) -> str:
     """Start a new transaction and returns its transaction ID.
 
@@ -240,7 +242,7 @@ def start_transaction(
     return transaction_id
 
 
-def commit_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
+def commit_transaction(transaction_id: str, boto3_session: boto3.Session | None = None) -> None:
     """Commit the specified transaction. Returns exception if the transaction was previously canceled.
 
     Parameters
@@ -276,7 +278,7 @@ def commit_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
         time.sleep(_TRANSACTION_WAIT_COMMIT_DELAY)
 
 
-def extend_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
+def extend_transaction(transaction_id: str, boto3_session: boto3.Session | None = None) -> None:
     """Indicate to the service that the specified transaction is still active and should not be canceled.
 
     Parameters
@@ -305,9 +307,9 @@ def extend_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
 @apply_configs
 def wait_query(
     query_id: str,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
     lakeformation_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Wait for the query to end.
 
     Parameters

@@ -1,7 +1,9 @@
 """AWS Glue Catalog Module."""
 
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
 import boto3
 
@@ -23,7 +25,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _update_if_necessary(dic: Dict[str, str], key: str, value: Optional[str], mode: str) -> str:
+def _update_if_necessary(dic: dict[str, str], key: str, value: str | None, mode: str) -> str:
     if value is not None:
         if key not in dic or dic[key] != value:
             dic[key] = value
@@ -35,19 +37,19 @@ def _update_if_necessary(dic: Dict[str, str], key: str, value: Optional[str], mo
 def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
     database: str,
     table: str,
-    description: Optional[str],
-    parameters: Optional[Dict[str, str]],
+    description: str | None,
+    parameters: dict[str, str] | None,
     mode: str,
     catalog_versioning: bool,
-    boto3_session: Optional[boto3.Session],
-    table_input: Dict[str, Any],
-    table_type: Optional[str],
+    boto3_session: boto3.Session | None,
+    table_input: dict[str, Any],
+    table_type: str | None,
     table_exist: bool,
-    partitions_types: Optional[Dict[str, str]],
-    columns_comments: Optional[Dict[str, str]],
-    transaction_id: Optional[str],
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
-    catalog_id: Optional[str],
+    partitions_types: dict[str, str] | None,
+    columns_comments: dict[str, str] | None,
+    transaction_id: str | None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
+    catalog_id: str | None,
 ) -> None:
     # Description
     mode = _update_if_necessary(dic=table_input, key="Description", value=description, mode=mode)
@@ -79,7 +81,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         projection_formats = {sanitize_column_name(k): v for k, v in projection_formats.items()}
         projection_storage_location_template = projection_params.get("projection_storage_location_template")
         for k, v in projection_types.items():
-            dtype: Optional[str] = partitions_types.get(k)
+            dtype: str | None = partitions_types.get(k)
             if dtype is None and projection_storage_location_template is None:
                 raise exceptions.InvalidArgumentCombination(
                     f"Column {k} appears as projected column but not as partitioned column."
@@ -138,7 +140,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         raise exceptions.InvalidArgument(
             f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
         )
-    args: Dict[str, Any] = _catalog_id(
+    args: dict[str, Any] = _catalog_id(
         catalog_id=catalog_id,
         **_transaction_id(
             transaction_id=transaction_id,
@@ -179,11 +181,11 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
 
 def _overwrite_table(
     client_glue: "GlueClient",
-    catalog_id: Optional[str],
+    catalog_id: str | None,
     database: str,
     table: str,
-    table_input: Dict[str, Any],
-    transaction_id: Optional[str],
+    table_input: dict[str, Any],
+    transaction_id: str | None,
     boto3_session: boto3.Session,
 ) -> None:
     delete_table_if_exists(
@@ -193,7 +195,7 @@ def _overwrite_table(
         boto3_session=boto3_session,
         catalog_id=catalog_id,
     )
-    args: Dict[str, Any] = _catalog_id(
+    args: dict[str, Any] = _catalog_id(
         catalog_id=catalog_id,
         **_transaction_id(
             transaction_id=transaction_id,
@@ -205,15 +207,15 @@ def _overwrite_table(
 
 
 def _upsert_table_parameters(
-    parameters: Dict[str, str],
+    parameters: dict[str, str],
     database: str,
-    transaction_id: Optional[str],
+    transaction_id: str | None,
     catalog_versioning: bool,
-    catalog_id: Optional[str],
-    table_input: Dict[str, Any],
-    boto3_session: Optional[boto3.Session],
-) -> Dict[str, str]:
-    pars: Dict[str, str] = table_input["Parameters"]
+    catalog_id: str | None,
+    table_input: dict[str, Any],
+    boto3_session: boto3.Session | None,
+) -> dict[str, str]:
+    pars: dict[str, str] = table_input["Parameters"]
     update: bool = False
     for k, v in parameters.items():
         if k not in pars or v != pars[k]:
@@ -233,14 +235,14 @@ def _upsert_table_parameters(
 
 
 def _overwrite_table_parameters(
-    parameters: Dict[str, str],
+    parameters: dict[str, str],
     database: str,
-    transaction_id: Optional[str],
+    transaction_id: str | None,
     catalog_versioning: bool,
-    catalog_id: Optional[str],
-    table_input: Dict[str, Any],
-    boto3_session: Optional[boto3.Session],
-) -> Dict[str, str]:
+    catalog_id: str | None,
+    table_input: dict[str, Any],
+    boto3_session: boto3.Session | None,
+) -> dict[str, str]:
     table_input["Parameters"] = parameters
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     skip_archive: bool = not catalog_versioning
@@ -255,10 +257,10 @@ def _overwrite_table_parameters(
     return parameters
 
 
-def _update_table_input(table_input: Dict[str, Any], columns_types: Dict[str, str], allow_reorder: bool = True) -> bool:
+def _update_table_input(table_input: dict[str, Any], columns_types: dict[str, str], allow_reorder: bool = True) -> bool:
     column_updated = False
 
-    catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
+    catalog_cols: dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
 
     if not allow_reorder:
         for catalog_key, frame_key in zip(catalog_cols, columns_types):
@@ -282,28 +284,28 @@ def _create_parquet_table(
     database: str,
     table: str,
     path: str,
-    columns_types: Dict[str, str],
-    table_type: Optional[str],
-    partitions_types: Optional[Dict[str, str]],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    catalog_id: Optional[str],
-    compression: Optional[str],
-    description: Optional[str],
-    parameters: Optional[Dict[str, str]],
-    columns_comments: Optional[Dict[str, str]],
+    columns_types: dict[str, str],
+    table_type: str | None,
+    partitions_types: dict[str, str] | None,
+    bucketing_info: typing.BucketingInfoTuple | None,
+    catalog_id: str | None,
+    compression: str | None,
+    description: str | None,
+    parameters: dict[str, str] | None,
+    columns_comments: dict[str, str] | None,
     mode: str,
     catalog_versioning: bool,
-    transaction_id: Optional[str],
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
-    boto3_session: Optional[boto3.Session],
-    catalog_table_input: Optional[Dict[str, Any]],
+    transaction_id: str | None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
+    boto3_session: boto3.Session | None,
+    catalog_table_input: dict[str, Any] | None,
 ) -> None:
     table = sanitize_table_name(table=table)
     columns_types = {sanitize_column_name(k): v for k, v in columns_types.items()}
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
 
-    table_input: Dict[str, Any]
+    table_input: dict[str, Any]
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = catalog_table_input
 
@@ -345,28 +347,28 @@ def _create_orc_table(
     database: str,
     table: str,
     path: str,
-    columns_types: Dict[str, str],
-    table_type: Optional[str],
-    partitions_types: Optional[Dict[str, str]],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    catalog_id: Optional[str],
-    compression: Optional[str],
-    description: Optional[str],
-    parameters: Optional[Dict[str, str]],
-    columns_comments: Optional[Dict[str, str]],
+    columns_types: dict[str, str],
+    table_type: str | None,
+    partitions_types: dict[str, str] | None,
+    bucketing_info: typing.BucketingInfoTuple | None,
+    catalog_id: str | None,
+    compression: str | None,
+    description: str | None,
+    parameters: dict[str, str] | None,
+    columns_comments: dict[str, str] | None,
     mode: str,
     catalog_versioning: bool,
-    transaction_id: Optional[str],
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
-    boto3_session: Optional[boto3.Session],
-    catalog_table_input: Optional[Dict[str, Any]],
+    transaction_id: str | None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
+    boto3_session: boto3.Session | None,
+    catalog_table_input: dict[str, Any] | None,
 ) -> None:
     table = sanitize_table_name(table=table)
     columns_types = {sanitize_column_name(k): v for k, v in columns_types.items()}
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
 
-    table_input: Dict[str, Any]
+    table_input: dict[str, Any]
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = catalog_table_input
 
@@ -407,27 +409,27 @@ def _create_orc_table(
 def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     database: str,
     table: str,
-    path: Optional[str],
-    columns_types: Dict[str, str],
-    table_type: Optional[str],
-    partitions_types: Optional[Dict[str, str]],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    description: Optional[str],
-    compression: Optional[str],
-    parameters: Optional[Dict[str, str]],
-    columns_comments: Optional[Dict[str, str]],
+    path: str | None,
+    columns_types: dict[str, str],
+    table_type: str | None,
+    partitions_types: dict[str, str] | None,
+    bucketing_info: typing.BucketingInfoTuple | None,
+    description: str | None,
+    compression: str | None,
+    parameters: dict[str, str] | None,
+    columns_comments: dict[str, str] | None,
     mode: str,
-    transaction_id: Optional[str],
+    transaction_id: str | None,
     catalog_versioning: bool,
     schema_evolution: bool,
     sep: str,
-    skip_header_line_count: Optional[int],
-    serde_library: Optional[str],
-    serde_parameters: Optional[Dict[str, str]],
-    boto3_session: Optional[boto3.Session],
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
-    catalog_table_input: Optional[Dict[str, Any]],
-    catalog_id: Optional[str],
+    skip_header_line_count: int | None,
+    serde_library: str | None,
+    serde_parameters: dict[str, str] | None,
+    boto3_session: boto3.Session | None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
+    catalog_table_input: dict[str, Any] | None,
+    catalog_id: str | None,
 ) -> None:
     table = sanitize_table_name(table=table)
     columns_types = {sanitize_column_name(k): v for k, v in columns_types.items()}
@@ -437,7 +439,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     if schema_evolution is False:
         _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
-    table_input: Dict[str, Any]
+    table_input: dict[str, Any]
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = catalog_table_input
 
@@ -484,31 +486,31 @@ def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
     database: str,
     table: str,
     path: str,
-    columns_types: Dict[str, str],
-    table_type: Optional[str],
-    partitions_types: Optional[Dict[str, str]],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    description: Optional[str],
-    compression: Optional[str],
-    parameters: Optional[Dict[str, str]],
-    columns_comments: Optional[Dict[str, str]],
+    columns_types: dict[str, str],
+    table_type: str | None,
+    partitions_types: dict[str, str] | None,
+    bucketing_info: typing.BucketingInfoTuple | None,
+    description: str | None,
+    compression: str | None,
+    parameters: dict[str, str] | None,
+    columns_comments: dict[str, str] | None,
     mode: str,
     catalog_versioning: bool,
     schema_evolution: bool,
-    transaction_id: Optional[str],
-    serde_library: Optional[str],
-    serde_parameters: Optional[Dict[str, str]],
-    boto3_session: Optional[boto3.Session],
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
-    catalog_table_input: Optional[Dict[str, Any]],
-    catalog_id: Optional[str],
+    transaction_id: str | None,
+    serde_library: str | None,
+    serde_parameters: dict[str, str] | None,
+    boto3_session: boto3.Session | None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
+    catalog_table_input: dict[str, Any] | None,
+    catalog_id: str | None,
 ) -> None:
     table = sanitize_table_name(table=table)
     columns_types = {sanitize_column_name(k): v for k, v in columns_types.items()}
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
 
-    table_input: Dict[str, Any]
+    table_input: dict[str, Any]
     if schema_evolution is False:
         _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
@@ -553,14 +555,14 @@ def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
 
 @apply_configs
 def upsert_table_parameters(
-    parameters: Dict[str, str],
+    parameters: dict[str, str],
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
+    transaction_id: str | None = None,
     catalog_versioning: bool = False,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, str]:
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, str]:
     """Insert or Update the received parameters.
 
     Parameters
@@ -595,7 +597,7 @@ def upsert_table_parameters(
     ...     table="...")
 
     """
-    table_input: Optional[Dict[str, str]] = _get_table_input(
+    table_input: dict[str, str] | None = _get_table_input(
         database=database,
         table=table,
         boto3_session=boto3_session,
@@ -617,14 +619,14 @@ def upsert_table_parameters(
 
 @apply_configs
 def overwrite_table_parameters(
-    parameters: Dict[str, str],
+    parameters: dict[str, str],
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
+    transaction_id: str | None = None,
     catalog_versioning: bool = False,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, str]:
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, str]:
     """Overwrite all existing parameters.
 
     Parameters
@@ -659,7 +661,7 @@ def overwrite_table_parameters(
     ...     table="...")
 
     """
-    table_input: Optional[Dict[str, Any]] = _get_table_input(
+    table_input: dict[str, Any] | None = _get_table_input(
         database=database,
         table=table,
         transaction_id=transaction_id,
@@ -682,11 +684,11 @@ def overwrite_table_parameters(
 @apply_configs
 def create_database(
     name: str,
-    description: Optional[str] = None,
-    catalog_id: Optional[str] = None,
+    description: str | None = None,
+    catalog_id: str | None = None,
     exist_ok: bool = False,
-    database_input_args: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    database_input_args: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Create a database in AWS Glue Catalog.
 
@@ -721,7 +723,7 @@ def create_database(
     ... )
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
-    args: Dict[str, Any] = {"Name": name, **database_input_args} if database_input_args else {"Name": name}
+    args: dict[str, Any] = {"Name": name, **database_input_args} if database_input_args else {"Name": name}
     if description is not None:
         args["Description"] = description
 
@@ -742,20 +744,20 @@ def create_parquet_table(
     database: str,
     table: str,
     path: str,
-    columns_types: Dict[str, str],
-    table_type: Optional[str] = None,
-    partitions_types: Optional[Dict[str, str]] = None,
-    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
-    catalog_id: Optional[str] = None,
-    compression: Optional[str] = None,
-    description: Optional[str] = None,
-    parameters: Optional[Dict[str, str]] = None,
-    columns_comments: Optional[Dict[str, str]] = None,
+    columns_types: dict[str, str],
+    table_type: str | None = None,
+    partitions_types: dict[str, str] | None = None,
+    bucketing_info: typing.BucketingInfoTuple | None = None,
+    catalog_id: str | None = None,
+    compression: str | None = None,
+    description: str | None = None,
+    parameters: dict[str, str] | None = None,
+    columns_comments: dict[str, str] | None = None,
     mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
-    transaction_id: Optional[str] = None,
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    transaction_id: str | None = None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Create a Parquet Table (Metadata Only) in the AWS Glue Catalog.
 
@@ -870,7 +872,7 @@ def create_parquet_table(
     ... )
 
     """
-    catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
+    catalog_table_input: dict[str, Any] | None = _get_table_input(
         database=database,
         table=table,
         boto3_session=boto3_session,
@@ -904,20 +906,20 @@ def create_orc_table(
     database: str,
     table: str,
     path: str,
-    columns_types: Dict[str, str],
-    table_type: Optional[str] = None,
-    partitions_types: Optional[Dict[str, str]] = None,
-    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
-    catalog_id: Optional[str] = None,
-    compression: Optional[str] = None,
-    description: Optional[str] = None,
-    parameters: Optional[Dict[str, str]] = None,
-    columns_comments: Optional[Dict[str, str]] = None,
+    columns_types: dict[str, str],
+    table_type: str | None = None,
+    partitions_types: dict[str, str] | None = None,
+    bucketing_info: typing.BucketingInfoTuple | None = None,
+    catalog_id: str | None = None,
+    compression: str | None = None,
+    description: str | None = None,
+    parameters: dict[str, str] | None = None,
+    columns_comments: dict[str, str] | None = None,
     mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
-    transaction_id: Optional[str] = None,
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    transaction_id: str | None = None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Create a ORC Table (Metadata Only) in the AWS Glue Catalog.
 
@@ -1032,7 +1034,7 @@ def create_orc_table(
     ... )
 
     """
-    catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
+    catalog_table_input: dict[str, Any] | None = _get_table_input(
         database=database,
         table=table,
         boto3_session=boto3_session,
@@ -1066,25 +1068,25 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     database: str,
     table: str,
     path: str,
-    columns_types: Dict[str, str],
-    table_type: Optional[str] = None,
-    partitions_types: Optional[Dict[str, str]] = None,
-    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
-    compression: Optional[str] = None,
-    description: Optional[str] = None,
-    parameters: Optional[Dict[str, str]] = None,
-    columns_comments: Optional[Dict[str, str]] = None,
+    columns_types: dict[str, str],
+    table_type: str | None = None,
+    partitions_types: dict[str, str] | None = None,
+    bucketing_info: typing.BucketingInfoTuple | None = None,
+    compression: str | None = None,
+    description: str | None = None,
+    parameters: dict[str, str] | None = None,
+    columns_comments: dict[str, str] | None = None,
     mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     sep: str = ",",
-    skip_header_line_count: Optional[int] = None,
-    serde_library: Optional[str] = None,
-    serde_parameters: Optional[Dict[str, str]] = None,
-    transaction_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
-    catalog_id: Optional[str] = None,
+    skip_header_line_count: int | None = None,
+    serde_library: str | None = None,
+    serde_parameters: dict[str, str] | None = None,
+    transaction_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    catalog_id: str | None = None,
 ) -> None:
     r"""Create a CSV Table (Metadata Only) in the AWS Glue Catalog.
 
@@ -1220,7 +1222,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     ... )
 
     """
-    catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
+    catalog_table_input: dict[str, Any] | None = _get_table_input(
         database=database,
         table=table,
         boto3_session=boto3_session,
@@ -1259,23 +1261,23 @@ def create_json_table(  # pylint: disable=too-many-arguments
     database: str,
     table: str,
     path: str,
-    columns_types: Dict[str, str],
-    table_type: Optional[str] = None,
-    partitions_types: Optional[Dict[str, str]] = None,
-    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
-    compression: Optional[str] = None,
-    description: Optional[str] = None,
-    parameters: Optional[Dict[str, str]] = None,
-    columns_comments: Optional[Dict[str, str]] = None,
+    columns_types: dict[str, str],
+    table_type: str | None = None,
+    partitions_types: dict[str, str] | None = None,
+    bucketing_info: typing.BucketingInfoTuple | None = None,
+    compression: str | None = None,
+    description: str | None = None,
+    parameters: dict[str, str] | None = None,
+    columns_comments: dict[str, str] | None = None,
     mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
-    serde_library: Optional[str] = None,
-    serde_parameters: Optional[Dict[str, str]] = None,
-    transaction_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
-    catalog_id: Optional[str] = None,
+    serde_library: str | None = None,
+    serde_parameters: dict[str, str] | None = None,
+    transaction_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    catalog_id: str | None = None,
 ) -> None:
     r"""Create a JSON Table (Metadata Only) in the AWS Glue Catalog.
 
@@ -1401,7 +1403,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
     ... )
 
     """
-    catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
+    catalog_table_input: dict[str, Any] | None = _get_table_input(
         database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id
     )
     _create_json_table(

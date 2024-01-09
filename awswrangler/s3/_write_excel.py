@@ -1,7 +1,9 @@
 """Amazon S3 Excel Write Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import boto3
 import pandas as pd
@@ -18,9 +20,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def to_excel(
     df: pd.DataFrame,
     path: str,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    use_threads: Union[bool, int] = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    use_threads: bool | int = True,
     **pandas_kwargs: Any,
 ) -> str:
     """Write EXCEL file on Amazon S3.
@@ -48,7 +50,7 @@ def to_excel(
         Amazon S3 path (e.g. s3://bucket/filename.xlsx).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    pyarrow_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     use_threads : bool, int

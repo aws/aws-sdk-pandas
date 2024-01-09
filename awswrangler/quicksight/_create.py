@@ -1,8 +1,10 @@
 """Amazon QuickSight Create Module."""
 
+from __future__ import annotations
+
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Set, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional, TypeVar, Union, cast
 
 import boto3
 
@@ -21,7 +23,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_ALLOWED_ACTIONS: Dict[str, Dict[str, List[str]]] = {
+_ALLOWED_ACTIONS: dict[str, dict[str, list[str]]] = {
     "data_source": {
         "allowed_to_use": [
             "quicksight:DescribeDataSource",
@@ -61,11 +63,11 @@ _ALLOWED_ACTIONS: Dict[str, Dict[str, List[str]]] = {
 }
 
 
-def _groupnames_to_arns(group_names: Set[str], all_groups: List["GroupTypeDef"]) -> List[str]:
+def _groupnames_to_arns(group_names: set[str], all_groups: list["GroupTypeDef"]) -> list[str]:
     return [u["Arn"] for u in all_groups if u.get("GroupName") in group_names]
 
 
-def _usernames_to_arns(user_names: Set[str], all_users: List["UserTypeDef"]) -> List[str]:
+def _usernames_to_arns(user_names: set[str], all_users: list["UserTypeDef"]) -> list[str]:
     return [u["Arn"] for u in all_users if u.get("UserName") in user_names]
 
 
@@ -76,13 +78,13 @@ def _generate_permissions_base(
     resource: str,
     namespace: str,
     account_id: str,
-    boto3_session: Optional[boto3.Session],
-    allowed_to_use: Optional[List[str]],
-    allowed_to_manage: Optional[List[str]],
-    principal_names_to_arns_func: Callable[[Set[str], List[_PrincipalTypeDef]], List[str]],
-    list_principals: Callable[[str, str, Optional[boto3.Session]], List[Dict[str, Any]]],
-) -> List[Dict[str, Union[str, List[str]]]]:
-    permissions: List[Dict[str, Union[str, List[str]]]] = []
+    boto3_session: boto3.Session | None,
+    allowed_to_use: list[str] | None,
+    allowed_to_manage: list[str] | None,
+    principal_names_to_arns_func: Callable[[set[str], list[_PrincipalTypeDef]], list[str]],
+    list_principals: Callable[[str, str, boto3.Session | None], list[dict[str, Any]]],
+) -> list[dict[str, str | list[str]]]:
+    permissions: list[dict[str, str | list[str]]] = []
     if (allowed_to_use is None) and (allowed_to_manage is None):
         return permissions
 
@@ -96,7 +98,7 @@ def _generate_permissions_base(
     all_principals = cast(List[_PrincipalTypeDef], list_principals(namespace, account_id, boto3_session))
 
     if allowed_to_use_set is not None:
-        allowed_arns: List[str] = principal_names_to_arns_func(allowed_to_use_set, all_principals)
+        allowed_arns: list[str] = principal_names_to_arns_func(allowed_to_use_set, all_principals)
         permissions += [
             {
                 "Principal": arn,
@@ -120,12 +122,12 @@ def _generate_permissions(
     resource: str,
     namespace: str,
     account_id: str,
-    boto3_session: Optional[boto3.Session],
-    allowed_users_to_use: Optional[List[str]] = None,
-    allowed_groups_to_use: Optional[List[str]] = None,
-    allowed_users_to_manage: Optional[List[str]] = None,
-    allowed_groups_to_manage: Optional[List[str]] = None,
-) -> List[Dict[str, Union[str, List[str]]]]:
+    boto3_session: boto3.Session | None,
+    allowed_users_to_use: list[str] | None = None,
+    allowed_groups_to_use: list[str] | None = None,
+    allowed_users_to_manage: list[str] | None = None,
+    allowed_groups_to_manage: list[str] | None = None,
+) -> list[dict[str, str | list[str]]]:
     permissions_users = _generate_permissions_base(
         resource=resource,
         namespace=namespace,
@@ -152,11 +154,11 @@ def _generate_permissions(
 
 
 def _generate_transformations(
-    rename_columns: Optional[Dict[str, str]],
-    cast_columns_types: Optional[Dict[str, str]],
-    tag_columns: Optional[Dict[str, List[Dict[str, Any]]]],
-) -> List[Dict[str, Dict[str, Any]]]:
-    trans: List[Dict[str, Dict[str, Any]]] = []
+    rename_columns: dict[str, str] | None,
+    cast_columns_types: dict[str, str] | None,
+    tag_columns: dict[str, list[dict[str, Any]]] | None,
+) -> list[dict[str, dict[str, Any]]]:
+    trans: list[dict[str, dict[str, Any]]] = []
     if rename_columns is not None:
         for k, v in rename_columns.items():
             trans.append({"RenameColumnOperation": {"ColumnName": k, "NewColumnName": v}})
@@ -172,7 +174,7 @@ def _generate_transformations(
 _AllowedType = Optional[Union[List[str], _QuicksightPrincipalList]]
 
 
-def _get_principal_names(principals: _AllowedType, type: Literal["users", "groups"]) -> Optional[List[str]]:
+def _get_principal_names(principals: _AllowedType, type: Literal["users", "groups"]) -> list[str] | None:
     if principals is None:
         return None
 
@@ -190,9 +192,9 @@ def create_athena_data_source(
     workgroup: str = "primary",
     allowed_to_use: _AllowedType = None,
     allowed_to_manage: _AllowedType = None,
-    tags: Optional[Dict[str, str]] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    tags: dict[str, str] | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
     namespace: str = "default",
 ) -> None:
     """Create a QuickSight data source pointing to an Athena/Workgroup.
@@ -246,7 +248,7 @@ def create_athena_data_source(
     client = _utils.client(service_name="quicksight", session=boto3_session)
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=boto3_session)
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "AwsAccountId": account_id,
         "DataSourceId": name,
         "Name": name,
@@ -254,7 +256,7 @@ def create_athena_data_source(
         "DataSourceParameters": {"AthenaParameters": {"WorkGroup": workgroup}},
         "SslProperties": {"DisableSsl": True},
     }
-    permissions: List[Dict[str, Union[str, List[str]]]] = _generate_permissions(
+    permissions: list[dict[str, str | list[str]]] = _generate_permissions(
         resource="data_source",
         namespace=namespace,
         account_id=account_id,
@@ -267,29 +269,29 @@ def create_athena_data_source(
     if permissions:
         args["Permissions"] = permissions
     if tags is not None:
-        _tags: List[Dict[str, str]] = [{"Key": k, "Value": v} for k, v in tags.items()]
+        _tags: list[dict[str, str]] = [{"Key": k, "Value": v} for k, v in tags.items()]
         args["Tags"] = _tags
     client.create_data_source(**args)
 
 
 def create_athena_dataset(
     name: str,
-    database: Optional[str] = None,
-    table: Optional[str] = None,
-    sql: Optional[str] = None,
-    sql_name: Optional[str] = None,
-    data_source_name: Optional[str] = None,
-    data_source_arn: Optional[str] = None,
+    database: str | None = None,
+    table: str | None = None,
+    sql: str | None = None,
+    sql_name: str | None = None,
+    data_source_name: str | None = None,
+    data_source_arn: str | None = None,
     import_mode: Literal["SPICE", "DIRECT_QUERY"] = "DIRECT_QUERY",
     allowed_to_use: _AllowedType = None,
     allowed_to_manage: _AllowedType = None,
     logical_table_alias: str = "LogicalTable",
-    rename_columns: Optional[Dict[str, str]] = None,
-    cast_columns_types: Optional[Dict[str, str]] = None,
-    tag_columns: Optional[Dict[str, List[Dict[str, Any]]]] = None,
-    tags: Optional[Dict[str, str]] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    rename_columns: dict[str, str] | None = None,
+    cast_columns_types: dict[str, str] | None = None,
+    tag_columns: dict[str, list[dict[str, Any]]] | None = None,
+    tags: dict[str, str] | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
     namespace: str = "default",
 ) -> str:
     """Create a QuickSight dataset.
@@ -390,7 +392,7 @@ def create_athena_dataset(
     if (data_source_arn is None) and (data_source_name is not None):
         data_source_arn = get_data_source_arn(name=data_source_name, account_id=account_id, boto3_session=boto3_session)
     if sql is not None:
-        physical_table: Dict[str, Dict[str, Any]] = {
+        physical_table: dict[str, dict[str, Any]] = {
             "CustomSql": {
                 "DataSourceArn": data_source_arn,
                 "Name": sql_name if sql_name else f"CustomSQL-{uuid.uuid4().hex[:8]}",
@@ -418,7 +420,7 @@ def create_athena_dataset(
         }
     table_uuid: str = uuid.uuid4().hex
     dataset_id: str = uuid.uuid4().hex
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "AwsAccountId": account_id,
         "DataSetId": dataset_id,
         "Name": name,
@@ -426,13 +428,13 @@ def create_athena_dataset(
         "PhysicalTableMap": {table_uuid: physical_table},
         "LogicalTableMap": {table_uuid: {"Alias": logical_table_alias, "Source": {"PhysicalTableId": table_uuid}}},
     }
-    trans: List[Dict[str, Dict[str, Any]]] = _generate_transformations(
+    trans: list[dict[str, dict[str, Any]]] = _generate_transformations(
         rename_columns=rename_columns, cast_columns_types=cast_columns_types, tag_columns=tag_columns
     )
     if trans:
         args["LogicalTableMap"][table_uuid]["DataTransforms"] = trans
 
-    permissions: List[Dict[str, Union[str, List[str]]]] = _generate_permissions(
+    permissions: list[dict[str, str | list[str]]] = _generate_permissions(
         resource="dataset",
         namespace=namespace,
         account_id=account_id,
@@ -445,18 +447,18 @@ def create_athena_dataset(
     if permissions:
         args["Permissions"] = permissions
     if tags is not None:
-        _tags: List[Dict[str, str]] = [{"Key": k, "Value": v} for k, v in tags.items()]
+        _tags: list[dict[str, str]] = [{"Key": k, "Value": v} for k, v in tags.items()]
         args["Tags"] = _tags
     client.create_data_set(**args)
     return dataset_id
 
 
 def create_ingestion(
-    dataset_name: Optional[str] = None,
-    dataset_id: Optional[str] = None,
-    ingestion_id: Optional[str] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    dataset_name: str | None = None,
+    dataset_id: str | None = None,
+    ingestion_id: str | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Create and starts a new SPICE ingestion on a dataset.
 

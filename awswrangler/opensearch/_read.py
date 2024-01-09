@@ -1,7 +1,9 @@
 # mypy: disable-error-code=name-defined
 """Amazon OpenSearch Read Module (PRIVATE)."""
 
-from typing import Any, Collection, Dict, List, Mapping, Optional, Union
+from __future__ import annotations
+
+from typing import Any, Collection, Mapping
 
 import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
@@ -23,7 +25,7 @@ def _resolve_fields(row: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def _hit_to_row(hit: Mapping[str, Any]) -> Mapping[str, Any]:
-    row: Dict[str, Any] = {}
+    row: dict[str, Any] = {}
     for k in hit.keys():
         if k == "_source":
             solved_fields = _resolve_fields(hit["_source"])
@@ -33,22 +35,22 @@ def _hit_to_row(hit: Mapping[str, Any]) -> Mapping[str, Any]:
     return row
 
 
-def _search_response_to_documents(response: Mapping[str, Any]) -> List[Mapping[str, Any]]:
+def _search_response_to_documents(response: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     return [_hit_to_row(hit) for hit in response.get("hits", {}).get("hits", [])]
 
 
-def _search_response_to_df(response: Union[Mapping[str, Any], Any]) -> pd.DataFrame:
+def _search_response_to_df(response: Mapping[str, Any] | Any) -> pd.DataFrame:
     return pd.DataFrame(_search_response_to_documents(response))
 
 
 @_utils.check_optional_dependency(opensearchpy, "opensearchpy")
 def search(
     client: "opensearchpy.OpenSearch",
-    index: Optional[str] = "_all",
-    search_body: Optional[Dict[str, Any]] = None,
-    doc_type: Optional[str] = None,
-    is_scroll: Optional[bool] = False,
-    filter_path: Optional[Union[str, Collection[str]]] = None,
+    index: str | None = "_all",
+    search_body: dict[str, Any] | None = None,
+    doc_type: str | None = None,
+    is_scroll: bool | None = False,
+    filter_path: str | Collection[str] | None = None,
     **kwargs: Any,
 ) -> pd.DataFrame:
     """Return results matching query DSL as pandas DataFrame.

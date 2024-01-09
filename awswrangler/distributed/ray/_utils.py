@@ -1,13 +1,13 @@
 """Ray utilities (PRIVATE)."""
 
-from typing import Optional, Union
+from __future__ import annotations
 
 import ray
 from ray.util.placement_group import PlacementGroup
 
 
 # https://github.com/ray-project/ray/blob/master/python/ray/data/_internal/util.py#L87
-def _estimate_avail_cpus(cur_pg: Optional[PlacementGroup]) -> int:
+def _estimate_avail_cpus(cur_pg: PlacementGroup | None) -> int:
     """
     Estimates the available CPU parallelism for this Dataset in the cluster.
 
@@ -52,7 +52,7 @@ def _estimate_available_parallelism() -> int:
     return _estimate_avail_cpus(cur_pg)
 
 
-def ensure_worker_count(use_threads: Union[bool, int] = True) -> int:
+def ensure_worker_count(use_threads: bool | int = True) -> int:
     if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck  # noqa: E721
         if use_threads < 1:
             return 1

@@ -1,9 +1,11 @@
 """Amazon S3 ORC Write Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
 import math
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, cast
 
 import boto3
 import pandas as pd
@@ -37,7 +39,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_COMPRESSION_2_EXT: Dict[Optional[str], str] = {
+_COMPRESSION_2_EXT: dict[str | None, str] = {
     None: "",
     "snappy": ".snappy",
     "zlib": ".zlib",
@@ -49,15 +51,15 @@ _COMPRESSION_2_EXT: Dict[Optional[str], str] = {
 @contextmanager
 def _new_writer(
     file_path: str,
-    compression: Optional[str],
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
+    compression: str | None,
+    pyarrow_additional_kwargs: dict[str, Any] | None,
     s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
+    s3_additional_kwargs: dict[str, str] | None,
+    use_threads: bool | int,
 ) -> Iterator["ORCWriter"]:
     from pyarrow.orc import ORCWriter
 
-    writer: Optional["ORCWriter"] = None
+    writer: "ORCWriter" | None = None
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
 
@@ -83,14 +85,14 @@ def _new_writer(
 def _write_chunk(
     file_path: str,
     s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    compression: Optional[str],
-    pyarrow_additional_kwargs: Dict[str, str],
+    s3_additional_kwargs: dict[str, str] | None,
+    compression: str | None,
+    pyarrow_additional_kwargs: dict[str, str],
     table: pa.Table,
     offset: int,
     chunk_size: int,
-    use_threads: Union[bool, int],
-) -> List[str]:
+    use_threads: bool | int,
+) -> list[str]:
     write_table_args = _get_write_table_args(pyarrow_additional_kwargs)
     with _new_writer(
         file_path=file_path,
@@ -107,16 +109,16 @@ def _write_chunk(
 def _to_orc_chunked(
     file_path: str,
     s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    compression: Optional[str],
-    pyarrow_additional_kwargs: Dict[str, Any],
+    s3_additional_kwargs: dict[str, str] | None,
+    compression: str | None,
+    pyarrow_additional_kwargs: dict[str, Any],
     table: pa.Table,
     max_rows_by_file: int,
     num_of_rows: int,
     cpus: int,
-) -> List[str]:
+) -> list[str]:
     chunks: int = math.ceil(num_of_rows / max_rows_by_file)
-    use_threads: Union[bool, int] = cpus > 1
+    use_threads: bool | int = cpus > 1
     proxy: _WriteProxy = _WriteProxy(use_threads=use_threads)
     for chunk in range(chunks):
         offset: int = chunk * max_rows_by_file
@@ -141,20 +143,20 @@ def _to_orc(
     df: pd.DataFrame,
     schema: pa.Schema,
     index: bool,
-    compression: Optional[str],
+    compression: str | None,
     compression_ext: str,
-    pyarrow_additional_kwargs: Dict[str, Any],
+    pyarrow_additional_kwargs: dict[str, Any],
     cpus: int,
-    dtype: Dict[str, str],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    path: Optional[str] = None,
-    path_root: Optional[str] = None,
-    filename_prefix: Optional[str] = None,
-    max_rows_by_file: Optional[int] = 0,
+    dtype: dict[str, str],
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, str] | None,
+    use_threads: bool | int,
+    path: str | None = None,
+    path_root: str | None = None,
+    filename_prefix: str | None = None,
+    max_rows_by_file: int | None = 0,
     bucketing: bool = False,
-) -> List[str]:
+) -> list[str]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     file_path = _get_file_path(
         path_root=path_root,
@@ -165,7 +167,7 @@ def _to_orc(
     )
     table: pa.Table = _df_to_table(df, schema, index, dtype)
     if max_rows_by_file is not None and max_rows_by_file > 0:
-        paths: List[str] = _to_orc_chunked(
+        paths: list[str] = _to_orc_chunked(
             file_path=file_path,
             s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -193,7 +195,7 @@ def _to_orc(
 
 class _S3ORCWriteStrategy(_S3WriteStrategy):
     @property
-    def _write_to_s3_func(self) -> Callable[..., List[str]]:
+    def _write_to_s3_func(self) -> Callable[..., list[str]]:
         return _to_orc
 
     def _write_to_s3(
@@ -201,20 +203,20 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
         df: pd.DataFrame,
         schema: pa.Schema,
         index: bool,
-        compression: Optional[str],
+        compression: str | None,
         compression_ext: str,
-        pyarrow_additional_kwargs: Dict[str, Any],
+        pyarrow_additional_kwargs: dict[str, Any],
         cpus: int,
-        dtype: Dict[str, str],
-        s3_client: Optional["S3Client"],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        use_threads: Union[bool, int],
-        path: Optional[str] = None,
-        path_root: Optional[str] = None,
-        filename_prefix: Optional[str] = None,
-        max_rows_by_file: Optional[int] = 0,
+        dtype: dict[str, str],
+        s3_client: "S3Client" | None,
+        s3_additional_kwargs: dict[str, str] | None,
+        use_threads: bool | int,
+        path: str | None = None,
+        path_root: str | None = None,
+        filename_prefix: str | None = None,
+        max_rows_by_file: int | None = 0,
         bucketing: bool = False,
-    ) -> List[str]:
+    ) -> list[str]:
         return _to_orc(
             df=df,
             schema=schema,
@@ -239,21 +241,21 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
         database: str,
         table: str,
         path: str,
-        columns_types: Dict[str, str],
-        table_type: Optional[str] = None,
-        partitions_types: Optional[Dict[str, str]] = None,
-        bucketing_info: Optional[BucketingInfoTuple] = None,
-        catalog_id: Optional[str] = None,
-        compression: Optional[str] = None,
-        description: Optional[str] = None,
-        parameters: Optional[Dict[str, str]] = None,
-        columns_comments: Optional[Dict[str, str]] = None,
+        columns_types: dict[str, str],
+        table_type: str | None = None,
+        partitions_types: dict[str, str] | None = None,
+        bucketing_info: BucketingInfoTuple | None = None,
+        catalog_id: str | None = None,
+        compression: str | None = None,
+        description: str | None = None,
+        parameters: dict[str, str] | None = None,
+        columns_comments: dict[str, str] | None = None,
         mode: str = "overwrite",
         catalog_versioning: bool = False,
-        transaction_id: Optional[str] = None,
-        athena_partition_projection_settings: Optional[AthenaPartitionProjectionSettings] = None,
-        boto3_session: Optional[boto3.Session] = None,
-        catalog_table_input: Optional[Dict[str, Any]] = None,
+        transaction_id: str | None = None,
+        athena_partition_projection_settings: AthenaPartitionProjectionSettings | None = None,
+        boto3_session: boto3.Session | None = None,
+        catalog_table_input: dict[str, Any] | None = None,
     ) -> None:
         return _create_orc_table(
             database=database,
@@ -280,13 +282,13 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
         self,
         database: str,
         table: str,
-        partitions_values: Dict[str, List[str]],
-        bucketing_info: Optional[BucketingInfoTuple] = None,
-        catalog_id: Optional[str] = None,
-        compression: Optional[str] = None,
-        boto3_session: Optional[boto3.Session] = None,
-        columns_types: Optional[Dict[str, str]] = None,
-        partitions_parameters: Optional[Dict[str, str]] = None,
+        partitions_values: dict[str, list[str]],
+        bucketing_info: BucketingInfoTuple | None = None,
+        catalog_id: str | None = None,
+        compression: str | None = None,
+        boto3_session: boto3.Session | None = None,
+        columns_types: dict[str, str] | None = None,
+        partitions_parameters: dict[str, str] | None = None,
     ) -> None:
         return catalog.add_orc_partitions(
             database=database,
@@ -307,29 +309,29 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
 @apply_configs
 def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
-    path: Optional[str] = None,
+    path: str | None = None,
     index: bool = False,
-    compression: Optional[str] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-    max_rows_by_file: Optional[int] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    compression: str | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+    max_rows_by_file: int | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
     sanitize_columns: bool = False,
     dataset: bool = False,
-    filename_prefix: Optional[str] = None,
-    partition_cols: Optional[List[str]] = None,
-    bucketing_info: Optional[BucketingInfoTuple] = None,
+    filename_prefix: str | None = None,
+    partition_cols: list[str] | None = None,
+    bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
-    mode: Optional[Literal["append", "overwrite", "overwrite_partitions"]] = None,
+    mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
-    database: Optional[str] = None,
-    table: Optional[str] = None,
-    glue_table_settings: Optional[GlueTableSettings] = None,
-    dtype: Optional[Dict[str, str]] = None,
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
-    catalog_id: Optional[str] = None,
+    database: str | None = None,
+    table: str | None = None,
+    glue_table_settings: GlueTableSettings | None = None,
+    dtype: dict[str, str] | None = None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    catalog_id: str | None = None,
 ) -> _S3WriteDataReturnValue:
     """Write ORC file or dataset on Amazon S3.
 
@@ -364,7 +366,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
         Is not supported in conjunction with `max_rows_by_file` when running the library with Ray/Modin.
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``, ``zstd``).
-    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+    pyarrow_additional_kwargs: dict[str, Any], optional
         Additional parameters forwarded to pyarrow.
         e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
         'allow_truncated_timestamps'=False}
@@ -379,7 +381,7 @@ def to_orc(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branc
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool

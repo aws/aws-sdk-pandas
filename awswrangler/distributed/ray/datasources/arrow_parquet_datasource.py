@@ -5,17 +5,15 @@ This module is pulled from Ray's [ParquetDatasource]
 and customized to ensure compatibility with AWS SDK for pandas behavior. Changes from the original implementation,
 are documented in the comments and marked with (AWS SDK for pandas) prefix.
 """
+from __future__ import annotations
+
 import logging
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterator,
-    List,
     Literal,
-    Optional,
-    Union,
 )
 
 import numpy as np
@@ -113,8 +111,8 @@ class _SerializedFragment:
 
 # Visible for test mocking.
 def _deserialize_fragments(
-    serialized_fragments: List[_SerializedFragment],
-) -> List["pyarrow._dataset.ParquetFileFragment"]:
+    serialized_fragments: list[_SerializedFragment],
+) -> list["pyarrow._dataset.ParquetFileFragment"]:
     return [p.deserialize() for p in serialized_fragments]
 
 
@@ -126,10 +124,10 @@ def _deserialize_fragments(
 # with ray.data parallelism setting at high value like the default 200
 # Such connection failure can be restored with some waiting and retry.
 def _deserialize_fragments_with_retry(
-    serialized_fragments: List[_SerializedFragment],
-) -> List["pyarrow._dataset.ParquetFileFragment"]:
+    serialized_fragments: list[_SerializedFragment],
+) -> list["pyarrow._dataset.ParquetFileFragment"]:
     min_interval: float = 0
-    final_exception: Optional[Exception] = None
+    final_exception: Exception | None = None
     for i in range(FILE_READING_RETRY):
         try:
             return _deserialize_fragments(serialized_fragments)
@@ -176,17 +174,17 @@ class ArrowParquetDatasource(Datasource):
 
     def __init__(  # pylint: disable=too-many-branches,too-many-statements
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         path_root: str,
         *,
-        arrow_parquet_args: Optional[Dict[str, Any]] = None,
-        _block_udf: Optional[Callable[[Block], Block]] = None,
-        filesystem: Optional["pyarrow.fs.FileSystem"] = None,
+        arrow_parquet_args: dict[str, Any] | None = None,
+        _block_udf: Callable[[Block], Block] | None = None,
+        filesystem: "pyarrow.fs.FileSystem" | None = None,
         meta_provider: ParquetMetadataProvider = DefaultParquetMetadataProvider(),
-        partition_filter: Optional[PathPartitionFilter] = None,
-        shuffle: Union[Literal["files"], None] = None,
+        partition_filter: PathPartitionFilter | None = None,
+        shuffle: Literal["files"] | None = None,
         include_paths: bool = False,
-        file_extensions: Optional[List[str]] = None,
+        file_extensions: list[str] | None = None,
     ):
         if arrow_parquet_args is None:
             arrow_parquet_args = {}
@@ -294,7 +292,7 @@ class ArrowParquetDatasource(Datasource):
         if shuffle == "files":
             self._file_metadata_shuffler = np.random.default_rng()
 
-    def estimate_inmemory_data_size(self) -> Optional[int]:
+    def estimate_inmemory_data_size(self) -> int | None:
         """Return an estimate of the Parquet files encoding ratio.
 
         To avoid OOMs, it is safer to return an over-estimate than an underestimate.
@@ -306,7 +304,7 @@ class ArrowParquetDatasource(Datasource):
                 total_size += row_group_metadata.total_byte_size
         return total_size * self._encoding_ratio  # type: ignore[return-value]
 
-    def get_read_tasks(self, parallelism: int) -> List[ReadTask]:
+    def get_read_tasks(self, parallelism: int) -> list[ReadTask]:
         """Override the base class FileBasedDatasource.get_read_tasks().
 
         Required in order to leverage pyarrow's ParquetDataset abstraction,
@@ -455,20 +453,20 @@ class ArrowParquetDatasource(Datasource):
 
 
 def _read_fragments(
-    block_udf: Optional[Callable[[Block], Block]],
+    block_udf: Callable[[Block], Block] | None,
     arrow_parquet_args: Any,
     default_read_batch_size_rows: float,
-    columns: Optional[List[str]],
-    schema: Optional[Union[type, "pyarrow.lib.Schema"]],
-    path_root: Optional[str],
-    serialized_fragments: List[_SerializedFragment],
+    columns: list[str] | None,
+    schema: type | "pyarrow.lib.Schema" | None,
+    path_root: str | None,
+    serialized_fragments: list[_SerializedFragment],
     include_paths: bool,
 ) -> Iterator["pyarrow.Table"]:
     # This import is necessary to load the tensor extension type.
     from ray.data.extensions.tensor_extension import ArrowTensorType  # type: ignore[attr-defined] # noqa
 
     # Deserialize after loading the filesystem class.
-    fragments: List["pyarrow._dataset.ParquetFileFragment"] = _deserialize_fragments_with_retry(serialized_fragments)
+    fragments: list["pyarrow._dataset.ParquetFileFragment"] = _deserialize_fragments_with_retry(serialized_fragments)
 
     # Ensure that we're reading at least one dataset fragment.
     assert len(fragments) > 0
@@ -517,16 +515,16 @@ def _read_fragments(
 
 
 def _fetch_metadata_serialization_wrapper(
-    fragments: List[_SerializedFragment],
-) -> List["pyarrow.parquet.FileMetaData"]:
-    fragments: List["pyarrow._dataset.ParquetFileFragment"] = _deserialize_fragments_with_retry(fragments)  # type: ignore[no-redef]
+    fragments: list[_SerializedFragment],
+) -> list["pyarrow.parquet.FileMetaData"]:
+    fragments: list["pyarrow._dataset.ParquetFileFragment"] = _deserialize_fragments_with_retry(fragments)  # type: ignore[no-redef]
 
     return _fetch_metadata(fragments)
 
 
 def _fetch_metadata(
-    fragments: List["pyarrow.dataset.ParquetFileFragment"],
-) -> List["pyarrow.parquet.FileMetaData"]:
+    fragments: list["pyarrow.dataset.ParquetFileFragment"],
+) -> list["pyarrow.parquet.FileMetaData"]:
     fragment_metadata = []
     for f in fragments:
         try:
@@ -537,8 +535,8 @@ def _fetch_metadata(
 
 
 def _sample_fragment(
-    columns: Optional[List[str]],
-    schema: Optional[Union[type, "pyarrow.lib.Schema"]],
+    columns: list[str] | None,
+    schema: type | "pyarrow.lib.Schema" | None,
     file_fragment: _SerializedFragment,
 ) -> float:
     # Sample the first rows batch from file fragment `serialized_fragment`.

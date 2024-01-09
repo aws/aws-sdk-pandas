@@ -1,8 +1,9 @@
 """Ray PandasTextDatasink Module."""
+from __future__ import annotations
 
 import io
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 
 import pandas as pd
 from ray.data.block import BlockAccessor
@@ -20,12 +21,12 @@ class _PandasTextDatasink(_BlockFileDatasink):
         self,
         path: str,
         file_format: str,
-        write_text_func: Optional[Callable[..., None]],
+        write_text_func: Callable[..., None] | None,
         *,
-        block_path_provider: Optional[BlockWritePathProvider] = None,
-        dataset_uuid: Optional[str] = None,
-        open_s3_object_args: Optional[Dict[str, Any]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        block_path_provider: BlockWritePathProvider | None = None,
+        dataset_uuid: str | None = None,
+        open_s3_object_args: dict[str, Any] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **write_args: Any,
     ):
         super().__init__(
@@ -61,10 +62,10 @@ class PandasCSVDatasink(_PandasTextDatasink):  # pylint: disable=abstract-method
         self,
         path: str,
         *,
-        block_path_provider: Optional[BlockWritePathProvider] = None,
-        dataset_uuid: Optional[str] = None,
-        open_s3_object_args: Optional[Dict[str, Any]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        block_path_provider: BlockWritePathProvider | None = None,
+        dataset_uuid: str | None = None,
+        open_s3_object_args: dict[str, Any] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **write_args: Any,
     ):
         super().__init__(
@@ -86,10 +87,10 @@ class PandasJSONDatasink(_PandasTextDatasink):  # pylint: disable=abstract-metho
         self,
         path: str,
         *,
-        block_path_provider: Optional[BlockWritePathProvider] = None,
-        dataset_uuid: Optional[str] = None,
-        open_s3_object_args: Optional[Dict[str, Any]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        block_path_provider: BlockWritePathProvider | None = None,
+        dataset_uuid: str | None = None,
+        open_s3_object_args: dict[str, Any] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **write_args: Any,
     ):
         super().__init__(

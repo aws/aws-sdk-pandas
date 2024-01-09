@@ -1,10 +1,12 @@
 """Configuration file for AWS SDK for pandas."""
 
+from __future__ import annotations
+
 import inspect
 import logging
 import os
 from functools import wraps
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar, Union, cast
+from typing import Any, Callable, Dict, NamedTuple, Optional, TypeVar, Union, cast
 
 import botocore.config
 import pandas as pd
@@ -20,17 +22,17 @@ _ConfigValueType = Union[str, bool, int, float, botocore.config.Config, Dict[Any
 
 
 class _ConfigArg(NamedTuple):
-    dtype: Type[_ConfigValueType]
+    dtype: type[_ConfigValueType]
     nullable: bool
     enforced: bool = False
     loaded: bool = False
-    default: Optional[_ConfigValueType] = None
-    parent_parameter_key: Optional[str] = None
+    default: _ConfigValueType | None = None
+    parent_parameter_key: str | None = None
     is_parent: bool = False
 
 
 # Please, also add any new argument as a property in the _Config class
-_CONFIG_ARGS: Dict[str, _ConfigArg] = {
+_CONFIG_ARGS: dict[str, _ConfigArg] = {
     "catalog_id": _ConfigArg(dtype=str, nullable=True),
     "concurrent_partitioning": _ConfigArg(dtype=bool, nullable=False),
     "ctas_approach": _ConfigArg(dtype=bool, nullable=False),
@@ -85,13 +87,13 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     """AWS Wrangler's Configuration class."""
 
     def __init__(self) -> None:
-        self._loaded_values: Dict[str, Optional[_ConfigValueType]] = {}
+        self._loaded_values: dict[str, _ConfigValueType | None] = {}
         self.botocore_config = None
 
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
 
-    def reset(self, item: Optional[str] = None) -> None:
+    def reset(self, item: str | None = None) -> None:
         """Reset one or all (if None is received) configuration values.
 
         Parameters
@@ -131,12 +133,12 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         >>> wr.config.to_pandas()
 
         """
-        args: List[Dict[str, Any]] = []
+        args: list[dict[str, Any]] = []
         for k, v in _CONFIG_ARGS.items():
             if v.is_parent:
                 continue
 
-            arg: Dict[str, Any] = {
+            arg: dict[str, Any] = {
                 "name": k,
                 "Env.Variable": f"WR_{k.upper()}",
                 "type": v.dtype,
@@ -162,7 +164,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         if _CONFIG_ARGS[name].loaded:
             self._set_config_value(key=name, value=_CONFIG_ARGS[name].default)
 
-        env_var: Optional[str] = os.getenv(f"WR_{name.upper()}")
+        env_var: str | None = os.getenv(f"WR_{name.upper()}")
         if env_var is not None:
             self._set_config_value(key=name, value=env_var)
 
@@ -171,7 +173,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             raise exceptions.InvalidArgumentValue(
                 f"{key} is not a valid configuration. Please use: {list(_CONFIG_ARGS.keys())}"
             )
-        value_casted: Optional[_ConfigValueType] = self._apply_type(
+        value_casted: _ConfigValueType | None = self._apply_type(
             name=key,
             value=value,
             dtype=_CONFIG_ARGS[key].dtype,
@@ -184,11 +186,11 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         else:
             self._loaded_values[key] = value_casted
 
-    def __getitem__(self, item: str) -> Optional[_ConfigValueType]:
+    def __getitem__(self, item: str) -> _ConfigValueType | None:
         if issubclass(_CONFIG_ARGS[item].dtype, dict):
             return self._loaded_values[item]
 
-        loaded_values: Dict[str, Optional[_ConfigValueType]]
+        loaded_values: dict[str, _ConfigValueType | None]
         parent_key = _CONFIG_ARGS[item].parent_parameter_key
         if parent_key:
             loaded_values = self[parent_key]  # type: ignore[assignment]
@@ -202,7 +204,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     def _reset_item(self, item: str) -> None:
         config_arg = _CONFIG_ARGS[item]
-        loaded_values: Dict[str, Optional[_ConfigValueType]]
+        loaded_values: dict[str, _ConfigValueType | None]
 
         if config_arg.parent_parameter_key:
             loaded_values = self[config_arg.parent_parameter_key]  # type: ignore[assignment]
@@ -223,7 +225,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return self.to_pandas().to_html()
 
     @staticmethod
-    def _apply_type(name: str, value: Any, dtype: Type[_ConfigValueType], nullable: bool) -> Optional[_ConfigValueType]:
+    def _apply_type(name: str, value: Any, dtype: type[_ConfigValueType], nullable: bool) -> _ConfigValueType | None:
         if _Config._is_null(value=value):
             if nullable is True:
                 return None
@@ -236,7 +238,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.") from ex
 
     @staticmethod
-    def _is_null(value: Optional[_ConfigValueType]) -> bool:
+    def _is_null(value: _ConfigValueType | None) -> bool:
         if value is None:
             return True
         if isinstance(value, str) is True:
@@ -246,12 +248,12 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return False
 
     @property
-    def catalog_id(self) -> Optional[str]:
+    def catalog_id(self) -> str | None:
         """Property catalog_id."""
         return cast(Optional[str], self["catalog_id"])
 
     @catalog_id.setter
-    def catalog_id(self, value: Optional[str]) -> None:
+    def catalog_id(self, value: str | None) -> None:
         self._set_config_value(key="catalog_id", value=value)
 
     @property
@@ -273,12 +275,12 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="ctas_approach", value=value)
 
     @property
-    def database(self) -> Optional[str]:
+    def database(self) -> str | None:
         """Property database."""
         return cast(Optional[str], self["database"])
 
     @database.setter
-    def database(self, value: Optional[str]) -> None:
+    def database(self, value: str | None) -> None:
         self._set_config_value(key="database", value=value)
 
     @property
@@ -397,12 +399,12 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="s3_block_size", value=value)
 
     @property
-    def workgroup(self) -> Optional[str]:
+    def workgroup(self) -> str | None:
         """Property workgroup."""
         return cast(Optional[str], self["workgroup"])
 
     @workgroup.setter
-    def workgroup(self, value: Optional[str]) -> None:
+    def workgroup(self, value: str | None) -> None:
         self._set_config_value(key="workgroup", value=value)
 
     @property
@@ -433,97 +435,97 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="dtype_backend", value=value)
 
     @property
-    def s3_endpoint_url(self) -> Optional[str]:
+    def s3_endpoint_url(self) -> str | None:
         """Property s3_endpoint_url."""
         return cast(Optional[str], self["s3_endpoint_url"])
 
     @s3_endpoint_url.setter
-    def s3_endpoint_url(self, value: Optional[str]) -> None:
+    def s3_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="s3_endpoint_url", value=value)
 
     @property
-    def athena_endpoint_url(self) -> Optional[str]:
+    def athena_endpoint_url(self) -> str | None:
         """Property athena_endpoint_url."""
         return cast(Optional[str], self["athena_endpoint_url"])
 
     @athena_endpoint_url.setter
-    def athena_endpoint_url(self, value: Optional[str]) -> None:
+    def athena_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="athena_endpoint_url", value=value)
 
     @property
-    def sts_endpoint_url(self) -> Optional[str]:
+    def sts_endpoint_url(self) -> str | None:
         """Property sts_endpoint_url."""
         return cast(Optional[str], self["sts_endpoint_url"])
 
     @sts_endpoint_url.setter
-    def sts_endpoint_url(self, value: Optional[str]) -> None:
+    def sts_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="sts_endpoint_url", value=value)
 
     @property
-    def glue_endpoint_url(self) -> Optional[str]:
+    def glue_endpoint_url(self) -> str | None:
         """Property glue_endpoint_url."""
         return cast(Optional[str], self["glue_endpoint_url"])
 
     @glue_endpoint_url.setter
-    def glue_endpoint_url(self, value: Optional[str]) -> None:
+    def glue_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="glue_endpoint_url", value=value)
 
     @property
-    def redshift_endpoint_url(self) -> Optional[str]:
+    def redshift_endpoint_url(self) -> str | None:
         """Property redshift_endpoint_url."""
         return cast(Optional[str], self["redshift_endpoint_url"])
 
     @redshift_endpoint_url.setter
-    def redshift_endpoint_url(self, value: Optional[str]) -> None:
+    def redshift_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="redshift_endpoint_url", value=value)
 
     @property
-    def kms_endpoint_url(self) -> Optional[str]:
+    def kms_endpoint_url(self) -> str | None:
         """Property kms_endpoint_url."""
         return cast(Optional[str], self["kms_endpoint_url"])
 
     @kms_endpoint_url.setter
-    def kms_endpoint_url(self, value: Optional[str]) -> None:
+    def kms_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="kms_endpoint_url", value=value)
 
     @property
-    def emr_endpoint_url(self) -> Optional[str]:
+    def emr_endpoint_url(self) -> str | None:
         """Property emr_endpoint_url."""
         return cast(Optional[str], self["emr_endpoint_url"])
 
     @emr_endpoint_url.setter
-    def emr_endpoint_url(self, value: Optional[str]) -> None:
+    def emr_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="emr_endpoint_url", value=value)
 
     @property
-    def lakeformation_endpoint_url(self) -> Optional[str]:
+    def lakeformation_endpoint_url(self) -> str | None:
         """Property lakeformation_endpoint_url."""
         return cast(Optional[str], self["lakeformation_endpoint_url"])
 
     @lakeformation_endpoint_url.setter
-    def lakeformation_endpoint_url(self, value: Optional[str]) -> None:
+    def lakeformation_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="lakeformation_endpoint_url", value=value)
 
     @property
-    def dynamodb_endpoint_url(self) -> Optional[str]:
+    def dynamodb_endpoint_url(self) -> str | None:
         """Property dynamodb_endpoint_url."""
         return cast(Optional[str], self["dynamodb_endpoint_url"])
 
     @dynamodb_endpoint_url.setter
-    def dynamodb_endpoint_url(self, value: Optional[str]) -> None:
+    def dynamodb_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="dynamodb_endpoint_url", value=value)
 
     @property
-    def secretsmanager_endpoint_url(self) -> Optional[str]:
+    def secretsmanager_endpoint_url(self) -> str | None:
         """Property secretsmanager_endpoint_url."""
         return cast(Optional[str], self["secretsmanager_endpoint_url"])
 
     @secretsmanager_endpoint_url.setter
-    def secretsmanager_endpoint_url(self, value: Optional[str]) -> None:
+    def secretsmanager_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="secretsmanager_endpoint_url", value=value)
 
     @property
-    def timestream_query_endpoint_url(self) -> Optional[str]:
+    def timestream_query_endpoint_url(self) -> str | None:
         """
         Property timestream_query_endpoint_url.
 
@@ -533,11 +535,11 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return cast(Optional[str], self["timestream_query_endpoint_url"])
 
     @timestream_query_endpoint_url.setter
-    def timestream_query_endpoint_url(self, value: Optional[str]) -> None:
+    def timestream_query_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="timestream_query_endpoint_url", value=value)
 
     @property
-    def timestream_write_endpoint_url(self) -> Optional[str]:
+    def timestream_write_endpoint_url(self) -> str | None:
         """
         Property timestream_write_endpoint_url.
 
@@ -547,79 +549,79 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return cast(Optional[str], self["timestream_write_endpoint_url"])
 
     @timestream_write_endpoint_url.setter
-    def timestream_write_endpoint_url(self, value: Optional[str]) -> None:
+    def timestream_write_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="timestream_write_endpoint_url", value=value)
 
     @property
-    def botocore_config(self) -> Optional[botocore.config.Config]:
+    def botocore_config(self) -> botocore.config.Config | None:
         """Property botocore_config."""
         return cast(Optional[botocore.config.Config], self["botocore_config"])
 
     @botocore_config.setter
-    def botocore_config(self, value: Optional[botocore.config.Config]) -> None:
+    def botocore_config(self, value: botocore.config.Config | None) -> None:
         self._set_config_value(key="botocore_config", value=value)
 
     @property
-    def verify(self) -> Optional[str]:
+    def verify(self) -> str | None:
         """Property verify."""
         return cast(Optional[str], self["verify"])
 
     @verify.setter
-    def verify(self, value: Optional[str]) -> None:
+    def verify(self, value: str | None) -> None:
         self._set_config_value(key="verify", value=value)
 
     @property
-    def address(self) -> Optional[str]:
+    def address(self) -> str | None:
         """Property address."""
         return cast(Optional[str], self["address"])
 
     @address.setter
-    def address(self, value: Optional[str]) -> None:
+    def address(self, value: str | None) -> None:
         self._set_config_value(key="address", value=value)
 
     @property
-    def ignore_reinit_error(self) -> Optional[bool]:
+    def ignore_reinit_error(self) -> bool | None:
         """Property ignore_reinit_error."""
         return cast(Optional[bool], self["ignore_reinit_error"])
 
     @ignore_reinit_error.setter
-    def ignore_reinit_error(self, value: Optional[bool]) -> None:
+    def ignore_reinit_error(self, value: bool | None) -> None:
         self._set_config_value(key="ignore_reinit_error", value=value)
 
     @property
-    def include_dashboard(self) -> Optional[bool]:
+    def include_dashboard(self) -> bool | None:
         """Property include_dashboard."""
         return cast(Optional[bool], self["include_dashboard"])
 
     @include_dashboard.setter
-    def include_dashboard(self, value: Optional[bool]) -> None:
+    def include_dashboard(self, value: bool | None) -> None:
         self._set_config_value(key="include_dashboard", value=value)
 
     @property
-    def redis_password(self) -> Optional[str]:
+    def redis_password(self) -> str | None:
         """Property redis_password."""
         return cast(Optional[str], self["redis_password"])
 
     @redis_password.setter
-    def redis_password(self, value: Optional[str]) -> None:
+    def redis_password(self, value: str | None) -> None:
         self._set_config_value(key="redis_password", value=value)
 
     @property
-    def configure_logging(self) -> Optional[bool]:
+    def configure_logging(self) -> bool | None:
         """Property configure_logging."""
         return cast(Optional[bool], self["configure_logging"])
 
     @configure_logging.setter
-    def configure_logging(self, value: Optional[bool]) -> None:
+    def configure_logging(self, value: bool | None) -> None:
         self._set_config_value(key="configure_logging", value=value)
 
     @property
-    def log_to_driver(self) -> Optional[bool]:
+    def log_to_driver(self) -> bool | None:
         """Property log_to_driver."""
         return cast(Optional[bool], self["log_to_driver"])
 
     @log_to_driver.setter
-    def log_to_driver(self, value: Optional[bool]) -> None:
+    def log_to_driver(self, value: bool | None) -> None:
         self._set_config_value(key="log_to_driver", value=value)
 
     @property
@@ -665,7 +667,7 @@ def _insert_str(text: str, token: str, insert: str) -> str:
     return text[:index] + insert + text[index:]
 
 
-def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -> str:
+def _inject_config_doc(doc: str | None, available_configs: tuple[str, ...]) -> str:
     if doc is None:
         return "Undocumented function."
     if "\n    Parameters" not in doc:
@@ -675,7 +677,7 @@ def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -
         "\n    This function has arguments which can be configured globally through "
         "*wr.config* or environment variables:\n\n"
     )
-    args: Tuple[str, ...] = tuple(f"    - {x}\n" for x in available_configs)
+    args: tuple[str, ...] = tuple(f"    - {x}\n" for x in available_configs)
     args_block: str = "\n".join(args)
     footer: str = (
         "\n    Check out the `Global Configurations Tutorial "
@@ -687,7 +689,7 @@ def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -
     return _insert_str(text=doc, token="\n    Parameters", insert=insertion)
 
 
-def _assign_args_value(args: Dict[str, Any], name: str, value: Any) -> None:
+def _assign_args_value(args: dict[str, Any], name: str, value: Any) -> None:
     if _CONFIG_ARGS[name].is_parent:
         if name not in args:
             args[name] = {}
@@ -712,12 +714,12 @@ FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 def apply_configs(function: FunctionType) -> FunctionType:
     """Decorate some function with configs."""
     signature = inspect.signature(function)
-    args_names: Tuple[str, ...] = tuple(signature.parameters.keys())
-    available_configs: Tuple[str, ...] = tuple(x for x in _CONFIG_ARGS if x in args_names)
+    args_names: tuple[str, ...] = tuple(signature.parameters.keys())
+    available_configs: tuple[str, ...] = tuple(x for x in _CONFIG_ARGS if x in args_names)
 
     @wraps(function)
     def wrapper(*args_raw: Any, **kwargs: Any) -> Any:
-        args: Dict[str, Any] = signature.bind_partial(*args_raw, **kwargs).arguments
+        args: dict[str, Any] = signature.bind_partial(*args_raw, **kwargs).arguments
         for name in available_configs:
             if hasattr(config, name) is True:
                 value = config[name]
@@ -727,7 +729,7 @@ def apply_configs(function: FunctionType) -> FunctionType:
             if param.kind == param.VAR_KEYWORD and name in args:
                 if isinstance(args[name], dict) is False:
                     raise RuntimeError(f"Argument {name} ({args[name]}) is a non dictionary keyword argument.")
-                keywords: Dict[str, Any] = args[name]
+                keywords: dict[str, Any] = args[name]
                 del args[name]
                 args = {**args, **keywords}
         return function(**args)

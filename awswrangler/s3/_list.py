@@ -1,9 +1,11 @@
 """Amazon S3 List Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import datetime
 import fnmatch
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Iterator, Sequence
 
 import boto3
 import botocore.exceptions
@@ -19,20 +21,20 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _path2list(
-    path: Union[str, Sequence[str]],
+    path: str | Sequence[str],
     s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    suffix: Union[str, List[str], None] = None,
-    ignore_suffix: Union[str, List[str], None] = None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
+    suffix: str | list[str] | None = None,
+    ignore_suffix: str | list[str] | None = None,
     ignore_empty: bool = False,
-) -> List[str]:
+) -> list[str]:
     """Convert Amazon S3 path to list of objects."""
-    _suffix: Optional[List[str]] = [suffix] if isinstance(suffix, str) else suffix
-    _ignore_suffix: Optional[List[str]] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
+    _suffix: list[str] | None = [suffix] if isinstance(suffix, str) else suffix
+    _ignore_suffix: list[str] | None = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
     if isinstance(path, str):  # prefix
-        paths: List[str] = [
+        paths: list[str] = [
             path
             for paths in _list_objects(
                 path=path,
@@ -60,7 +62,7 @@ def _path2list(
 
 
 def _validate_datetimes(
-    last_modified_begin: Optional[datetime.datetime] = None, last_modified_end: Optional[datetime.datetime] = None
+    last_modified_begin: datetime.datetime | None = None, last_modified_end: datetime.datetime | None = None
 ) -> None:
     if (last_modified_begin is not None) and (last_modified_begin.tzinfo is None):
         raise exceptions.InvalidArgumentValue("Timezone is not defined for last_modified_begin.")
@@ -81,16 +83,16 @@ def _prefix_cleanup(prefix: str) -> str:
 def _list_objects(
     path: str,
     s3_client: "S3Client",
-    delimiter: Optional[str] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    suffix: Union[str, List[str], None] = None,
-    ignore_suffix: Union[str, List[str], None] = None,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
+    delimiter: str | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    suffix: str | list[str] | None = None,
+    ignore_suffix: str | list[str] | None = None,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
     ignore_empty: bool = False,
-) -> Iterator[List[str]]:
-    suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
-    ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
+) -> Iterator[list[str]]:
+    suffix: list[str] | None = [suffix] if isinstance(suffix, str) else suffix
+    ignore_suffix: list[str] | None = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
     _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
     bucket, pattern = _utils.parse_path(path=path)
     prefix: str = _prefix_cleanup(prefix=pattern)
@@ -116,16 +118,16 @@ def _list_objects_paginate(  # pylint: disable=too-many-branches
     pattern: str,
     prefix: str,
     s3_client: "S3Client",
-    delimiter: Optional[str],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    suffix: Union[List[str], None],
-    ignore_suffix: Union[List[str], None],
-    last_modified_begin: Optional[datetime.datetime],
-    last_modified_end: Optional[datetime.datetime],
+    delimiter: str | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    suffix: list[str] | None,
+    ignore_suffix: list[str] | None,
+    last_modified_begin: datetime.datetime | None,
+    last_modified_end: datetime.datetime | None,
     ignore_empty: bool,
-) -> Iterator[List[str]]:
-    default_pagination: Dict[str, int] = {"PageSize": 1000}
-    extra_kwargs: Dict[str, Any] = {"PaginationConfig": default_pagination}
+) -> Iterator[list[str]]:
+    default_pagination: dict[str, int] = {"PageSize": 1000}
+    extra_kwargs: dict[str, Any] = {"PaginationConfig": default_pagination}
     if s3_additional_kwargs:
         extra_kwargs = _fs.get_botocore_valid_kwargs(
             function_name="list_objects_v2", s3_additional_kwargs=s3_additional_kwargs
@@ -136,12 +138,12 @@ def _list_objects_paginate(  # pylint: disable=too-many-branches
             else default_pagination
         )
     paginator = s3_client.get_paginator("list_objects_v2")
-    args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, **extra_kwargs}
+    args: dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, **extra_kwargs}
     if delimiter is not None:
         args["Delimiter"] = delimiter
     _logger.debug("args: %s", args)
     response_iterator = paginator.paginate(**args)
-    paths: List[str] = []
+    paths: list[str] = []
 
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
@@ -181,9 +183,9 @@ def _list_objects_paginate(  # pylint: disable=too-many-branches
 
 def does_object_exist(
     path: str,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    version_id: Optional[str] = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
+    version_id: str | None = None,
 ) -> bool:
     """Check if object exists on S3.
 
@@ -191,7 +193,7 @@ def does_object_exist(
     ----------
     path: str
         S3 path (e.g. s3://bucket/key).
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
@@ -229,7 +231,7 @@ def does_object_exist(
     key: str
     bucket, key = _utils.parse_path(path=path)
     if s3_additional_kwargs:
-        extra_kwargs: Dict[str, Any] = _fs.get_botocore_valid_kwargs(
+        extra_kwargs: dict[str, Any] = _fs.get_botocore_valid_kwargs(
             function_name="head_object", s3_additional_kwargs=s3_additional_kwargs
         )
     else:
@@ -251,9 +253,9 @@ def does_object_exist(
 def list_directories(
     path: str,
     chunked: bool = False,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Union[List[str], Iterator[List[str]]]:
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[str] | Iterator[list[str]]:
     """List Amazon S3 objects from a prefix.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -268,7 +270,7 @@ def list_directories(
         S3 path (e.g. s3://bucket/prefix).
     chunked: bool
         If True returns iterator, and a single list otherwise. False by default.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
@@ -312,15 +314,15 @@ def list_directories(
 )
 def list_objects(
     path: str,
-    suffix: Union[str, List[str], None] = None,
-    ignore_suffix: Union[str, List[str], None] = None,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
+    suffix: str | list[str] | None = None,
+    ignore_suffix: str | list[str] | None = None,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
     ignore_empty: bool = False,
     chunked: bool = False,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Union[List[str], Iterator[List[str]]]:
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[str] | Iterator[list[str]]:
     """List Amazon S3 objects from a prefix.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -351,7 +353,7 @@ def list_objects(
         Ignore files with 0 bytes.
     chunked: bool
         If True returns iterator, and a single list otherwise. False by default.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
@@ -401,7 +403,7 @@ def list_objects(
     return [path for paths in result_iterator for path in paths]
 
 
-def list_buckets(boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def list_buckets(boto3_session: boto3.Session | None = None) -> list[str]:
     """List Amazon S3 buckets.
 
     Parameters

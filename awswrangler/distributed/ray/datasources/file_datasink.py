@@ -1,7 +1,8 @@
 """Ray FileDatasink Module."""
+from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable
 
 import pandas as pd
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
@@ -24,10 +25,10 @@ class _BlockFileDatasink(Datasink):
         path: str,
         file_format: str,
         *,
-        block_path_provider: Optional[BlockWritePathProvider] = DefaultBlockWritePathProvider(),
-        dataset_uuid: Optional[str] = None,
-        open_s3_object_args: Optional[Dict[str, Any]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        block_path_provider: BlockWritePathProvider | None = DefaultBlockWritePathProvider(),
+        dataset_uuid: str | None = None,
+        open_s3_object_args: dict[str, Any] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **write_args: Any,
     ):
         self.path = path
@@ -38,11 +39,11 @@ class _BlockFileDatasink(Datasink):
         self.pandas_kwargs = pandas_kwargs or {}
         self.write_args = write_args or {}
 
-        self._write_paths: List[str] = []
+        self._write_paths: list[str] = []
 
     def write(
         self,
-        blocks: Iterable[Union[Block, ObjectRef[pd.DataFrame]]],
+        blocks: Iterable[Block | ObjectRef[pd.DataFrame]],
         ctx: TaskContext,
     ) -> Any:
         _write_block_to_file = self.write_block
@@ -78,7 +79,7 @@ class _BlockFileDatasink(Datasink):
     def write_block(self, file: Any, block: BlockAccessor) -> None:
         raise NotImplementedError
 
-    def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
+    def _get_file_suffix(self, file_format: str, compression: str | None) -> str:
         return f"{file_format}{_COMPRESSION_2_EXT.get(compression)}"
 
     # Note: this callback function is called once by the main thread after
@@ -86,13 +87,13 @@ class _BlockFileDatasink(Datasink):
     # and is meant to be used for singular actions like
     # [committing a transaction](https://docs.ray.io/en/latest/data/api/doc/ray.data.Datasource.html).
     # As deceptive as it may look, there is no race condition here.
-    def on_write_complete(self, write_results: List[Any], **_: Any) -> None:
+    def on_write_complete(self, write_results: list[Any], **_: Any) -> None:
         """Execute callback after all write tasks complete."""
         _logger.debug("Write complete %s.", write_results)
 
         # Collect and return all write task paths
         self._write_paths.extend(write_results)
 
-    def get_write_paths(self) -> List[str]:
+    def get_write_paths(self) -> list[str]:
         """Return S3 paths of where the results have been written."""
         return self._write_paths

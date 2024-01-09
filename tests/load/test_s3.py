@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import math
-from typing import List, Optional, Tuple
 
 import modin.config as cfg
 import modin.pandas as pd
@@ -118,8 +119,8 @@ def test_s3_write_parquet_simple(
 def test_s3_write_parquet_dataset(
     df_s: pd.DataFrame,
     path: str,
-    partition_cols: Optional[List[str]],
-    bucketing_info: Optional[wr.typing.BucketingInfoTuple],
+    partition_cols: list[str] | None,
+    bucketing_info: wr.typing.BucketingInfoTuple | None,
     benchmark_time: float,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -135,8 +136,8 @@ def test_s3_write_parquet_dataset(
 def test_s3_write_parquet_blocks(
     df_s: pd.DataFrame,
     path: str,
-    partition_cols: Optional[List[str]],
-    num_blocks: Optional[int],
+    partition_cols: list[str] | None,
+    num_blocks: int | None,
     benchmark_time: float,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -236,7 +237,7 @@ def test_wait_object_not_exists(path: str, benchmark_time: int, request: pytest.
 
 
 @pytest.mark.parametrize("size", [(5000, 5000), (1, 5000), (5000, 1), (1, 1)])
-def test_wide_df(size: Tuple[int, int], path: str) -> None:
+def test_wide_df(size: tuple[int, int], path: str) -> None:
     df = pd.DataFrame(np.random.randint(0, 100, size=size))
     df.columns = df.columns.map(str)
 

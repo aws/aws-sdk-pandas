@@ -1,7 +1,9 @@
 """AWS Glue Catalog Delete Module."""
 
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from awswrangler import typing
 
@@ -35,12 +37,12 @@ _LEGAL_COLUMN_TYPES = [
 def _parquet_table_definition(
     table: str,
     path: str,
-    columns_types: Dict[str, str],
-    table_type: Optional[str],
-    partitions_types: Dict[str, str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    compression: Optional[str],
-) -> Dict[str, Any]:
+    columns_types: dict[str, str],
+    table_type: str | None,
+    partitions_types: dict[str, str],
+    bucketing_info: typing.BucketingInfoTuple | None,
+    compression: str | None,
+) -> dict[str, Any]:
     compressed: bool = compression is not None
     return {
         "Name": table,
@@ -73,14 +75,14 @@ def _parquet_table_definition(
 
 def _parquet_partition_definition(
     location: str,
-    values: List[str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    compression: Optional[str],
-    columns_types: Optional[Dict[str, str]],
-    partitions_parameters: Optional[Dict[str, str]],
-) -> Dict[str, Any]:
+    values: list[str],
+    bucketing_info: typing.BucketingInfoTuple | None,
+    compression: str | None,
+    columns_types: dict[str, str] | None,
+    partitions_parameters: dict[str, str] | None,
+) -> dict[str, Any]:
     compressed: bool = compression is not None
-    definition: Dict[str, Any] = {
+    definition: dict[str, Any] = {
         "StorageDescriptor": {
             "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
@@ -107,12 +109,12 @@ def _parquet_partition_definition(
 def _orc_table_definition(
     table: str,
     path: str,
-    columns_types: Dict[str, str],
-    table_type: Optional[str],
-    partitions_types: Dict[str, str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    compression: Optional[str],
-) -> Dict[str, Any]:
+    columns_types: dict[str, str],
+    table_type: str | None,
+    partitions_types: dict[str, str],
+    bucketing_info: typing.BucketingInfoTuple | None,
+    compression: str | None,
+) -> dict[str, Any]:
     compressed: bool = compression is not None
     return {
         "Name": table,
@@ -145,14 +147,14 @@ def _orc_table_definition(
 
 def _orc_partition_definition(
     location: str,
-    values: List[str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    compression: Optional[str],
-    columns_types: Optional[Dict[str, str]],
-    partitions_parameters: Optional[Dict[str, str]],
-) -> Dict[str, Any]:
+    values: list[str],
+    bucketing_info: typing.BucketingInfoTuple | None,
+    compression: str | None,
+    columns_types: dict[str, str] | None,
+    partitions_parameters: dict[str, str] | None,
+) -> dict[str, Any]:
     compressed: bool = compression is not None
-    definition: Dict[str, Any] = {
+    definition: dict[str, Any] = {
         "StorageDescriptor": {
             "InputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat",
@@ -178,19 +180,19 @@ def _orc_partition_definition(
 
 def _csv_table_definition(
     table: str,
-    path: Optional[str],
-    columns_types: Dict[str, str],
-    table_type: Optional[str],
-    partitions_types: Dict[str, str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    compression: Optional[str],
+    path: str | None,
+    columns_types: dict[str, str],
+    table_type: str | None,
+    partitions_types: dict[str, str],
+    bucketing_info: typing.BucketingInfoTuple | None,
+    compression: str | None,
     sep: str,
-    skip_header_line_count: Optional[int],
-    serde_library: Optional[str],
-    serde_parameters: Optional[Dict[str, str]],
-) -> Dict[str, Any]:
+    skip_header_line_count: int | None,
+    serde_library: str | None,
+    serde_parameters: dict[str, str] | None,
+) -> dict[str, Any]:
     compressed: bool = compression is not None
-    parameters: Dict[str, str] = {
+    parameters: dict[str, str] = {
         "classification": "csv",
         "compressionType": str(compression).lower(),
         "typeOfData": "file",
@@ -229,15 +231,15 @@ def _csv_table_definition(
 
 def _csv_partition_definition(
     location: str,
-    values: List[str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    compression: Optional[str],
+    values: list[str],
+    bucketing_info: typing.BucketingInfoTuple | None,
+    compression: str | None,
     sep: str,
-    serde_library: Optional[str],
-    serde_parameters: Optional[Dict[str, str]],
-    columns_types: Optional[Dict[str, str]],
-    partitions_parameters: Optional[Dict[str, str]],
-) -> Dict[str, Any]:
+    serde_library: str | None,
+    serde_parameters: dict[str, str] | None,
+    columns_types: dict[str, str] | None,
+    partitions_parameters: dict[str, str] | None,
+) -> dict[str, Any]:
     compressed: bool = compression is not None
     serde_info = {
         "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
@@ -245,7 +247,7 @@ def _csv_partition_definition(
         else serde_library,
         "Parameters": {"field.delim": sep, "escape.delim": "\\"} if serde_parameters is None else serde_parameters,
     }
-    definition: Dict[str, Any] = {
+    definition: dict[str, Any] = {
         "StorageDescriptor": {
             "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
@@ -269,16 +271,16 @@ def _csv_partition_definition(
 def _json_table_definition(
     table: str,
     path: str,
-    columns_types: Dict[str, str],
-    table_type: Optional[str],
-    partitions_types: Dict[str, str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    compression: Optional[str],
-    serde_library: Optional[str],
-    serde_parameters: Optional[Dict[str, str]],
-) -> Dict[str, Any]:
+    columns_types: dict[str, str],
+    table_type: str | None,
+    partitions_types: dict[str, str],
+    bucketing_info: typing.BucketingInfoTuple | None,
+    compression: str | None,
+    serde_library: str | None,
+    serde_parameters: dict[str, str] | None,
+) -> dict[str, Any]:
     compressed: bool = compression is not None
-    parameters: Dict[str, str] = {
+    parameters: dict[str, str] = {
         "classification": "json",
         "compressionType": str(compression).lower(),
         "typeOfData": "file",
@@ -310,20 +312,20 @@ def _json_table_definition(
 
 def _json_partition_definition(
     location: str,
-    values: List[str],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    compression: Optional[str],
-    serde_library: Optional[str],
-    serde_parameters: Optional[Dict[str, str]],
-    columns_types: Optional[Dict[str, str]],
-    partitions_parameters: Optional[Dict[str, str]],
-) -> Dict[str, Any]:
+    values: list[str],
+    bucketing_info: typing.BucketingInfoTuple | None,
+    compression: str | None,
+    serde_library: str | None,
+    serde_parameters: dict[str, str] | None,
+    columns_types: dict[str, str] | None,
+    partitions_parameters: dict[str, str] | None,
+) -> dict[str, Any]:
     compressed: bool = compression is not None
     serde_info = {
         "SerializationLibrary": "org.openx.data.jsonserde.JsonSerDe" if serde_library is None else serde_library,
         "Parameters": {} if serde_parameters is None else serde_parameters,
     }
-    definition: Dict[str, Any] = {
+    definition: dict[str, Any] = {
         "StorageDescriptor": {
             "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
@@ -350,8 +352,8 @@ def _check_column_type(column_type: str) -> bool:
     return True
 
 
-def _update_table_definition(current_definition: "GetTableResponseTypeDef") -> Dict[str, Any]:
-    definition: Dict[str, Any] = {}
+def _update_table_definition(current_definition: "GetTableResponseTypeDef") -> dict[str, Any]:
+    definition: dict[str, Any] = {}
     keep_keys = [
         "Name",
         "Description",

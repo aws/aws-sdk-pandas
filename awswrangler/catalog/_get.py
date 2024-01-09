@@ -1,10 +1,12 @@
 """AWS Glue Catalog Get Module."""
 # pylint: disable=redefined-outer-name
 
+from __future__ import annotations
+
 import base64
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, cast
 
 import boto3
 import botocore.exceptions
@@ -23,19 +25,19 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _get_table_input(
     database: str,
     table: str,
-    boto3_session: Optional[boto3.Session],
-    transaction_id: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+    boto3_session: boto3.Session | None,
+    transaction_id: str | None = None,
+    catalog_id: str | None = None,
+) -> dict[str, Any] | None:
     client_glue = _utils.client("glue", session=boto3_session)
-    args: Dict[str, Any] = _catalog_id(
+    args: dict[str, Any] = _catalog_id(
         catalog_id=catalog_id, **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table)
     )
     try:
         response = client_glue.get_table(**args)
     except client_glue.exceptions.EntityNotFoundException:
         return None
-    table_input: Dict[str, Any] = {}
+    table_input: dict[str, Any] = {}
     for k, v in response["Table"].items():
         if k in [
             "Name",
@@ -56,16 +58,14 @@ def _get_table_input(
     return table_input
 
 
-def _append_partitions(
-    partitions_values: Dict[str, List[str]], response: "GetPartitionsResponseTypeDef"
-) -> Optional[str]:
+def _append_partitions(partitions_values: dict[str, list[str]], response: "GetPartitionsResponseTypeDef") -> str | None:
     _logger.debug("response: %s", response)
-    token: Optional[str] = response.get("NextToken", None)
+    token: str | None = response.get("NextToken", None)
     if (response is not None) and ("Partitions" in response):
         for partition in response["Partitions"]:
-            location: Optional[str] = partition["StorageDescriptor"].get("Location")
+            location: str | None = partition["StorageDescriptor"].get("Location")
             if location is not None:
-                values: List[str] = partition["Values"]
+                values: list[str] = partition["Values"]
                 partitions_values[location] = values
     else:
         token = None
@@ -75,13 +75,13 @@ def _append_partitions(
 def _get_partitions(
     database: str,
     table: str,
-    expression: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, List[str]]:
+    expression: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, list[str]]:
     client_glue = _utils.client("glue", session=boto3_session)
 
-    args: Dict[str, Any] = _catalog_id(
+    args: dict[str, Any] = _catalog_id(
         catalog_id=catalog_id,
         DatabaseName=database,
         TableName=table,
@@ -92,11 +92,11 @@ def _get_partitions(
     if expression is not None:
         args["Expression"] = expression
 
-    partitions_values: Dict[str, List[str]] = {}
+    partitions_values: dict[str, list[str]] = {}
     _logger.debug("Starting pagination...")
 
     response = client_glue.get_partitions(**args)
-    token: Optional[str] = _append_partitions(partitions_values=partitions_values, response=response)
+    token: str | None = _append_partitions(partitions_values=partitions_values, response=response)
     while token is not None:
         args["NextToken"] = response["NextToken"]
         response = client_glue.get_partitions(**args)
@@ -110,11 +110,11 @@ def _get_partitions(
 def get_table_types(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Optional[Dict[str, str]]:
+    transaction_id: str | None = None,
+    query_as_of_time: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, str] | None:
     """Get all columns and types from a table.
 
     Note
@@ -166,8 +166,8 @@ def get_table_types(
 
 
 def get_databases(
-    catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> Iterator[Dict[str, Any]]:
+    catalog_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> Iterator[dict[str, Any]]:
     """Get an iterator of databases.
 
     Parameters
@@ -199,7 +199,7 @@ def get_databases(
 
 @apply_configs
 def databases(
-    limit: int = 100, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    limit: int = 100, catalog_id: str | None = None, boto3_session: boto3.Session | None = None
 ) -> pd.DataFrame:
     """Get a Pandas DataFrame with all listed databases.
 
@@ -226,7 +226,7 @@ def databases(
     """
     database_iter = get_databases(catalog_id=catalog_id, boto3_session=boto3_session)
     dbs = itertools.islice(database_iter, limit)
-    df_dict: Dict[str, List[str]] = {"Database": [], "Description": []}
+    df_dict: dict[str, list[str]] = {"Database": [], "Description": []}
     for db in dbs:
         df_dict["Database"].append(db["Name"])
         df_dict["Description"].append(db.get("Description", ""))
@@ -235,14 +235,14 @@ def databases(
 
 @apply_configs
 def get_tables(
-    catalog_id: Optional[str] = None,
-    database: Optional[str] = None,
-    transaction_id: Optional[str] = None,
-    name_contains: Optional[str] = None,
-    name_prefix: Optional[str] = None,
-    name_suffix: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Iterator[Dict[str, Any]]:
+    catalog_id: str | None = None,
+    database: str | None = None,
+    transaction_id: str | None = None,
+    name_contains: str | None = None,
+    name_prefix: str | None = None,
+    name_suffix: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> Iterator[dict[str, Any]]:
     """Get an iterator of tables.
 
     Note
@@ -281,7 +281,7 @@ def get_tables(
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_tables")
-    args: Dict[str, str] = {}
+    args: dict[str, str] = {}
     if (name_prefix is not None) and (name_suffix is not None) and (name_contains is not None):
         raise exceptions.InvalidArgumentCombination(
             "Please, do not filter using name_contains and "
@@ -297,7 +297,7 @@ def get_tables(
     elif name_suffix is not None:
         args["Expression"] = f"*{name_suffix}"
     if database is not None:
-        dbs: List[str] = [database]
+        dbs: list[str] = [database]
     else:
         dbs = [x["Name"] for x in get_databases(catalog_id=catalog_id)]
     for db in dbs:
@@ -316,14 +316,14 @@ def get_tables(
 @apply_configs
 def tables(
     limit: int = 100,
-    catalog_id: Optional[str] = None,
-    database: Optional[str] = None,
-    transaction_id: Optional[str] = None,
-    search_text: Optional[str] = None,
-    name_contains: Optional[str] = None,
-    name_prefix: Optional[str] = None,
-    name_suffix: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    catalog_id: str | None = None,
+    database: str | None = None,
+    transaction_id: str | None = None,
+    search_text: str | None = None,
+    name_contains: str | None = None,
+    name_prefix: str | None = None,
+    name_suffix: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
     """Get a DataFrame with tables filtered by a search term, prefix, suffix.
 
@@ -374,7 +374,7 @@ def tables(
             name_suffix=name_suffix,
             boto3_session=boto3_session,
         )
-        tbls: List[Dict[str, Any]] = list(itertools.islice(table_iter, limit))
+        tbls: list[dict[str, Any]] = list(itertools.islice(table_iter, limit))
     else:
         tbls = list(search_tables(text=search_text, catalog_id=catalog_id, boto3_session=boto3_session))
         if database is not None:
@@ -387,7 +387,7 @@ def tables(
             tbls = [x for x in tbls if x["Name"].endswith(name_suffix)]
         tbls = tbls[:limit]
 
-    df_dict: Dict[str, List[str]] = {
+    df_dict: dict[str, list[str]] = {
         "Database": [],
         "Table": [],
         "Description": [],
@@ -413,8 +413,8 @@ def tables(
 
 
 def search_tables(
-    text: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> Iterator[Dict[str, Any]]:
+    text: str, catalog_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> Iterator[dict[str, Any]]:
     """Get Pandas DataFrame of tables filtered by a search string.
 
     Note
@@ -443,7 +443,7 @@ def search_tables(
 
     """
     client_glue = _utils.client("glue", session=boto3_session)
-    args: Dict[str, Any] = _catalog_id(catalog_id=catalog_id, SearchText=text)
+    args: dict[str, Any] = _catalog_id(catalog_id=catalog_id, SearchText=text)
     response = client_glue.search_tables(**args)
     for tbl in response["TableList"]:
         yield cast(Dict[str, Any], tbl)
@@ -458,10 +458,10 @@ def search_tables(
 def table(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    transaction_id: str | None = None,
+    query_as_of_time: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
     """Get table details as Pandas DataFrame.
 
@@ -506,7 +506,7 @@ def table(
             ),
         )
     )["Table"]
-    df_dict: Dict[str, List[Union[str, bool]]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
+    df_dict: dict[str, list[str | bool]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
     if "StorageDescriptor" in tbl:
         for col in tbl["StorageDescriptor"].get("Columns", {}):
             df_dict["Column Name"].append(col["Name"])
@@ -532,10 +532,10 @@ def table(
 def get_table_location(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    transaction_id: str | None = None,
+    query_as_of_time: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Get table's location on Glue catalog.
 
@@ -588,8 +588,8 @@ def get_table_location(
 
 
 def get_connection(
-    name: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> Dict[str, Any]:
+    name: str, catalog_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> dict[str, Any]:
     """Get Glue connection details.
 
     Parameters
@@ -637,10 +637,10 @@ def get_connection(
 def get_parquet_partitions(
     database: str,
     table: str,
-    expression: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, List[str]]:
+    expression: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, list[str]]:
     """Get all partitions from a Table in the AWS Glue Catalog.
 
     Expression argument instructions:
@@ -707,10 +707,10 @@ def get_parquet_partitions(
 def get_csv_partitions(
     database: str,
     table: str,
-    expression: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, List[str]]:
+    expression: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, list[str]]:
     """Get all partitions from a Table in the AWS Glue Catalog.
 
     Expression argument instructions:
@@ -777,10 +777,10 @@ def get_csv_partitions(
 def get_partitions(
     database: str,
     table: str,
-    expression: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, List[str]]:
+    expression: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, list[str]]:
     """Get all partitions from a Table in the AWS Glue Catalog.
 
     Expression argument instructions:
@@ -846,11 +846,11 @@ def get_partitions(
 def get_table_parameters(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, str]:
+    transaction_id: str | None = None,
+    query_as_of_time: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, str]:
     """Get all parameters.
 
     Note
@@ -894,18 +894,18 @@ def get_table_parameters(
             ),
         )
     )
-    parameters: Dict[str, str] = response["Table"]["Parameters"]
+    parameters: dict[str, str] = response["Table"]["Parameters"]
     return parameters
 
 
 def get_table_description(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Optional[str]:
+    transaction_id: str | None = None,
+    query_as_of_time: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> str | None:
     """Get table description.
 
     Note
@@ -949,7 +949,7 @@ def get_table_description(
             ),
         )
     )
-    desc: Optional[str] = response["Table"].get("Description", None)
+    desc: str | None = response["Table"].get("Description", None)
     return desc
 
 
@@ -957,11 +957,11 @@ def get_table_description(
 def get_columns_comments(
     database: str,
     table: str,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Optional[str]]:
+    transaction_id: str | None = None,
+    query_as_of_time: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, str | None]:
     """Get all columns comments.
 
     Note
@@ -1005,7 +1005,7 @@ def get_columns_comments(
             ),
         )
     )
-    comments: Dict[str, Optional[str]] = {}
+    comments: dict[str, str | None] = {}
     for c in response["Table"]["StorageDescriptor"]["Columns"]:
         comments[c["Name"]] = c.get("Comment")
     if "PartitionKeys" in response["Table"]:
@@ -1016,8 +1016,8 @@ def get_columns_comments(
 
 @apply_configs
 def get_table_versions(
-    database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[Dict[str, Any]]:
+    database: str, table: str, catalog_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> list[dict[str, Any]]:
     """Get all versions.
 
     Parameters
@@ -1046,7 +1046,7 @@ def get_table_versions(
     """
     client_glue = _utils.client("glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_table_versions")
-    versions: List[Dict[str, Any]] = []
+    versions: list[dict[str, Any]] = []
     response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))
     for page in response_iterator:
         for tbl in page["TableVersions"]:
@@ -1056,7 +1056,7 @@ def get_table_versions(
 
 @apply_configs
 def get_table_number_of_versions(
-    database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    database: str, table: str, catalog_id: str | None = None, boto3_session: boto3.Session | None = None
 ) -> int:
     """Get total number of versions.
 

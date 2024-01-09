@@ -1,7 +1,9 @@
 """Modin on Ray S3 write parquet module (PRIVATE)."""
+from __future__ import annotations
+
 import logging
 import math
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import modin.pandas as pd
 import pyarrow as pa
@@ -21,20 +23,20 @@ def _to_orc_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     schema: pa.Schema,
     index: bool,
-    compression: Optional[str],
+    compression: str | None,
     compression_ext: str,
-    pyarrow_additional_kwargs: Dict[str, Any],
+    pyarrow_additional_kwargs: dict[str, Any],
     cpus: int,
-    dtype: Dict[str, str],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    path: Optional[str] = None,
-    path_root: Optional[str] = None,
-    filename_prefix: Optional[str] = None,
-    max_rows_by_file: Optional[int] = 0,
+    dtype: dict[str, str],
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, str] | None,
+    use_threads: bool | int,
+    path: str | None = None,
+    path_root: str | None = None,
+    filename_prefix: str | None = None,
+    max_rows_by_file: int | None = 0,
     bucketing: bool = False,
-) -> List[str]:
+) -> list[str]:
     if bucketing:
         # Add bucket id to the prefix
         path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}{compression_ext}.orc"

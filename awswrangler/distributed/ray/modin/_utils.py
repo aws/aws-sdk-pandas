@@ -1,6 +1,8 @@
 """Modin on Ray utilities (PRIVATE)."""
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any, Callable
 
 import modin.pandas as modin_pd
 import pandas as pd
@@ -20,7 +22,7 @@ from awswrangler.distributed.ray import ray_get, ray_remote
 @ray_remote()
 def _block_to_df(
     block: Any,
-    to_pandas_kwargs: Dict[str, Any],
+    to_pandas_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
     if isinstance(block, pd.DataFrame):
         return block
@@ -29,7 +31,7 @@ def _block_to_df(
     return _table_to_df(table=block._table, kwargs=to_pandas_kwargs)  # pylint: disable=protected-access
 
 
-def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset:
+def _ray_dataset_from_df(df: pd.DataFrame | modin_pd.DataFrame) -> Dataset:
     """Create Ray dataset from supported types of data frames."""
     if isinstance(df, modin_pd.DataFrame):
         return from_modin(df)  # type: ignore[no-any-return]
@@ -40,8 +42,8 @@ def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset
 
 def _to_modin(
     dataset: Dataset,
-    to_pandas_kwargs: Optional[Dict[str, Any]] = None,
-    ignore_index: Optional[bool] = True,
+    to_pandas_kwargs: dict[str, Any] | None = None,
+    ignore_index: bool | None = True,
 ) -> modin_pd.DataFrame:
     index = modin_pd.RangeIndex(start=0, stop=dataset.count()) if ignore_index else None
     _to_pandas_kwargs = {} if to_pandas_kwargs is None else to_pandas_kwargs
@@ -55,18 +57,18 @@ def _to_modin(
     )
 
 
-def _split_modin_frame(df: modin_pd.DataFrame, splits: int) -> List[ObjectRef[Any]]:  # pylint: disable=unused-argument
-    object_refs: List[ObjectRef[Any]] = _ray_dataset_from_df(df).get_internal_block_refs()
+def _split_modin_frame(df: modin_pd.DataFrame, splits: int) -> list[ObjectRef[Any]]:  # pylint: disable=unused-argument
+    object_refs: list[ObjectRef[Any]] = _ray_dataset_from_df(df).get_internal_block_refs()
     return object_refs
 
 
-def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Optional[Dict[str, Any]]) -> modin_pd.DataFrame:
+def _arrow_refs_to_df(arrow_refs: list[Callable[..., Any]], kwargs: dict[str, Any] | None) -> modin_pd.DataFrame:
     @ray_remote()
     def _is_not_empty(table: pa.Table) -> Any:
         return table.num_rows > 0 or table.num_columns > 0
 
-    ref_rows: List[bool] = ray_get([_is_not_empty(arrow_ref) for arrow_ref in arrow_refs])
-    refs: List[Callable[..., Any]] = [ref for ref_rows, ref in zip(ref_rows, arrow_refs) if ref_rows]
+    ref_rows: list[bool] = ray_get([_is_not_empty(arrow_ref) for arrow_ref in arrow_refs])
+    refs: list[Callable[..., Any]] = [ref for ref_rows, ref in zip(ref_rows, arrow_refs) if ref_rows]
     return _to_modin(
         dataset=ray.data.from_arrow_refs(refs) if len(refs) > 0 else ray.data.from_arrow([pa.Table.from_arrays([])]),
         to_pandas_kwargs=kwargs,
@@ -77,7 +79,7 @@ def _is_pandas_or_modin_frame(obj: Any) -> bool:
     return isinstance(obj, (pd.DataFrame, modin_pd.DataFrame))
 
 
-def _copy_modin_df_shallow(frame: Union[pd.DataFrame, modin_pd.DataFrame]) -> Union[pd.DataFrame, modin_pd.DataFrame]:
+def _copy_modin_df_shallow(frame: pd.DataFrame | modin_pd.DataFrame) -> pd.DataFrame | modin_pd.DataFrame:
     if isinstance(frame, pd.DataFrame):
         engine.dispatch_func(copy_df_shallow, "python")(frame)
 
@@ -93,10 +95,10 @@ class ParamConfig:
     """
 
     default: Any
-    supported_values: Optional[Set[Any]] = None
+    supported_values: set[Any] | None = None
 
 
-def _check_parameters(pandas_kwargs: Dict[str, Any], supported_params: Dict[str, ParamConfig]) -> None:
+def _check_parameters(pandas_kwargs: dict[str, Any], supported_params: dict[str, ParamConfig]) -> None:
     for pandas_arg_key, pandas_args_value in pandas_kwargs.items():
         if pandas_arg_key not in supported_params:
             raise exceptions.InvalidArgument(f"Unsupported Pandas parameter for PyArrow loader: {pandas_arg_key}")

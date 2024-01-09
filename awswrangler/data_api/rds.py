@@ -1,10 +1,12 @@
 """RDS Data API Connector."""
+from __future__ import annotations
+
 import datetime as dt
 import logging
 import time
 import uuid
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import boto3
 from typing_extensions import Literal
@@ -56,7 +58,7 @@ class RdsDataApi(_connector.DataApiConnector):
         sleep: float = 0.5,
         backoff: float = 1.0,
         retries: int = 30,
-        boto3_session: Optional[boto3.Session] = None,
+        boto3_session: boto3.Session | None = None,
     ) -> None:
         super().__init__()
 
@@ -66,13 +68,13 @@ class RdsDataApi(_connector.DataApiConnector):
         self.database = database
         self.secret_arn = secret_arn
         self.wait_config = _connector.WaitConfig(sleep, backoff, retries)
-        self.results: Dict[str, Union["ExecuteStatementResponseTypeDef", "BatchExecuteStatementResponseTypeDef"]] = {}
+        self.results: dict[str, "ExecuteStatementResponseTypeDef" | "BatchExecuteStatementResponseTypeDef"] = {}
 
     def close(self) -> None:
         """Close underlying endpoint connections."""
         self.client.close()
 
-    def begin_transaction(self, database: Optional[str] = None, schema: Optional[str] = None) -> str:
+    def begin_transaction(self, database: str | None = None, schema: str | None = None) -> str:
         """Start an SQL transaction."""
         if database is None:
             database = self.database
@@ -116,8 +118,8 @@ class RdsDataApi(_connector.DataApiConnector):
         sleep: float = self.wait_config.sleep
         total_tries: int = 0
         total_sleep: float = 0
-        response: Optional[_ExecuteStatementResponseType] = None
-        last_exception: Optional["BotocoreClientError"] = None
+        response: _ExecuteStatementResponseType | None = None
+        last_exception: "BotocoreClientError" | None = None
         while total_tries < self.wait_config.retries:
             try:
                 response = function(sql)
@@ -149,14 +151,14 @@ class RdsDataApi(_connector.DataApiConnector):
     def _execute_statement(
         self,
         sql: str,
-        database: Optional[str] = None,
-        transaction_id: Optional[str] = None,
-        parameters: Optional[List[Dict[str, Any]]] = None,
+        database: str | None = None,
+        transaction_id: str | None = None,
+        parameters: list[dict[str, Any]] | None = None,
     ) -> str:
         if database is None:
             database = self.database
 
-        additional_kwargs: Dict[str, Any] = {}
+        additional_kwargs: dict[str, Any] = {}
         if transaction_id:
             additional_kwargs["transactionId"] = transaction_id
         if parameters:
@@ -176,10 +178,10 @@ class RdsDataApi(_connector.DataApiConnector):
 
     def _batch_execute_statement(
         self,
-        sql: Union[str, List[str]],
-        database: Optional[str] = None,
-        transaction_id: Optional[str] = None,
-        parameter_sets: Optional[List[List[Dict[str, Any]]]] = None,
+        sql: str | list[str],
+        database: str | None = None,
+        transaction_id: str | None = None,
+        parameter_sets: list[list[dict[str, Any]]] | None = None,
     ) -> str:
         if isinstance(sql, list):
             raise exceptions.InvalidArgumentType("`sql` parameter cannot be list.")
@@ -187,7 +189,7 @@ class RdsDataApi(_connector.DataApiConnector):
         if database is None:
             database = self.database
 
-        additional_kwargs: Dict[str, Any] = {}
+        additional_kwargs: dict[str, Any] = {}
         if transaction_id:
             additional_kwargs["transactionId"] = transaction_id
         if parameter_sets:
@@ -213,23 +215,23 @@ class RdsDataApi(_connector.DataApiConnector):
         if "records" not in result:
             return pd.DataFrame()
 
-        rows: List[List[Any]] = []
+        rows: list[list[Any]] = []
         column_types = [col.get("typeName") for col in result["columnMetadata"]]
 
         for record in result["records"]:
-            row: List[Any] = [
+            row: list[Any] = [
                 _connector.DataApiConnector._get_column_value(column, col_type)  # type: ignore[arg-type]  # pylint: disable=protected-access
                 for column, col_type in zip(record, column_types)
             ]
             rows.append(row)
 
-        column_names: List[str] = [column["name"] for column in result["columnMetadata"]]
+        column_names: list[str] = [column["name"] for column in result["columnMetadata"]]
         dataframe = pd.DataFrame(rows, columns=column_names)
         return dataframe
 
 
 def connect(
-    resource_arn: str, database: str, secret_arn: str = "", boto3_session: Optional[boto3.Session] = None, **kwargs: Any
+    resource_arn: str, database: str, secret_arn: str = "", boto3_session: boto3.Session | None = None, **kwargs: Any
 ) -> RdsDataApi:
     """Create a RDS Data API connection.
 
@@ -253,7 +255,7 @@ def connect(
     return RdsDataApi(resource_arn, database, secret_arn=secret_arn, boto3_session=boto3_session, **kwargs)
 
 
-def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) -> pd.DataFrame:
+def read_sql_query(sql: str, con: RdsDataApi, database: str | None = None) -> pd.DataFrame:
     """Run an SQL query on an RdsDataApi connection and return the result as a DataFrame.
 
     Parameters
@@ -299,8 +301,8 @@ def _create_table(
     transaction_id: str,
     mode: str,
     index: bool,
-    dtype: Optional[Dict[str, str]],
-    varchar_lengths: Optional[Dict[str, int]],
+    dtype: dict[str, str] | None,
+    varchar_lengths: dict[str, int] | None,
     sql_mode: str,
 ) -> None:
     if mode == "overwrite":
@@ -308,7 +310,7 @@ def _create_table(
     elif _does_table_exist(con=con, table=table, database=database, transaction_id=transaction_id):
         return
 
-    mysql_types: Dict[str, str] = _data_types.database_types_from_pandas(
+    mysql_types: dict[str, str] = _data_types.database_types_from_pandas(
         df=df,
         index=index,
         dtype=dtype,
@@ -325,7 +327,7 @@ def _create_table(
 
 def _create_value_dict(  # pylint: disable=too-many-return-statements
     value: Any,
-) -> Tuple[Dict[str, Any], Optional[str]]:
+) -> tuple[dict[str, Any], str | None]:
     if value is None or pd.isnull(value):
         return {"isNull": True}, None
 
@@ -359,7 +361,7 @@ def _create_value_dict(  # pylint: disable=too-many-return-statements
     raise exceptions.InvalidArgumentType(f"Value {value} not supported.")
 
 
-def _generate_parameters(columns: List[str], values: List[Any]) -> List[Dict[str, Any]]:
+def _generate_parameters(columns: list[str], values: list[Any]) -> list[dict[str, Any]]:
     parameter_list = []
 
     for col, value in zip(columns, values):
@@ -377,7 +379,7 @@ def _generate_parameters(columns: List[str], values: List[Any]) -> List[Dict[str
     return parameter_list
 
 
-def _generate_parameter_sets(df: pd.DataFrame) -> List[List[Dict[str, Any]]]:
+def _generate_parameter_sets(df: pd.DataFrame) -> list[list[dict[str, Any]]]:
     parameter_sets = []
 
     columns = df.columns.tolist()
@@ -394,8 +396,8 @@ def to_sql(
     database: str,
     mode: Literal["append", "overwrite"] = "append",
     index: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
-    varchar_lengths: Optional[Dict[str, int]] = None,
+    dtype: dict[str, str] | None = None,
+    varchar_lengths: dict[str, int] | None = None,
     use_column_names: bool = False,
     chunksize: int = 200,
     sql_mode: str = "mysql",
@@ -438,7 +440,7 @@ def to_sql(
 
     _databases.validate_mode(mode=mode, allowed_modes=["append", "overwrite"])
 
-    transaction_id: Optional[str] = None
+    transaction_id: str | None = None
     try:
         transaction_id = con.begin_transaction(database=database)
 

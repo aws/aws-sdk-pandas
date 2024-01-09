@@ -1,10 +1,12 @@
 # mypy: disable-error-code=name-defined
 """Amazon Neptune Module."""
 
+from __future__ import annotations
+
 import logging
 import re
 import time
-from typing import Any, Callable, Dict, List, Literal, Optional, TypeVar, Union
+from typing import Any, Callable, Literal, TypeVar
 
 import boto3
 
@@ -289,14 +291,14 @@ def bulk_load(
     iam_role: str,
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
-    parser_configuration: Optional[BulkLoadParserConfiguration] = None,
+    parser_configuration: BulkLoadParserConfiguration | None = None,
     update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
     queue_request: Literal["TRUE", "FALSE"] = "FALSE",
-    dependencies: Optional[List[str]] = None,
+    dependencies: list[str] | None = None,
     keep_files: bool = False,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
 ) -> None:
     """
     Write records into Amazon Neptune using the Neptune Bulk Loader.
@@ -400,10 +402,10 @@ def bulk_load_from_files(
     format: Literal["csv", "opencypher", "ntriples", "nquads", "rdfxml", "turtle"] = "csv",
     neptune_load_wait_polling_delay: float = 0.25,
     load_parallelism: Literal["LOW", "MEDIUM", "HIGH", "OVERSUBSCRIBE"] = "HIGH",
-    parser_configuration: Optional[BulkLoadParserConfiguration] = None,
+    parser_configuration: BulkLoadParserConfiguration | None = None,
     update_single_cardinality_properties: Literal["TRUE", "FALSE"] = "FALSE",
     queue_request: Literal["TRUE", "FALSE"] = "FALSE",
-    dependencies: Optional[List[str]] = None,
+    dependencies: list[str] | None = None,
 ) -> None:
     """
     Load files from S3 into Amazon Neptune using the Neptune Bulk Loader.

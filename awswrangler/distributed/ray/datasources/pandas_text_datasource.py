@@ -1,6 +1,8 @@
 """Ray PandasTextDatasource Module."""
+from __future__ import annotations
+
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Union
+from typing import Any, Callable, Iterator
 
 import pandas as pd
 import pyarrow
@@ -21,13 +23,13 @@ class PandasTextDatasource(FileBasedDatasource):  # pylint: disable=abstract-met
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         dataset: bool,
         path_root: str,
         read_text_func: Callable[..., pd.DataFrame],
-        version_ids: Optional[Dict[str, str]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(paths, **file_based_datasource_kwargs)
@@ -65,12 +67,12 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         dataset: bool,
         path_root: str,
-        version_ids: Optional[Dict[str, str]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(
@@ -103,12 +105,12 @@ class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         dataset: bool,
         path_root: str,
-        version_ids: Optional[Dict[str, str]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(
@@ -130,12 +132,12 @@ class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-me
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         dataset: bool,
         path_root: str,
-        version_ids: Optional[Dict[str, str]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(

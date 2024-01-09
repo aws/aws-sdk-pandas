@@ -1,12 +1,11 @@
 """Query executions Module for Amazon Athena."""
+from __future__ import annotations
+
 import logging
 import time
 from typing import (
     Any,
     Dict,
-    List,
-    Optional,
-    Union,
     cast,
 )
 
@@ -33,20 +32,20 @@ _logger: logging.Logger = logging.getLogger(__name__)
 @apply_configs
 def start_query_execution(
     sql: str,
-    database: Optional[str] = None,
-    s3_output: Optional[str] = None,
+    database: str | None = None,
+    s3_output: str | None = None,
     workgroup: str = "primary",
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    params: Union[Dict[str, Any], List[str], None] = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
+    params: dict[str, Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
-    boto3_session: Optional[boto3.Session] = None,
-    client_request_token: Optional[str] = None,
-    athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
+    boto3_session: boto3.Session | None = None,
+    client_request_token: str | None = None,
+    athena_cache_settings: typing.AthenaCacheSettings | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-    data_source: Optional[str] = None,
+    data_source: str | None = None,
     wait: bool = False,
-) -> Union[str, Dict[str, Any]]:
+) -> str | dict[str, Any]:
     """Start a SQL Query against AWS Athena.
 
     Note
@@ -170,7 +169,7 @@ def start_query_execution(
     return query_execution_id
 
 
-def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
+def stop_query_execution(query_execution_id: str, boto3_session: boto3.Session | None = None) -> None:
     """Stop a query execution.
 
     Requires you to have access to the workgroup in which the query ran.
@@ -200,9 +199,9 @@ def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.
 @apply_configs
 def wait_query(
     query_execution_id: str,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Wait for the query end.
 
     Parameters
@@ -225,7 +224,7 @@ def wait_query(
     >>> res = wr.athena.wait_query(query_execution_id='query-execution-id')
 
     """
-    response: Dict[str, Any] = get_query_execution(query_execution_id=query_execution_id, boto3_session=boto3_session)
+    response: dict[str, Any] = get_query_execution(query_execution_id=query_execution_id, boto3_session=boto3_session)
     state: str = response["Status"]["State"]
     while state not in _QUERY_FINAL_STATES:
         time.sleep(athena_query_wait_polling_delay)
@@ -240,7 +239,7 @@ def wait_query(
     return response
 
 
-def get_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
+def get_query_execution(query_execution_id: str, boto3_session: boto3.Session | None = None) -> dict[str, Any]:
     """Fetch query execution details.
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.get_query_execution

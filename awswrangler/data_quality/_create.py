@@ -1,9 +1,11 @@
 """AWS Glue Data Quality Create module."""
 
+from __future__ import annotations
+
 import logging
 import pprint
 import uuid
-from typing import Any, Dict, List, Literal, Optional, Union, cast
+from typing import Any, List, Literal, cast
 
 import boto3
 
@@ -39,11 +41,11 @@ def create_ruleset(
     name: str,
     database: str,
     table: str,
-    df_rules: Optional[pd.DataFrame] = None,
-    dqdl_rules: Optional[str] = None,
+    df_rules: pd.DataFrame | None = None,
+    dqdl_rules: str | None = None,
     description: str = "",
-    client_token: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    client_token: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Create Data Quality ruleset.
 
@@ -122,10 +124,10 @@ def create_ruleset(
 def update_ruleset(
     name: str,
     mode: Literal["overwrite", "upsert"] = "overwrite",
-    df_rules: Optional[pd.DataFrame] = None,
-    dqdl_rules: Optional[str] = None,
+    df_rules: pd.DataFrame | None = None,
+    dqdl_rules: str | None = None,
     description: str = "",
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Update Data Quality ruleset.
 
@@ -192,14 +194,14 @@ def create_recommendation_ruleset(
     database: str,
     table: str,
     iam_role_arn: str,
-    name: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    connection_name: Optional[str] = None,
-    additional_options: Optional[Dict[str, Any]] = None,
+    name: str | None = None,
+    catalog_id: str | None = None,
+    connection_name: str | None = None,
+    additional_options: dict[str, Any] | None = None,
     number_of_workers: int = 5,
     timeout: int = 2880,
-    client_token: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    client_token: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
     """Create recommendation Data Quality ruleset.
 
@@ -248,7 +250,7 @@ def create_recommendation_ruleset(
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
 
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "DataSource": _create_datasource(
             database=database,
             table=table,
@@ -280,18 +282,18 @@ def create_recommendation_ruleset(
 
 @apply_configs
 def evaluate_ruleset(
-    name: Union[str, List[str]],
+    name: str | list[str],
     iam_role_arn: str,
     number_of_workers: int = 5,
     timeout: int = 2880,
-    database: Optional[str] = None,
-    table: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    connection_name: Optional[str] = None,
-    additional_options: Optional[Dict[str, str]] = None,
-    additional_run_options: Optional[Dict[str, Union[str, bool]]] = None,
-    client_token: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    database: str | None = None,
+    table: str | None = None,
+    catalog_id: str | None = None,
+    connection_name: str | None = None,
+    additional_options: dict[str, str] | None = None,
+    additional_run_options: dict[str, str | bool] | None = None,
+    client_token: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
     """Evaluate Data Quality ruleset.
 
@@ -365,7 +367,7 @@ def evaluate_ruleset(
         boto3_session=boto3_session,
     )
     _logger.debug("run_id: %s", run_id)
-    result_ids: List[str] = cast(
+    result_ids: list[str] = cast(
         List[str],
         _wait_ruleset_run(
             run_id=run_id,
