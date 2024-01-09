@@ -1,11 +1,13 @@
 """AWS Glue Data Quality Utils module."""
 
+from __future__ import annotations
+
 import ast
 import logging
 import pprint
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, cast
 
 import boto3
 import botocore.exceptions
@@ -15,12 +17,12 @@ from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_RULESET_EVALUATION_FINAL_STATUSES: List[str] = ["STOPPED", "SUCCEEDED", "FAILED", "TIMEOUT"]
+_RULESET_EVALUATION_FINAL_STATUSES: list[str] = ["STOPPED", "SUCCEEDED", "FAILED", "TIMEOUT"]
 _RULESET_EVALUATION_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 
-def _parse_rules(rules: List[str]) -> List[Tuple[str, Optional[str], Optional[str]]]:
-    parsed_rules: List[Tuple[str, Optional[str], Optional[str]]] = []
+def _parse_rules(rules: list[str]) -> list[tuple[str, str | None, str | None]]:
+    parsed_rules: list[tuple[str, str | None, str | None]] = []
     for rule in rules:
         rule_type, remainder = tuple(rule.split(maxsplit=1))
         if remainder.startswith('"'):
@@ -46,11 +48,11 @@ def _rules_to_df(rules: str) -> pd.DataFrame:
 def _create_datasource(
     database: str,
     table: str,
-    catalog_id: Optional[str] = None,
-    connection_name: Optional[str] = None,
-    additional_options: Optional[Dict[str, str]] = None,
-) -> Dict[str, Dict[str, str]]:
-    datasource: Dict[str, Dict[str, Any]] = {
+    catalog_id: str | None = None,
+    connection_name: str | None = None,
+    additional_options: dict[str, str] | None = None,
+) -> dict[str, dict[str, str]]:
+    datasource: dict[str, dict[str, Any]] = {
         "GlueTable": {
             "DatabaseName": database,
             "TableName": table,
@@ -66,33 +68,33 @@ def _create_datasource(
 
 
 def _start_ruleset_evaluation_run(
-    ruleset_names: Union[str, List[str]],
+    ruleset_names: str | list[str],
     iam_role_arn: str,
     number_of_workers: int = 5,
     timeout: int = 2880,
-    database: Optional[str] = None,
-    table: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    connection_name: Optional[str] = None,
-    additional_options: Optional[Dict[str, str]] = None,
-    additional_run_options: Optional[Dict[str, Union[str, bool]]] = None,
-    client_token: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    database: str | None = None,
+    table: str | None = None,
+    catalog_id: str | None = None,
+    connection_name: str | None = None,
+    additional_options: dict[str, str] | None = None,
+    additional_run_options: dict[str, str | bool] | None = None,
+    client_token: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     client_glue = _utils.client(service_name="glue", session=boto3_session)
 
     if not database or not table:
-        ruleset: Dict[str, Dict[str, str]] = _get_ruleset(ruleset_name=ruleset_names[0], boto3_session=boto3_session)
+        ruleset: dict[str, dict[str, str]] = _get_ruleset(ruleset_name=ruleset_names[0], boto3_session=boto3_session)
         database = ruleset["TargetTable"]["DatabaseName"]
         table = ruleset["TargetTable"]["TableName"]
-    datasource: Dict[str, Dict[str, str]] = _create_datasource(
+    datasource: dict[str, dict[str, str]] = _create_datasource(
         database=database,
         table=table,
         catalog_id=catalog_id,
         connection_name=connection_name,
         additional_options=additional_options,
     )
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "RulesetNames": ruleset_names if isinstance(ruleset_names, list) else [ruleset_names],
         "DataSource": datasource,
         "Role": iam_role_arn,
@@ -112,8 +114,8 @@ def _start_ruleset_evaluation_run(
 def _get_ruleset_run(
     run_id: str,
     run_type: str,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     f = (
         client_glue.get_data_quality_rule_recommendation_run
@@ -133,9 +135,9 @@ def _get_ruleset_run(
 def _wait_ruleset_run(
     run_id: str,
     run_type: str,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
-    response: Dict[str, Any] = _get_ruleset_run(run_id=run_id, run_type=run_type, boto3_session=boto3_session)
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
+    response: dict[str, Any] = _get_ruleset_run(run_id=run_id, run_type=run_type, boto3_session=boto3_session)
     status: str = response["Status"]
     while status not in _RULESET_EVALUATION_FINAL_STATUSES:
         time.sleep(_RULESET_EVALUATION_WAIT_POLLING_DELAY)
@@ -151,8 +153,8 @@ def _wait_ruleset_run(
 
 def _get_ruleset(
     ruleset_name: str,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     response = _utils.try_it(
         f=client_glue.get_data_quality_ruleset,
@@ -165,15 +167,15 @@ def _get_ruleset(
 
 
 def _get_data_quality_results(
-    result_ids: List[str],
-    boto3_session: Optional[boto3.Session] = None,
+    result_ids: list[str],
+    boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
     client_glue = _utils.client(service_name="glue", session=boto3_session)
 
     results = client_glue.batch_get_data_quality_result(
         ResultIds=result_ids,
     )["Results"]
-    rule_results: List[Dict[str, Any]] = []
+    rule_results: list[dict[str, Any]] = []
     for result in results:
         rule_results.extend(
             cast(

@@ -1,9 +1,11 @@
 """Databases Utilities."""
 
+from __future__ import annotations
+
 import importlib.util
 import logging
 import ssl
-from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, Tuple, Union, cast, overload
+from typing import Any, Generator, Iterator, List, NamedTuple, Tuple, cast, overload
 
 import boto3
 import pyarrow as pa
@@ -27,19 +29,19 @@ class ConnectionAttributes(NamedTuple):
     host: str
     port: int
     database: str
-    ssl_context: Optional[ssl.SSLContext]
+    ssl_context: ssl.SSLContext | None
 
 
-def _get_dbname(cluster_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
+def _get_dbname(cluster_id: str, boto3_session: boto3.Session | None = None) -> str:
     client_redshift = _utils.client(service_name="redshift", session=boto3_session)
     res = client_redshift.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
     return res["DBName"]
 
 
 def _get_connection_attributes_from_catalog(
-    connection: str, catalog_id: Optional[str], dbname: Optional[str], boto3_session: Optional[boto3.Session]
+    connection: str, catalog_id: str | None, dbname: str | None, boto3_session: boto3.Session | None
 ) -> ConnectionAttributes:
-    details: Dict[str, Any] = get_connection(name=connection, catalog_id=catalog_id, boto3_session=boto3_session)[
+    details: dict[str, Any] = get_connection(name=connection, catalog_id=catalog_id, boto3_session=boto3_session)[
         "ConnectionProperties"
     ]
     if ";databaseName=" in details["JDBC_CONNECTION_URL"]:
@@ -47,23 +49,21 @@ def _get_connection_attributes_from_catalog(
     else:
         database_sep = "/"
     port, database = details["JDBC_CONNECTION_URL"].split(":")[-1].split(database_sep)
-    ssl_context: Optional[ssl.SSLContext] = None
+    ssl_context: ssl.SSLContext | None = None
     if details.get("JDBC_ENFORCE_SSL") == "true":
-        ssl_cert_path: Optional[str] = details.get("CUSTOM_JDBC_CERT")
-        ssl_cadata: Optional[str] = None
+        ssl_cert_path: str | None = details.get("CUSTOM_JDBC_CERT")
+        ssl_cadata: str | None = None
         if ssl_cert_path:
             bucket_name, key_path = _utils.parse_path(ssl_cert_path)
             client_s3 = _utils.client(service_name="s3", session=boto3_session)
             try:
                 ssl_cadata = client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read().decode("utf-8")
             except client_s3.exceptions.NoSuchKey:
-                raise exceptions.NoFilesFound(  # pylint: disable=raise-missing-from
-                    f"No CA certificate found at {ssl_cert_path}."
-                )
+                raise exceptions.NoFilesFound(f"No CA certificate found at {ssl_cert_path}.")
         ssl_context = ssl.create_default_context(cadata=ssl_cadata)
 
     if "SECRET_ID" in details:
-        secret_value: Dict[str, Any] = secretsmanager.get_secret_json(
+        secret_value: dict[str, Any] = secretsmanager.get_secret_json(
             name=details["SECRET_ID"], boto3_session=boto3_session
         )
         username = secret_value["username"]
@@ -84,9 +84,9 @@ def _get_connection_attributes_from_catalog(
 
 
 def _get_connection_attributes_from_secrets_manager(
-    secret_id: str, dbname: Optional[str], boto3_session: Optional[boto3.Session]
+    secret_id: str, dbname: str | None, boto3_session: boto3.Session | None
 ) -> ConnectionAttributes:
-    secret_value: Dict[str, Any] = secretsmanager.get_secret_json(name=secret_id, boto3_session=boto3_session)
+    secret_value: dict[str, Any] = secretsmanager.get_secret_json(name=secret_id, boto3_session=boto3_session)
     kind: str = secret_value["engine"]
     if dbname is not None:
         _dbname: str = dbname
@@ -108,11 +108,11 @@ def _get_connection_attributes_from_secrets_manager(
 
 
 def get_connection_attributes(
-    connection: Optional[str] = None,
-    secret_id: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    dbname: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    connection: str | None = None,
+    secret_id: str | None = None,
+    catalog_id: str | None = None,
+    dbname: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> ConnectionAttributes:
     """Get Connection Attributes."""
     if connection is None and secret_id is None:
@@ -128,8 +128,8 @@ def get_connection_attributes(
     )
 
 
-def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]]) -> List[Any]:
-    args: List[Any] = [sql]
+def _convert_params(sql: str, params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None) -> list[Any]:
+    args: list[Any] = [sql]
     if params is not None:
         if hasattr(params, "keys"):
             return args + [params]
@@ -148,15 +148,15 @@ def _should_handle_oracle_objects(dtype: pa.DataType) -> bool:
 
 
 def _records2df(
-    records: List[Tuple[Any]],
-    cols_names: List[str],
-    index: Optional[Union[str, List[str]]],
+    records: list[tuple[Any]],
+    cols_names: list[str],
+    index: str | list[str] | None,
     safe: bool,
-    dtype: Optional[Dict[str, pa.DataType]],
+    dtype: dict[str, pa.DataType] | None,
     timestamp_as_object: bool,
     dtype_backend: Literal["numpy_nullable", "pyarrow"],
 ) -> pd.DataFrame:
-    arrays: List[pa.Array] = []
+    arrays: list[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
         if (dtype is None) or (col_name not in dtype):
             if _oracledb_found:
@@ -194,7 +194,7 @@ def _records2df(
     return df
 
 
-def _get_cols_names(cursor_description: Any) -> List[str]:
+def _get_cols_names(cursor_description: Any) -> list[str]:
     cols_names = [col[0].decode("utf-8") if isinstance(col[0], bytes) else col[0] for col in cursor_description]
     _logger.debug("cols_names: %s", cols_names)
 
@@ -203,11 +203,11 @@ def _get_cols_names(cursor_description: Any) -> List[str]:
 
 def _iterate_results(
     con: Any,
-    cursor_args: List[Any],
+    cursor_args: list[Any],
     chunksize: int,
-    index_col: Optional[Union[str, List[str]]],
+    index_col: str | list[str] | None,
     safe: bool,
-    dtype: Optional[Dict[str, pa.DataType]],
+    dtype: dict[str, pa.DataType] | None,
     timestamp_as_object: bool,
     dtype_backend: Literal["numpy_nullable", "pyarrow"],
 ) -> Iterator[pd.DataFrame]:
@@ -239,9 +239,9 @@ def _iterate_results(
 
 def _fetch_all_results(
     con: Any,
-    cursor_args: List[Any],
-    index_col: Optional[Union[str, List[str]]] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    cursor_args: list[Any],
+    index_col: str | list[str] | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "pyarrow",
@@ -272,10 +272,10 @@ def _fetch_all_results(
 def read_sql_query(
     sql: str,
     con: Any,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -288,10 +288,10 @@ def read_sql_query(
     sql: str,
     con: Any,
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -304,28 +304,28 @@ def read_sql_query(
     sql: str,
     con: Any,
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
+    chunksize: int | None,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ...
 
 
 def read_sql_query(
     sql: str,
     con: Any,
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read SQL Query (generic)."""
     args = _convert_params(sql, params)
     try:
@@ -358,7 +358,7 @@ def read_sql_query(
 
 def generate_placeholder_parameter_pairs(
     df: pd.DataFrame, column_placeholders: str, chunksize: int
-) -> Generator[Tuple[str, List[Any]], None, None]:
+) -> Generator[tuple[str, list[Any]], None, None]:
     """Extract Placeholder and Parameter pairs."""
 
     def convert_value_to_native_python_type(value: Any) -> Any:
@@ -377,7 +377,7 @@ def generate_placeholder_parameter_pairs(
         yield chunk_placeholders, flattened_chunk
 
 
-def validate_mode(mode: str, allowed_modes: List[str]) -> None:
+def validate_mode(mode: str, allowed_modes: list[str]) -> None:
     """Check if mode is included in allowed_modes."""
     if mode not in allowed_modes:
         raise exceptions.InvalidArgumentValue(f"mode must be one of {', '.join(allowed_modes)}")

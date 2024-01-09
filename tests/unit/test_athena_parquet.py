@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import datetime
 import logging
 import math
 from decimal import Decimal
-from typing import Optional
 
 import boto3
 import numpy as np
@@ -902,7 +903,7 @@ def test_unload(path, glue_table, glue_database, file_format, partitioned_by):
 
 
 @pytest.mark.parametrize("file_format", [None, "PARQUET"])
-def test_read_sql_query_unload(path: str, glue_table: str, glue_database: str, file_format: Optional[str]):
+def test_read_sql_query_unload(path: str, glue_table: str, glue_database: str, file_format: str | None):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 1, 2]})
     wr.s3.to_parquet(
         df,

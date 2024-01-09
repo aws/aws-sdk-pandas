@@ -1,8 +1,10 @@
 """Amazon DynamoDB Utils Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Mapping, Optional, Type, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Iterator, Mapping, TypedDict
 
 import boto3
 from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
@@ -31,7 +33,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 @Deprecated
 def get_table(
     table_name: str,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> "Table":
     """Get DynamoDB table object for specified table name.
 
@@ -55,15 +57,15 @@ def get_table(
 
 
 def _serialize_item(
-    item: Mapping[str, Any], serializer: Optional[TypeSerializer] = None
-) -> Dict[str, "AttributeValueTypeDef"]:
+    item: Mapping[str, Any], serializer: TypeSerializer | None = None
+) -> dict[str, "AttributeValueTypeDef"]:
     serializer = serializer if serializer else TypeSerializer()
     return {k: serializer.serialize(v) for k, v in item.items()}
 
 
 def _deserialize_item(
-    item: Mapping[str, "AttributeValueTypeDef"], deserializer: Optional[TypeDeserializer] = None
-) -> Dict[str, Any]:
+    item: Mapping[str, "AttributeValueTypeDef"], deserializer: TypeDeserializer | None = None
+) -> dict[str, Any]:
     deserializer = deserializer if deserializer else TypeDeserializer()
     return {k: deserializer.deserialize(v) for k, v in item.items()}
 
@@ -71,7 +73,7 @@ def _deserialize_item(
 class _ReadExecuteStatementKwargs(TypedDict):
     Statement: Required[str]
     ConsistentRead: Required[bool]
-    Parameters: NotRequired[List["AttributeValueTypeDef"]]
+    Parameters: NotRequired[list["AttributeValueTypeDef"]]
     NextToken: NotRequired[str]
 
 
@@ -98,8 +100,8 @@ def _execute_statement(
 def _read_execute_statement(
     kwargs: _ReadExecuteStatementKwargs,
     dynamodb_client: "DynamoDBClient",
-) -> Iterator[List[Dict[str, Any]]]:
-    next_token: Optional[str] = "init_token"  # Dummy token
+) -> Iterator[list[dict[str, Any]]]:
+    next_token: str | None = "init_token"  # Dummy token
     deserializer = TypeDeserializer()
 
     while next_token:
@@ -113,10 +115,10 @@ def _read_execute_statement(
 
 def execute_statement(
     statement: str,
-    parameters: Optional[List[Any]] = None,
+    parameters: list[Any] | None = None,
     consistent_read: bool = False,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Optional[Iterator[List[Dict[str, Any]]]]:
+    boto3_session: boto3.Session | None = None,
+) -> Iterator[list[dict[str, Any]]] | None:
     """Run a PartiQL statement against a DynamoDB table.
 
     Parameters
@@ -180,7 +182,7 @@ def execute_statement(
 
 
 def _validate_items(
-    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], key_schema: List["KeySchemaElementTypeDef"]
+    items: list[dict[str, Any]] | list[Mapping[str, Any]], key_schema: list["KeySchemaElementTypeDef"]
 ) -> None:
     """
     Validate if all items have the required keys for the Amazon DynamoDB table.
@@ -207,15 +209,15 @@ class _TableBatchWriter:
         table_name: str,
         client: "DynamoDBClient",
         flush_amount: int = 25,
-        overwrite_by_pkeys: Optional[List[str]] = None,
+        overwrite_by_pkeys: list[str] | None = None,
     ):
         self._table_name = table_name
         self._client = client
-        self._items_buffer: List["WriteRequestTypeDef"] = []
+        self._items_buffer: list["WriteRequestTypeDef"] = []
         self._flush_amount = flush_amount
         self._overwrite_by_pkeys = overwrite_by_pkeys
 
-    def put_item(self, item: Dict[str, "AttributeValueTypeDef"]) -> None:
+    def put_item(self, item: dict[str, "AttributeValueTypeDef"]) -> None:
         """
         Add a new put item request to the batch.
 
@@ -226,7 +228,7 @@ class _TableBatchWriter:
         """
         self._add_request_and_process({"PutRequest": {"Item": item}})
 
-    def delete_item(self, key: Dict[str, "AttributeValueTypeDef"]) -> None:
+    def delete_item(self, key: dict[str, "AttributeValueTypeDef"]) -> None:
         """
         Add a new delete request to the batch.
 
@@ -244,7 +246,7 @@ class _TableBatchWriter:
         self._items_buffer.append(request)
         self._flush_if_needed()
 
-    def _remove_dup_pkeys_request_if_any(self, request: "WriteRequestTypeDef", overwrite_by_pkeys: List[str]) -> None:
+    def _remove_dup_pkeys_request_if_any(self, request: "WriteRequestTypeDef", overwrite_by_pkeys: list[str]) -> None:
         pkey_values_new = self._extract_pkey_values(request, overwrite_by_pkeys)
         for item in self._items_buffer:
             if self._extract_pkey_values(item, overwrite_by_pkeys) == pkey_values_new:
@@ -254,9 +256,7 @@ class _TableBatchWriter:
                     item,
                 )
 
-    def _extract_pkey_values(
-        self, request: "WriteRequestTypeDef", overwrite_by_pkeys: List[str]
-    ) -> Optional[List[Any]]:
+    def _extract_pkey_values(self, request: "WriteRequestTypeDef", overwrite_by_pkeys: list[str]) -> list[Any] | None:
         if request.get("PutRequest"):
             return [request["PutRequest"]["Item"][key] for key in overwrite_by_pkeys]
         if request.get("DeleteRequest"):
@@ -291,10 +291,10 @@ class _TableBatchWriter:
 
     def __exit__(
         self,
-        exception_type: Optional[Type[BaseException]],
-        exception_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
-    ) -> Optional[bool]:
+        exception_type: type[BaseException] | None,
+        exception_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
         # When we exit, we need to keep flushing whatever's left
         # until there's nothing left in our items buffer.
         while self._items_buffer:

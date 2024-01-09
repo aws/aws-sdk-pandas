@@ -1,6 +1,8 @@
 """Amazon S3 Read Delta Lake Module (PRIVATE)."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import boto3
 from typing_extensions import Literal
@@ -19,8 +21,8 @@ else:
 
 
 def _set_default_storage_options_kwargs(
-    boto3_session: Optional[boto3.Session], s3_additional_kwargs: Optional[Dict[str, Any]]
-) -> Dict[str, Any]:
+    boto3_session: boto3.Session | None, s3_additional_kwargs: dict[str, Any] | None
+) -> dict[str, Any]:
     defaults = {key.upper(): value for key, value in _utils.boto3_to_primitives(boto3_session=boto3_session).items()}
     defaults["AWS_REGION"] = defaults.pop("REGION_NAME")
     s3_additional_kwargs = s3_additional_kwargs or {}
@@ -34,15 +36,15 @@ def _set_default_storage_options_kwargs(
 @apply_configs
 def read_deltalake(
     path: str,
-    version: Optional[int] = None,
-    partitions: Optional[List[Tuple[str, str, Any]]] = None,
-    columns: Optional[List[str]] = None,
+    version: int | None = None,
+    partitions: list[tuple[str, str, Any]] | None = None,
+    columns: list[str] | None = None,
     without_files: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     use_threads: bool = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Load a Deltalake table data from an S3 path.
 

@@ -1,7 +1,9 @@
 """Utilities Module for Amazon Clean Rooms."""
+from __future__ import annotations
+
 import logging
 import time
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 import boto3
 
@@ -10,14 +12,14 @@ from awswrangler import _utils, exceptions
 if TYPE_CHECKING:
     from mypy_boto3_cleanrooms.type_defs import GetProtectedQueryOutputTypeDef
 
-_QUERY_FINAL_STATES: List[str] = ["CANCELLED", "FAILED", "SUCCESS", "TIMED_OUT"]
+_QUERY_FINAL_STATES: list[str] = ["CANCELLED", "FAILED", "SUCCESS", "TIMED_OUT"]
 _QUERY_WAIT_POLLING_DELAY: float = 2  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def wait_query(
-    membership_id: str, query_id: str, boto3_session: Optional[boto3.Session] = None
+    membership_id: str, query_id: str, boto3_session: boto3.Session | None = None
 ) -> "GetProtectedQueryOutputTypeDef":
     """Wait for the Clean Rooms protected query to end.
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import random
 import re
@@ -7,7 +9,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from timeit import default_timer as timer
 from types import TracebackType
-from typing import Any, Dict, Iterator, List, Optional, Type, Union
+from typing import Any, Iterator
 
 import boto3
 import botocore.exceptions
@@ -44,19 +46,19 @@ class ExecutionTimer:
     def __init__(
         self,
         request: FixtureRequest,
-        name_override: Optional[str] = None,
-        data_paths: Optional[Union[str, List[str]]] = None,
+        name_override: str | None = None,
+        data_paths: str | list[str] | None = None,
     ):
         self.test = name_override or request.node.originalname
 
-        self.scenario: Optional[str] = None
+        self.scenario: str | None = None
         match = re.search(r"\[(.+?)\]", request.node.name)
         if match:
             self.scenario = match.group(1)
 
         self.data_paths = data_paths
 
-    def _stringify_paths(self, data_paths: Optional[Union[str, List[str]]]) -> Optional[str]:
+    def _stringify_paths(self, data_paths: str | list[str] | None) -> str | None:
         if data_paths is None:
             return None
 
@@ -65,7 +67,7 @@ class ExecutionTimer:
 
         return data_paths
 
-    def _calculate_data_size(self, data_paths: Optional[Union[str, List[str]]]) -> Optional[int]:
+    def _calculate_data_size(self, data_paths: str | list[str] | None) -> int | None:
         if data_paths is None:
             return None
 
@@ -78,10 +80,10 @@ class ExecutionTimer:
 
     def __exit__(
         self,
-        exception_type: Optional[Type[BaseException]],
-        exception_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
-    ) -> Optional[bool]:
+        exception_type: type[BaseException] | None,
+        exception_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
         self.elapsed_time = round((timer() - self.before), 3)
         print(f"Elapsed time ({self.test}[{self.scenario}]): {self.elapsed_time:.3f} sec")
         output_path = "load.csv"
@@ -441,7 +443,7 @@ def ensure_data_types_csv(df: pd.DataFrame, governed: bool = False) -> None:
         assert str(df["par1"].dtype) == "string"
 
 
-def ensure_athena_ctas_table(ctas_query_info: Dict[str, Any], boto3_session: boto3.Session) -> None:
+def ensure_athena_ctas_table(ctas_query_info: dict[str, Any], boto3_session: boto3.Session) -> None:
     query_metadata = (
         wr.athena._utils._get_query_metadata(
             query_execution_id=ctas_query_info["ctas_query_id"], boto3_session=boto3_session
@@ -554,7 +556,7 @@ def create_workgroup(wkg_name, config):
     return wkg_name
 
 
-def to_pandas(df: Union[pd.DataFrame, pd.Series]) -> Union[PandasDataFrame, PandasSeries]:
+def to_pandas(df: pd.DataFrame | pd.Series) -> PandasDataFrame | PandasSeries:
     """Convert Modin data frames to pandas for comparison."""
     if isinstance(df, (PandasDataFrame, PandasSeries)):
         return df
@@ -563,13 +565,13 @@ def to_pandas(df: Union[pd.DataFrame, pd.Series]) -> Union[PandasDataFrame, Pand
     raise ValueError("Unknown data frame type %s", type(df))
 
 
-def pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.DataFrame, pd.Series]) -> bool:
+def pandas_equals(df1: pd.DataFrame | pd.Series, df2: pd.DataFrame | pd.Series) -> bool:
     """Check data frames for equality converting them to pandas first."""
     df1, df2 = to_pandas(df1), to_pandas(df2)
     return df1.equals(df2)
 
 
-def assert_pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.DataFrame, pd.Series]) -> None:
+def assert_pandas_equals(df1: pd.DataFrame | pd.Series, df2: pd.DataFrame | pd.Series) -> None:
     df1, df2 = to_pandas(df1), to_pandas(df2)
 
     if isinstance(df1, PandasDataFrame):
@@ -580,7 +582,7 @@ def assert_pandas_equals(df1: Union[pd.DataFrame, pd.Series], df2: Union[pd.Data
         raise ValueError(f"Unsupported type {type(df1)}")
 
 
-def assert_columns_in_pandas_data_frame(df: pd.DataFrame, columns: List[str]) -> None:
+def assert_columns_in_pandas_data_frame(df: pd.DataFrame, columns: list[str]) -> None:
     """Check data frame for columns"""
     for col in columns:
         assert col in df.columns

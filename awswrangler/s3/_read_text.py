@@ -1,9 +1,12 @@
 """Amazon S3 Read Module (PRIVATE)."""
+
+from __future__ import annotations
+
 import datetime
 import itertools
 import logging
 import pprint
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterator
 
 import boto3
 import pandas as pd
@@ -40,18 +43,18 @@ def _resolve_format(read_format: str) -> Any:
 
 
 @engine.dispatch_on_engine
-def _read_text(  # pylint: disable=W0613
+def _read_text(
     read_format: str,
-    paths: List[str],
-    path_root: Optional[str],
-    use_threads: Union[bool, int],
+    paths: list[str],
+    path_root: str | None,
+    use_threads: bool | int,
     s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, str]],
+    s3_additional_kwargs: dict[str, str] | None,
     dataset: bool,
     ignore_index: bool,
     parallelism: int,
-    version_ids: Optional[Dict[str, str]],
-    pandas_kwargs: Dict[str, Any],
+    version_ids: dict[str, str] | None,
+    pandas_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
     parser_func = _resolve_format(read_format)
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
@@ -71,26 +74,26 @@ def _read_text(  # pylint: disable=W0613
 
 def _read_text_format(
     read_format: str,
-    path: Union[str, List[str]],
-    path_suffix: Union[str, List[str], None],
-    path_ignore_suffix: Union[str, List[str], None],
+    path: str | list[str],
+    path_suffix: str | list[str] | None,
+    path_ignore_suffix: str | list[str] | None,
     ignore_empty: bool,
-    use_threads: Union[bool, int],
-    last_modified_begin: Optional[datetime.datetime],
-    last_modified_end: Optional[datetime.datetime],
+    use_threads: bool | int,
+    last_modified_begin: datetime.datetime | None,
+    last_modified_end: datetime.datetime | None,
     s3_client: "S3Client",
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    chunksize: Optional[int],
+    s3_additional_kwargs: dict[str, str] | None,
+    chunksize: int | None,
     dataset: bool,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]],
+    partition_filter: Callable[[dict[str, str]], bool] | None,
     ignore_index: bool,
-    ray_args: Optional[RaySettings],
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
+    ray_args: RaySettings | None,
+    version_id: str | dict[str, str] | None = None,
     **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     if "iterator" in pandas_kwargs:
         raise exceptions.InvalidArgument("Please, use the chunksize argument instead of iterator.")
-    paths: List[str] = _path2list(
+    paths: list[str] = _path2list(
         path=path,
         s3_client=s3_client,
         suffix=path_suffix,
@@ -101,7 +104,7 @@ def _read_text_format(
         s3_additional_kwargs=s3_additional_kwargs,
     )
 
-    path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
+    path_root: str | None = _get_path_root(path=path, dataset=dataset)
     if path_root is not None:
         paths = _apply_partition_filter(path_root=path_root, paths=paths, filter_func=partition_filter)
     if len(paths) < 1:
@@ -109,7 +112,7 @@ def _read_text_format(
 
     version_ids = _check_version_id(paths=paths, version_id=version_id)
 
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "parser_func": _resolve_format(read_format),
         "s3_client": s3_client,
         "dataset": dataset,
@@ -148,23 +151,23 @@ def _read_text_format(
     unsupported_kwargs=["boto3_session"],
 )
 def read_csv(
-    path: Union[str, List[str]],
-    path_suffix: Union[str, List[str], None] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
+    path: str | list[str],
+    path_suffix: str | list[str] | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
+    version_id: str | dict[str, str] | None = None,
     ignore_empty: bool = True,
-    use_threads: Union[bool, int] = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    use_threads: bool | int = True,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    chunksize: Optional[int] = None,
+    chunksize: int | None = None,
     dataset: bool = False,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    ray_args: Optional[RaySettings] = None,
+    partition_filter: Callable[[dict[str, str]], bool] | None = None,
+    ray_args: RaySettings | None = None,
     **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -214,7 +217,7 @@ def read_csv(
         The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    pyarrow_additional_kwargs: dict[str, Any], optional
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     dtype_backend: str, optional
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
@@ -315,22 +318,22 @@ def read_csv(
     unsupported_kwargs=["boto3_session"],
 )
 def read_fwf(
-    path: Union[str, List[str]],
-    path_suffix: Union[str, List[str], None] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
+    path: str | list[str],
+    path_suffix: str | list[str] | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
+    version_id: str | dict[str, str] | None = None,
     ignore_empty: bool = True,
-    use_threads: Union[bool, int] = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    chunksize: Optional[int] = None,
+    use_threads: bool | int = True,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    chunksize: int | None = None,
     dataset: bool = False,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    ray_args: Optional[RaySettings] = None,
+    partition_filter: Callable[[dict[str, str]], bool] | None = None,
+    ray_args: RaySettings | None = None,
     **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -380,7 +383,7 @@ def read_fwf(
         The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    pyarrow_additional_kwargs: dict[str, Any], optional
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
@@ -471,24 +474,24 @@ def read_fwf(
     unsupported_kwargs=["boto3_session"],
 )
 def read_json(
-    path: Union[str, List[str]],
-    path_suffix: Union[str, List[str], None] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
+    path: str | list[str],
+    path_suffix: str | list[str] | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
+    version_id: str | dict[str, str] | None = None,
     ignore_empty: bool = True,
     orient: str = "columns",
-    use_threads: Union[bool, int] = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    use_threads: bool | int = True,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    chunksize: Optional[int] = None,
+    chunksize: int | None = None,
     dataset: bool = False,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    ray_args: Optional[RaySettings] = None,
+    partition_filter: Callable[[dict[str, str]], bool] | None = None,
+    ray_args: RaySettings | None = None,
     **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read JSON file(s) from a received S3 prefix or list of S3 objects paths.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -540,7 +543,7 @@ def read_json(
         The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    pyarrow_additional_kwargs: dict[str, Any], optional
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     dtype_backend: str, optional
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,

@@ -1,9 +1,11 @@
 """Amazon S3 Text Write Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import csv
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import boto3
 import pandas as pd
@@ -25,28 +27,28 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
+def _get_write_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[str, str | None, str | None]:
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
     mode: str = "w" if pandas_kwargs.get("compression") is None else "wb"
-    encoding: Optional[str] = pandas_kwargs.get("encoding", "utf-8")
-    newline: Optional[str] = pandas_kwargs.get("lineterminator", "")
+    encoding: str | None = pandas_kwargs.get("encoding", "utf-8")
+    newline: str | None = pandas_kwargs.get("lineterminator", "")
     return mode, encoding, newline
 
 
 @engine.dispatch_on_engine
-def _to_text(  # pylint: disable=unused-argument
+def _to_text(
     df: pd.DataFrame,
     file_format: str,
-    use_threads: Union[bool, int],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    path: Optional[str] = None,
-    path_root: Optional[str] = None,
-    filename_prefix: Optional[str] = None,
+    use_threads: bool | int,
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, str] | None,
+    path: str | None = None,
+    path_root: str | None = None,
+    filename_prefix: str | None = None,
     bucketing: bool = False,
     **pandas_kwargs: Any,
-) -> List[str]:
+) -> list[str]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     if df.empty is True:
         _logger.warning("Empty DataFrame will be written.")
@@ -81,30 +83,30 @@ def _to_text(  # pylint: disable=unused-argument
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
-def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
+def to_csv(  # noqa: PLR0912,PLR0915
     df: pd.DataFrame,
-    path: Optional[str] = None,
+    path: str | None = None,
     sep: str = ",",
     index: bool = True,
-    columns: Optional[List[str]] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    columns: list[str] | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
     sanitize_columns: bool = False,
     dataset: bool = False,
-    filename_prefix: Optional[str] = None,
-    partition_cols: Optional[List[str]] = None,
-    bucketing_info: Optional[BucketingInfoTuple] = None,
+    filename_prefix: str | None = None,
+    partition_cols: list[str] | None = None,
+    bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
-    mode: Optional[Literal["append", "overwrite", "overwrite_partitions"]] = None,
+    mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
-    database: Optional[str] = None,
-    table: Optional[str] = None,
-    glue_table_settings: Optional[GlueTableSettings] = None,
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
-    catalog_id: Optional[str] = None,
+    dtype: dict[str, str] | None = None,
+    database: str | None = None,
+    table: str | None = None,
+    glue_table_settings: GlueTableSettings | None = None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    catalog_id: str | None = None,
     **pandas_kwargs: Any,
 ) -> _S3WriteDataReturnValue:
     """Write CSV file or dataset on Amazon S3.
@@ -139,7 +141,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         String of length 1. Field delimiter for the output file.
     index : bool
         Write row names (index).
-    columns : Optional[List[str]]
+    columns: list[str], optional
         Columns to write.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
@@ -147,7 +149,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool
@@ -489,7 +491,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
-    partitions_values: Dict[str, List[str]] = {}
+    partitions_values: dict[str, list[str]] = {}
     mode = "append" if mode is None else mode
     commit_trans: bool = False
     if transaction_id:
@@ -508,9 +510,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         )
 
     # Evaluating dtype
-    catalog_table_input: Optional[Dict[str, Any]] = None
+    catalog_table_input: dict[str, Any] | None = None
     if database and table:
-        catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+        catalog_table_input = catalog._get_table_input(
             database=database,
             table=table,
             boto3_session=boto3_session,
@@ -518,7 +520,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             catalog_id=catalog_id,
         )
 
-        catalog_path: Optional[str] = None
+        catalog_path: str | None = None
         if catalog_table_input:
             table_type = catalog_table_input["TableType"]
             catalog_path = catalog_table_input.get("StorageDescriptor", {}).get("Location")
@@ -548,7 +550,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
-    paths: List[str] = []
+    paths: list[str] = []
     if dataset is False:
         pandas_kwargs["sep"] = sep
         pandas_kwargs["index"] = index
@@ -564,13 +566,13 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         )
         paths = [path]  # type: ignore[list-item]
     else:
-        compression: Optional[str] = pandas_kwargs.get("compression", None)
+        compression: str | None = pandas_kwargs.get("compression", None)
         if database and table:
-            quoting: Optional[int] = csv.QUOTE_NONE
-            escapechar: Optional[str] = "\\"
-            header: Union[bool, List[str]] = pandas_kwargs.get("header", False)
-            date_format: Optional[str] = "%Y-%m-%d %H:%M:%S.%f"
-            pd_kwargs: Dict[str, Any] = {}
+            quoting: int | None = csv.QUOTE_NONE
+            escapechar: str | None = "\\"
+            header: bool | list[str] = pandas_kwargs.get("header", False)
+            date_format: str | None = "%Y-%m-%d %H:%M:%S.%f"
+            pd_kwargs: dict[str, Any] = {}
         else:
             quoting = pandas_kwargs.get("quoting", None)
             escapechar = pandas_kwargs.get("escapechar", None)
@@ -585,8 +587,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
         df = df[columns] if columns else df
 
-        columns_types: Dict[str, str] = {}
-        partitions_types: Dict[str, str] = {}
+        columns_types: dict[str, str] = {}
+        partitions_types: dict[str, str] = {}
 
         if database and table:
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
@@ -595,7 +597,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             if schema_evolution is False:
                 _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
-            create_table_args: Dict[str, Any] = {
+            create_table_args: dict[str, Any] = {
                 "database": database,
                 "table": table,
                 "path": path,
@@ -622,8 +624,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             }
 
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
-                catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+                catalog._create_csv_table(**create_table_args)
+                catalog_table_input = catalog._get_table_input(
                     database=database,
                     table=table,
                     boto3_session=boto3_session,
@@ -662,12 +664,12 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         )
         if database and table:
             try:
-                serde_info: Dict[str, Any] = {}
+                serde_info: dict[str, Any] = {}
                 if catalog_table_input:
                     serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
                 create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
                 create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
-                catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
+                catalog._create_csv_table(**create_table_args)
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     catalog.add_csv_partitions(
                         database=database,
@@ -703,29 +705,29 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
-def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
+def to_json(  # noqa: PLR0912,PLR0915
     df: pd.DataFrame,
-    path: Optional[str] = None,
+    path: str | None = None,
     index: bool = True,
-    columns: Optional[List[str]] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    columns: list[str] | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
     sanitize_columns: bool = False,
     dataset: bool = False,
-    filename_prefix: Optional[str] = None,
-    partition_cols: Optional[List[str]] = None,
-    bucketing_info: Optional[BucketingInfoTuple] = None,
+    filename_prefix: str | None = None,
+    partition_cols: list[str] | None = None,
+    bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
-    mode: Optional[Literal["append", "overwrite", "overwrite_partitions"]] = None,
+    mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
-    dtype: Optional[Dict[str, str]] = None,
-    database: Optional[str] = None,
-    table: Optional[str] = None,
-    glue_table_settings: Optional[GlueTableSettings] = None,
-    athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings] = None,
-    catalog_id: Optional[str] = None,
+    dtype: dict[str, str] | None = None,
+    database: str | None = None,
+    table: str | None = None,
+    glue_table_settings: GlueTableSettings | None = None,
+    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    catalog_id: str | None = None,
     **pandas_kwargs: Any,
 ) -> _S3WriteDataReturnValue:
     """Write JSON file on Amazon S3.
@@ -739,19 +741,19 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     ----------
     df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    path : str
+    path: str
         Amazon S3 path (e.g. s3://bucket/filename.json).
-    index : bool
+    index: bool
         Write row names (index).
-    columns : Optional[List[str]]
+    columns: list[str], optional
         Columns to write.
-    use_threads : bool, int
+    use_threads: bool | int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwarg: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool
@@ -764,9 +766,9 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         catalog_versioning, projection_params, catalog_id, schema_evolution.
     filename_prefix: str, optional
         If dataset=True, add a filename prefix to the output files.
-    partition_cols: List[str], optional
+    partition_cols: list[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info: tuple[list[str], int], optional
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
@@ -973,7 +975,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
-    partitions_values: Dict[str, List[str]] = {}
+    partitions_values: dict[str, list[str]] = {}
     mode = "append" if mode is None else mode
     commit_trans: bool = False
     if transaction_id:
@@ -992,17 +994,17 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         )
 
     # Evaluating dtype
-    catalog_table_input: Optional[Dict[str, Any]] = None
+    catalog_table_input: dict[str, Any] | None = None
 
     if database and table:
-        catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+        catalog_table_input = catalog._get_table_input(
             database=database,
             table=table,
             boto3_session=boto3_session,
             transaction_id=transaction_id,
             catalog_id=catalog_id,
         )
-        catalog_path: Optional[str] = None
+        catalog_path: str | None = None
         if catalog_table_input:
             table_type = catalog_table_input["TableType"]
             catalog_path = catalog_table_input.get("StorageDescriptor", {}).get("Location")
@@ -1044,11 +1046,11 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         )
         return {"paths": output_paths, "partitions_values": {}}
 
-    compression: Optional[str] = pandas_kwargs.pop("compression", None)
+    compression: str | None = pandas_kwargs.pop("compression", None)
     df = df[columns] if columns else df
 
-    columns_types: Dict[str, str] = {}
-    partitions_types: Dict[str, str] = {}
+    columns_types: dict[str, str] = {}
+    partitions_types: dict[str, str] = {}
 
     if database and table:
         columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
@@ -1057,7 +1059,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         if schema_evolution is False:
             _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
-        create_table_args: Dict[str, Any] = {
+        create_table_args: dict[str, Any] = {
             "database": database,
             "table": table,
             "path": path,
@@ -1082,8 +1084,8 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         }
 
         if (catalog_table_input is None) and (table_type == "GOVERNED"):
-            catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
-            catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+            catalog._create_json_table(**create_table_args)
+            catalog_table_input = catalog._get_table_input(
                 database=database,
                 table=table,
                 boto3_session=boto3_session,
@@ -1117,12 +1119,12 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     )
     if database and table:
         try:
-            serde_info: Dict[str, Any] = {}
+            serde_info: dict[str, Any] = {}
             if catalog_table_input:
                 serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
             create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
             create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
-            catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
+            catalog._create_json_table(**create_table_args)
             if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                 catalog.add_json_partitions(
                     database=database,

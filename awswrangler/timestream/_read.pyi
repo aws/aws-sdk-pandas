@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterator, List, Literal, Optional, Union, overload
+from typing import Any, Iterator, Literal, overload
 
 import boto3
 import pandas as pd
@@ -7,49 +7,49 @@ import pandas as pd
 def query(
     sql: str,
     chunked: Literal[False] = ...,
-    pagination_config: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
+    pagination_config: dict[str, Any] | None = ...,
+    boto3_session: boto3.Session | None = ...,
 ) -> pd.DataFrame: ...
 @overload
 def query(
     sql: str,
     chunked: Literal[True],
-    pagination_config: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
+    pagination_config: dict[str, Any] | None = ...,
+    boto3_session: boto3.Session | None = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def query(
     sql: str,
     chunked: bool,
-    pagination_config: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
+    pagination_config: dict[str, Any] | None = ...,
+    boto3_session: boto3.Session | None = ...,
+) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 def unload(
     sql: str,
     path: str,
-    unload_format: Optional[Literal["CSV", "PARQUET"]] = ...,
-    compression: Optional[Literal["GZIP", "..."]] = ...,
-    partition_cols: Optional[List[str]] = ...,
-    encryption: Optional[Literal["SSE_KMS", "SSE_S3"]] = ...,
-    kms_key_id: Optional[str] = ...,
-    field_delimiter: Optional[str] = ",",
-    escaped_by: Optional[str] = "\\",
-    chunked: Union[bool, int] = False,
+    unload_format: Literal["CSV", "PARQUET"] | None = ...,
+    compression: Literal["GZIP", "..."] | None = ...,
+    partition_cols: list[str] | None = ...,
+    encryption: Literal["SSE_KMS", "SSE_S3"] | None = ...,
+    kms_key_id: str | None = ...,
+    field_delimiter: str | None = ",",
+    escaped_by: str | None = "\\",
+    chunked: bool | int = False,
     keep_files: bool = False,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, str]] = ...,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]: ...
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = ...,
+    s3_additional_kwargs: dict[str, str] | None = ...,
+    pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 def unload_to_files(
     sql: str,
     path: str,
-    unload_format: Optional[Literal["CSV", "PARQUET"]] = ...,
-    compression: Optional[Literal["GZIP", "NONE"]] = ...,
-    partition_cols: Optional[List[str]] = ...,
-    encryption: Optional[Literal["SSE_KMS", "SSE_S3"]] = ...,
-    kms_key_id: Optional[str] = ...,
-    field_delimiter: Optional[str] = ...,
-    escaped_by: Optional[str] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
+    unload_format: Literal["CSV", "PARQUET"] | None = ...,
+    compression: Literal["GZIP", "NONE"] | None = ...,
+    partition_cols: list[str] | None = ...,
+    encryption: Literal["SSE_KMS", "SSE_S3"] | None = ...,
+    kms_key_id: str | None = ...,
+    field_delimiter: str | None = ...,
+    escaped_by: str | None = ...,
+    boto3_session: boto3.Session | None = ...,
 ) -> None: ...

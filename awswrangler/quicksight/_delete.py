@@ -1,8 +1,10 @@
 """Amazon QuickSight Delete Module."""
 
+from __future__ import annotations
+
 import logging
 import re
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 
 import boto3
 
@@ -22,7 +24,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _delete(
-    func_name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
+    func_name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None, **kwargs: Any
 ) -> None:
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=boto3_session)
@@ -32,11 +34,11 @@ def _delete(
 
 
 def delete_dashboard(
-    name: Optional[str] = None,
-    dashboard_id: Optional[str] = None,
-    version_number: Optional[int] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    name: str | None = None,
+    dashboard_id: str | None = None,
+    version_number: int | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Delete a dashboard.
 
@@ -72,7 +74,7 @@ def delete_dashboard(
         raise exceptions.InvalidArgument("You must pass a not None name or dashboard_id argument.")
     if (dashboard_id is None) and (name is not None):
         dashboard_id = get_dashboard_id(name=name, account_id=account_id, boto3_session=boto3_session)
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "func_name": "delete_dashboard",
         "account_id": account_id,
         "boto3_session": boto3_session,
@@ -84,10 +86,10 @@ def delete_dashboard(
 
 
 def delete_dataset(
-    name: Optional[str] = None,
-    dataset_id: Optional[str] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    name: str | None = None,
+    dataset_id: str | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Delete a dataset.
 
@@ -120,7 +122,7 @@ def delete_dataset(
         raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
     if (dataset_id is None) and (name is not None):
         dataset_id = get_dataset_id(name=name, account_id=account_id, boto3_session=boto3_session)
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "func_name": "delete_data_set",
         "account_id": account_id,
         "boto3_session": boto3_session,
@@ -130,10 +132,10 @@ def delete_dataset(
 
 
 def delete_data_source(
-    name: Optional[str] = None,
-    data_source_id: Optional[str] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    name: str | None = None,
+    data_source_id: str | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Delete a data source.
 
@@ -166,7 +168,7 @@ def delete_data_source(
         raise exceptions.InvalidArgument("You must pass a not None name or data_source_id argument.")
     if (data_source_id is None) and (name is not None):
         data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=boto3_session)
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "func_name": "delete_data_source",
         "account_id": account_id,
         "boto3_session": boto3_session,
@@ -176,11 +178,11 @@ def delete_data_source(
 
 
 def delete_template(
-    name: Optional[str] = None,
-    template_id: Optional[str] = None,
-    version_number: Optional[int] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    name: str | None = None,
+    template_id: str | None = None,
+    version_number: int | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Delete a template.
 
@@ -216,7 +218,7 @@ def delete_template(
         raise exceptions.InvalidArgument("You must pass a not None name or template_id argument.")
     if (template_id is None) and (name is not None):
         template_id = get_template_id(name=name, account_id=account_id, boto3_session=boto3_session)
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "func_name": "delete_template",
         "account_id": account_id,
         "boto3_session": boto3_session,
@@ -228,7 +230,7 @@ def delete_template(
 
 
 def delete_all_dashboards(
-    account_id: Optional[str] = None, regex_filter: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    account_id: str | None = None, regex_filter: str | None = None, boto3_session: boto3.Session | None = None
 ) -> None:
     """Delete all dashboards.
 
@@ -261,7 +263,7 @@ def delete_all_dashboards(
 
 
 def delete_all_datasets(
-    account_id: Optional[str] = None, regex_filter: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    account_id: str | None = None, regex_filter: str | None = None, boto3_session: boto3.Session | None = None
 ) -> None:
     """Delete all datasets.
 
@@ -294,7 +296,7 @@ def delete_all_datasets(
 
 
 def delete_all_data_sources(
-    account_id: Optional[str] = None, regex_filter: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    account_id: str | None = None, regex_filter: str | None = None, boto3_session: boto3.Session | None = None
 ) -> None:
     """Delete all data sources.
 
@@ -329,7 +331,7 @@ def delete_all_data_sources(
 
 
 def delete_all_templates(
-    account_id: Optional[str] = None, regex_filter: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    account_id: str | None = None, regex_filter: str | None = None, boto3_session: boto3.Session | None = None
 ) -> None:
     """Delete all templates.
 

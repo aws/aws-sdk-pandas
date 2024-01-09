@@ -1,10 +1,12 @@
 """Amazon CSV S3 Write Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
 import uuid
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple
 
 import boto3
 import pandas as pd
@@ -22,7 +24,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_COMPRESSION_2_EXT: Dict[Optional[str], str] = {
+_COMPRESSION_2_EXT: dict[str | None, str] = {
     None: "",
     "gzip": ".gz",
     "snappy": ".snappy",
@@ -33,8 +35,8 @@ _COMPRESSION_2_EXT: Dict[Optional[str], str] = {
 }
 
 
-def _extract_dtypes_from_table_input(table_input: Dict[str, Any]) -> Dict[str, str]:
-    dtypes: Dict[str, str] = {}
+def _extract_dtypes_from_table_input(table_input: dict[str, Any]) -> dict[str, str]:
+    dtypes: dict[str, str] = {}
     for col in table_input["StorageDescriptor"]["Columns"]:
         dtypes[col["Name"]] = col["Type"]
     if "PartitionKeys" in table_input:
@@ -44,11 +46,11 @@ def _extract_dtypes_from_table_input(table_input: Dict[str, Any]) -> Dict[str, s
 
 
 def _apply_dtype(
-    df: pd.DataFrame, dtype: Dict[str, str], catalog_table_input: Optional[Dict[str, Any]], mode: str
+    df: pd.DataFrame, dtype: dict[str, str], catalog_table_input: dict[str, Any] | None, mode: str
 ) -> pd.DataFrame:
     if mode in ("append", "overwrite_partitions"):
         if catalog_table_input is not None:
-            catalog_types: Optional[Dict[str, str]] = _extract_dtypes_from_table_input(table_input=catalog_table_input)
+            catalog_types: dict[str, str] | None = _extract_dtypes_from_table_input(table_input=catalog_table_input)
             if catalog_types is not None:
                 for k, v in catalog_types.items():
                     dtype[k] = v
@@ -58,16 +60,16 @@ def _apply_dtype(
 
 def _validate_args(
     df: pd.DataFrame,
-    table: Optional[str],
-    database: Optional[str],
+    table: str | None,
+    database: str | None,
     dataset: bool,
-    path: Optional[str],
-    partition_cols: Optional[List[str]],
-    bucketing_info: Optional[typing.BucketingInfoTuple],
-    mode: Optional[str],
-    description: Optional[str],
-    parameters: Optional[Dict[str, str]],
-    columns_comments: Optional[Dict[str, str]],
+    path: str | None,
+    partition_cols: list[str] | None,
+    bucketing_info: typing.BucketingInfoTuple | None,
+    mode: str | None,
+    description: str | None,
+    parameters: dict[str, str] | None,
+    columns_comments: dict[str, str] | None,
     execution_engine: Enum,
 ) -> None:
     if df.empty is True:
@@ -108,16 +110,16 @@ def _validate_args(
 
 class _SanitizeResult(NamedTuple):
     frame: pd.DataFrame
-    dtype: Dict[str, str]
-    partition_cols: List[str]
-    bucketing_info: Optional[typing.BucketingInfoTuple]
+    dtype: dict[str, str]
+    partition_cols: list[str]
+    bucketing_info: typing.BucketingInfoTuple | None
 
 
 def _sanitize(
     df: pd.DataFrame,
-    dtype: Dict[str, str],
-    partition_cols: List[str],
-    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
+    dtype: dict[str, str],
+    partition_cols: list[str],
+    bucketing_info: typing.BucketingInfoTuple | None = None,
 ) -> _SanitizeResult:
     df = catalog.sanitize_dataframe_columns_names(df=df)
     partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
@@ -142,19 +144,19 @@ def _get_chunk_file_path(file_counter: int, file_path: str) -> str:
     return file_path
 
 
-def _get_write_table_args(pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    write_table_args: Dict[str, Any] = {}
+def _get_write_table_args(pyarrow_additional_kwargs: dict[str, Any] | None = None) -> dict[str, Any]:
+    write_table_args: dict[str, Any] = {}
     if pyarrow_additional_kwargs and "write_table_args" in pyarrow_additional_kwargs:
         write_table_args = pyarrow_additional_kwargs.pop("write_table_args")
     return write_table_args
 
 
 def _get_file_path(
-    path_root: Optional[str] = None,
-    path: Optional[str] = None,
-    filename_prefix: Optional[str] = None,
+    path_root: str | None = None,
+    path: str | None = None,
+    filename_prefix: str | None = None,
     compression_ext: str = "",
-    bucket_id: Optional[int] = None,
+    bucket_id: int | None = None,
     extension: str = ".parquet",
 ) -> str:
     if bucket_id is not None:
@@ -171,7 +173,7 @@ def _get_file_path(
 class _S3WriteStrategy(ABC):
     @property
     @abstractmethod
-    def _write_to_s3_func(self) -> Callable[..., List[str]]:
+    def _write_to_s3_func(self) -> Callable[..., list[str]]:
         pass
 
     @abstractmethod
@@ -180,20 +182,20 @@ class _S3WriteStrategy(ABC):
         df: pd.DataFrame,
         schema: pa.Schema,
         index: bool,
-        compression: Optional[str],
+        compression: str | None,
         compression_ext: str,
-        pyarrow_additional_kwargs: Dict[str, Any],
+        pyarrow_additional_kwargs: dict[str, Any],
         cpus: int,
-        dtype: Dict[str, str],
-        s3_client: Optional["S3Client"],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        use_threads: Union[bool, int],
-        path: Optional[str] = None,
-        path_root: Optional[str] = None,
-        filename_prefix: Optional[str] = None,
-        max_rows_by_file: Optional[int] = 0,
+        dtype: dict[str, str],
+        s3_client: "S3Client" | None,
+        s3_additional_kwargs: dict[str, str] | None,
+        use_threads: bool | int,
+        path: str | None = None,
+        path_root: str | None = None,
+        filename_prefix: str | None = None,
+        max_rows_by_file: int | None = 0,
         bucketing: bool = False,
-    ) -> List[str]:
+    ) -> list[str]:
         pass
 
     @abstractmethod
@@ -202,21 +204,21 @@ class _S3WriteStrategy(ABC):
         database: str,
         table: str,
         path: str,
-        columns_types: Dict[str, str],
-        table_type: Optional[str],
-        partitions_types: Optional[Dict[str, str]],
-        bucketing_info: Optional[typing.BucketingInfoTuple],
-        catalog_id: Optional[str],
-        compression: Optional[str],
-        description: Optional[str],
-        parameters: Optional[Dict[str, str]],
-        columns_comments: Optional[Dict[str, str]],
+        columns_types: dict[str, str],
+        table_type: str | None,
+        partitions_types: dict[str, str] | None,
+        bucketing_info: typing.BucketingInfoTuple | None,
+        catalog_id: str | None,
+        compression: str | None,
+        description: str | None,
+        parameters: dict[str, str] | None,
+        columns_comments: dict[str, str] | None,
         mode: str,
         catalog_versioning: bool,
-        transaction_id: Optional[str],
-        athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
-        boto3_session: Optional[boto3.Session],
-        catalog_table_input: Optional[Dict[str, Any]],
+        transaction_id: str | None,
+        athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
+        boto3_session: boto3.Session | None,
+        catalog_table_input: dict[str, Any] | None,
     ) -> None:
         pass
 
@@ -225,53 +227,53 @@ class _S3WriteStrategy(ABC):
         self,
         database: str,
         table: str,
-        partitions_values: Dict[str, List[str]],
-        bucketing_info: Optional[typing.BucketingInfoTuple] = None,
-        catalog_id: Optional[str] = None,
-        compression: Optional[str] = None,
-        boto3_session: Optional[boto3.Session] = None,
-        columns_types: Optional[Dict[str, str]] = None,
-        partitions_parameters: Optional[Dict[str, str]] = None,
+        partitions_values: dict[str, list[str]],
+        bucketing_info: typing.BucketingInfoTuple | None = None,
+        catalog_id: str | None = None,
+        compression: str | None = None,
+        boto3_session: boto3.Session | None = None,
+        columns_types: dict[str, str] | None = None,
+        partitions_parameters: dict[str, str] | None = None,
     ) -> None:
         pass
 
-    def write(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
+    def write(  # noqa: PLR0912,PLR0913,PLR0915
         self,
         df: pd.DataFrame,
-        path: Optional[str],
+        path: str | None,
         index: bool,
-        compression: Optional[str],
-        pyarrow_additional_kwargs: Dict[str, Any],
-        max_rows_by_file: Optional[int],
-        use_threads: Union[bool, int],
-        boto3_session: Optional[boto3.Session],
-        s3_additional_kwargs: Optional[Dict[str, Any]],
+        compression: str | None,
+        pyarrow_additional_kwargs: dict[str, Any],
+        max_rows_by_file: int | None,
+        use_threads: bool | int,
+        boto3_session: boto3.Session | None,
+        s3_additional_kwargs: dict[str, Any] | None,
         sanitize_columns: bool,
         dataset: bool,
-        filename_prefix: Optional[str],
-        partition_cols: Optional[List[str]],
-        bucketing_info: Optional[typing.BucketingInfoTuple],
+        filename_prefix: str | None,
+        partition_cols: list[str] | None,
+        bucketing_info: typing.BucketingInfoTuple | None,
         concurrent_partitioning: bool,
-        mode: Optional[str],
+        mode: str | None,
         catalog_versioning: bool,
         schema_evolution: bool,
-        database: Optional[str],
-        table: Optional[str],
-        description: Optional[str],
-        parameters: Optional[Dict[str, str]],
-        columns_comments: Optional[Dict[str, str]],
-        transaction_id: Optional[str],
+        database: str | None,
+        table: str | None,
+        description: str | None,
+        parameters: dict[str, str] | None,
+        columns_comments: dict[str, str] | None,
+        transaction_id: str | None,
         regular_partitions: bool,
-        table_type: Optional[str],
-        dtype: Optional[Dict[str, str]],
-        athena_partition_projection_settings: Optional[typing.AthenaPartitionProjectionSettings],
-        catalog_id: Optional[str],
+        table_type: str | None,
+        dtype: dict[str, str] | None,
+        athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
+        catalog_id: str | None,
         compression_ext: str,
     ) -> typing._S3WriteDataReturnValue:
         # Initializing defaults
         partition_cols = partition_cols if partition_cols else []
         dtype = dtype if dtype else {}
-        partitions_values: Dict[str, List[str]] = {}
+        partitions_values: dict[str, list[str]] = {}
         mode = "append" if mode is None else mode
         commit_trans: bool = False
         if transaction_id:
@@ -291,16 +293,16 @@ class _S3WriteStrategy(ABC):
             )
 
         # Evaluating dtype
-        catalog_table_input: Optional[Dict[str, Any]] = None
+        catalog_table_input: dict[str, Any] | None = None
         if database is not None and table is not None:
-            catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+            catalog_table_input = catalog._get_table_input(
                 database=database,
                 table=table,
                 boto3_session=boto3_session,
                 transaction_id=transaction_id,
                 catalog_id=catalog_id,
             )
-            catalog_path: Optional[str] = None
+            catalog_path: str | None = None
             if catalog_table_input:
                 table_type = catalog_table_input["TableType"]
                 catalog_path = catalog_table_input["StorageDescriptor"]["Location"]
@@ -349,8 +351,8 @@ class _S3WriteStrategy(ABC):
                 use_threads=use_threads,
             )
         else:
-            columns_types: Dict[str, str] = {}
-            partitions_types: Dict[str, str] = {}
+            columns_types: dict[str, str] = {}
+            partitions_types: dict[str, str] = {}
             if (database is not None) and (table is not None):
                 columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                     df=df, index=index, partition_cols=partition_cols, dtype=dtype
@@ -358,7 +360,7 @@ class _S3WriteStrategy(ABC):
                 if schema_evolution is False:
                     _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
-                create_table_args: Dict[str, Any] = {
+                create_table_args: dict[str, Any] = {
                     "database": database,
                     "table": table,
                     "path": path,
@@ -380,8 +382,8 @@ class _S3WriteStrategy(ABC):
                 }
 
                 if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                    self._create_glue_table(**create_table_args)  # pylint: disable=protected-access
-                    create_table_args["catalog_table_input"] = catalog._get_table_input(  # pylint: disable=protected-access
+                    self._create_glue_table(**create_table_args)
+                    create_table_args["catalog_table_input"] = catalog._get_table_input(
                         database=database,
                         table=table,
                         boto3_session=boto3_session,
@@ -418,7 +420,7 @@ class _S3WriteStrategy(ABC):
             )
             if database and table:
                 try:
-                    self._create_glue_table(**create_table_args)  # pylint: disable=protected-access
+                    self._create_glue_table(**create_table_args)
                     if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                         self._add_glue_partitions(
                             database=database,

@@ -1,7 +1,7 @@
 """Ray Module."""
 
 import logging
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable
 
 class RayLogger:
     def __init__(
@@ -10,18 +10,18 @@ class RayLogger:
         format: str = "%(asctime)s::%(levelname)-2s::%(name)s::%(message)s",
         datefmt: str = "%Y-%m-%d %H:%M:%S",
     ): ...
-    def get_logger(self, name: Union[str, Any] = None) -> logging.Logger: ...
+    def get_logger(self, name: str | Any = None) -> logging.Logger: ...
 
 def ray_logger(function: Callable[..., Any]) -> Callable[..., Any]: ...
 def ray_remote(**options: Any) -> Callable[..., Any]: ...
-def ray_get(futures: List[Any]) -> Any: ...
+def ray_get(futures: list[Any]) -> Any: ...
 def initialize_ray(
-    address: Optional[str] = None,
-    redis_password: Optional[str] = None,
-    ignore_reinit_error: Optional[bool] = True,
-    include_dashboard: Optional[bool] = False,
-    log_to_driver: Optional[bool] = True,
-    object_store_memory: Optional[int] = None,
-    cpu_count: Optional[int] = None,
-    gpu_count: Optional[int] = 0,
+    address: str | None = None,
+    redis_password: str | None = None,
+    ignore_reinit_error: bool | None = True,
+    include_dashboard: bool | None = False,
+    log_to_driver: bool | None = True,
+    object_store_memory: int | None = None,
+    cpu_count: int | None = None,
+    gpu_count: int | None = 0,
 ) -> None: ...

@@ -1,6 +1,8 @@
 """Ray PandasTextDatasource Module."""
+from __future__ import annotations
+
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Union
+from typing import Any, Callable, Iterator
 
 import pandas as pd
 import pyarrow
@@ -16,18 +18,18 @@ _logger: logging.Logger = logging.getLogger(__name__)
 READER_ROW_BATCH_SIZE = 10_0000
 
 
-class PandasTextDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
+class PandasTextDatasource(FileBasedDatasource):
     """Pandas text datasource, for reading text files using Pandas."""
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         dataset: bool,
         path_root: str,
         read_text_func: Callable[..., pd.DataFrame],
-        version_ids: Optional[Dict[str, str]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(paths, **file_based_datasource_kwargs)
@@ -58,19 +60,19 @@ class PandasTextDatasource(FileBasedDatasource):  # pylint: disable=abstract-met
         )
 
 
-class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
+class PandasCSVDataSource(PandasTextDatasource):
     """Pandas CSV datasource, for reading CSV files using Pandas."""
 
     _FILE_EXTENSIONS = ["csv"]
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         dataset: bool,
         path_root: str,
-        version_ids: Optional[Dict[str, str]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(
@@ -96,19 +98,19 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         yield from super()._read_stream(f, path)
 
 
-class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
+class PandasFWFDataSource(PandasTextDatasource):
     """Pandas FWF datasource, for reading FWF files using Pandas."""
 
     _FILE_EXTENSIONS = ["fwf"]
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         dataset: bool,
         path_root: str,
-        version_ids: Optional[Dict[str, str]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(
@@ -123,19 +125,19 @@ class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         )
 
 
-class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-method
+class PandasJSONDatasource(PandasTextDatasource):
     """Pandas JSON datasource, for reading JSON files using Pandas."""
 
     _FILE_EXTENSIONS = ["json"]
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         dataset: bool,
         path_root: str,
-        version_ids: Optional[Dict[str, str]] = None,
-        s3_additional_kwargs: Optional[Dict[str, str]] = None,
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ) -> None:
         super().__init__(

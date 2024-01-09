@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, Dict, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pyarrow as pa
 from pyarrow.fs import _resolve_filesystem_and_path
@@ -12,12 +14,12 @@ if TYPE_CHECKING:
 
 @_utils.retry(ex=OSError)
 def _read_orc_metadata_file_distributed(
-    s3_client: Optional["S3Client"],
+    s3_client: "S3Client" | None,
     path: str,
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    version_id: Optional[str] = None,
-) -> Optional[pa.schema]:
+    s3_additional_kwargs: dict[str, str] | None,
+    use_threads: bool | int,
+    version_id: str | None = None,
+) -> pa.schema | None:
     resolved_filesystem, resolved_path = _resolve_filesystem_and_path(path)
 
     with resolved_filesystem.open_input_file(resolved_path) as f:

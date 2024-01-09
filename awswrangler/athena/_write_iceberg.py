@@ -1,9 +1,11 @@
 """Amazon Athena Module containing all to_* write functions."""
 
+from __future__ import annotations
+
 import logging
 import typing
 import uuid
-from typing import Any, Dict, List, Optional, Set, TypedDict, cast
+from typing import Any, Dict, TypedDict, cast
 
 import boto3
 import pandas as pd
@@ -27,16 +29,16 @@ def _create_iceberg_table(
     table: str,
     path: str,
     wg_config: _WorkGroupConfig,
-    partition_cols: Optional[List[str]],
-    additional_table_properties: Optional[Dict[str, Any]],
+    partition_cols: list[str] | None,
+    additional_table_properties: dict[str, Any] | None,
     index: bool = False,
-    data_source: Optional[str] = None,
-    workgroup: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    dtype: Optional[Dict[str, str]] = None,
-    columns_comments: Optional[Dict[str, Any]] = None,
+    data_source: str | None = None,
+    workgroup: str | None = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    dtype: dict[str, str] | None = None,
+    columns_comments: dict[str, Any] | None = None,
 ) -> None:
     if not path:
         raise exceptions.InvalidArgumentValue("Must specify table location to create the table.")
@@ -78,9 +80,9 @@ def _create_iceberg_table(
 
 
 class _SchemaChanges(TypedDict):
-    to_add: Dict[str, str]
-    to_change: Dict[str, str]
-    to_remove: Set[str]
+    to_add: dict[str, str]
+    to_change: dict[str, str]
+    to_remove: set[str]
 
 
 def _determine_differences(
@@ -88,10 +90,10 @@ def _determine_differences(
     database: str,
     table: str,
     index: bool,
-    partition_cols: Optional[List[str]],
-    boto3_session: Optional[boto3.Session],
-    dtype: Optional[Dict[str, str]],
-    catalog_id: Optional[str],
+    partition_cols: list[str] | None,
+    boto3_session: boto3.Session | None,
+    dtype: dict[str, str] | None,
+    catalog_id: str | None,
 ) -> _SchemaChanges:
     frame_columns_types, frame_partitions_types = _data_types.athena_types_from_pandas_partitioned(
         df=df, index=index, partition_cols=partition_cols, dtype=dtype
@@ -124,13 +126,13 @@ def _alter_iceberg_table(
     table: str,
     schema_changes: _SchemaChanges,
     wg_config: _WorkGroupConfig,
-    data_source: Optional[str] = None,
-    workgroup: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    data_source: str | None = None,
+    workgroup: str | None = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
-    sql_statements: List[str] = []
+    sql_statements: list[str] = []
 
     if schema_changes["to_add"]:
         sql_statements += _alter_iceberg_table_add_columns_sql(
@@ -163,8 +165,8 @@ def _alter_iceberg_table(
 
 def _alter_iceberg_table_add_columns_sql(
     table: str,
-    columns_to_add: Dict[str, str],
-) -> List[str]:
+    columns_to_add: dict[str, str],
+) -> list[str]:
     add_cols_str = ", ".join([f"{col_name} {columns_to_add[col_name]}" for col_name in columns_to_add])
 
     return [f"ALTER TABLE {table} ADD COLUMNS ({add_cols_str})"]
@@ -172,8 +174,8 @@ def _alter_iceberg_table_add_columns_sql(
 
 def _alter_iceberg_table_change_columns_sql(
     table: str,
-    columns_to_change: Dict[str, str],
-) -> List[str]:
+    columns_to_change: dict[str, str],
+) -> list[str]:
     sql_statements = []
 
     for col_name, col_type in columns_to_change.items():
@@ -190,23 +192,23 @@ def to_iceberg(
     df: pd.DataFrame,
     database: str,
     table: str,
-    temp_path: Optional[str] = None,
+    temp_path: str | None = None,
     index: bool = False,
-    table_location: Optional[str] = None,
-    partition_cols: Optional[List[str]] = None,
-    merge_cols: Optional[List[str]] = None,
+    table_location: str | None = None,
+    partition_cols: list[str] | None = None,
+    merge_cols: list[str] | None = None,
     keep_files: bool = True,
-    data_source: Optional[str] = None,
+    data_source: str | None = None,
     workgroup: str = "primary",
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    additional_table_properties: Optional[Dict[str, Any]] = None,
-    dtype: Optional[Dict[str, str]] = None,
-    catalog_id: Optional[str] = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    additional_table_properties: dict[str, Any] | None = None,
+    dtype: dict[str, str] | None = None,
+    catalog_id: str | None = None,
     schema_evolution: bool = False,
-    glue_table_settings: Optional[GlueTableSettings] = None,
+    glue_table_settings: GlueTableSettings | None = None,
 ) -> None:
     """
     Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
@@ -250,15 +252,15 @@ def to_iceberg(
         For SSE-KMS, this is the KMS key ARN or ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    additional_table_properties : Optional[Dict[str, Any]]
+    additional_table_properties: dict[str, Any], optional
         Additional table properties.
         e.g. additional_table_properties={'write_target_data_file_size_bytes': '536870912'}
 
         https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-table-properties
-    dtype: Optional[Dict[str, str]]
+    dtype: dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         e.g. {'col name': 'bigint', 'col2 name': 'int'}
@@ -267,7 +269,7 @@ def to_iceberg(
         If none is provided, the AWS account ID is used by default
     schema_evolution: bool
         If True allows schema evolution for new columns or changes in column types.
-    columns_comments: Optional[GlueTableSettings]
+    columns_comments: GlueTableSettings, optional
         Glue/Athena catalog: Settings for writing to the Glue table.
         Currently only the 'columns_comments' attribute is supported for this function.
         Columns comments can only be added with this function when creating a new table.

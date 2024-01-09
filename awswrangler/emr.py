@@ -1,10 +1,10 @@
 """EMR (Elastic Map Reduce) module."""
-# pylint: disable=line-too-long
+from __future__ import annotations
 
 import logging
 import pprint
 import re
-from typing import Any, Dict, List, Literal, Optional, Union, cast
+from typing import Any, Literal, cast
 
 import boto3
 
@@ -35,10 +35,10 @@ print("done!")
 
 
 def _get_default_logging_path(
-    subnet_id: Optional[str] = None,
-    account_id: Optional[str] = None,
-    region: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    subnet_id: str | None = None,
+    account_id: str | None = None,
+    region: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Get EMR default logging path.
 
@@ -103,7 +103,7 @@ def _get_emr_classification_lib(emr_version: str) -> str:
     return "spark-log4j2" if number > 670 else "spark-log4j"
 
 
-def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-many-branches,too-many-statements
+def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
     account_id: str = sts.get_account_id(boto3_session=pars["boto3_session"])
     region: str = _utils.get_region_from_session(boto3_session=pars["boto3_session"])
 
@@ -113,9 +113,9 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
             subnet_id=None, account_id=account_id, region=region, boto3_session=pars["boto3_session"]
         )
 
-    spark_env: Optional[Dict[str, str]] = None
-    yarn_env: Optional[Dict[str, str]] = None
-    livy_env: Optional[Dict[str, str]] = None
+    spark_env: dict[str, str] | None = None
+    yarn_env: dict[str, str] | None = None
+    livy_env: dict[str, str] | None = None
 
     if pars["spark_pyarrow"] is True:
         if pars["spark_defaults"] is None:
@@ -139,7 +139,7 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
         else:
             pars["spark_defaults"]["spark.jars"] = paths
 
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "Name": pars["cluster_name"],
         "LogUri": pars["logging_s3_path"],
         "ReleaseLabel": pars["emr_release"],
@@ -192,7 +192,7 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
     )
     if pars["docker"] is True:
         if pars.get("extra_public_registries") is None:
-            extra_public_registries: List[str] = []
+            extra_public_registries: list[str] = []
         else:
             extra_public_registries = pars["extra_public_registries"]
         registries: str = (
@@ -251,7 +251,7 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
             }
         )
     if pars["hive_glue_catalog"] is True:
-        hive_conf: Dict[str, Any] = {"Classification": "hive-site", "Properties": {}, "Configurations": []}
+        hive_conf: dict[str, Any] = {"Classification": "hive-site", "Properties": {}, "Configurations": []}
         hive_conf["Properties"][
             "hive.metastore.client.factory.class"
         ] = "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
@@ -279,7 +279,7 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
     if pars["maximize_resource_allocation"] is True:
         args["Configurations"].append({"Classification": "spark", "Properties": {"maximizeResourceAllocation": "true"}})
     if pars["spark_defaults"] is not None:
-        spark_defaults: Dict[str, Union[str, Dict[str, str]]] = {
+        spark_defaults: dict[str, str | dict[str, str]] = {
             "Classification": "spark-defaults",
             "Properties": pars["spark_defaults"],
         }
@@ -314,7 +314,7 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
     timeout_action_master: str = (
         "SWITCH_TO_ON_DEMAND" if pars["spot_timeout_to_on_demand_master"] else "TERMINATE_CLUSTER"
     )
-    fleet_master: Dict[str, Any] = {
+    fleet_master: dict[str, Any] = {
         "Name": "MASTER",
         "InstanceFleetType": "MASTER",
         "TargetOnDemandCapacity": pars["instance_num_on_demand_master"],
@@ -348,7 +348,7 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
     # Core Instance Fleet
     if (pars["instance_num_spot_core"] > 0) or pars["instance_num_on_demand_core"] > 0:
         timeout_action_core = "SWITCH_TO_ON_DEMAND" if pars["spot_timeout_to_on_demand_core"] else "TERMINATE_CLUSTER"
-        fleet_core: Dict[str, Any] = {
+        fleet_core: dict[str, Any] = {
             "Name": "CORE",
             "InstanceFleetType": "CORE",
             "TargetOnDemandCapacity": pars["instance_num_on_demand_core"],
@@ -387,7 +387,7 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
         timeout_action_task: str = (
             "SWITCH_TO_ON_DEMAND" if pars["spot_timeout_to_on_demand_task"] else "TERMINATE_CLUSTER"
         )
-        fleet_task: Dict[str, Any] = {
+        fleet_task: dict[str, Any] = {
             "Name": "TASK",
             "InstanceFleetType": "TASK",
             "TargetOnDemandCapacity": pars["instance_num_on_demand_task"],
@@ -432,10 +432,10 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
     return args
 
 
-def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused-argument
+def create_cluster(  # noqa: PLR0913
     subnet_id: str,
     cluster_name: str = "my-emr-cluster",
-    logging_s3_path: Optional[str] = None,
+    logging_s3_path: str | None = None,
     emr_release: str = "emr-6.7.0",
     emr_ec2_role: str = "EMR_EC2_DefaultRole",
     emr_role: str = "EMR_DefaultRole",
@@ -468,34 +468,34 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     consistent_view_retry_seconds: int = 10,
     consistent_view_retry_count: int = 5,
     consistent_view_table_name: str = "EmrFSMetadata",
-    bootstraps_paths: Optional[List[str]] = None,
+    bootstraps_paths: list[str] | None = None,
     debugging: bool = True,
-    applications: Optional[List[str]] = None,
+    applications: list[str] | None = None,
     visible_to_all_users: bool = True,
-    key_pair_name: Optional[str] = None,
-    security_group_master: Optional[str] = None,
-    security_groups_master_additional: Optional[List[str]] = None,
-    security_group_slave: Optional[str] = None,
-    security_groups_slave_additional: Optional[List[str]] = None,
-    security_group_service_access: Optional[str] = None,
-    security_configuration: Optional[str] = None,
+    key_pair_name: str | None = None,
+    security_group_master: str | None = None,
+    security_groups_master_additional: list[str] | None = None,
+    security_group_slave: str | None = None,
+    security_groups_slave_additional: list[str] | None = None,
+    security_group_service_access: str | None = None,
+    security_configuration: str | None = None,
     docker: bool = False,
-    extra_public_registries: Optional[List[str]] = None,
+    extra_public_registries: list[str] | None = None,
     spark_log_level: str = "WARN",
-    spark_jars_path: Optional[List[str]] = None,
-    spark_defaults: Optional[Dict[str, str]] = None,
+    spark_jars_path: list[str] | None = None,
+    spark_defaults: dict[str, str] | None = None,
     spark_pyarrow: bool = False,
-    custom_classifications: Optional[List[Dict[str, Any]]] = None,
+    custom_classifications: list[dict[str, Any]] | None = None,
     maximize_resource_allocation: bool = False,
-    steps: Optional[List[Dict[str, Any]]] = None,
-    custom_ami_id: Optional[str] = None,
+    steps: list[dict[str, Any]] | None = None,
+    custom_ami_id: str | None = None,
     step_concurrency_level: int = 1,
     keep_cluster_alive_when_no_steps: bool = True,
     termination_protected: bool = False,
-    auto_termination_policy: Optional[Dict[str, int]] = None,
-    tags: Optional[Dict[str, str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    configurations: Optional[List[Dict[str, Any]]] = None,
+    auto_termination_policy: dict[str, int] | None = None,
+    tags: dict[str, str] | None = None,
+    boto3_session: boto3.Session | None = None,
+    configurations: list[dict[str, Any]] | None = None,
 ) -> str:
     """Create a EMR cluster with instance fleets configuration.
 
@@ -637,7 +637,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     maximize_resource_allocation : bool
         Configure your executors to utilize the maximum resources possible
         https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#emr-spark-maximizeresourceallocation
-    custom_ami_id : Optional[str]
+    custom_ami_id : str, optional
         The custom AMI ID to use for the provisioned instance group
     steps : List[Dict[str, Any]], optional
         Steps definitions (Obs : str Use EMR.build_step() to build it)
@@ -648,7 +648,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
         Specifies whether the Amazon EC2 instances in the cluster are
         protected from termination by API calls, user intervention,
         or in the event of a job-flow error.
-    auto_termination_policy: Optional[Dict[str, int]]
+    auto_termination_policy: Dict[str, int], optional
         Specifies the auto-termination policy that is attached to an Amazon EMR cluster
         eg. auto_termination_policy = {'IdleTimeout': 123}
         IdleTimeout specifies the amount of idle time in seconds after which the cluster automatically terminates.
@@ -744,14 +744,14 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
 
     """
     applications = ["Spark"] if applications is None else applications
-    args: Dict[str, Any] = _build_cluster_args(**locals())
+    args: dict[str, Any] = _build_cluster_args(**locals())
     client_emr = _utils.client(service_name="emr", session=boto3_session)
     response = client_emr.run_job_flow(**args)
     _logger.debug("response: \n%s", pprint.pformat(response))
     return response["JobFlowId"]
 
 
-def get_cluster_state(cluster_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
+def get_cluster_state(cluster_id: str, boto3_session: boto3.Session | None = None) -> str:
     """Get the EMR cluster state.
 
     Possible states: 'STARTING', 'BOOTSTRAPPING', 'RUNNING',
@@ -782,7 +782,7 @@ def get_cluster_state(cluster_id: str, boto3_session: Optional[boto3.Session] = 
     return response["Cluster"]["Status"]["State"]
 
 
-def terminate_cluster(cluster_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
+def terminate_cluster(cluster_id: str, boto3_session: boto3.Session | None = None) -> None:
     """Terminate EMR cluster.
 
     Parameters
@@ -808,9 +808,7 @@ def terminate_cluster(cluster_id: str, boto3_session: Optional[boto3.Session] = 
     _logger.debug("response: \n%s", pprint.pformat(response))
 
 
-def submit_steps(
-    cluster_id: str, steps: List[Dict[str, Any]], boto3_session: Optional[boto3.Session] = None
-) -> List[str]:
+def submit_steps(cluster_id: str, steps: list[dict[str, Any]], boto3_session: boto3.Session | None = None) -> list[str]:
     """Submit a list of steps.
 
     Parameters
@@ -847,7 +845,7 @@ def submit_step(
     name: str = "my-step",
     action_on_failure: _ActionOnFailureLiteral = "CONTINUE",
     script: bool = False,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Submit new job in the EMR Cluster.
 
@@ -883,7 +881,7 @@ def submit_step(
     ...     script=True)
 
     """
-    step: Dict[str, Any] = build_step(
+    step: dict[str, Any] = build_step(
         name=name, command=command, action_on_failure=action_on_failure, script=script, boto3_session=boto3_session
     )
     client_emr = _utils.client(service_name="emr", session=boto3_session)
@@ -897,9 +895,9 @@ def build_step(
     name: str = "my-step",
     action_on_failure: _ActionOnFailureLiteral = "CONTINUE",
     script: bool = False,
-    region: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    region: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """Build the Step structure (dictionary).
 
     Parameters
@@ -940,7 +938,7 @@ def build_step(
         else:
             _region = _utils.get_region_from_session(boto3_session=boto3_session, default_region="us-east-1")
         jar = f"s3://{_region}.elasticmapreduce/libs/script-runner/script-runner.jar"
-    step: Dict[str, Any] = {
+    step: dict[str, Any] = {
         "Name": name,
         "ActionOnFailure": action_on_failure,
         "HadoopJarStep": {"Jar": jar, "Args": command.split(" ")},
@@ -948,7 +946,7 @@ def build_step(
     return step
 
 
-def get_step_state(cluster_id: str, step_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
+def get_step_state(cluster_id: str, step_id: str, boto3_session: boto3.Session | None = None) -> str:
     """Get EMR step state.
 
     Possible states: 'PENDING', 'CANCEL_PENDING', 'RUNNING',
@@ -984,7 +982,7 @@ def submit_ecr_credentials_refresh(
     cluster_id: str,
     path: str,
     action_on_failure: _ActionOnFailureLiteral = "CONTINUE",
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Update internal ECR credentials.
 
@@ -1020,7 +1018,7 @@ def submit_ecr_credentials_refresh(
     )
     command: str = f"spark-submit --deploy-mode cluster {path_script}"
     name: str = "ECR Credentials Refresh"
-    step: Dict[str, Any] = build_step(
+    step: dict[str, Any] = build_step(
         name=name, command=command, action_on_failure=action_on_failure, script=False, boto3_session=boto3_session
     )
     client_emr = _utils.client(service_name="emr", session=boto3_session)
@@ -1031,14 +1029,14 @@ def submit_ecr_credentials_refresh(
 
 def build_spark_step(
     path: str,
-    args: Optional[List[str]] = None,
+    args: list[str] | None = None,
     deploy_mode: Literal["cluster", "client"] = "cluster",
-    docker_image: Optional[str] = None,
+    docker_image: str | None = None,
     name: str = "my-step",
     action_on_failure: _ActionOnFailureLiteral = "CONTINUE",
-    region: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    region: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """Build the Step structure (dictionary).
 
     Parameters
@@ -1106,13 +1104,13 @@ def build_spark_step(
 def submit_spark_step(
     cluster_id: str,
     path: str,
-    args: Optional[List[str]] = None,
+    args: list[str] | None = None,
     deploy_mode: Literal["cluster", "client"] = "cluster",
-    docker_image: Optional[str] = None,
+    docker_image: str | None = None,
     name: str = "my-step",
     action_on_failure: _ActionOnFailureLiteral = "CONTINUE",
-    region: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    region: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Submit Spark Step.
 

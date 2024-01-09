@@ -1,11 +1,13 @@
 # mypy: disable-error-code=name-defined
 """Amazon OpenSearch Write Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import ast
 import json
 import logging
 import uuid
-from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Generator, Iterable, Mapping
 
 import boto3
 import numpy as np
@@ -27,7 +29,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _DEFAULT_REFRESH_INTERVAL = "1s"
 
 
-def _selected_keys(document: Mapping[str, Any], keys_to_write: Optional[List[str]]) -> Mapping[str, Any]:
+def _selected_keys(document: Mapping[str, Any], keys_to_write: list[str] | None) -> Mapping[str, Any]:
     if keys_to_write is None:
         keys_to_write = list(document.keys())
     keys_to_write = list(filter(lambda x: x != "_id", keys_to_write))
@@ -35,13 +37,13 @@ def _selected_keys(document: Mapping[str, Any], keys_to_write: Optional[List[str
 
 
 def _actions_generator(
-    documents: Union[Iterable[Dict[str, Any]], Iterable[Mapping[str, Any]]],
+    documents: Iterable[dict[str, Any]] | Iterable[Mapping[str, Any]],
     index: str,
-    doc_type: Optional[str],
-    keys_to_write: Optional[List[str]],
-    id_keys: Optional[List[str]],
+    doc_type: str | None,
+    keys_to_write: list[str] | None,
+    id_keys: list[str] | None,
     bulk_size: int = 10000,
-) -> Generator[List[Dict[str, Any]], None, None]:
+) -> Generator[list[dict[str, Any]], None, None]:
     bulk_chunk_documents = []
     for i, document in enumerate(documents):
         if id_keys:
@@ -63,7 +65,7 @@ def _actions_generator(
         yield bulk_chunk_documents
 
 
-def _df_doc_generator(df: pd.DataFrame) -> Generator[Dict[str, Any], None, None]:
+def _df_doc_generator(df: pd.DataFrame) -> Generator[dict[str, Any], None, None]:
     def _deserialize(v: Any) -> Any:
         if isinstance(v, str):
             v = v.strip()
@@ -86,7 +88,7 @@ def _df_doc_generator(df: pd.DataFrame) -> Generator[Dict[str, Any], None, None]
 
 
 def _file_line_generator(path: str, is_json: bool = False) -> Generator[Any, None, None]:
-    with open(path) as fp:  # pylint: disable=W1514
+    with open(path) as fp:
         for line in fp:
             if is_json:
                 yield json.loads(line)
@@ -94,7 +96,7 @@ def _file_line_generator(path: str, is_json: bool = False) -> Generator[Any, Non
                 yield line.strip()
 
 
-def _get_documents_w_json_path(documents: List[Mapping[str, Any]], json_path: str) -> List[Any]:
+def _get_documents_w_json_path(documents: list[Mapping[str, Any]], json_path: str) -> list[Any]:
     try:
         jsonpath_expression = parse(json_path)
     except JsonPathParserError as e:
@@ -125,7 +127,7 @@ def _get_refresh_interval(client: "opensearchpy.OpenSearch", index: str) -> Any:
         return _DEFAULT_REFRESH_INTERVAL
 
 
-def _set_refresh_interval(client: "opensearchpy.OpenSearch", index: str, refresh_interval: Optional[Any]) -> Any:
+def _set_refresh_interval(client: "opensearchpy.OpenSearch", index: str, refresh_interval: Any | None) -> Any:
     url = f"/{index}/_settings"
     body = {"index": {"refresh_interval": refresh_interval}}
     try:
@@ -145,10 +147,10 @@ def _disable_refresh_interval(
 def create_index(
     client: "opensearchpy.OpenSearch",
     index: str,
-    doc_type: Optional[str] = None,
-    settings: Optional[Dict[str, Any]] = None,
-    mappings: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    doc_type: str | None = None,
+    settings: dict[str, Any] | None = None,
+    mappings: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Create an index.
 
     Parameters
@@ -209,7 +211,7 @@ def create_index(
         body = None  # type: ignore[assignment]
 
     # ignore 400 cause by IndexAlreadyExistsException when creating an index
-    response: Dict[str, Any] = client.indices.create(index, body=body, ignore=400)
+    response: dict[str, Any] = client.indices.create(index, body=body, ignore=400)
     if "error" in response:
         _logger.warning(response)
         if str(response["error"]).startswith("MapperParsingException"):
@@ -218,7 +220,7 @@ def create_index(
 
 
 @_utils.check_optional_dependency(opensearchpy, "opensearchpy")
-def delete_index(client: "opensearchpy.OpenSearch", index: str) -> Dict[str, Any]:
+def delete_index(client: "opensearchpy.OpenSearch", index: str) -> dict[str, Any]:
     """Delete an index.
 
     Parameters
@@ -246,7 +248,7 @@ def delete_index(client: "opensearchpy.OpenSearch", index: str) -> Dict[str, Any
 
     """
     # ignore 400/404 IndexNotFoundError exception
-    response: Dict[str, Any] = client.indices.delete(index, ignore=[400, 404])
+    response: dict[str, Any] = client.indices.delete(index, ignore=[400, 404])
     if "error" in response:
         _logger.warning(response)
     return response
@@ -257,10 +259,10 @@ def index_json(
     client: "opensearchpy.OpenSearch",
     path: str,
     index: str,
-    doc_type: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = boto3.Session(),
-    json_path: Optional[str] = None,
-    use_threads: Union[bool, int] = False,
+    doc_type: str | None = None,
+    boto3_session: boto3.Session | None = boto3.Session(),
+    json_path: str | None = None,
+    use_threads: bool | int = False,
     **kwargs: Any,
 ) -> Any:
     """Index all documents from JSON file to OpenSearch index.
@@ -339,9 +341,9 @@ def index_csv(
     client: "opensearchpy.OpenSearch",
     path: str,
     index: str,
-    doc_type: Optional[str] = None,
-    pandas_kwargs: Optional[Dict[str, Any]] = None,
-    use_threads: Union[bool, int] = False,
+    doc_type: str | None = None,
+    pandas_kwargs: dict[str, Any] | None = None,
+    use_threads: bool | int = False,
     **kwargs: Any,
 ) -> Any:
     """Index all documents from a CSV file to OpenSearch index.
@@ -416,8 +418,8 @@ def index_df(
     client: "opensearchpy.OpenSearch",
     df: pd.DataFrame,
     index: str,
-    doc_type: Optional[str] = None,
-    use_threads: Union[bool, int] = False,
+    doc_type: str | None = None,
+    use_threads: bool | int = False,
     **kwargs: Any,
 ) -> Any:
     """Index all documents from a DataFrame to OpenSearch index.
@@ -474,19 +476,19 @@ def index_documents(
     client: "opensearchpy.OpenSearch",
     documents: Iterable[Mapping[str, Any]],
     index: str,
-    doc_type: Optional[str] = None,
-    keys_to_write: Optional[List[str]] = None,
-    id_keys: Optional[List[str]] = None,
-    ignore_status: Optional[Union[List[Any], Tuple[Any]]] = None,
+    doc_type: str | None = None,
+    keys_to_write: list[str] | None = None,
+    id_keys: list[str] | None = None,
+    ignore_status: list[Any] | tuple[Any] | None = None,
     bulk_size: int = 1000,
-    chunk_size: Optional[int] = 500,
-    max_chunk_bytes: Optional[int] = 100 * 1024 * 1024,
-    max_retries: Optional[int] = None,
-    initial_backoff: Optional[int] = None,
-    max_backoff: Optional[int] = None,
-    use_threads: Union[bool, int] = False,
+    chunk_size: int | None = 500,
+    max_chunk_bytes: int | None = 100 * 1024 * 1024,
+    max_retries: int | None = None,
+    initial_backoff: int | None = None,
+    max_backoff: int | None = None,
+    use_threads: bool | int = False,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Index all documents to OpenSearch index.
 
     Note
@@ -581,7 +583,7 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     )
 
     success = 0
-    errors: List[Any] = []
+    errors: list[Any] = []
     refresh_interval = None
     try:
         if progressbar:

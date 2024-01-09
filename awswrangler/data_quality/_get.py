@@ -1,6 +1,8 @@
 """AWS Glue Data Quality Get Module."""
 
-from typing import List, Optional, Union, cast
+from __future__ import annotations
+
+from typing import cast
 
 import boto3
 
@@ -9,8 +11,8 @@ from awswrangler.data_quality._utils import _get_ruleset, _rules_to_df
 
 
 def get_ruleset(
-    name: Union[str, List[str]],
-    boto3_session: Optional[boto3.Session] = None,
+    name: str | list[str],
+    boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
     """Get a Data Quality ruleset.
 
@@ -36,8 +38,8 @@ def get_ruleset(
     Get multiple rulesets. A column with the ruleset name is added to the data frame
     >>> df_rulesets = wr.data_quality.get_ruleset(name=["ruleset_1", "ruleset_2"])
     """
-    ruleset_names: List[str] = name if isinstance(name, list) else [name]
-    dfs: List[pd.DataFrame] = []
+    ruleset_names: list[str] = name if isinstance(name, list) else [name]
+    dfs: list[pd.DataFrame] = []
     for ruleset_name in ruleset_names:
         rules = cast(str, _get_ruleset(ruleset_name=ruleset_name, boto3_session=boto3_session)["Ruleset"])
         df = _rules_to_df(rules=rules)

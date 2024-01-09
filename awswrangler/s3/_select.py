@@ -1,11 +1,13 @@
 """Amazon S3 Select Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import datetime
 import itertools
 import json
 import logging
 import pprint
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Iterator
 
 import boto3
 import pandas as pd
@@ -28,7 +30,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _RANGE_CHUNK_SIZE: int = int(1024 * 1024)
 
 
-def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) -> Iterator[Tuple[int, int]]:
+def _gen_scan_range(obj_size: int, scan_range_chunk_size: int | None = None) -> Iterator[tuple[int, int]]:
     chunk_size = scan_range_chunk_size or _RANGE_CHUNK_SIZE
     for i in range(0, obj_size, chunk_size):
         yield (i, i + min(chunk_size, obj_size - i))
@@ -39,10 +41,10 @@ def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) 
     ex=exceptions.S3SelectRequestIncomplete,
 )
 def _select_object_content(
-    s3_client: Optional["S3Client"],
-    args: Dict[str, Any],
-    scan_range: Optional[Tuple[int, int]] = None,
-    schema: Optional[pa.Schema] = None,
+    s3_client: "S3Client" | None,
+    args: dict[str, Any],
+    scan_range: tuple[int, int] | None = None,
+    schema: pa.Schema | None = None,
 ) -> pa.Table:
     client_s3: "S3Client" = s3_client if s3_client else _utils.client(service_name="s3")
     if scan_range:
@@ -90,16 +92,16 @@ def _select_query(
     executor: _BaseExecutor,
     sql: str,
     input_serialization: str,
-    input_serialization_params: Dict[str, Union[bool, str]],
-    schema: Optional[pa.Schema] = None,
-    compression: Optional[str] = None,
-    scan_range_chunk_size: Optional[int] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> List[pa.Table]:
+    input_serialization_params: dict[str, bool | str],
+    schema: pa.Schema | None = None,
+    compression: str | None = None,
+    scan_range_chunk_size: int | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+) -> list[pa.Table]:
     bucket, key = _utils.parse_path(path)
     s3_client = _utils.client(service_name="s3", session=boto3_session)
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "Bucket": bucket,
         "Key": key,
         "Expression": sql,
@@ -124,7 +126,7 @@ def _select_query(
     ).get(path)
     if obj_size is None:
         raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
-    scan_ranges: Iterator[Optional[Tuple[int, int]]] = _gen_scan_range(
+    scan_ranges: Iterator[tuple[int, int] | None] = _gen_scan_range(
         obj_size=obj_size, scan_range_chunk_size=scan_range_chunk_size
     )
     if any(
@@ -151,21 +153,21 @@ def _select_query(
 )
 def select_query(
     sql: str,
-    path: Union[str, List[str]],
+    path: str | list[str],
     input_serialization: str,
-    input_serialization_params: Dict[str, Union[bool, str]],
-    compression: Optional[str] = None,
-    scan_range_chunk_size: Optional[int] = None,
-    path_suffix: Union[str, List[str], None] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
+    input_serialization_params: dict[str, bool | str],
+    compression: str | None = None,
+    scan_range_chunk_size: int | None = None,
+    path_suffix: str | list[str] | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
     ignore_empty: bool = True,
-    use_threads: Union[bool, int] = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
+    use_threads: bool | int = True,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     r"""Filter contents of Amazon S3 objects based on SQL statement.
 
@@ -276,7 +278,7 @@ def select_query(
             "'gzip' or 'bzip2' are only valid for input 'CSV' or 'JSON' objects."
         )
     s3_client = _utils.client(service_name="s3", session=boto3_session)
-    paths: List[str] = _path2list(
+    paths: list[str] = _path2list(
         path=path,
         s3_client=s3_client,
         suffix=path_suffix,
@@ -289,7 +291,7 @@ def select_query(
     if len(paths) < 1:
         raise exceptions.NoFilesFound(f"No files Found: {path}.")
 
-    select_kwargs: Dict[str, Any] = {
+    select_kwargs: dict[str, Any] = {
         "sql": sql,
         "input_serialization": input_serialization,
         "input_serialization_params": input_serialization_params,

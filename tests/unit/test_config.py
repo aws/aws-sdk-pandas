@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec, patch
 
 import boto3
@@ -261,7 +263,7 @@ def test_chunk_size(wr: "awswrangler") -> None:
 
 
 @pytest.mark.parametrize("polling_delay", [None, 0.05, 0.1])
-def test_athena_wait_delay_config(wr: "awswrangler", glue_database: str, polling_delay: Optional[float]) -> None:
+def test_athena_wait_delay_config(wr: "awswrangler", glue_database: str, polling_delay: float | None) -> None:
     if polling_delay:
         wr.config.athena_query_wait_polling_delay = polling_delay
     else:

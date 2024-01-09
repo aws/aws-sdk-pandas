@@ -1,5 +1,7 @@
 """Internal (private) Utilities Module."""
 
+from __future__ import annotations
+
 import importlib
 import inspect
 import itertools
@@ -17,13 +19,9 @@ from typing import (
     Callable,
     Dict,
     Generator,
-    List,
     Optional,
     Sequence,
-    Tuple,
-    Type,
     TypeVar,
-    Union,
     cast,
     overload,
 )
@@ -112,7 +110,7 @@ INSTALL_MAPPING = {
 
 
 def check_optional_dependency(
-    module: Optional[ModuleType],
+    module: ModuleType | None,
     name: str,
 ) -> Callable[[FunctionType], FunctionType]:
     def decorator(func: FunctionType) -> FunctionType:
@@ -155,7 +153,7 @@ def import_optional_dependency(name: str) -> ModuleType:
 
 def validate_kwargs(
     condition_fn: Callable[..., bool] = lambda _: True,
-    unsupported_kwargs: Optional[List[str]] = None,
+    unsupported_kwargs: list[str] | None = None,
     message: str = "Arguments not supported:",
 ) -> Callable[[FunctionType], FunctionType]:
     unsupported_kwargs = unsupported_kwargs if unsupported_kwargs else []
@@ -185,7 +183,7 @@ def validate_kwargs(
             message=message,
         )
         inner.__name__ = func.__name__
-        inner.__setattr__("__signature__", signature)  # pylint: disable=no-member
+        inner.__setattr__("__signature__", signature)
 
         return cast(FunctionType, inner)
 
@@ -193,10 +191,10 @@ def validate_kwargs(
 
 
 def _inject_kwargs_validation_doc(
-    doc: Optional[str],
-    unsupported_kwargs: Optional[List[str]],
+    doc: str | None,
+    unsupported_kwargs: list[str] | None,
     message: str,
-) -> Optional[str]:
+) -> str | None:
     if not doc or "\n    Parameters" not in doc or not unsupported_kwargs:
         return doc
     header: str = f"\n\n    Note\n    ----\n    {message}\n\n"
@@ -212,7 +210,7 @@ validate_distributed_kwargs = partial(
 )
 
 
-def ensure_session(session: Union[None, boto3.Session] = None) -> boto3.Session:
+def ensure_session(session: None | boto3.Session = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
     if session is not None:
         return session
@@ -223,7 +221,7 @@ def ensure_session(session: Union[None, boto3.Session] = None) -> boto3.Session:
     return boto3.Session()
 
 
-def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Boto3PrimitivesType:
+def boto3_to_primitives(boto3_session: boto3.Session | None = None) -> Boto3PrimitivesType:
     """Convert Boto3 Session to Python primitives."""
     _boto3_session: boto3.Session = ensure_session(session=boto3_session)
     credentials = _boto3_session.get_credentials()
@@ -238,7 +236,7 @@ def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Boto3P
 
 def default_botocore_config() -> botocore.config.Config:
     """Botocore configuration."""
-    retries_config: Dict[str, Union[str, int]] = {
+    retries_config: dict[str, str | int] = {
         "max_attempts": int(os.getenv("AWS_MAX_ATTEMPTS", "5")),
     }
     mode = os.getenv("AWS_RETRY_MODE")
@@ -252,8 +250,8 @@ def default_botocore_config() -> botocore.config.Config:
     )
 
 
-def _get_endpoint_url(service_name: str) -> Optional[str]:
-    endpoint_url: Optional[str] = None
+def _get_endpoint_url(service_name: str) -> str | None:
+    endpoint_url: str | None = None
     if service_name == "s3" and _config.config.s3_endpoint_url is not None:
         endpoint_url = _config.config.s3_endpoint_url
     elif service_name == "athena" and _config.config.athena_endpoint_url is not None:
@@ -285,9 +283,9 @@ def _get_endpoint_url(service_name: str) -> Optional[str]:
 @overload
 def client(
     service_name: 'Literal["athena"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "AthenaClient":
     ...
 
@@ -295,9 +293,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["cleanrooms"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "CleanRoomsServiceClient":
     ...
 
@@ -305,9 +303,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["lakeformation"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "LakeFormationClient":
     ...
 
@@ -315,9 +313,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["logs"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "CloudWatchLogsClient":
     ...
 
@@ -325,9 +323,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["dynamodb"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "DynamoDBClient":
     ...
 
@@ -335,9 +333,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["ec2"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "EC2Client":
     ...
 
@@ -345,9 +343,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["emr"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "EMRClient":
     ...
 
@@ -355,9 +353,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["emr-serverless"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "EMRServerlessClient":
     ...
 
@@ -365,9 +363,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["glue"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "GlueClient":
     ...
 
@@ -375,9 +373,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["kms"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "KMSClient":
     ...
 
@@ -385,9 +383,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["opensearch"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "OpenSearchServiceClient":
     ...
 
@@ -395,9 +393,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["opensearchserverless"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "OpenSearchServiceServerlessClient":
     ...
 
@@ -405,9 +403,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["quicksight"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "QuickSightClient":
     ...
 
@@ -415,9 +413,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["rds-data"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "RDSDataServiceClient":
     ...
 
@@ -425,9 +423,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["redshift"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "RedshiftClient":
     ...
 
@@ -435,9 +433,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["redshift-data"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "RedshiftDataAPIServiceClient":
     ...
 
@@ -445,9 +443,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["s3"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "S3Client":
     ...
 
@@ -455,9 +453,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["secretsmanager"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "SecretsManagerClient":
     ...
 
@@ -465,9 +463,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["sts"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "STSClient":
     ...
 
@@ -475,9 +473,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["timestream-query"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "TimestreamQueryClient":
     ...
 
@@ -485,9 +483,9 @@ def client(
 @overload
 def client(
     service_name: 'Literal["timestream-write"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "TimestreamWriteClient":
     ...
 
@@ -495,9 +493,9 @@ def client(
 @overload
 def client(
     service_name: "ServiceName",
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "BaseClient":
     ...
 
@@ -505,12 +503,12 @@ def client(
 @apply_configs
 def client(
     service_name: "ServiceName",
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "BaseClient":
     """Create a valid boto3.client."""
-    endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
+    endpoint_url: str | None = _get_endpoint_url(service_name=service_name)
     return ensure_session(session=session).client(
         service_name=service_name,
         endpoint_url=endpoint_url,
@@ -523,9 +521,9 @@ def client(
 @overload
 def resource(
     service_name: 'Literal["dynamodb"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "DynamoDBServiceResource":
     ...
 
@@ -533,22 +531,22 @@ def resource(
 @overload
 def resource(
     service_name: 'Literal["s3"]',
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "S3ServiceResource":
     ...
 
 
 @apply_configs
 def resource(
-    service_name: Union['Literal["dynamodb"]', 'Literal["s3"]'],
-    session: Optional[boto3.Session] = None,
-    botocore_config: Optional[Config] = None,
-    verify: Optional[Union[str, bool]] = None,
+    service_name: 'Literal["dynamodb"]' | 'Literal["s3"]',
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
 ) -> "ServiceResource":
     """Create a valid boto3.resource."""
-    endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
+    endpoint_url: str | None = _get_endpoint_url(service_name=service_name)
     return ensure_session(session=session).resource(
         service_name=service_name,
         endpoint_url=endpoint_url,
@@ -558,7 +556,7 @@ def resource(
     )
 
 
-def parse_path(path: str) -> Tuple[str, str]:
+def parse_path(path: str) -> tuple[str, str]:
     """Split a full S3 path in bucket and key strings.
 
     's3://bucket/key' -> ('bucket', 'key')
@@ -593,7 +591,7 @@ def parse_path(path: str) -> Tuple[str, str]:
     return bucket, key
 
 
-def ensure_cpu_count(use_threads: Union[bool, int] = True) -> int:
+def ensure_cpu_count(use_threads: bool | int = True) -> int:
     """Get the number of cpu cores to be used.
 
     Note
@@ -620,20 +618,20 @@ def ensure_cpu_count(use_threads: Union[bool, int] = True) -> int:
     1
 
     """
-    if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck  # noqa: E721
+    if type(use_threads) == int:  # noqa: E721
         if use_threads < 1:
             return 1
         return use_threads
     cpus: int = 1
     if use_threads is True:
-        cpu_cnt: Optional[int] = os.cpu_count()
+        cpu_cnt: int | None = os.cpu_count()
         if cpu_cnt is not None:
             cpus = cpu_cnt if cpu_cnt > cpus else cpus
     return cpus
 
 
 @engine.dispatch_on_engine
-def ensure_worker_or_thread_count(use_threads: Union[bool, int] = True) -> int:
+def ensure_worker_or_thread_count(use_threads: bool | int = True) -> int:
     """Get the number of CPU cores or Ray workers to be used.
 
     Note
@@ -669,8 +667,8 @@ ChunkifyItemType = TypeVar("ChunkifyItemType")
 
 
 def chunkify(
-    lst: List[ChunkifyItemType], num_chunks: int = 1, max_length: Optional[int] = None
-) -> List[List[ChunkifyItemType]]:
+    lst: list[ChunkifyItemType], num_chunks: int = 1, max_length: int | None = None
+) -> list[list[ChunkifyItemType]]:
     """Split a list in a List of List (chunks) with even sizes.
 
     Parameters
@@ -698,7 +696,7 @@ def chunkify(
     """
     if not lst:
         return []
-    n: int = num_chunks if max_length is None else int(math.ceil((float(len(lst)) / float(max_length))))
+    n: int = num_chunks if max_length is None else int(math.ceil(float(len(lst)) / float(max_length)))
     np_chunks = np.array_split(lst, n)  # type: ignore[arg-type,var-annotated]
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
@@ -713,17 +711,17 @@ def get_directory(path: str) -> str:
     return path.rsplit(sep="/", maxsplit=1)[0] + "/"
 
 
-def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
+def get_region_from_subnet(subnet_id: str, boto3_session: boto3.Session | None = None) -> str:
     """Extract region from Subnet ID."""
     session: boto3.Session = ensure_session(session=boto3_session)
     client_ec2 = client(service_name="ec2", session=session)
     return client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:-1]
 
 
-def get_region_from_session(boto3_session: Optional[boto3.Session] = None, default_region: Optional[str] = None) -> str:
+def get_region_from_session(boto3_session: boto3.Session | None = None, default_region: str | None = None) -> str:
     """Extract region from session."""
     session: boto3.Session = ensure_session(session=boto3_session)
-    region: Optional[str] = session.region_name
+    region: str | None = session.region_name
     if region is not None:
         return region
     if default_region is not None:
@@ -732,7 +730,7 @@ def get_region_from_session(boto3_session: Optional[boto3.Session] = None, defau
 
 
 def get_credentials_from_session(
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> botocore.credentials.ReadOnlyCredentials:
     """Get AWS credentials from boto3 session."""
     session: boto3.Session = ensure_session(session=boto3_session)
@@ -741,7 +739,7 @@ def get_credentials_from_session(
     return frozen_credentials
 
 
-def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
+def list_sampling(lst: list[Any], sampling: float) -> list[Any]:
     """Random List sampling."""
     if sampling == 1.0:
         return lst
@@ -756,14 +754,14 @@ def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
     _logger.debug("_len: %s", _len)
     _logger.debug("sampling: %s", sampling)
     _logger.debug("num_samples: %s", num_samples)
-    random_lst: List[Any] = random.sample(population=lst, k=num_samples)
+    random_lst: list[Any] = random.sample(population=lst, k=num_samples)
     random_lst.sort()
     return random_lst
 
 
 def check_duplicated_columns(df: pd.DataFrame) -> Any:
     """Raise an exception if there are duplicated columns names."""
-    duplicated: List[str] = df.loc[:, df.columns.duplicated()].columns.to_list()
+    duplicated: list[str] = df.loc[:, df.columns.duplicated()].columns.to_list()
     if duplicated:
         raise exceptions.InvalidDataFrame(
             f"There are duplicated column names in your DataFrame: {duplicated}. "
@@ -773,8 +771,8 @@ def check_duplicated_columns(df: pd.DataFrame) -> Any:
 
 
 def retry(
-    ex: Type[Exception],
-    ex_code: Optional[str] = None,
+    ex: type[Exception],
+    ex_code: str | None = None,
     base: float = 1.0,
     max_num_tries: int = 3,
 ) -> Callable[..., Any]:
@@ -783,13 +781,13 @@ def retry(
 
     Parameters
     ----------
-    ex : Exception
+    ex: Exception
         Exception to retry on
-    ex_code : Optional[str]
+    ex_code: str | None
         Response error code
-    base : float
+    base: float
         Base delay
-    max_num_tries : int
+    max_num_tries: int
         Maximum number of retries
 
     Returns
@@ -811,7 +809,7 @@ def try_it(
     f: Callable[..., TryItOutputType],
     ex: Any,
     *args: Any,
-    ex_code: Optional[str] = None,
+    ex_code: str | None = None,
     base: float = 1.0,
     max_num_tries: int = 3,
     **kwargs: Any,
@@ -836,21 +834,21 @@ def try_it(
     raise RuntimeError()
 
 
-def get_even_chunks_sizes(total_size: int, chunk_size: int, upper_bound: bool) -> Tuple[int, ...]:
+def get_even_chunks_sizes(total_size: int, chunk_size: int, upper_bound: bool) -> tuple[int, ...]:
     """Calculate even chunks sizes (Best effort)."""
     round_func: Callable[[float], float] = math.ceil if upper_bound is True else math.floor
     num_chunks: int = int(round_func(float(total_size) / float(chunk_size)))
     num_chunks = 1 if num_chunks < 1 else num_chunks
     base_size: int = int(total_size / num_chunks)
     rest: int = total_size % num_chunks
-    sizes: List[int] = list(itertools.repeat(base_size, num_chunks))
+    sizes: list[int] = list(itertools.repeat(base_size, num_chunks))
     for i in range(rest):
         i_cycled: int = i % len(sizes)
         sizes[i_cycled] += 1
     return tuple(sizes)
 
 
-def get_running_futures(seq: Sequence[Future]) -> Tuple[Future, ...]:  # type: ignore[type-arg]
+def get_running_futures(seq: Sequence[Future]) -> tuple[Future, ...]:  # type: ignore[type-arg]
     """Filter only running futures."""
     return tuple(f for f in seq if f.running())
 
@@ -862,16 +860,16 @@ def wait_any_future_available(seq: Sequence[Future]) -> None:  # type: ignore[ty
 
 def block_waiting_available_thread(seq: Sequence[Future], max_workers: int) -> None:  # type: ignore[type-arg]
     """Block until any thread became available."""
-    running: Tuple[Future, ...] = get_running_futures(seq=seq)  # type: ignore[type-arg]
+    running: tuple[Future, ...] = get_running_futures(seq=seq)  # type: ignore[type-arg]
     while len(running) >= max_workers:
         wait_any_future_available(seq=running)
         running = get_running_futures(seq=running)
 
 
-def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Dict[str, Any]], mode: str) -> None:
+def check_schema_changes(columns_types: dict[str, str], table_input: dict[str, Any] | None, mode: str) -> None:
     """Check schema changes."""
     if (table_input is not None) and (mode in ("append", "overwrite_partitions")):
-        catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
+        catalog_cols: dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
         for c, t in columns_types.items():
             if c not in catalog_cols:
                 raise exceptions.InvalidArgumentValue(
@@ -887,13 +885,13 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
 
 
 @engine.dispatch_on_engine
-def split_pandas_frame(df: pd.DataFrame, splits: int) -> List[pd.DataFrame]:
+def split_pandas_frame(df: pd.DataFrame, splits: int) -> list[pd.DataFrame]:
     """Split a DataFrame into n chunks."""
     return [sub_df for sub_df in np.array_split(df, splits) if not sub_df.empty]  # type: ignore[attr-defined]
 
 
 @engine.dispatch_on_engine
-def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataFrame:
+def table_refs_to_df(tables: list[pa.Table], kwargs: dict[str, Any]) -> pd.DataFrame:
     """Build Pandas DataFrame from list of PyArrow tables."""
     return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)
 
@@ -911,9 +909,9 @@ def copy_df_shallow(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def list_to_arrow_table(
-    mapping: List[Dict[str, Any]],
-    schema: Optional[pa.Schema] = None,
-    metadata: Optional[Dict[str, Any]] = None,
+    mapping: list[dict[str, Any]],
+    schema: pa.Schema | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> pa.Table:
     """Construct a PyArrow Table from list of dictionaries."""
     arrays = []

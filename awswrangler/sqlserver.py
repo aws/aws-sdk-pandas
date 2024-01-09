@@ -1,19 +1,16 @@
 # mypy: disable-error-code=name-defined
 """Amazon Microsoft SQL Server Module."""
 
+from __future__ import annotations
+
 import logging
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterator,
-    List,
     Literal,
-    Optional,
-    Tuple,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -50,21 +47,21 @@ def _validate_connection(con: "pyodbc.Connection") -> None:
         )
 
 
-def _get_table_identifier(schema: Optional[str], table: str) -> str:
+def _get_table_identifier(schema: str | None, table: str) -> str:
     if schema:
         return f"{identifier(schema, sql_mode='mssql')}.{identifier(table, sql_mode='mssql')}"
     else:
         return identifier(table, sql_mode="mssql")
 
 
-def _drop_table(cursor: "Cursor", schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "Cursor", schema: str | None, table: str) -> None:
     table_identifier = _get_table_identifier(schema, table)
     sql = f"IF OBJECT_ID(N'{table_identifier}', N'U') IS NOT NULL DROP TABLE {table_identifier}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: "Cursor", schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "Cursor", schema: str | None, table: str) -> bool:
     if schema:
         cursor.execute(
             "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?", (schema, table)
@@ -81,14 +78,14 @@ def _create_table(
     schema: str,
     mode: str,
     index: bool,
-    dtype: Optional[Dict[str, str]],
-    varchar_lengths: Optional[Dict[str, int]],
+    dtype: dict[str, str] | None,
+    varchar_lengths: dict[str, int] | None,
 ) -> None:
     if mode == "overwrite":
         _drop_table(cursor=cursor, schema=schema, table=table)
     elif _does_table_exist(cursor=cursor, schema=schema, table=table):
         return
-    sqlserver_types: Dict[str, str] = _data_types.database_types_from_pandas(
+    sqlserver_types: dict[str, str] = _data_types.database_types_from_pandas(
         df=df,
         index=index,
         dtype=dtype,
@@ -107,13 +104,13 @@ def _create_table(
 
 @_utils.check_optional_dependency(pyodbc, "pyodbc")
 def connect(
-    connection: Optional[str] = None,
-    secret_id: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    dbname: Optional[str] = None,
+    connection: str | None = None,
+    secret_id: str | None = None,
+    catalog_id: str | None = None,
+    dbname: str | None = None,
     odbc_driver_version: int = 17,
-    boto3_session: Optional[boto3.Session] = None,
-    timeout: Optional[int] = 0,
+    boto3_session: boto3.Session | None = None,
+    timeout: int | None = 0,
 ) -> "pyodbc.Connection":
     """Return a pyodbc connection from a Glue Catalog Connection.
 
@@ -134,21 +131,21 @@ def connect(
 
     Parameters
     ----------
-    connection : Optional[str]
+    connection: str, optional
         Glue Catalog Connection name.
-    secret_id: Optional[str]:
+    secret_id: str, optional
         Specifies the secret containing the connection details that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
-    catalog_id : str, optional
+    catalog_id: str, optional
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
-    dbname: Optional[str]
+    dbname: str, optional
         Optional database name to overwrite the stored one.
-    odbc_driver_version : int
+    odbc_driver_version: int
         Major version of the OBDC Driver version that is installed and should be used.
-    boto3_session : boto3.Session(), optional
+    boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    timeout: Optional[int]
+    timeout: int, optional
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forwarded to pyodbc.
@@ -191,10 +188,10 @@ def connect(
 def read_sql_query(
     sql: str,
     con: "pyodbc.Connection",
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -207,10 +204,10 @@ def read_sql_query(
     sql: str,
     con: "pyodbc.Connection",
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -223,14 +220,14 @@ def read_sql_query(
     sql: str,
     con: "pyodbc.Connection",
     *,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
+    chunksize: int | None,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ...
 
 
@@ -238,14 +235,14 @@ def read_sql_query(
 def read_sql_query(
     sql: str,
     con: "pyodbc.Connection",
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Return a DataFrame corresponding to the result set of the query string.
 
     Parameters
@@ -312,11 +309,11 @@ def read_sql_query(
 def read_sql_table(
     table: str,
     con: "pyodbc.Connection",
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: None = ...,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -329,11 +326,11 @@ def read_sql_table(
     table: str,
     con: "pyodbc.Connection",
     *,
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: int,
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -346,15 +343,15 @@ def read_sql_table(
     table: str,
     con: "pyodbc.Connection",
     *,
-    schema: Optional[str] = ...,
-    index_col: Optional[Union[str, List[str]]] = ...,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
-    chunksize: Optional[int],
-    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    schema: str | None = ...,
+    index_col: str | list[str] | None = ...,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
+    chunksize: int | None,
+    dtype: dict[str, pa.DataType] | None = ...,
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ...
 
 
@@ -362,15 +359,15 @@ def read_sql_table(
 def read_sql_table(
     table: str,
     con: "pyodbc.Connection",
-    schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    schema: str | None = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Return a DataFrame corresponding the table.
 
     Parameters
@@ -447,8 +444,8 @@ def to_sql(
     schema: str,
     mode: Literal["append", "overwrite"] = "append",
     index: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
-    varchar_lengths: Optional[Dict[str, int]] = None,
+    dtype: dict[str, str] | None = None,
+    varchar_lengths: dict[str, int] | None = None,
     use_column_names: bool = False,
     chunksize: int = 200,
     fast_executemany: bool = False,

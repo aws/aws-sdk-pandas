@@ -1,7 +1,9 @@
 """AWS Glue Catalog Delete Module."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import boto3
 
@@ -23,13 +25,13 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _add_partitions(
     database: str,
     table: str,
-    boto3_session: Optional[boto3.Session],
-    inputs: List[Dict[str, Any]],
-    catalog_id: Optional[str] = None,
+    boto3_session: boto3.Session | None,
+    inputs: list[dict[str, Any]],
+    catalog_id: str | None = None,
 ) -> None:
-    chunks: List[List[Dict[str, Any]]] = _utils.chunkify(lst=inputs, max_length=100)
+    chunks: list[list[dict[str, Any]]] = _utils.chunkify(lst=inputs, max_length=100)
     client_glue = _utils.client(service_name="glue", session=boto3_session)
-    for chunk in chunks:  # pylint: disable=too-many-nested-blocks
+    for chunk in chunks:
         res = client_glue.batch_create_partition(
             **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableName=table, PartitionInputList=chunk)
         )
@@ -45,16 +47,16 @@ def _add_partitions(
 def add_csv_partitions(
     database: str,
     table: str,
-    partitions_values: Dict[str, List[str]],
-    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
-    catalog_id: Optional[str] = None,
-    compression: Optional[str] = None,
+    partitions_values: dict[str, list[str]],
+    bucketing_info: typing.BucketingInfoTuple | None = None,
+    catalog_id: str | None = None,
+    compression: str | None = None,
     sep: str = ",",
-    serde_library: Optional[str] = None,
-    serde_parameters: Optional[Dict[str, str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    columns_types: Optional[Dict[str, str]] = None,
-    partitions_parameters: Optional[Dict[str, str]] = None,
+    serde_library: str | None = None,
+    serde_parameters: dict[str, str] | None = None,
+    boto3_session: boto3.Session | None = None,
+    columns_types: dict[str, str] | None = None,
+    partitions_parameters: dict[str, str] | None = None,
 ) -> None:
     r"""Add partitions (metadata) to a CSV Table in the AWS Glue Catalog.
 
@@ -78,11 +80,11 @@ def add_csv_partitions(
         Compression style (``None``, ``gzip``, etc).
     sep : str
         String of length 1. Field delimiter for the output file.
-    serde_library : Optional[str]
+    serde_library: str, optional
         Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
         as a string.
         If no library is provided the default is `org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe`.
-    serde_parameters : Optional[str]
+    serde_parameters: str, optional
         Dictionary of initialization parameters for the SerDe.
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
     boto3_session : boto3.Session(), optional
@@ -114,7 +116,7 @@ def add_csv_partitions(
 
     """
     table = sanitize_table_name(table=table)
-    inputs: List[Dict[str, Any]] = [
+    inputs: list[dict[str, Any]] = [
         _csv_partition_definition(
             location=k,
             values=v,
@@ -135,15 +137,15 @@ def add_csv_partitions(
 def add_json_partitions(
     database: str,
     table: str,
-    partitions_values: Dict[str, List[str]],
-    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
-    catalog_id: Optional[str] = None,
-    compression: Optional[str] = None,
-    serde_library: Optional[str] = None,
-    serde_parameters: Optional[Dict[str, str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    columns_types: Optional[Dict[str, str]] = None,
-    partitions_parameters: Optional[Dict[str, str]] = None,
+    partitions_values: dict[str, list[str]],
+    bucketing_info: typing.BucketingInfoTuple | None = None,
+    catalog_id: str | None = None,
+    compression: str | None = None,
+    serde_library: str | None = None,
+    serde_parameters: dict[str, str] | None = None,
+    boto3_session: boto3.Session | None = None,
+    columns_types: dict[str, str] | None = None,
+    partitions_parameters: dict[str, str] | None = None,
 ) -> None:
     r"""Add partitions (metadata) to a JSON Table in the AWS Glue Catalog.
 
@@ -165,11 +167,11 @@ def add_json_partitions(
         If none is provided, the AWS account ID is used by default.
     compression: str, optional
         Compression style (``None``, ``gzip``, etc).
-    serde_library : Optional[str]
+    serde_library: str, optional
         Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
         as a string.
         If no library is provided the default is `org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe`.
-    serde_parameters : Optional[str]
+    serde_parameters: str, optional
         Dictionary of initialization parameters for the SerDe.
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
     boto3_session : boto3.Session(), optional
@@ -201,7 +203,7 @@ def add_json_partitions(
 
     """
     table = sanitize_table_name(table=table)
-    inputs: List[Dict[str, Any]] = [
+    inputs: list[dict[str, Any]] = [
         _json_partition_definition(
             location=k,
             values=v,
@@ -221,13 +223,13 @@ def add_json_partitions(
 def add_parquet_partitions(
     database: str,
     table: str,
-    partitions_values: Dict[str, List[str]],
-    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
-    catalog_id: Optional[str] = None,
-    compression: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    columns_types: Optional[Dict[str, str]] = None,
-    partitions_parameters: Optional[Dict[str, str]] = None,
+    partitions_values: dict[str, list[str]],
+    bucketing_info: typing.BucketingInfoTuple | None = None,
+    catalog_id: str | None = None,
+    compression: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    columns_types: dict[str, str] | None = None,
+    partitions_parameters: dict[str, str] | None = None,
 ) -> None:
     """Add partitions (metadata) to a Parquet Table in the AWS Glue Catalog.
 
@@ -279,7 +281,7 @@ def add_parquet_partitions(
     """
     table = sanitize_table_name(table=table)
     if partitions_values:
-        inputs: List[Dict[str, Any]] = [
+        inputs: list[dict[str, Any]] = [
             _parquet_partition_definition(
                 location=k,
                 values=v,
@@ -299,13 +301,13 @@ def add_parquet_partitions(
 def add_orc_partitions(
     database: str,
     table: str,
-    partitions_values: Dict[str, List[str]],
-    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
-    catalog_id: Optional[str] = None,
-    compression: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    columns_types: Optional[Dict[str, str]] = None,
-    partitions_parameters: Optional[Dict[str, str]] = None,
+    partitions_values: dict[str, list[str]],
+    bucketing_info: typing.BucketingInfoTuple | None = None,
+    catalog_id: str | None = None,
+    compression: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    columns_types: dict[str, str] | None = None,
+    partitions_parameters: dict[str, str] | None = None,
 ) -> None:
     """Add partitions (metadata) to a ORC Table in the AWS Glue Catalog.
 
@@ -357,7 +359,7 @@ def add_orc_partitions(
     """
     table = sanitize_table_name(table=table)
     if partitions_values:
-        inputs: List[Dict[str, Any]] = [
+        inputs: list[dict[str, Any]] = [
             _orc_partition_definition(
                 location=k,
                 values=v,
@@ -379,10 +381,10 @@ def add_column(
     table: str,
     column_name: str,
     column_type: str = "string",
-    column_comment: Optional[str] = None,
-    transaction_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    catalog_id: Optional[str] = None,
+    column_comment: str | None = None,
+    transaction_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    catalog_id: str | None = None,
 ) -> None:
     """Add a column in a AWS Glue Catalog table.
 
@@ -429,11 +431,11 @@ def add_column(
                 **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table),
             )
         )
-        table_input: Dict[str, Any] = _update_table_definition(table_res)
+        table_input: dict[str, Any] = _update_table_definition(table_res)
         table_input["StorageDescriptor"]["Columns"].append(
             {"Name": column_name, "Type": column_type, "Comment": column_comment}
         )
-        res: Dict[str, Any] = client_glue.update_table(
+        res: dict[str, Any] = client_glue.update_table(
             **_catalog_id(
                 catalog_id=catalog_id,
                 **_transaction_id(transaction_id=transaction_id, DatabaseName=database, TableInput=table_input),

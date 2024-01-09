@@ -1,6 +1,9 @@
 """Amazon Redshift Read Module (PRIVATE)."""
+
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union
+from typing import Any, Iterator, Literal
 
 import boto3
 import pyarrow as pa
@@ -26,12 +29,12 @@ def _identifier(sql: str) -> str:
 def _read_parquet_iterator(
     path: str,
     keep_files: bool,
-    use_threads: Union[bool, int],
-    chunked: Union[bool, int],
+    use_threads: bool | int,
+    chunked: bool | int,
     dtype_backend: Literal["numpy_nullable", "pyarrow"],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
+    boto3_session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, str] | None,
+    pyarrow_additional_kwargs: dict[str, Any] | None,
 ) -> Iterator[pd.DataFrame]:
     dfs: Iterator[pd.DataFrame] = s3.read_parquet(
         path=path,
@@ -55,14 +58,14 @@ def _read_parquet_iterator(
 def read_sql_query(
     sql: str,
     con: "redshift_connector.Connection",
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Return a DataFrame corresponding to the result set of the query string.
 
     Note
@@ -136,15 +139,15 @@ def read_sql_query(
 def read_sql_table(
     table: str,
     con: "redshift_connector.Connection",
-    schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
+    schema: str | None = None,
+    index_col: str | list[str] | None = None,
+    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    chunksize: int | None = None,
+    dtype: dict[str, pa.DataType] | None = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Return a DataFrame corresponding the table.
 
     Note
@@ -225,18 +228,18 @@ def unload_to_files(
     sql: str,
     path: str,
     con: "redshift_connector.Connection",
-    iam_role: Optional[str] = None,
-    aws_access_key_id: Optional[str] = None,
-    aws_secret_access_key: Optional[str] = None,
-    aws_session_token: Optional[str] = None,
-    region: Optional[str] = None,
-    unload_format: Optional[Literal["CSV", "PARQUET"]] = None,
+    iam_role: str | None = None,
+    aws_access_key_id: str | None = None,
+    aws_secret_access_key: str | None = None,
+    aws_session_token: str | None = None,
+    region: str | None = None,
+    unload_format: Literal["CSV", "PARQUET"] | None = None,
     parallel: bool = True,
-    max_file_size: Optional[float] = None,
-    kms_key_id: Optional[str] = None,
+    max_file_size: float | None = None,
+    kms_key_id: str | None = None,
     manifest: bool = False,
-    partition_cols: Optional[List[str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    partition_cols: list[str] | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Unload Parquet files on s3 from a Redshift query result (Through the UNLOAD command).
 
@@ -365,22 +368,22 @@ def unload(
     sql: str,
     path: str,
     con: "redshift_connector.Connection",
-    iam_role: Optional[str] = None,
-    aws_access_key_id: Optional[str] = None,
-    aws_secret_access_key: Optional[str] = None,
-    aws_session_token: Optional[str] = None,
-    region: Optional[str] = None,
-    max_file_size: Optional[float] = None,
-    kms_key_id: Optional[str] = None,
+    iam_role: str | None = None,
+    aws_access_key_id: str | None = None,
+    aws_secret_access_key: str | None = None,
+    aws_session_token: str | None = None,
+    region: str | None = None,
+    max_file_size: float | None = None,
+    kms_key_id: str | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    chunked: Union[bool, int] = False,
+    chunked: bool | int = False,
     keep_files: bool = False,
     parallel: bool = True,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Load Pandas DataFrame from a Amazon Redshift query result using Parquet files on s3 as stage.
 
     This is a **HIGH** latency and **HIGH** throughput alternative to

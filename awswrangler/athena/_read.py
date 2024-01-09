@@ -1,12 +1,12 @@
 """Amazon Athena Module gathering all read_sql_* function."""
+from __future__ import annotations
 
-# pylint: disable=too-many-lines
 import csv
 import logging
 import sys
 import uuid
 from datetime import date
-from typing import Any, Dict, Iterator, List, Optional, Union, cast
+from typing import Any, Iterator, cast
 
 import boto3
 import botocore.exceptions
@@ -40,7 +40,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 @_utils.check_optional_dependency(shapely_wkt, "shapely")
 @_utils.check_optional_dependency(geopandas, "geopandas")
-def _cast_geometry(df: pd.DataFrame, parse_geometry: List[str] = None):
+def _cast_geometry(df: pd.DataFrame, parse_geometry: list[str] = None):
     def load_geom_wkt(x):
         """Load geometry from well-known text."""
         return shapely_wkt.loads(x)
@@ -51,7 +51,7 @@ def _cast_geometry(df: pd.DataFrame, parse_geometry: List[str] = None):
     return geopandas.GeoDataFrame(df)
 
 
-def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def _extract_ctas_manifest_paths(path: str, boto3_session: boto3.Session | None = None) -> list[str]:
     """Get the list of paths of the generated files."""
     bucket_name, key_path = _utils.parse_path(path)
     client_s3 = _utils.client(service_name="s3", session=boto3_session)
@@ -62,7 +62,7 @@ def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Sessio
 
 
 def _fix_csv_types_generator(
-    dfs: Iterator[pd.DataFrame], parse_dates: List[str], binaries: List[str], parse_geometry: List[str]
+    dfs: Iterator[pd.DataFrame], parse_dates: list[str], binaries: list[str], parse_geometry: list[str]
 ) -> Iterator[pd.DataFrame]:
     """Apply data types cast to a Pandas DataFrames Generator."""
     for df in dfs:
@@ -79,7 +79,7 @@ def _add_query_metadata_generator(
 
 
 def _fix_csv_types(
-    df: pd.DataFrame, parse_dates: List[str], binaries: List[str], parse_geometry: List[str]
+    df: pd.DataFrame, parse_dates: list[str], binaries: list[str], parse_geometry: list[str]
 ) -> pd.DataFrame:
     """Apply data types cast to a Pandas DataFrames."""
     if len(df.index) > 0:
@@ -101,13 +101,12 @@ def _fix_csv_types(
 
 def _delete_after_iterate(
     dfs: Iterator[pd.DataFrame],
-    paths: List[str],
-    use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, str]],
+    paths: list[str],
+    use_threads: bool | int,
+    boto3_session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, str] | None,
 ) -> Iterator[pd.DataFrame]:
-    for df in dfs:
-        yield df
+    yield from dfs
     s3.delete_objects(
         path=paths, use_threads=use_threads, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
     )
@@ -116,17 +115,17 @@ def _delete_after_iterate(
 def _fetch_parquet_result(
     query_metadata: _QueryMetadata,
     keep_files: bool,
-    categories: Optional[List[str]],
-    chunksize: Optional[int],
-    use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    temp_table_fqn: Optional[str] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    categories: list[str] | None,
+    chunksize: int | None,
+    use_threads: bool | int,
+    boto3_session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    temp_table_fqn: str | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
-    chunked: Union[bool, int] = False if chunksize is None else chunksize
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
+    ret: pd.DataFrame | Iterator[pd.DataFrame]
+    chunked: bool | int = False if chunksize is None else chunksize
     _logger.debug("Chunked: %s", chunked)
     if query_metadata.manifest_location is None:
         return _empty_dataframe_response(bool(chunked), query_metadata)
@@ -134,7 +133,7 @@ def _fetch_parquet_result(
     metadata_path: str = manifest_path.replace("-manifest.csv", ".metadata")
     _logger.debug("Manifest path: %s", manifest_path)
     _logger.debug("Metadata path: %s", metadata_path)
-    paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=boto3_session)
+    paths: list[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=boto3_session)
     if not paths:
         if not temp_table_fqn:
             raise exceptions.EmptyDataFrame("Query would return untyped, empty dataframe.")
@@ -166,7 +165,7 @@ def _fetch_parquet_result(
         ret = _apply_query_metadata(df=ret, query_metadata=query_metadata)
     else:
         ret = _add_query_metadata_generator(dfs=ret, query_metadata=query_metadata)
-    paths_delete: List[str] = paths + [manifest_path, metadata_path]
+    paths_delete: list[str] = paths + [manifest_path, metadata_path]
     if chunked is False:
         if keep_files is False:
             s3.delete_objects(
@@ -190,13 +189,13 @@ def _fetch_parquet_result(
 def _fetch_csv_result(
     query_metadata: _QueryMetadata,
     keep_files: bool,
-    chunksize: Optional[int],
-    use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
+    chunksize: int | None,
+    use_threads: bool | int,
+    boto3_session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, Any] | None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
+    _chunksize: int | None = chunksize if isinstance(chunksize, int) else None
     _logger.debug("Chunksize: %s", _chunksize)
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".csv") is False:
         chunked = _chunksize is not None
@@ -254,15 +253,15 @@ def _fetch_csv_result(
 
 def _resolve_query_with_cache(
     cache_info: _CacheInfo,
-    categories: Optional[List[str]],
-    chunksize: Optional[Union[int, bool]],
-    use_threads: Union[bool, int],
+    categories: list[str] | None,
+    chunksize: int | bool | None,
+    use_threads: bool | int,
     athena_query_wait_polling_delay: float,
-    session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Fetch cached data and return it as a pandas DataFrame (or list of DataFrames)."""
     _logger.debug("cache_info:\n%s", cache_info)
     if cache_info.query_execution_id is None:
@@ -301,28 +300,28 @@ def _resolve_query_with_cache(
 
 def _resolve_query_without_cache_ctas(
     sql: str,
-    database: Optional[str],
-    data_source: Optional[str],
-    s3_output: Optional[str],
+    database: str | None,
+    data_source: str | None,
+    s3_output: str | None,
     keep_files: bool,
-    chunksize: Union[int, bool, None],
-    categories: Optional[List[str]],
-    encryption: Optional[str],
-    workgroup: Optional[str],
-    kms_key: Optional[str],
-    alt_database: Optional[str],
-    name: Optional[str],
-    ctas_bucketing_info: Optional[typing.BucketingInfoTuple],
-    ctas_write_compression: Optional[str],
+    chunksize: int | bool | None,
+    categories: list[str] | None,
+    encryption: str | None,
+    workgroup: str | None,
+    kms_key: str | None,
+    alt_database: str | None,
+    name: str | None,
+    ctas_bucketing_info: typing.BucketingInfoTuple | None,
+    ctas_write_compression: str | None,
     athena_query_wait_polling_delay: float,
-    use_threads: Union[bool, int],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    boto3_session: Optional[boto3.Session],
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-    execution_params: Optional[List[str]] = None,
+    use_threads: bool | int,
+    s3_additional_kwargs: dict[str, Any] | None,
+    boto3_session: boto3.Session | None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+    execution_params: list[str] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    ctas_query_info: Dict[str, Union[str, _QueryMetadata]] = create_ctas_table(
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
+    ctas_query_info: dict[str, str | _QueryMetadata] = create_ctas_table(
         sql=sql,
         database=database,
         ctas_table=name,
@@ -359,26 +358,26 @@ def _resolve_query_without_cache_ctas(
 def _resolve_query_without_cache_unload(
     sql: str,
     file_format: str,
-    compression: Optional[str],
-    field_delimiter: Optional[str],
-    partitioned_by: Optional[List[str]],
-    database: Optional[str],
-    data_source: Optional[str],
-    s3_output: Optional[str],
+    compression: str | None,
+    field_delimiter: str | None,
+    partitioned_by: list[str] | None,
+    database: str | None,
+    data_source: str | None,
+    s3_output: str | None,
     keep_files: bool,
-    chunksize: Union[int, bool, None],
-    categories: Optional[List[str]],
-    encryption: Optional[str],
-    kms_key: Optional[str],
-    workgroup: Optional[str],
-    use_threads: Union[bool, int],
+    chunksize: int | bool | None,
+    categories: list[str] | None,
+    encryption: str | None,
+    kms_key: str | None,
+    workgroup: str | None,
+    use_threads: bool | int,
     athena_query_wait_polling_delay: float,
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    boto3_session: Optional[boto3.Session],
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-    execution_params: Optional[List[str]] = None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    boto3_session: boto3.Session | None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+    execution_params: list[str] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     query_metadata = _unload(
         sql=sql,
         path=s3_output,
@@ -412,23 +411,23 @@ def _resolve_query_without_cache_unload(
 
 def _resolve_query_without_cache_regular(
     sql: str,
-    database: Optional[str],
-    data_source: Optional[str],
-    s3_output: Optional[str],
+    database: str | None,
+    data_source: str | None,
+    s3_output: str | None,
     keep_files: bool,
-    chunksize: Union[int, bool, None],
-    categories: Optional[List[str]],
-    encryption: Optional[str],
-    workgroup: Optional[str],
-    kms_key: Optional[str],
-    use_threads: Union[bool, int],
+    chunksize: int | bool | None,
+    categories: list[str] | None,
+    encryption: str | None,
+    workgroup: str | None,
+    kms_key: str | None,
+    use_threads: bool | int,
     athena_query_wait_polling_delay: float,
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    boto3_session: Optional[boto3.Session],
-    execution_params: Optional[List[str]] = None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    boto3_session: boto3.Session | None,
+    execution_params: list[str] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    client_request_token: Optional[str] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    client_request_token: str | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
     s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
@@ -467,33 +466,32 @@ def _resolve_query_without_cache_regular(
 
 
 def _resolve_query_without_cache(
-    # pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements
     sql: str,
     database: str,
-    data_source: Optional[str],
+    data_source: str | None,
     ctas_approach: bool,
     unload_approach: bool,
-    unload_parameters: Optional[typing.AthenaUNLOADSettings],
-    categories: Optional[List[str]],
-    chunksize: Union[int, bool, None],
-    s3_output: Optional[str],
-    workgroup: Optional[str],
-    encryption: Optional[str],
-    kms_key: Optional[str],
+    unload_parameters: typing.AthenaUNLOADSettings | None,
+    categories: list[str] | None,
+    chunksize: int | bool | None,
+    s3_output: str | None,
+    workgroup: str | None,
+    encryption: str | None,
+    kms_key: str | None,
     keep_files: bool,
-    ctas_database: Optional[str],
-    ctas_temp_table_name: Optional[str],
-    ctas_bucketing_info: Optional[typing.BucketingInfoTuple],
-    ctas_write_compression: Optional[str],
+    ctas_database: str | None,
+    ctas_temp_table_name: str | None,
+    ctas_bucketing_info: typing.BucketingInfoTuple | None,
+    ctas_write_compression: str | None,
     athena_query_wait_polling_delay: float,
-    use_threads: Union[bool, int],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    boto3_session: Optional[boto3.Session],
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-    execution_params: Optional[List[str]] = None,
+    use_threads: bool | int,
+    s3_additional_kwargs: dict[str, Any] | None,
+    boto3_session: boto3.Session | None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+    execution_params: list[str] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    client_request_token: Optional[str] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    client_request_token: str | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """
     Execute a query in Athena and returns results as DataFrame, back to `read_sql_query`.
 
@@ -579,19 +577,19 @@ def _resolve_query_without_cache(
 
 def _unload(
     sql: str,
-    path: Optional[str],
+    path: str | None,
     file_format: str,
-    compression: Optional[str],
-    field_delimiter: Optional[str],
-    partitioned_by: Optional[List[str]],
-    workgroup: Optional[str],
-    database: Optional[str],
-    encryption: Optional[str],
-    kms_key: Optional[str],
-    boto3_session: Optional[boto3.Session],
-    data_source: Optional[str],
+    compression: str | None,
+    field_delimiter: str | None,
+    partitioned_by: list[str] | None,
+    workgroup: str | None,
+    database: str | None,
+    encryption: str | None,
+    kms_key: str | None,
+    boto3_session: boto3.Session | None,
+    data_source: str | None,
     athena_query_wait_polling_delay: float,
-    execution_params: Optional[List[str]],
+    execution_params: list[str] | None,
 ) -> _QueryMetadata:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output: str = _get_s3_output(s3_output=path, wg_config=wg_config, boto3_session=boto3_session)
@@ -664,15 +662,15 @@ def _unload(
 )
 def get_query_results(
     query_execution_id: str,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    categories: Optional[List[str]] = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    categories: list[str] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    chunksize: Optional[Union[int, bool]] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    chunksize: int | bool | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Get AWS Athena SQL query results as a Pandas DataFrame.
 
     Parameters
@@ -694,14 +692,14 @@ def get_query_results(
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunksize : Union[int, bool], optional
+    chunksize: Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+    pyarrow_additional_kwargs: dict[str, Any]], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
@@ -732,7 +730,7 @@ def get_query_results(
     client_athena = _utils.client(service_name="athena", session=boto3_session)
     query_info = client_athena.get_query_execution(QueryExecutionId=query_execution_id)["QueryExecution"]
     _logger.debug("Query info:\n%s", query_info)
-    statement_type: Optional[str] = query_info.get("StatementType")
+    statement_type: str | None = query_info.get("StatementType")
     if (statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE")) or (
         statement_type == "DML" and query_info["Query"].startswith("UNLOAD")
     ):
@@ -764,32 +762,32 @@ def get_query_results(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
-def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
+def read_sql_query(
     sql: str,
     database: str,
     ctas_approach: bool = True,
     unload_approach: bool = False,
-    ctas_parameters: Optional[typing.AthenaCTASSettings] = None,
-    unload_parameters: Optional[typing.AthenaUNLOADSettings] = None,
-    categories: Optional[List[str]] = None,
-    chunksize: Optional[Union[int, bool]] = None,
-    s3_output: Optional[str] = None,
+    ctas_parameters: typing.AthenaCTASSettings | None = None,
+    unload_parameters: typing.AthenaUNLOADSettings | None = None,
+    categories: list[str] | None = None,
+    chunksize: int | bool | None = None,
+    s3_output: str | None = None,
     workgroup: str = "primary",
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
     keep_files: bool = True,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    client_request_token: Optional[str] = None,
-    athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
-    data_source: Optional[str] = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    client_request_token: str | None = None,
+    athena_cache_settings: typing.AthenaCacheSettings | None = None,
+    data_source: str | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-    params: Union[Dict[str, Any], List[str], None] = None,
+    params: dict[str, Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
     **Related tutorial:**
@@ -987,10 +985,10 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+    pyarrow_additional_kwargs: dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
@@ -1069,7 +1067,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
                     pyarrow_additional_kwargs=pyarrow_additional_kwargs,
                     dtype_backend=dtype_backend,
                 )
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 _logger.error(e)  # if there is anything wrong with the cache, just fallback to the usual path
                 _logger.debug("Corrupted cache. Continuing to execute query...")
 
@@ -1116,25 +1114,25 @@ def read_sql_table(
     table: str,
     database: str,
     unload_approach: bool = False,
-    unload_parameters: Optional[typing.AthenaUNLOADSettings] = None,
+    unload_parameters: typing.AthenaUNLOADSettings | None = None,
     ctas_approach: bool = True,
-    ctas_parameters: Optional[typing.AthenaCTASSettings] = None,
-    categories: Optional[List[str]] = None,
-    chunksize: Optional[Union[int, bool]] = None,
-    s3_output: Optional[str] = None,
+    ctas_parameters: typing.AthenaCTASSettings | None = None,
+    categories: list[str] | None = None,
+    chunksize: int | bool | None = None,
+    s3_output: str | None = None,
     workgroup: str = "primary",
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
     keep_files: bool = True,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    client_request_token: Optional[str] = None,
-    athena_cache_settings: Optional[typing.AthenaCacheSettings] = None,
-    data_source: Optional[str] = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    client_request_token: str | None = None,
+    athena_cache_settings: typing.AthenaCacheSettings | None = None,
+    data_source: str | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Extract the full table AWS Athena and return the results as a Pandas DataFrame.
 
     **Related tutorial:**
@@ -1309,10 +1307,10 @@ def read_sql_table(
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+    pyarrow_additional_kwargs: dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
@@ -1361,15 +1359,15 @@ def unload(
     path: str,
     database: str,
     file_format: str = "PARQUET",
-    compression: Optional[str] = None,
-    field_delimiter: Optional[str] = None,
-    partitioned_by: Optional[List[str]] = None,
+    compression: str | None = None,
+    field_delimiter: str | None = None,
+    partitioned_by: list[str] | None = None,
     workgroup: str = "primary",
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    data_source: Optional[str] = None,
-    params: Union[Dict[str, Any], List[str], None] = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    data_source: str | None = None,
+    params: dict[str, Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> _QueryMetadata:
@@ -1389,13 +1387,13 @@ def unload(
         (e.g. `database.table`).
     file_format : str
         File format of the output. Possible values are ORC, PARQUET, AVRO, JSON, or TEXTFILE
-    compression : Optional[str]
+    compression: str, optional
         This option is specific to the ORC and Parquet formats. For ORC, possible values are lz4, snappy, zlib, or zstd.
         For Parquet, possible values are gzip or snappy. For ORC, the default is zlib, and for Parquet,
         the default is gzip.
     field_delimiter : str
         A single-character field delimiter for files in CSV, TSV, and other text formats.
-    partitioned_by : Optional[List[str]]
+    partitioned_by: list[str], optional
         An array list of columns by which the output is partitioned.
     workgroup : str
         Athena workgroup. Primary by default.

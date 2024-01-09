@@ -1,6 +1,7 @@
 """Ray ParquetBaseDatasource Module."""
+from __future__ import annotations
 
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Iterator
 
 # fs required to implicitly trigger S3 subsystem initialization
 import pyarrow as pa
@@ -11,16 +12,16 @@ from ray.data.datasource.file_based_datasource import FileBasedDatasource
 from awswrangler._arrow import _add_table_partitions
 
 
-class ArrowParquetBaseDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
+class ArrowParquetBaseDatasource(FileBasedDatasource):
     """Parquet datasource, for reading Parquet files."""
 
     _FILE_EXTENSIONS = ["parquet"]
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: str | list[str],
         path_root: str,
-        arrow_parquet_args: Optional[Dict[str, Any]] = None,
+        arrow_parquet_args: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ):
         super().__init__(paths, **file_based_datasource_kwargs)
@@ -35,10 +36,10 @@ class ArrowParquetBaseDatasource(FileBasedDatasource):  # pylint: disable=abstra
         arrow_parquet_args = self.arrow_parquet_args
 
         use_threads: bool = arrow_parquet_args.get("use_threads", False)
-        columns: Optional[List[str]] = arrow_parquet_args.get("columns", None)
+        columns: list[str] | None = arrow_parquet_args.get("columns", None)
 
         dataset_kwargs = arrow_parquet_args.get("dataset_kwargs", {})
-        coerce_int96_timestamp_unit: Optional[str] = dataset_kwargs.get("coerce_int96_timestamp_unit", None)
+        coerce_int96_timestamp_unit: str | None = dataset_kwargs.get("coerce_int96_timestamp_unit", None)
 
         table = pq.read_table(
             f,

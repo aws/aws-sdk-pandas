@@ -1,12 +1,14 @@
 """Modin on Ray S3 write text module (PRIVATE)."""
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import modin.pandas as pd
 from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
+from awswrangler.distributed.ray.datasources import (
     ArrowCSVDatasink,
     PandasCSVDatasink,
     PandasJSONDatasink,
@@ -23,7 +25,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_CSV_SUPPORTED_PARAMS: Dict[str, ParamConfig] = {
+_CSV_SUPPORTED_PARAMS: dict[str, ParamConfig] = {
     "header": ParamConfig(default=True),
     "sep": ParamConfig(default=",", supported_values={","}),
     "index": ParamConfig(default=True, supported_values={True}),
@@ -36,8 +38,8 @@ _CSV_SUPPORTED_PARAMS: Dict[str, ParamConfig] = {
 
 
 def _parse_csv_configuration(
-    pandas_kwargs: Dict[str, Any],
-) -> Dict[str, Any]:
+    pandas_kwargs: dict[str, Any],
+) -> dict[str, Any]:
     _check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
 
     # csv.WriteOptions cannot be pickled for some reason so we're building a Python dict
@@ -48,9 +50,9 @@ def _parse_csv_configuration(
 
 def _parse_configuration(
     file_format: str,
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    pandas_kwargs: Dict[str, Any],
-) -> Dict[str, Any]:
+    s3_additional_kwargs: dict[str, str] | None,
+    pandas_kwargs: dict[str, Any],
+) -> dict[str, Any]:
     if s3_additional_kwargs:
         raise exceptions.InvalidArgument(f"Additional S3 args specified: {s3_additional_kwargs}")
 
@@ -73,18 +75,18 @@ def _datasink_for_format(
     raise exceptions.UnsupportedType(f"Unsupported write format {write_format}")
 
 
-def _to_text_distributed(  # pylint: disable=unused-argument
+def _to_text_distributed(
     df: pd.DataFrame,
     file_format: str,
-    use_threads: Union[bool, int],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    path: Optional[str] = None,
-    path_root: Optional[str] = None,
-    filename_prefix: Optional[str] = None,
+    use_threads: bool | int,
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, str] | None,
+    path: str | None = None,
+    path_root: str | None = None,
+    filename_prefix: str | None = None,
     bucketing: bool = False,
     **pandas_kwargs: Any,
-) -> List[str]:
+) -> list[str]:
     if df.empty is True:
         _logger.warning("Empty DataFrame will be written.")
 

@@ -1,6 +1,8 @@
 """Amazon Redshift Write Module (PRIVATE)."""
+from __future__ import annotations
+
 import logging
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal
 
 import boto3
 
@@ -27,15 +29,15 @@ def _copy(
     path: str,
     table: str,
     serialize_to_json: bool,
-    iam_role: Optional[str] = None,
-    aws_access_key_id: Optional[str] = None,
-    aws_secret_access_key: Optional[str] = None,
-    aws_session_token: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    schema: Optional[str] = None,
-    manifest: Optional[bool] = False,
-    sql_copy_extra_params: Optional[List[str]] = None,
-    column_names: Optional[List[str]] = None,
+    iam_role: str | None = None,
+    aws_access_key_id: str | None = None,
+    aws_secret_access_key: str | None = None,
+    aws_session_token: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    schema: str | None = None,
+    manifest: bool | None = False,
+    sql_copy_extra_params: list[str] | None = None,
+    column_names: list[str] | None = None,
 ) -> None:
     if schema is None:
         table_name: str = f'"{table}"'
@@ -63,7 +65,7 @@ def _copy(
 
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 @apply_configs
-def to_sql(  # pylint: disable=too-many-locals
+def to_sql(
     df: pd.DataFrame,
     con: "redshift_connector.Connection",  # type: ignore[name-defined]
     table: str,
@@ -71,19 +73,19 @@ def to_sql(  # pylint: disable=too-many-locals
     mode: _ToSqlModeLiteral = "append",
     overwrite_method: _ToSqlOverwriteModeLiteral = "drop",
     index: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
+    dtype: dict[str, str] | None = None,
     diststyle: _ToSqlDistStyleLiteral = "AUTO",
-    distkey: Optional[str] = None,
+    distkey: str | None = None,
     sortstyle: _ToSqlSortStyleLiteral = "COMPOUND",
-    sortkey: Optional[List[str]] = None,
-    primary_keys: Optional[List[str]] = None,
+    sortkey: list[str] | None = None,
+    primary_keys: list[str] | None = None,
     varchar_lengths_default: int = 256,
-    varchar_lengths: Optional[Dict[str, int]] = None,
+    varchar_lengths: dict[str, int] | None = None,
     use_column_names: bool = False,
     lock: bool = False,
     chunksize: int = 200,
     commit_transaction: bool = True,
-    precombine_key: Optional[str] = None,
+    precombine_key: str | None = None,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
 
@@ -234,37 +236,37 @@ def to_sql(  # pylint: disable=too-many-locals
 
 
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
-def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
+def copy_from_files(  # noqa: PLR0913
     path: str,
     con: "redshift_connector.Connection",  # type: ignore[name-defined]
     table: str,
     schema: str,
-    iam_role: Optional[str] = None,
-    aws_access_key_id: Optional[str] = None,
-    aws_secret_access_key: Optional[str] = None,
-    aws_session_token: Optional[str] = None,
+    iam_role: str | None = None,
+    aws_access_key_id: str | None = None,
+    aws_secret_access_key: str | None = None,
+    aws_session_token: str | None = None,
     parquet_infer_sampling: float = 1.0,
     mode: _ToSqlModeLiteral = "append",
     overwrite_method: _ToSqlOverwriteModeLiteral = "drop",
     diststyle: _ToSqlDistStyleLiteral = "AUTO",
-    distkey: Optional[str] = None,
+    distkey: str | None = None,
     sortstyle: _ToSqlSortStyleLiteral = "COMPOUND",
-    sortkey: Optional[List[str]] = None,
-    primary_keys: Optional[List[str]] = None,
+    sortkey: list[str] | None = None,
+    primary_keys: list[str] | None = None,
     varchar_lengths_default: int = 256,
-    varchar_lengths: Optional[Dict[str, int]] = None,
+    varchar_lengths: dict[str, int] | None = None,
     serialize_to_json: bool = False,
-    path_suffix: Optional[str] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
-    use_threads: Union[bool, int] = True,
+    path_suffix: str | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
+    use_threads: bool | int = True,
     lock: bool = False,
     commit_transaction: bool = True,
-    manifest: Optional[bool] = False,
-    sql_copy_extra_params: Optional[List[str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    precombine_key: Optional[str] = None,
-    column_names: Optional[List[str]] = None,
+    manifest: bool | None = False,
+    sql_copy_extra_params: list[str] | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
+    precombine_key: str | None = None,
+    column_names: list[str] | None = None,
 ) -> None:
     """Load Parquet files from S3 to a Table on Amazon Redshift (Through COPY command).
 
@@ -460,37 +462,37 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
-def copy(  # pylint: disable=too-many-arguments,too-many-locals
+def copy(  # noqa: PLR0913
     df: pd.DataFrame,
     path: str,
     con: "redshift_connector.Connection",  # type: ignore[name-defined]
     table: str,
     schema: str,
-    iam_role: Optional[str] = None,
-    aws_access_key_id: Optional[str] = None,
-    aws_secret_access_key: Optional[str] = None,
-    aws_session_token: Optional[str] = None,
+    iam_role: str | None = None,
+    aws_access_key_id: str | None = None,
+    aws_secret_access_key: str | None = None,
+    aws_session_token: str | None = None,
     index: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
+    dtype: dict[str, str] | None = None,
     mode: _ToSqlModeLiteral = "append",
     overwrite_method: _ToSqlOverwriteModeLiteral = "drop",
     diststyle: _ToSqlDistStyleLiteral = "AUTO",
-    distkey: Optional[str] = None,
+    distkey: str | None = None,
     sortstyle: _ToSqlSortStyleLiteral = "COMPOUND",
-    sortkey: Optional[List[str]] = None,
-    primary_keys: Optional[List[str]] = None,
+    sortkey: list[str] | None = None,
+    primary_keys: list[str] | None = None,
     varchar_lengths_default: int = 256,
-    varchar_lengths: Optional[Dict[str, int]] = None,
+    varchar_lengths: dict[str, int] | None = None,
     serialize_to_json: bool = False,
     keep_files: bool = False,
-    use_threads: Union[bool, int] = True,
+    use_threads: bool | int = True,
     lock: bool = False,
     commit_transaction: bool = True,
-    sql_copy_extra_params: Optional[List[str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    max_rows_by_file: Optional[int] = 10_000_000,
-    precombine_key: Optional[str] = None,
+    sql_copy_extra_params: list[str] | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
+    max_rows_by_file: int | None = 10_000_000,
+    precombine_key: str | None = None,
     use_column_names: bool = False,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
