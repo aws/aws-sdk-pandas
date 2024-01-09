@@ -37,7 +37,7 @@ def _get_write_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[str, s
 
 
 @engine.dispatch_on_engine
-def _to_text(  # pylint: disable=unused-argument
+def _to_text(
     df: pd.DataFrame,
     file_format: str,
     use_threads: bool | int,
@@ -83,7 +83,7 @@ def _to_text(  # pylint: disable=unused-argument
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
-def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
+def to_csv(  # noqa: PLR0912,PLR0915
     df: pd.DataFrame,
     path: str | None = None,
     sep: str = ",",
@@ -512,7 +512,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     # Evaluating dtype
     catalog_table_input: dict[str, Any] | None = None
     if database and table:
-        catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+        catalog_table_input = catalog._get_table_input(
             database=database,
             table=table,
             boto3_session=boto3_session,
@@ -624,8 +624,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             }
 
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
-                catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+                catalog._create_csv_table(**create_table_args)
+                catalog_table_input = catalog._get_table_input(
                     database=database,
                     table=table,
                     boto3_session=boto3_session,
@@ -669,7 +669,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
                 create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
                 create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
-                catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
+                catalog._create_csv_table(**create_table_args)
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     catalog.add_csv_partitions(
                         database=database,
@@ -705,7 +705,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
-def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
+def to_json(  # noqa: PLR0912,PLR0915
     df: pd.DataFrame,
     path: str | None = None,
     index: bool = True,
@@ -997,7 +997,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     catalog_table_input: dict[str, Any] | None = None
 
     if database and table:
-        catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+        catalog_table_input = catalog._get_table_input(
             database=database,
             table=table,
             boto3_session=boto3_session,
@@ -1084,8 +1084,8 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         }
 
         if (catalog_table_input is None) and (table_type == "GOVERNED"):
-            catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
-            catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+            catalog._create_json_table(**create_table_args)
+            catalog_table_input = catalog._get_table_input(
                 database=database,
                 table=table,
                 boto3_session=boto3_session,
@@ -1124,7 +1124,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
             create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
             create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
-            catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
+            catalog._create_json_table(**create_table_args)
             if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                 catalog.add_json_partitions(
                     database=database,

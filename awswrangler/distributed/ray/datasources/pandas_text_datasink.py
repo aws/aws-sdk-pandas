@@ -55,7 +55,7 @@ class _PandasTextDatasink(_BlockFileDatasink):
         write_text_func(block.to_pandas(), file, **self.pandas_kwargs)  # type: ignore[misc]
 
 
-class PandasCSVDatasink(_PandasTextDatasink):  # pylint: disable=abstract-method
+class PandasCSVDatasink(_PandasTextDatasink):
     """A datasink that writes CSV files using Pandas IO."""
 
     def __init__(
@@ -80,7 +80,7 @@ class PandasCSVDatasink(_PandasTextDatasink):  # pylint: disable=abstract-method
         )
 
 
-class PandasJSONDatasink(_PandasTextDatasink):  # pylint: disable=abstract-method
+class PandasJSONDatasink(_PandasTextDatasink):
     """A datasink that writes CSV files using Pandas IO."""
 
     def __init__(

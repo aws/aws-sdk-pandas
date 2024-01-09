@@ -1,6 +1,4 @@
 """Amazon Athena Module gathering all read_sql_* function."""
-# pylint: disable=too-many-lines
-
 from __future__ import annotations
 
 import csv
@@ -468,7 +466,6 @@ def _resolve_query_without_cache_regular(
 
 
 def _resolve_query_without_cache(
-    # pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements
     sql: str,
     database: str,
     data_source: str | None,
@@ -765,7 +762,7 @@ def get_query_results(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
-def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
+def read_sql_query(
     sql: str,
     database: str,
     ctas_approach: bool = True,
@@ -1070,7 +1067,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
                     pyarrow_additional_kwargs=pyarrow_additional_kwargs,
                     dtype_backend=dtype_backend,
                 )
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 _logger.error(e)  # if there is anything wrong with the cache, just fallback to the usual path
                 _logger.debug("Corrupted cache. Continuing to execute query...")
 

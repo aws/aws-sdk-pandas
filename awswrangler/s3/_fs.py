@@ -46,7 +46,7 @@ def _snake_to_camel_case(s: str) -> str:
 def get_botocore_valid_kwargs(function_name: str, s3_additional_kwargs: dict[str, Any]) -> dict[str, Any]:
     """Filter and keep only the valid botocore key arguments."""
     s3_operation_model = _S3_SERVICE_MODEL.operation_model(_snake_to_camel_case(function_name))
-    allowed_kwargs = s3_operation_model.input_shape.members.keys()  # type: ignore[union-attr] # pylint: disable=E1101
+    allowed_kwargs = s3_operation_model.input_shape.members.keys()  # type: ignore[union-attr]
     return {k: v for k, v in s3_additional_kwargs.items() if k in allowed_kwargs}
 
 
@@ -82,7 +82,7 @@ class _UploadProxy:
         self._results: list[dict[str, str | int]] = []
         self._cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         if self._cpus > 1:
-            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)  # pylint: disable=R1732
+            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)
             self._futures: list[Any] = []
         else:
             self._exec = None
@@ -168,7 +168,7 @@ class _UploadProxy:
         return self._sort_by_part_number(parts=self._results)
 
 
-class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attributes
+class _S3ObjectBase(io.RawIOBase):
     """Class to abstract S3 objects as ordinary files."""
 
     def __init__(
@@ -398,7 +398,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
 
     def flush(self, force: bool = False) -> None:
         """Write buffered data to S3."""
-        if self.closed:  # pylint: disable=using-constant-test
+        if self.closed:
             raise RuntimeError("I/O operation on closed file.")
         if self.writable() and self._buffer.closed is False:
             total_size: int = self._buffer.tell()
@@ -455,7 +455,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
 
     def close(self) -> None:
         """Clean up the cache."""
-        if self.closed:  # pylint: disable=using-constant-test
+        if self.closed:
             return None
         if self.writable():
             _logger.debug("Closing: %s parts", self._parts_count)
@@ -542,7 +542,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
         """Write data to buffer and only upload on close() or if buffer is greater than or equal to _MIN_WRITE_BLOCK."""
         if self.writable() is False:
             raise RuntimeError("File not in write mode.")
-        if self.closed:  # pylint: disable=using-constant-test
+        if self.closed:
             raise RuntimeError("I/O operation on closed file.")
         n: int = self._buffer.write(data)
         self._loc += n

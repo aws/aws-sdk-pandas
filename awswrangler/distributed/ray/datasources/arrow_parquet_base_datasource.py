@@ -12,7 +12,7 @@ from ray.data.datasource.file_based_datasource import FileBasedDatasource
 from awswrangler._arrow import _add_table_partitions
 
 
-class ArrowParquetBaseDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
+class ArrowParquetBaseDatasource(FileBasedDatasource):
     """Parquet datasource, for reading Parquet files."""
 
     _FILE_EXTENSIONS = ["parquet"]

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _to_orc_distributed(  # pylint: disable=unused-argument
+def _to_orc_distributed(
     df: pd.DataFrame,
     schema: pa.Schema,
     index: bool,

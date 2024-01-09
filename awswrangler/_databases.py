@@ -59,9 +59,7 @@ def _get_connection_attributes_from_catalog(
             try:
                 ssl_cadata = client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read().decode("utf-8")
             except client_s3.exceptions.NoSuchKey:
-                raise exceptions.NoFilesFound(  # pylint: disable=raise-missing-from
-                    f"No CA certificate found at {ssl_cert_path}."
-                )
+                raise exceptions.NoFilesFound(f"No CA certificate found at {ssl_cert_path}.")
         ssl_context = ssl.create_default_context(cadata=ssl_cadata)
 
     if "SECRET_ID" in details:

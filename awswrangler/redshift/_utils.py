@@ -247,7 +247,7 @@ def _redshift_types_from_path(
     return redshift_types
 
 
-def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-many-branches,too-many-statements
+def _create_table(  # noqa: PLR0912,PLR0915
     df: pd.DataFrame | None,
     path: str | list[str] | None,
     con: "redshift_connector.Connection",
@@ -283,7 +283,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
                 _truncate_table(cursor=cursor, schema=schema, table=table)
             except redshift_connector.error.ProgrammingError as e:
                 # Caught "relation does not exist".
-                if e.args[0]["C"] != "42P01":  # pylint: disable=invalid-sequence-index
+                if e.args[0]["C"] != "42P01":
                     raise e
                 _logger.debug(str(e))
                 con.rollback()

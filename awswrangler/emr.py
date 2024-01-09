@@ -1,6 +1,4 @@
 """EMR (Elastic Map Reduce) module."""
-# pylint: disable=line-too-long
-
 from __future__ import annotations
 
 import logging
@@ -105,7 +103,7 @@ def _get_emr_classification_lib(emr_version: str) -> str:
     return "spark-log4j2" if number > 670 else "spark-log4j"
 
 
-def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # pylint: disable=too-many-branches,too-many-statements
+def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
     account_id: str = sts.get_account_id(boto3_session=pars["boto3_session"])
     region: str = _utils.get_region_from_session(boto3_session=pars["boto3_session"])
 
@@ -434,7 +432,7 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # pylint: disable=too-m
     return args
 
 
-def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused-argument
+def create_cluster(  # noqa: PLR0913
     subnet_id: str,
     cluster_name: str = "my-emr-cluster",
     logging_s3_path: str | None = None,

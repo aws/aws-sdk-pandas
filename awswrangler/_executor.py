@@ -41,7 +41,7 @@ class _ThreadPoolExecutor(_BaseExecutor):
         self._cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         if self._cpus > 1:
             _logger.debug("Initializing ThreadPoolExecutor with %d workers", self._cpus)
-            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)  # pylint: disable=R1732
+            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)
 
     def map(
         self, func: Callable[..., MapOutputType], boto3_client: "BaseClient" | None, *args: Any

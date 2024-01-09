@@ -34,7 +34,7 @@ def _update_if_necessary(dic: dict[str, str], key: str, value: str | None, mode:
     return mode
 
 
-def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+def _create_table(  # noqa: PLR0912,PLR0915
     database: str,
     table: str,
     description: str | None,
@@ -406,7 +406,7 @@ def _create_orc_table(
     )
 
 
-def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
+def _create_csv_table(
     database: str,
     table: str,
     path: str | None,
@@ -482,7 +482,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     )
 
 
-def _create_json_table(  # pylint: disable=too-many-arguments,too-many-locals
+def _create_json_table(
     database: str,
     table: str,
     path: str,
@@ -1064,7 +1064,7 @@ def create_orc_table(
 
 
 @apply_configs
-def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
+def create_csv_table(
     database: str,
     table: str,
     path: str,
@@ -1257,7 +1257,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
 
 
 @apply_configs
-def create_json_table(  # pylint: disable=too-many-arguments
+def create_json_table(
     database: str,
     table: str,
     path: str,

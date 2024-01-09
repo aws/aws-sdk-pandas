@@ -26,7 +26,7 @@ def _retrieve_paths(values: str | list[Any]) -> Iterator[str]:
 
 
 @modin_repartition
-def _to_buckets_distributed(  # pylint: disable=unused-argument
+def _to_buckets_distributed(
     df: pd.DataFrame,
     func: Callable[..., list[str]],
     path_root: str,
@@ -115,7 +115,7 @@ def _write_partitions_distributed(
 
 
 @modin_repartition
-def _to_partitions_distributed(  # pylint: disable=unused-argument
+def _to_partitions_distributed(
     df: pd.DataFrame,
     func: Callable[..., list[str]],
     concurrent_partitioning: bool,

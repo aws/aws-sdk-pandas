@@ -18,7 +18,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 READER_ROW_BATCH_SIZE = 10_0000
 
 
-class PandasTextDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
+class PandasTextDatasource(FileBasedDatasource):
     """Pandas text datasource, for reading text files using Pandas."""
 
     def __init__(
@@ -60,7 +60,7 @@ class PandasTextDatasource(FileBasedDatasource):  # pylint: disable=abstract-met
         )
 
 
-class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
+class PandasCSVDataSource(PandasTextDatasource):
     """Pandas CSV datasource, for reading CSV files using Pandas."""
 
     _FILE_EXTENSIONS = ["csv"]
@@ -98,7 +98,7 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         yield from super()._read_stream(f, path)
 
 
-class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
+class PandasFWFDataSource(PandasTextDatasource):
     """Pandas FWF datasource, for reading FWF files using Pandas."""
 
     _FILE_EXTENSIONS = ["fwf"]
@@ -125,7 +125,7 @@ class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         )
 
 
-class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-method
+class PandasJSONDatasource(PandasTextDatasource):
     """Pandas JSON datasource, for reading JSON files using Pandas."""
 
     _FILE_EXTENSIONS = ["json"]

@@ -10,7 +10,7 @@ from ray.data.datasource.file_based_datasource import FileBasedDatasource
 from awswrangler._arrow import _add_table_partitions
 
 
-class ArrowJSONDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
+class ArrowJSONDatasource(FileBasedDatasource):
     """JSON datasource, for reading JSON files using PyArrow."""
 
     _FILE_EXTENSIONS = ["json"]

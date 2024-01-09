@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _list_objects_s3fs(  # pylint: disable=unused-argument
+def _list_objects_s3fs(
     bucket: str,
     pattern: str,
     prefix: str,

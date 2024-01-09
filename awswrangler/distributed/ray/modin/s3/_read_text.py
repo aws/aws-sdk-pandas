@@ -128,7 +128,7 @@ def _resolve_datasource(
     raise exceptions.UnsupportedType("Unsupported read format")
 
 
-def _read_text_distributed(  # pylint: disable=unused-argument
+def _read_text_distributed(
     read_format: str,
     paths: list[str],
     path_root: str | None,
