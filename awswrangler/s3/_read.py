@@ -12,7 +12,6 @@ from typing import (
     Iterable,
     Iterator,
     NamedTuple,
-    Tuple,
     cast,
 )
 
@@ -68,7 +67,7 @@ def _extract_partitions_metadata_from_paths(
             path_wo_prefix: str = path_wo_filename.replace(f"{path}", "")
             dirs: tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if x and (x.count("=") > 0))
             if dirs:
-                values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
+                values_tups = cast(tuple[tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
                 values_dics: dict[str, str] = dict(values_tups)
                 p_values: list[str] = list(values_dics.values())
                 p_types: dict[str, str] = {x: "string" for x in values_dics.keys()}

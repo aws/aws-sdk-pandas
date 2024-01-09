@@ -694,7 +694,7 @@ def _assign_args_value(args: dict[str, Any], name: str, value: Any) -> None:
         if name not in args:
             args[name] = {}
 
-        nested_args = cast(Dict[str, Any], value)
+        nested_args = cast(dict[str, Any], value)
         for nested_arg_name, nested_arg_value in nested_args.items():
             _assign_args_value(args[name], nested_arg_name, nested_arg_value)
         return

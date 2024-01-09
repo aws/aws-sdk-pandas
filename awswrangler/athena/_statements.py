@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import boto3
 from botocore.exceptions import ClientError
@@ -122,7 +122,7 @@ def list_prepared_statements(workgroup: str = "primary", boto3_session: boto3.Se
         response = athena_client.list_prepared_statements(WorkGroup=workgroup, NextToken=response["NextToken"])
         statements += response["PreparedStatements"]
 
-    return cast(List[Dict[str, Any]], statements)
+    return cast(list[dict[str, Any]], statements)
 
 
 @apply_configs

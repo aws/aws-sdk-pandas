@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import boto3
 
@@ -84,7 +84,7 @@ def _get_calculation_execution_results(
     response: "GetCalculationExecutionResponseTypeDef" = client_athena.get_calculation_execution(
         CalculationExecutionId=calculation_execution_id,
     )
-    return cast(Dict[str, Any], response)
+    return cast(dict[str, Any], response)
 
 
 def create_spark_session(

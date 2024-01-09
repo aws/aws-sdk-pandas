@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 import logging
 import ssl
-from typing import Any, Generator, Iterator, List, NamedTuple, Tuple, cast, overload
+from typing import Any, Generator, Iterator, NamedTuple, cast, overload
 
 import boto3
 import pyarrow as pa
@@ -260,7 +260,7 @@ def _fetch_all_results(
                 dtype = decimal_dtypes
 
         return _records2df(
-            records=cast(List[Tuple[Any]], cursor.fetchall()),
+            records=cast(list[tuple[Any]], cursor.fetchall()),
             cols_names=cols_names,
             index=index_col,
             dtype=dtype,

@@ -5,7 +5,6 @@ import logging
 import time
 from typing import (
     Any,
-    Dict,
     cast,
 )
 
@@ -271,4 +270,4 @@ def get_query_execution(query_execution_id: str, boto3_session: boto3.Session | 
         QueryExecutionId=query_execution_id,
     )
     _logger.debug("Get query execution response:\n%s", response)
-    return cast(Dict[str, Any], response["QueryExecution"])
+    return cast(dict[str, Any], response["QueryExecution"])

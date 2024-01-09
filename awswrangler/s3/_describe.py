@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import boto3
 
@@ -43,7 +43,7 @@ def _describe_object(
     desc = _utils.try_it(
         f=s3_client.head_object, ex=s3_client.exceptions.NoSuchKey, Bucket=bucket, Key=key, **extra_kwargs
     )
-    return path, cast(Dict[str, Any], desc)
+    return path, cast(dict[str, Any], desc)
 
 
 @_utils.validate_distributed_kwargs(

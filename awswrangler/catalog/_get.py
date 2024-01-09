@@ -6,7 +6,7 @@ from __future__ import annotations
 import base64
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Iterator, cast
+from typing import TYPE_CHECKING, Any, Iterator, cast
 
 import boto3
 import botocore.exceptions
@@ -194,7 +194,7 @@ def get_databases(
     response_iterator = paginator.paginate(**_catalog_id(catalog_id=catalog_id))
     for page in response_iterator:
         for db in page["DatabaseList"]:
-            yield cast(Dict[str, Any], db)
+            yield cast(dict[str, Any], db)
 
 
 @apply_configs
@@ -308,7 +308,7 @@ def get_tables(
         try:
             for page in response_iterator:
                 for tbl in page["TableList"]:
-                    yield cast(Dict[str, Any], tbl)
+                    yield cast(dict[str, Any], tbl)
         except client_glue.exceptions.EntityNotFoundException:
             continue
 
@@ -446,12 +446,12 @@ def search_tables(
     args: dict[str, Any] = _catalog_id(catalog_id=catalog_id, SearchText=text)
     response = client_glue.search_tables(**args)
     for tbl in response["TableList"]:
-        yield cast(Dict[str, Any], tbl)
+        yield cast(dict[str, Any], tbl)
     while "NextToken" in response:
         args["NextToken"] = response["NextToken"]
         response = client_glue.search_tables(**args)
         for tbl in response["TableList"]:
-            yield cast(Dict[str, Any], tbl)
+            yield cast(dict[str, Any], tbl)
 
 
 @apply_configs
@@ -630,7 +630,7 @@ def get_connection(
             "Plaintext"
         ].decode("utf-8")
         res["ConnectionProperties"]["PASSWORD"] = pwd
-    return cast(Dict[str, Any], res)
+    return cast(dict[str, Any], res)
 
 
 @apply_configs
@@ -1050,7 +1050,7 @@ def get_table_versions(
     response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))
     for page in response_iterator:
         for tbl in page["TableVersions"]:
-            versions.append(cast(Dict[str, Any], tbl))
+            versions.append(cast(dict[str, Any], tbl))
     return versions
 
 

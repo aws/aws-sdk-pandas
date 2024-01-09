@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 import boto3
 
@@ -66,4 +66,4 @@ def get_secret_json(name: str, boto3_session: boto3.Session | None = None) -> di
 
     """
     value = get_secret(name=name, boto3_session=boto3_session)
-    return cast(Dict[str, Any], json.loads(value))
+    return cast(dict[str, Any], json.loads(value))
