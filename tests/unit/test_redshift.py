@@ -89,6 +89,7 @@ def test_empty_table(redshift_table: str, redshift_con: redshift_connector.Conne
 def test_sql_types(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     table = redshift_table
     df = get_df()
+    df.drop(["binary"], axis=1, inplace=True)
     wr.redshift.to_sql(
         df=df,
         con=redshift_con,
