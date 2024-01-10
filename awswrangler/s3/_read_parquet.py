@@ -237,8 +237,15 @@ def _read_parquet_chunked(
             chunks = pq_file.iter_batches(
                 batch_size=batch_size, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False
             )
+
+            if columns is not None:
+                field_dict = {field.name: field for field in pq_file.schema.to_arrow_schema()}
+                schema = pa.schema([field_dict[column] for column in columns])
+            else:
+                schema = pq_file.schema.to_arrow_schema()
+
             table = _add_table_partitions(
-                table=pa.Table.from_batches(chunks, schema=pq_file.schema.to_arrow_schema()),
+                table=pa.Table.from_batches(chunks, schema=schema),
                 path=path,
                 path_root=path_root,
             )
