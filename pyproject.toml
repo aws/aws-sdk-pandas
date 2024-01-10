@@ -58,6 +58,7 @@ gremlinpython = { version = "^3.7.1", optional = true }
 SPARQLWrapper = { version = "^2.0.0", optional = true }
 requests = { version = "^2.0.0", optional = true }
 aiohttp = { version = "^3.9.0", optional = true }
+async-timeout = { version = "^4.0.3", optional = true }
 
 # OpenSearch
 opensearch-py = { version = "^2.0.0", optional = true }
@@ -86,7 +87,7 @@ mysql = ["pymysql"]
 postgres = ["pg8000"]
 sqlserver = ["pyodbc"]
 oracle = ["oracledb"]
-gremlin = ["gremlinpython", "requests", "aiohttp"]
+gremlin = ["gremlinpython", "requests", "aiohttp", "async-timeout"]
 sparql = ["SPARQLWrapper", "requests"]
 opencypher = ["requests"]
 opensearch = ["opensearch-py", "jsonpath-ng", "requests-aws4auth"]
