@@ -13,7 +13,7 @@ import pytest
 import awswrangler as wr
 import awswrangler.pandas as pd
 
-from .._utils import get_df_csv, is_ray_modin
+from .._utils import get_df_csv, is_python_3_8_x, is_ray_modin
 
 EXT = {"gzip": ".gz", "bz2": ".bz2", "xz": ".xz", "zip": ".zip"}
 
@@ -127,6 +127,11 @@ def test_json(path: str, compression: str | None) -> None:
     assert df.shape == df2.shape == df3.shape
 
 
+@pytest.mark.xfail(
+    condition=is_python_3_8_x,
+    reason="Python 3.8 uses older version of Pandas, which doesn't support the usage of index=False with orient='records'",
+    raises=ValueError,
+)
 @pytest.mark.parametrize("chunksize", [None, 1])
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
 def test_partitioned_json(path: str, compression: str | None, chunksize: int | None) -> None:
