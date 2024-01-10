@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import random
 import re
+import sys
 import time
 import uuid
 from datetime import date, datetime
@@ -28,6 +29,7 @@ from awswrangler._utils import try_it
 
 is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
 is_pandas_2_x = False
+is_python_3_8_x = sys.version_info.major == 3 and sys.version_info.minor == 8
 
 if is_ray_modin:
     from modin.pandas import DataFrame as ModinDataFrame
