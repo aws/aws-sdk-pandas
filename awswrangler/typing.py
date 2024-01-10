@@ -1,6 +1,8 @@
 """Module with parameter types."""
 
-from typing import Dict, List, Literal, NamedTuple, Optional, Tuple, TypedDict
+from __future__ import annotations
+
+from typing import List, Literal, NamedTuple, Tuple, TypedDict
 
 from typing_extensions import NotRequired, Required
 
@@ -16,9 +18,9 @@ class GlueTableSettings(TypedDict):
     """The ID of the transaction when writing to a Governed Table."""
     description: NotRequired[str]
     """Glue/Athena catalog: Table description"""
-    parameters: NotRequired[Dict[str, str]]
+    parameters: NotRequired[dict[str, str]]
     """Glue/Athena catalog: Key/value pairs to tag the table."""
-    columns_comments: NotRequired[Dict[str, str]]
+    columns_comments: NotRequired[dict[str, str]]
     """
     Columns names and the related comments
     (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
@@ -76,7 +78,7 @@ class AthenaUNLOADSettings(TypedDict):
     """
     Specifies a single-character field delimiter for files in CSV, TSV, and other text formats.
     """
-    partitioned_by: NotRequired[List[str]]
+    partitioned_by: NotRequired[list[str]]
     """
     A list of columns by which the output is partitioned.
     """
@@ -119,38 +121,38 @@ class AthenaPartitionProjectionSettings(TypedDict):
     https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html
     """
 
-    projection_types: NotRequired[Dict[str, Literal["enum", "integer", "date", "injected"]]]
+    projection_types: NotRequired[dict[str, Literal["enum", "integer", "date", "injected"]]]
     """
     Dictionary of partitions names and Athena projections types.
     Valid types: "enum", "integer", "date", "injected"
     https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
     (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
     """
-    projection_ranges: NotRequired[Dict[str, str]]
+    projection_ranges: NotRequired[dict[str, str]]
     """
     Dictionary of partitions names and Athena projections ranges.
     https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
     (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
     """
-    projection_values: NotRequired[Dict[str, str]]
+    projection_values: NotRequired[dict[str, str]]
     """
     Dictionary of partitions names and Athena projections values.
     https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
     (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
     """
-    projection_intervals: NotRequired[Dict[str, str]]
+    projection_intervals: NotRequired[dict[str, str]]
     """
     Dictionary of partitions names and Athena projections intervals.
     https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
     (e.g. {'col_name': '1', 'col2_name': '5'})
     """
-    projection_digits: NotRequired[Dict[str, str]]
+    projection_digits: NotRequired[dict[str, str]]
     """
     Dictionary of partitions names and Athena projections digits.
     https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
     (e.g. {'col_name': '1', 'col2_name': '2'})
     """
-    projection_formats: NotRequired[Dict[str, str]]
+    projection_formats: NotRequired[dict[str, str]]
     """
     Dictionary of partitions names and Athena projections formats.
     https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
@@ -216,9 +218,9 @@ class RayReadParquetSettings(RaySettings):
 class _S3WriteDataReturnValue(TypedDict):
     """Typed dictionary defining the dictionary returned by S3 write functions."""
 
-    paths: Required[List[str]]
+    paths: Required[list[str]]
     """List of all stored files paths on S3."""
-    partitions_values: Required[Dict[str, List[str]]]
+    partitions_values: Required[dict[str, list[str]]]
     """
     Dictionary of partitions added with keys as S3 path locations
     and values as a list of partitions values as str.
@@ -228,7 +230,7 @@ class _S3WriteDataReturnValue(TypedDict):
 class _ReadTableMetadataReturnValue(NamedTuple):
     """Named tuple defining the return value of the ``read_*_metadata`` functions."""
 
-    columns_types: Dict[str, str]
+    columns_types: dict[str, str]
     """Dictionary containing column names and types."""
-    partitions_types: Optional[Dict[str, str]]
+    partitions_types: dict[str, str] | None
     """Dictionary containing partition names and types, if partitioned."""

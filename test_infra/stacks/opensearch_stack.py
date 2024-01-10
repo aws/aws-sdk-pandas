@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from aws_cdk import CfnOutput, RemovalPolicy, Stack
 from aws_cdk import aws_ec2 as ec2
@@ -178,8 +180,8 @@ class OpenSearchStack(Stack):  # type: ignore
         ).override_logical_id("CollectionEndpointsdkpandasaoss")
 
     @staticmethod
-    def _get_encryption_policy(collection_name: str, kms_key_arn: Optional[str] = None) -> str:
-        policy: Dict[str, Any] = {
+    def _get_encryption_policy(collection_name: str, kms_key_arn: str | None = None) -> str:
+        policy: dict[str, Any] = {
             "Rules": [
                 {
                     "ResourceType": "collection",
@@ -196,8 +198,8 @@ class OpenSearchStack(Stack):  # type: ignore
         return json.dumps(policy)
 
     @staticmethod
-    def _get_network_policy(collection_name: str, vpc_endpoints: Optional[List[str]] = None) -> str:
-        policy: List[Dict[str, Any]] = [
+    def _get_network_policy(collection_name: str, vpc_endpoints: list[str] | None = None) -> str:
+        policy: list[dict[str, Any]] = [
             {
                 "Rules": [
                     {

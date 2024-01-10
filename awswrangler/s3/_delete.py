@@ -1,9 +1,11 @@
 """Amazon S3 Delete Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import datetime
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import boto3
 
@@ -20,8 +22,8 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
-    buckets: Dict[str, List[str]] = {}
+def _split_paths_by_bucket(paths: list[str]) -> dict[str, list[str]]:
+    buckets: dict[str, list[str]] = {}
     bucket: str
     for path in paths:
         bucket = _utils.parse_path(path=path)[0]
@@ -33,20 +35,20 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
 
 @engine.dispatch_on_engine
 def _delete_objects(
-    s3_client: Optional["S3Client"],
-    paths: List[str],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
+    s3_client: "S3Client" | None,
+    paths: list[str],
+    s3_additional_kwargs: dict[str, Any] | None,
 ) -> None:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
 
     if s3_additional_kwargs:
-        extra_kwargs: Dict[str, Any] = get_botocore_valid_kwargs(
+        extra_kwargs: dict[str, Any] = get_botocore_valid_kwargs(
             function_name="list_objects_v2", s3_additional_kwargs=s3_additional_kwargs
         )
     else:
         extra_kwargs = {}
     bucket = _utils.parse_path(path=paths[0])[0]
-    batch: List[Dict[str, str]] = [{"Key": _utils.parse_path(path)[1]} for path in paths]
+    batch: list[dict[str, str]] = [{"Key": _utils.parse_path(path)[1]} for path in paths]
     res = s3_client.delete_objects(
         Bucket=bucket,
         Delete={"Objects": batch},  # type: ignore[typeddict-item]
@@ -65,12 +67,12 @@ def _delete_objects(
     unsupported_kwargs=["boto3_session"],
 )
 def delete_objects(
-    path: Union[str, List[str]],
-    use_threads: Union[bool, int] = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    path: str | list[str],
+    use_threads: bool | int = True,
+    last_modified_begin: datetime.datetime | None = None,
+    last_modified_end: datetime.datetime | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Delete Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 
@@ -104,7 +106,7 @@ def delete_objects(
     last_modified_end: datetime, optional
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
@@ -123,14 +125,14 @@ def delete_objects(
 
     """
     s3_client = _utils.client(service_name="s3", session=boto3_session)
-    paths: List[str] = _path2list(
+    paths: list[str] = _path2list(
         path=path,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    paths_by_bucket: Dict[str, List[str]] = _split_paths_by_bucket(paths)
+    paths_by_bucket: dict[str, list[str]] = _split_paths_by_bucket(paths)
 
     chunks = []
     for _, paths in paths_by_bucket.items():

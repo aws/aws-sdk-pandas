@@ -1,6 +1,8 @@
 """Amazon S3 Read Core Module (PRIVATE)."""
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterator
 
 import botocore.exceptions
 import pandas as pd
@@ -17,14 +19,14 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
+def _get_read_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[str, str | None, str | None]:
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
     mode: str = (
         "r" if pandas_kwargs.get("compression") is None and pandas_kwargs.get("encoding_errors") != "ignore" else "rb"
     )
-    encoding: Optional[str] = pandas_kwargs.get("encoding", "utf-8")
-    newline: Optional[str] = pandas_kwargs.get("lineterminator", None)
+    encoding: str | None = pandas_kwargs.get("encoding", "utf-8")
+    newline: str | None = pandas_kwargs.get("lineterminator", None)
     return mode, encoding, newline
 
 
@@ -32,13 +34,13 @@ def _read_text_chunked(
     path: str,
     chunksize: int,
     parser_func: Callable[..., pd.DataFrame],
-    path_root: Optional[str],
-    s3_client: Optional["S3Client"],
-    pandas_kwargs: Dict[str, Any],
-    s3_additional_kwargs: Optional[Dict[str, str]],
+    path_root: str | None,
+    s3_client: "S3Client" | None,
+    pandas_kwargs: dict[str, Any],
+    s3_additional_kwargs: dict[str, str] | None,
     dataset: bool,
-    use_threads: Union[bool, int],
-    version_id: Optional[str] = None,
+    use_threads: bool | int,
+    version_id: str | None = None,
 ) -> Iterator[pd.DataFrame]:
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
     with open_s3_object(
@@ -58,16 +60,16 @@ def _read_text_chunked(
 
 
 def _read_text_files_chunked(
-    paths: List[str],
+    paths: list[str],
     chunksize: int,
     parser_func: Callable[..., pd.DataFrame],
-    path_root: Optional[str],
+    path_root: str | None,
     s3_client: "S3Client",
-    pandas_kwargs: Dict[str, Any],
-    s3_additional_kwargs: Optional[Dict[str, str]],
+    pandas_kwargs: dict[str, Any],
+    s3_additional_kwargs: dict[str, str] | None,
     dataset: bool,
-    use_threads: Union[bool, int],
-    version_ids: Optional[Dict[str, str]],
+    use_threads: bool | int,
+    version_ids: dict[str, str] | None,
 ) -> Iterator[pd.DataFrame]:
     for path in paths:
         _logger.debug("path: %s", path)
@@ -87,13 +89,13 @@ def _read_text_files_chunked(
 
 
 def _read_text_file(
-    s3_client: Optional["S3Client"],
+    s3_client: "S3Client" | None,
     path: str,
-    version_id: Optional[str],
+    version_id: str | None,
     parser_func: Callable[..., pd.DataFrame],
-    path_root: Optional[str],
-    pandas_kwargs: Dict[str, Any],
-    s3_additional_kwargs: Optional[Dict[str, str]],
+    path_root: str | None,
+    pandas_kwargs: dict[str, Any],
+    s3_additional_kwargs: dict[str, str] | None,
     dataset: bool,
 ) -> pd.DataFrame:
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)

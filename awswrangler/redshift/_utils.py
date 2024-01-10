@@ -1,9 +1,10 @@
 # mypy: disable-error-code=name-defined
 """Amazon Redshift Utils Module (PRIVATE)."""
+from __future__ import annotations
+
 import json
 import logging
 import uuid
-from typing import Dict, List, Optional, Tuple, Union
 
 import boto3
 import botocore
@@ -16,8 +17,8 @@ redshift_connector = _utils.import_optional_dependency("redshift_connector")
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_RS_DISTSTYLES: List[str] = ["AUTO", "EVEN", "ALL", "KEY"]
-_RS_SORTSTYLES: List[str] = ["COMPOUND", "INTERLEAVED"]
+_RS_DISTSTYLES: list[str] = ["AUTO", "EVEN", "ALL", "KEY"]
+_RS_SORTSTYLES: list[str] = ["COMPOUND", "INTERLEAVED"]
 
 
 def _identifier(sql: str) -> str:
@@ -25,11 +26,11 @@ def _identifier(sql: str) -> str:
 
 
 def _make_s3_auth_string(
-    aws_access_key_id: Optional[str] = None,
-    aws_secret_access_key: Optional[str] = None,
-    aws_session_token: Optional[str] = None,
-    iam_role: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    aws_access_key_id: str | None = None,
+    aws_secret_access_key: str | None = None,
+    aws_session_token: str | None = None,
+    iam_role: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     if aws_access_key_id is not None and aws_secret_access_key is not None:
         auth_str: str = f"ACCESS_KEY_ID '{aws_access_key_id}'\nSECRET_ACCESS_KEY '{aws_secret_access_key}'\n"
@@ -61,7 +62,7 @@ def _begin_transaction(cursor: "redshift_connector.Cursor") -> None:
     cursor.execute(sql)
 
 
-def _drop_table(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str, cascade: bool = False) -> None:
+def _drop_table(cursor: "redshift_connector.Cursor", schema: str | None, table: str, cascade: bool = False) -> None:
     schema_str = f'"{schema}".' if schema else ""
     cascade_str = " CASCADE" if cascade else ""
     sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"' f"{cascade_str}"
@@ -69,7 +70,7 @@ def _drop_table(cursor: "redshift_connector.Cursor", schema: Optional[str], tabl
     cursor.execute(sql)
 
 
-def _truncate_table(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> None:
+def _truncate_table(cursor: "redshift_connector.Cursor", schema: str | None, table: str) -> None:
     if schema:
         sql = f"TRUNCATE TABLE {_identifier(schema)}.{_identifier(table)}"
     else:
@@ -78,7 +79,7 @@ def _truncate_table(cursor: "redshift_connector.Cursor", schema: Optional[str], 
     cursor.execute(sql)
 
 
-def _delete_all(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> None:
+def _delete_all(cursor: "redshift_connector.Cursor", schema: str | None, table: str) -> None:
     if schema:
         sql = f"DELETE FROM {_identifier(schema)}.{_identifier(table)}"
     else:
@@ -87,17 +88,17 @@ def _delete_all(cursor: "redshift_connector.Cursor", schema: Optional[str], tabl
     cursor.execute(sql)
 
 
-def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: str) -> List[str]:
+def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: str) -> list[str]:
     sql = f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'"
     _logger.debug("Executing select query:\n%s", sql)
     cursor.execute(sql)
     result: str = cursor.fetchall()[0][0]
-    rfields: List[str] = result.split("(")[1].strip(")").split(",")
-    fields: List[str] = [field.strip().strip('"') for field in rfields]
+    rfields: list[str] = result.split("(")[1].strip(")").split(",")
+    fields: list[str] = [field.strip().strip('"') for field in rfields]
     return fields
 
 
-def _does_table_exist(cursor: "redshift_connector.Cursor", schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "redshift_connector.Cursor", schema: str | None, table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     sql = (
         f"SELECT true WHERE EXISTS ("
@@ -110,7 +111,7 @@ def _does_table_exist(cursor: "redshift_connector.Cursor", schema: Optional[str]
     return len(cursor.fetchall()) > 0
 
 
-def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def _get_paths_from_manifest(path: str, boto3_session: boto3.Session | None = None) -> list[str]:
     client_s3 = _utils.client(service_name="s3", session=boto3_session)
     bucket, key = _utils.parse_path(path)
     manifest_content = json.loads(client_s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8"))
@@ -121,8 +122,8 @@ def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] =
 
 def _lock(
     cursor: "redshift_connector.Cursor",
-    table_names: List[str],
-    schema: Optional[str] = None,
+    table_names: list[str],
+    schema: str | None = None,
 ) -> None:
     tables = ", ".join(
         [(f"{_identifier(schema)}.{_identifier(table)}" if schema else _identifier(table)) for table in table_names]
@@ -137,9 +138,9 @@ def _upsert(
     table: str,
     temp_table: str,
     schema: str,
-    primary_keys: Optional[List[str]] = None,
-    precombine_key: Optional[str] = None,
-    column_names: Optional[List[str]] = None,
+    primary_keys: list[str] | None = None,
+    precombine_key: str | None = None,
+    column_names: list[str] | None = None,
 ) -> None:
     if not primary_keys:
         primary_keys = _get_primary_keys(cursor=cursor, schema=schema, table=table)
@@ -176,12 +177,12 @@ def _upsert(
 
 
 def _validate_parameters(
-    redshift_types: Dict[str, str],
+    redshift_types: dict[str, str],
     diststyle: str,
-    distkey: Optional[str],
+    distkey: str | None,
     sortstyle: str,
-    sortkey: Optional[List[str]],
-    primary_keys: Optional[List[str]],
+    sortkey: list[str] | None,
+    primary_keys: list[str] | None,
 ) -> None:
     if diststyle not in _RS_DISTSTYLES:
         raise exceptions.InvalidRedshiftDiststyle(f"diststyle must be in {_RS_DISTSTYLES}")
@@ -214,18 +215,18 @@ def _validate_parameters(
 
 
 def _redshift_types_from_path(
-    path: Union[str, List[str]],
+    path: str | list[str],
     varchar_lengths_default: int,
-    varchar_lengths: Optional[Dict[str, int]],
+    varchar_lengths: dict[str, int] | None,
     parquet_infer_sampling: float,
-    path_suffix: Optional[str],
-    path_ignore_suffix: Union[str, List[str], None],
-    use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-) -> Dict[str, str]:
+    path_suffix: str | None,
+    path_ignore_suffix: str | list[str] | None,
+    use_threads: bool | int,
+    boto3_session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, str] | None,
+) -> dict[str, str]:
     """Extract Redshift data types from a Pandas DataFrame."""
-    _varchar_lengths: Dict[str, int] = {} if varchar_lengths is None else varchar_lengths
+    _varchar_lengths: dict[str, int] = {} if varchar_lengths is None else varchar_lengths
     _logger.debug("Scanning parquet schemas in S3 path: %s", path)
     athena_types, _ = s3.read_parquet_metadata(
         path=path,
@@ -238,7 +239,7 @@ def _redshift_types_from_path(
         s3_additional_kwargs=s3_additional_kwargs,
     )
     _logger.debug("Parquet metadata types: %s", athena_types)
-    redshift_types: Dict[str, str] = {}
+    redshift_types: dict[str, str] = {}
     for col_name, col_type in athena_types.items():
         length: int = _varchar_lengths[col_name] if col_name in _varchar_lengths else varchar_lengths_default
         redshift_types[col_name] = _data_types.athena2redshift(dtype=col_type, varchar_length=length)
@@ -246,9 +247,9 @@ def _redshift_types_from_path(
     return redshift_types
 
 
-def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-many-branches,too-many-statements
-    df: Optional[pd.DataFrame],
-    path: Optional[Union[str, List[str]]],
+def _create_table(  # noqa: PLR0912,PLR0915
+    df: pd.DataFrame | None,
+    path: str | list[str] | None,
     con: "redshift_connector.Connection",
     cursor: "redshift_connector.Cursor",
     table: str,
@@ -256,23 +257,23 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     mode: str,
     overwrite_method: str,
     index: bool,
-    dtype: Optional[Dict[str, str]],
+    dtype: dict[str, str] | None,
     diststyle: str,
     sortstyle: str,
-    distkey: Optional[str],
-    sortkey: Optional[List[str]],
-    primary_keys: Optional[List[str]],
+    distkey: str | None,
+    sortkey: list[str] | None,
+    primary_keys: list[str] | None,
     varchar_lengths_default: int,
-    varchar_lengths: Optional[Dict[str, int]],
+    varchar_lengths: dict[str, int] | None,
     parquet_infer_sampling: float = 1.0,
-    path_suffix: Optional[str] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
-    manifest: Optional[bool] = False,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    path_suffix: str | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
+    manifest: bool | None = False,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
     lock: bool = False,
-) -> Tuple[str, Optional[str]]:
+) -> tuple[str, str | None]:
     _logger.debug("Creating table %s with mode %s, and overwrite method %s", table, mode, overwrite_method)
     if mode == "overwrite":
         if overwrite_method == "truncate":
@@ -282,7 +283,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
                 _truncate_table(cursor=cursor, schema=schema, table=table)
             except redshift_connector.error.ProgrammingError as e:
                 # Caught "relation does not exist".
-                if e.args[0]["C"] != "42P01":  # pylint: disable=invalid-sequence-index
+                if e.args[0]["C"] != "42P01":
                     raise e
                 _logger.debug(str(e))
                 con.rollback()
@@ -314,7 +315,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     diststyle = diststyle.upper() if diststyle else "AUTO"
     sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
     if df is not None:
-        redshift_types: Dict[str, str] = _data_types.database_types_from_pandas(
+        redshift_types: dict[str, str] = _data_types.database_types_from_pandas(
             df=df,
             index=index,
             dtype=dtype,

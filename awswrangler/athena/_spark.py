@@ -1,8 +1,9 @@
 """Apache Spark on Amazon Athena Module."""
-# pylint: disable=too-many-lines
+from __future__ import annotations
+
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, cast
 
 import boto3
 
@@ -18,15 +19,15 @@ if TYPE_CHECKING:
         GetSessionStatusResponseTypeDef,
     )
 
-_SESSION_FINAL_STATES: List[str] = ["IDLE", "TERMINATED", "DEGRADED", "FAILED"]
-_CALCULATION_EXECUTION_FINAL_STATES: List[str] = ["COMPLETED", "FAILED", "CANCELED"]
+_SESSION_FINAL_STATES: list[str] = ["IDLE", "TERMINATED", "DEGRADED", "FAILED"]
+_CALCULATION_EXECUTION_FINAL_STATES: list[str] = ["COMPLETED", "FAILED", "CANCELED"]
 _SESSION_WAIT_POLLING_DELAY: float = 5.0  # SECONDS
 _CALCULATION_EXECUTION_WAIT_POLLING_DELAY: float = 5.0  # SECONDS
 
 
 def _wait_session(
     session_id: str,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
     athena_session_wait_polling_delay: float = _SESSION_WAIT_POLLING_DELAY,
 ) -> "GetSessionStatusResponseTypeDef":
     client_athena = _utils.client(service_name="athena", session=boto3_session)
@@ -47,7 +48,7 @@ def _wait_session(
 
 def _wait_calculation_execution(
     calculation_execution_id: str,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
     athena_calculation_execution_wait_polling_delay: float = _CALCULATION_EXECUTION_WAIT_POLLING_DELAY,
 ) -> "GetCalculationExecutionStatusResponseTypeDef":
     client_athena = _utils.client(service_name="athena", session=boto3_session)
@@ -70,8 +71,8 @@ def _wait_calculation_execution(
 
 def _get_calculation_execution_results(
     calculation_execution_id: str,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     client_athena = _utils.client(service_name="athena", session=boto3_session)
 
     _wait_calculation_execution(
@@ -90,10 +91,10 @@ def create_spark_session(
     coordinator_dpu_size: int = 1,
     max_concurrent_dpus: int = 5,
     default_executor_dpu_size: int = 1,
-    additional_configs: Optional[Dict[str, Any]] = None,
-    spark_properties: Optional[Dict[str, Any]] = None,
+    additional_configs: dict[str, Any] | None = None,
+    spark_properties: dict[str, Any] | None = None,
     idle_timeout: int = 15,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """
     Create session and wait until ready to accept calculations.
@@ -158,15 +159,15 @@ def create_spark_session(
 def run_spark_calculation(
     code: str,
     workgroup: str,
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     coordinator_dpu_size: int = 1,
     max_concurrent_dpus: int = 5,
     default_executor_dpu_size: int = 1,
-    additional_configs: Optional[Dict[str, Any]] = None,
-    spark_properties: Optional[Dict[str, Any]] = None,
+    additional_configs: dict[str, Any] | None = None,
+    spark_properties: dict[str, Any] | None = None,
     idle_timeout: int = 15,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
     """
     Execute Spark Calculation and wait for completion.
 

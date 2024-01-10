@@ -1,7 +1,8 @@
 """Amazon Timestream List Module."""
 
+from __future__ import annotations
+
 import logging
-from typing import List, Optional
 
 import boto3
 
@@ -11,8 +12,8 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def list_databases(
-    boto3_session: Optional[boto3.Session] = None,
-) -> List[str]:
+    boto3_session: boto3.Session | None = None,
+) -> list[str]:
     """
     List all databases in timestream.
 
@@ -39,7 +40,7 @@ def list_databases(
     client = _utils.client(service_name="timestream-write", session=boto3_session)
 
     response = client.list_databases()
-    dbs: List[str] = [db["DatabaseName"] for db in response["Databases"]]
+    dbs: list[str] = [db["DatabaseName"] for db in response["Databases"]]
     while "NextToken" in response:
         response = client.list_databases(NextToken=response["NextToken"])
         dbs += [db["DatabaseName"] for db in response["Databases"]]
@@ -47,7 +48,7 @@ def list_databases(
     return dbs
 
 
-def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def list_tables(database: str | None = None, boto3_session: boto3.Session | None = None) -> list[str]:
     """
     List tables in timestream.
 
@@ -82,7 +83,7 @@ def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Se
     client = _utils.client(service_name="timestream-write", session=boto3_session)
     args = {} if database is None else {"DatabaseName": database}
     response = client.list_tables(**args)  # type: ignore[arg-type]
-    tables: List[str] = [tbl["TableName"] for tbl in response["Tables"]]
+    tables: list[str] = [tbl["TableName"] for tbl in response["Tables"]]
     while "NextToken" in response:
         response = client.list_tables(**args, NextToken=response["NextToken"])  # type: ignore[arg-type]
         tables += [tbl["TableName"] for tbl in response["Tables"]]

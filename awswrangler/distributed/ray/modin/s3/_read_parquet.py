@@ -1,5 +1,7 @@
 """Modin on Ray S3 read parquet module (PRIVATE)."""
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import modin.pandas as pd
 import pyarrow as pa
@@ -13,29 +15,29 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 
-def _resolve_datasource_parameters(bulk_read: bool) -> Dict[str, Any]:
+def _resolve_datasource_parameters(bulk_read: bool, *args: Any, **kwargs: Any) -> dict[str, Any]:
     if bulk_read:
         return {
-            "datasource": ArrowParquetBaseDatasource(),
+            "datasource": ArrowParquetBaseDatasource(*args, **kwargs),
             "meta_provider": FastFileMetadataProvider(),
         }
     return {
-        "datasource": ArrowParquetDatasource(),
+        "datasource": ArrowParquetDatasource(*args, **kwargs),
     }
 
 
-def _read_parquet_distributed(  # pylint: disable=unused-argument
-    paths: List[str],
-    path_root: Optional[str],
-    schema: Optional[pa.schema],
-    columns: Optional[List[str]],
-    coerce_int96_timestamp_unit: Optional[str],
-    use_threads: Union[bool, int],
+def _read_parquet_distributed(
+    paths: list[str],
+    path_root: str | None,
+    schema: pa.schema | None,
+    columns: list[str] | None,
+    coerce_int96_timestamp_unit: str | None,
+    use_threads: bool | int,
     parallelism: int,
-    version_ids: Optional[Dict[str, str]],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    arrow_kwargs: Dict[str, Any],
+    version_ids: dict[str, str] | None,
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    arrow_kwargs: dict[str, Any],
     bulk_read: bool,
 ) -> pd.DataFrame:
     dataset_kwargs = {}
@@ -43,14 +45,18 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
         dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
 
     dataset = read_datasource(
-        **_resolve_datasource_parameters(bulk_read),
+        **_resolve_datasource_parameters(
+            bulk_read,
+            paths=paths,
+            path_root=path_root,
+            arrow_parquet_args={
+                "use_threads": use_threads,
+                "schema": schema,
+                "columns": columns,
+                "dataset_kwargs": dataset_kwargs,
+            },
+        ),
         parallelism=parallelism,
-        use_threads=use_threads,
-        paths=paths,
-        schema=schema,
-        columns=columns,
-        path_root=path_root,
-        dataset_kwargs=dataset_kwargs,
     )
     return _to_modin(
         dataset=dataset,

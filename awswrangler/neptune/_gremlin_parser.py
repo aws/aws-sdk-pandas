@@ -1,6 +1,8 @@
 # mypy: disable-error-code=name-defined
 """Amazon Neptune GremlinParser Module (PRIVATE)."""
-from typing import Any, Dict, List
+from __future__ import annotations
+
+from typing import Any
 
 import awswrangler.neptune._gremlin_init as gremlin
 
@@ -9,7 +11,7 @@ class GremlinParser:
     """Class representing a parser for returning Gremlin results as a dictionary."""
 
     @staticmethod
-    def gremlin_results_to_dict(result: Any) -> List[Dict[str, Any]]:
+    def gremlin_results_to_dict(result: Any) -> list[dict[str, Any]]:
         """Take a Gremlin ResultSet and return a dictionary.
 
         Parameters
@@ -40,7 +42,7 @@ class GremlinParser:
 
     @staticmethod
     def _parse_dict(data: Any) -> Any:
-        d: Dict[str, Any] = {}
+        d: dict[str, Any] = {}
 
         # If this is a list or Path then unwind it
         if isinstance(data, (list, gremlin.Path)):

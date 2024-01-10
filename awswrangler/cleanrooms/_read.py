@@ -1,45 +1,56 @@
 """Amazon Clean Rooms Module hosting read_* functions."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Iterator, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterator
 
 import boto3
 
 import awswrangler.pandas as pd
-from awswrangler import _utils, s3
+from awswrangler import _utils, exceptions, s3
 from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.cleanrooms._utils import wait_query
+
+if TYPE_CHECKING:
+    from mypy_boto3_cleanrooms.type_defs import ProtectedQuerySQLParametersTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _delete_after_iterate(
-    dfs: Iterator[pd.DataFrame], keep_files: bool, kwargs: Dict[str, Any]
+    dfs: Iterator[pd.DataFrame], keep_files: bool, kwargs: dict[str, Any]
 ) -> Iterator[pd.DataFrame]:
-    for df in dfs:
-        yield df
+    yield from dfs
     if keep_files is False:
         s3.delete_objects(**kwargs)
 
 
 def read_sql_query(
-    sql: str,
-    membership_id: str,
-    output_bucket: str,
-    output_prefix: str,
+    sql: str | None = None,
+    analysis_template_arn: str | None = None,
+    membership_id: str = "",
+    output_bucket: str = "",
+    output_prefix: str = "",
     keep_files: bool = True,
-    params: Optional[Dict[str, Any]] = None,
-    chunksize: Optional[Union[int, bool]] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[Iterator[pd.DataFrame], pd.DataFrame]:
+    params: dict[str, Any] | None = None,
+    chunksize: int | bool | None = None,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+) -> Iterator[pd.DataFrame] | pd.DataFrame:
     """Execute Clean Rooms Protected SQL query and return the results as a Pandas DataFrame.
+
+    Note
+    ----
+    One of `sql` or `analysis_template_arn` must be supplied, not both.
 
     Parameters
     ----------
-    sql : str
+    sql : str, optional
         SQL query
+    analysis_template_arn: str, optional
+        ARN of the analysis template
     membership_id : str
         Membership ID
     output_bucket : str
@@ -49,9 +60,13 @@ def read_sql_query(
     keep_files : bool, optional
         Whether files in S3 output bucket/prefix are retained. 'True' by default
     params : Dict[str, any], optional
-        Dict of parameters used for constructing the SQL query. Only named parameters are supported.
+        (Client-side) If used in combination with the `sql` parameter, it's the Dict of parameters used
+        for constructing the SQL query. Only named parameters are supported.
         The dict must be in the form {'name': 'value'} and the SQL query must contain
-        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes
+        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
+
+        (Server-side) If used in combination with the `analysis_template_arn` parameter, it's the Dict of parameters
+        supplied with the analysis template. It must be a string to string dict in the form {'name': 'value'}.
     chunksize : Union[int, bool], optional
         If passed, the data is split into an iterable of DataFrames (Memory friendly).
         If `True` an iterable of DataFrames is returned without guarantee of chunksize.
@@ -82,13 +97,33 @@ def read_sql_query(
     >>>     output_bucket='output-bucket',
     >>>     output_prefix='output-prefix',
     >>> )
+
+    >>> import awswrangler as wr
+    >>> df = wr.cleanrooms.read_sql_query(
+    >>>     analysis_template_arn='arn:aws:cleanrooms:...',
+    >>>     params={'param1': 'value1'},
+    >>>     membership_id='membership-id',
+    >>>     output_bucket='output-bucket',
+    >>>     output_prefix='output-prefix',
+    >>> )
     """
     client_cleanrooms = _utils.client(service_name="cleanrooms", session=boto3_session)
+
+    if sql:
+        sql_parameters: "ProtectedQuerySQLParametersTypeDef" = {
+            "queryString": _process_sql_params(sql, params, engine_type="partiql")
+        }
+    elif analysis_template_arn:
+        sql_parameters = {"analysisTemplateArn": analysis_template_arn}
+        if params:
+            sql_parameters["parameters"] = params
+    else:
+        raise exceptions.InvalidArgumentCombination("One of `sql` or `analysis_template_arn` must be supplied")
 
     query_id: str = client_cleanrooms.start_protected_query(
         type="SQL",
         membershipIdentifier=membership_id,
-        sqlParameters={"queryString": _process_sql_params(sql, params, engine_type="partiql")},
+        sqlParameters=sql_parameters,
         resultConfiguration={
             "outputConfiguration": {
                 "s3": {
@@ -106,7 +141,7 @@ def read_sql_query(
     ]["result"]["output"]["s3"]["location"]
 
     _logger.debug("path: %s", path)
-    chunked: Union[bool, int] = False if chunksize is None else chunksize
+    chunked: bool | int = False if chunksize is None else chunksize
     ret = s3.read_parquet(
         path=path,
         use_threads=use_threads,
@@ -116,7 +151,7 @@ def read_sql_query(
     )
 
     _logger.debug("type(ret): %s", type(ret))
-    kwargs: Dict[str, Any] = {
+    kwargs: dict[str, Any] = {
         "path": path,
         "use_threads": use_threads,
         "boto3_session": boto3_session,

@@ -6,13 +6,18 @@ import pytest
 import awswrangler as wr
 import awswrangler.pandas as pd
 
-from .._utils import is_ray_modin
+from .._utils import is_python_3_8_x, is_ray_modin
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed
 
 
+@pytest.mark.xfail(
+    condition=is_python_3_8_x,
+    reason="Python 3.8 uses older version of Pandas, which doesn't support the usage of index=False with orient='records'",
+    raises=ValueError,
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_full_table(path, use_threads):
     df = pd.DataFrame(
@@ -53,7 +58,7 @@ def test_full_table(path, use_threads):
     assert df.shape == df3.shape
 
     # JSON
-    wr.s3.to_json(df, path=path, dataset=True, orient="records")
+    wr.s3.to_json(df, path=path, dataset=True, index=False, orient="records")
     df4 = wr.s3.select_query(
         sql="select * from s3object[*][*]",
         path=path,

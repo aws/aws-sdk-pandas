@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import itertools
 import tempfile
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any
 
 import pyarrow as pa
 import pytest
@@ -30,7 +32,7 @@ pytestmark = pytest.mark.distributed
     ],
 )
 @pytest.mark.parametrize("use_threads", [False, True])
-def test_write(params: Dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
+def test_write(params: dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
     df = pd.DataFrame(
         {
             "title": ["Titanic", "Snatch", "The Godfather"],
@@ -70,7 +72,7 @@ def test_write(params: Dict[str, Any], use_threads: bool, dynamodb_table: str) -
     ],
 )
 @pytest.mark.parametrize("use_threads", [False, True])
-def test_read_partiql(params: Dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
+def test_read_partiql(params: dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
     df = pd.DataFrame(
         {
             "par0": [1, 1, 2],
@@ -109,7 +111,7 @@ def test_read_partiql(params: Dict[str, Any], use_threads: bool, dynamodb_table:
     ],
 )
 @pytest.mark.parametrize("use_threads", [False, True])
-def test_execute_statement(params: Dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
+def test_execute_statement(params: dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
     df = pd.DataFrame(
         {
             "title": ["Titanic", "Snatch", "The Godfather"],
@@ -175,7 +177,7 @@ def test_execute_statement(params: Dict[str, Any], use_threads: bool, dynamodb_t
 @pytest.mark.parametrize("format", ["csv", "json"])
 @pytest.mark.parametrize("use_threads", [False, True])
 def test_dynamodb_put_from_file(
-    format: str, use_threads: bool, params: Dict[str, Any], dynamodb_table: str, local_filename: str
+    format: str, use_threads: bool, params: dict[str, Any], dynamodb_table: str, local_filename: str
 ) -> None:
     df = pd.DataFrame({"par0": [1, 2], "par1": ["foo", "boo"]})
 
@@ -215,7 +217,7 @@ def test_dynamodb_put_from_file(
 )
 @pytest.mark.parametrize("use_threads", [False, True])
 @pytest.mark.parametrize("chunked", [False, True])
-def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_threads: bool, chunked: bool) -> None:
+def test_read_items_simple(params: dict[str, Any], dynamodb_table: str, use_threads: bool, chunked: bool) -> None:
     data = [
         {
             "par0": Decimal("2"),
@@ -320,7 +322,7 @@ def test_read_items_simple(params: Dict[str, Any], dynamodb_table: str, use_thre
     ],
 )
 @pytest.mark.parametrize("use_threads", [False, True])
-def test_read_items_reserved(params: Dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
+def test_read_items_reserved(params: dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
     df = pd.DataFrame(
         {
             "id": [1, 2, 3],
@@ -361,7 +363,7 @@ def test_read_items_reserved(params: Dict[str, Any], dynamodb_table: str, use_th
 )
 @pytest.mark.parametrize("use_threads", [False, True])
 @pytest.mark.parametrize("chunked", [False, True])
-def test_read_items_index(params: Dict[str, Any], dynamodb_table: str, use_threads: bool, chunked: bool) -> None:
+def test_read_items_index(params: dict[str, Any], dynamodb_table: str, use_threads: bool, chunked: bool) -> None:
     df = pd.DataFrame(
         {
             "Author": ["John Grisham", "John Grisham", "James Patterson"],
@@ -408,7 +410,7 @@ def test_read_items_index(params: Dict[str, Any], dynamodb_table: str, use_threa
     ],
 )
 @pytest.mark.parametrize("use_threads", [False, True])
-def test_read_items_expression(params: Dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
+def test_read_items_expression(params: dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
     df = pd.DataFrame(
         {
             "par0": [1, 1, 2],
@@ -484,7 +486,7 @@ def test_read_items_expression(params: Dict[str, Any], dynamodb_table: str, use_
 @pytest.mark.parametrize("max_items_evaluated", [1, 3, 5])
 @pytest.mark.parametrize("chunked", [False, True])
 def test_read_items_limited(
-    params: Dict[str, Any], dynamodb_table: str, max_items_evaluated: int, chunked: bool
+    params: dict[str, Any], dynamodb_table: str, max_items_evaluated: int, chunked: bool
 ) -> None:
     df = pd.DataFrame(
         {

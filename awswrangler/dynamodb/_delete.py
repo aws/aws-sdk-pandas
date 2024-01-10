@@ -1,7 +1,9 @@
 """Amazon DynamoDB Delete Module (PRIVATE)."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import boto3
 from boto3.dynamodb.types import TypeSerializer
@@ -16,9 +18,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 @apply_configs
 def delete_items(
-    items: List[Dict[str, Any]],
+    items: list[dict[str, Any]],
     table_name: str,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> None:
     """Delete all items in the specified DynamoDB table.
 

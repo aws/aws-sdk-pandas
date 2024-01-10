@@ -1,6 +1,8 @@
 """Modin on Ray S3 read text module (PRIVATE)."""
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import modin.pandas as pd
 import pyarrow as pa
@@ -17,27 +19,30 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _read_orc_distributed(  # pylint: disable=unused-argument
-    paths: List[str],
-    path_root: Optional[str],
-    schema: Optional[pa.schema],
-    columns: Optional[List[str]],
-    use_threads: Union[bool, int],
+def _read_orc_distributed(
+    paths: list[str],
+    path_root: str | None,
+    schema: pa.schema | None,
+    columns: list[str] | None,
+    use_threads: bool | int,
     parallelism: int,
-    version_ids: Optional[Dict[str, str]],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    arrow_kwargs: Dict[str, Any],
+    version_ids: dict[str, str] | None,
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    arrow_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
-    ray_dataset = read_datasource(
-        datasource=ArrowORCDatasource(),
-        meta_provider=FastFileMetadataProvider(),
-        parallelism=parallelism,
-        use_threads=use_threads,
+    datasource = ArrowORCDatasource(
         paths=paths,
-        schema=schema,
-        columns=columns,
+        dataset=True,
         path_root=path_root,
+        use_threads=use_threads,
+        schema=schema,
+        arrow_orc_args={"columns": columns},
+        meta_provider=FastFileMetadataProvider(),
+    )
+    ray_dataset = read_datasource(
+        datasource,
+        parallelism=parallelism,
     )
     to_pandas_kwargs = _data_types.pyarrow2pandas_defaults(
         use_threads=use_threads,

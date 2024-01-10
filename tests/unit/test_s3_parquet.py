@@ -1,10 +1,11 @@
 # mypy: disable-error-code=no-untyped-def
 
+from __future__ import annotations
+
 import itertools
 import logging
 import math
 from datetime import date, datetime, timedelta, timezone
-from typing import List, Optional, Union
 
 import boto3
 import numpy as np
@@ -187,7 +188,7 @@ def test_parquet(path):
 
 
 @pytest.mark.parametrize("columns", [None, ["val"]])
-def test_parquet_bulk_read(path: str, columns: Optional[List[str]]) -> None:
+def test_parquet_bulk_read(path: str, columns: list[str] | None) -> None:
     df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
     num_files = 10
 
@@ -661,7 +662,7 @@ def test_empty_file(path, use_threads, schema):
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_ignore_files(path: str, use_threads: Union[bool, int]) -> None:
+def test_ignore_files(path: str, use_threads: bool | int) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
 
     wr.s3.to_parquet(df, f"{path}data.parquet", index=False)
@@ -768,7 +769,9 @@ def test_parquet_schema_evolution(path, glue_database, glue_table):
 
 
 @pytest.mark.xfail(
-    reason="Schema resolution is not as consistent in distributed mode", condition=is_ray_modin, raises=AssertionError
+    raises=(AssertionError, AttributeError),
+    reason="Schema resolution on Modin data frames is not as consistent in distributed mode",
+    condition=is_ray_modin,
 )
 def test_to_parquet_schema_evolution_out_of_order(path, glue_database, glue_table) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"]})

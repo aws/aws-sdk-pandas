@@ -4,8 +4,10 @@ Amazon QuickSight List and Get Module.
 List and Get MUST be together to avoid circular dependency.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
 import boto3
 
@@ -17,17 +19,17 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _list(
     func_name: str,
     attr_name: str,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
     **kwargs: Any,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=boto3_session)
     client = _utils.client(service_name="quicksight", session=boto3_session)
-    func: Callable[..., Dict[str, Any]] = getattr(client, func_name)
-    response: Dict[str, Any] = func(AwsAccountId=account_id, **kwargs)
+    func: Callable[..., dict[str, Any]] = getattr(client, func_name)
+    response: dict[str, Any] = func(AwsAccountId=account_id, **kwargs)
     next_token: str = response.get("NextToken", None)
-    result: List[Dict[str, Any]] = response[attr_name]
+    result: list[dict[str, Any]] = response[attr_name]
     while next_token is not None:
         response = func(AwsAccountId=account_id, NextToken=next_token, **kwargs)
         next_token = response.get("NextToken", None)
@@ -35,9 +37,7 @@ def _list(
     return result
 
 
-def list_dashboards(
-    account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[Dict[str, Any]]:
+def list_dashboards(account_id: str | None = None, boto3_session: boto3.Session | None = None) -> list[dict[str, Any]]:
     """List dashboards in an AWS account.
 
     Parameters
@@ -65,9 +65,7 @@ def list_dashboards(
     )
 
 
-def list_datasets(
-    account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[Dict[str, Any]]:
+def list_datasets(account_id: str | None = None, boto3_session: boto3.Session | None = None) -> list[dict[str, Any]]:
     """List all QuickSight datasets summaries.
 
     Parameters
@@ -93,8 +91,8 @@ def list_datasets(
 
 
 def list_data_sources(
-    account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[Dict[str, Any]]:
+    account_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> list[dict[str, Any]]:
     """List all QuickSight Data sources summaries.
 
     Parameters
@@ -119,9 +117,7 @@ def list_data_sources(
     )
 
 
-def list_templates(
-    account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[Dict[str, Any]]:
+def list_templates(account_id: str | None = None, boto3_session: boto3.Session | None = None) -> list[dict[str, Any]]:
     """List all QuickSight templates.
 
     Parameters
@@ -149,9 +145,9 @@ def list_templates(
 def list_group_memberships(
     group_name: str,
     namespace: str = "default",
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> List[Dict[str, Any]]:
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[dict[str, Any]]:
     """List all QuickSight Group memberships.
 
     Parameters
@@ -186,8 +182,8 @@ def list_group_memberships(
 
 
 def list_groups(
-    namespace: str = "default", account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[Dict[str, Any]]:
+    namespace: str = "default", account_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> list[dict[str, Any]]:
     """List all QuickSight Groups.
 
     Parameters
@@ -219,11 +215,11 @@ def list_groups(
 
 
 def list_iam_policy_assignments(
-    status: Optional[str] = None,
+    status: str | None = None,
     namespace: str = "default",
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> List[Dict[str, Any]]:
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[dict[str, Any]]:
     """List IAM policy assignments in the current Amazon QuickSight account.
 
     Parameters
@@ -248,7 +244,7 @@ def list_iam_policy_assignments(
     >>> import awswrangler as wr
     >>> assigns = wr.quicksight.list_iam_policy_assignments()
     """
-    args: Dict[str, Any] = {
+    args: dict[str, Any] = {
         "func_name": "list_iam_policy_assignments",
         "attr_name": "IAMPolicyAssignments",
         "account_id": account_id,
@@ -263,9 +259,9 @@ def list_iam_policy_assignments(
 def list_iam_policy_assignments_for_user(
     user_name: str,
     namespace: str = "default",
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> List[Dict[str, Any]]:
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[dict[str, Any]]:
     """List all the IAM policy assignments.
 
     Including the Amazon Resource Names (ARNs) for the IAM policies assigned
@@ -305,9 +301,9 @@ def list_iam_policy_assignments_for_user(
 def list_user_groups(
     user_name: str,
     namespace: str = "default",
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> List[Dict[str, Any]]:
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[dict[str, Any]]:
     """List the Amazon QuickSight groups that an Amazon QuickSight user is a member of.
 
     Parameters
@@ -342,8 +338,8 @@ def list_user_groups(
 
 
 def list_users(
-    namespace: str = "default", account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[Dict[str, Any]]:
+    namespace: str = "default", account_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> list[dict[str, Any]]:
     """Return a list of all of the Amazon QuickSight users belonging to this account.
 
     Parameters
@@ -375,11 +371,11 @@ def list_users(
 
 
 def list_ingestions(
-    dataset_name: Optional[str] = None,
-    dataset_id: Optional[str] = None,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> List[Dict[str, Any]]:
+    dataset_name: str | None = None,
+    dataset_id: str | None = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[dict[str, Any]]:
     """List the history of SPICE ingestions for a dataset.
 
     Parameters
@@ -420,12 +416,12 @@ def list_ingestions(
 
 def _get_ids(
     name: str,
-    func: Callable[..., List[Dict[str, Any]]],
+    func: Callable[..., list[dict[str, Any]]],
     attr_name: str,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> List[str]:
-    ids: List[str] = []
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[str]:
+    ids: list[str] = []
     for item in func(account_id=account_id, boto3_session=boto3_session):
         if item["Name"] == name:
             ids.append(item[attr_name])
@@ -434,12 +430,12 @@ def _get_ids(
 
 def _get_id(
     name: str,
-    func: Callable[..., List[Dict[str, Any]]],
+    func: Callable[..., list[dict[str, Any]]],
     attr_name: str,
-    account_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    account_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
-    ids: List[str] = _get_ids(
+    ids: list[str] = _get_ids(
         name=name, func=func, attr_name=attr_name, account_id=account_id, boto3_session=boto3_session
     )
     if len(ids) == 0:
@@ -454,8 +450,8 @@ def _get_id(
 
 
 def get_dashboard_ids(
-    name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[str]:
+    name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> list[str]:
     """Get QuickSight dashboard IDs given a name.
 
     Note
@@ -487,7 +483,7 @@ def get_dashboard_ids(
     )
 
 
-def get_dashboard_id(name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> str:
+def get_dashboard_id(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> str:
     """Get QuickSight dashboard ID given a name and fails if there is more than 1 ID associated with this name.
 
     Parameters
@@ -514,9 +510,7 @@ def get_dashboard_id(name: str, account_id: Optional[str] = None, boto3_session:
     )
 
 
-def get_dataset_ids(
-    name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[str]:
+def get_dataset_ids(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> list[str]:
     """Get QuickSight dataset IDs given a name.
 
     Note
@@ -548,7 +542,7 @@ def get_dataset_ids(
     )
 
 
-def get_dataset_id(name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> str:
+def get_dataset_id(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> str:
     """Get QuickSight Dataset ID given a name and fails if there is more than 1 ID associated with this name.
 
     Parameters
@@ -576,8 +570,8 @@ def get_dataset_id(name: str, account_id: Optional[str] = None, boto3_session: O
 
 
 def get_data_source_ids(
-    name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[str]:
+    name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> list[str]:
     """Get QuickSight data source IDs given a name.
 
     Note
@@ -609,9 +603,7 @@ def get_data_source_ids(
     )
 
 
-def get_data_source_id(
-    name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> str:
+def get_data_source_id(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> str:
     """Get QuickSight data source ID given a name and fails if there is more than 1 ID associated with this name.
 
     Parameters
@@ -638,9 +630,7 @@ def get_data_source_id(
     )
 
 
-def get_template_ids(
-    name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[str]:
+def get_template_ids(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> list[str]:
     """Get QuickSight template IDs given a name.
 
     Note
@@ -672,7 +662,7 @@ def get_template_ids(
     )
 
 
-def get_template_id(name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> str:
+def get_template_id(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> str:
     """Get QuickSight template ID given a name and fails if there is more than 1 ID associated with this name.
 
     Parameters
@@ -700,8 +690,8 @@ def get_template_id(name: str, account_id: Optional[str] = None, boto3_session: 
 
 
 def get_data_source_arns(
-    name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[str]:
+    name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None
+) -> list[str]:
     """Get QuickSight Data source ARNs given a name.
 
     Note
@@ -728,16 +718,14 @@ def get_data_source_arns(
     >>> import awswrangler as wr
     >>> arns = wr.quicksight.get_data_source_arns(name="...")
     """
-    arns: List[str] = []
+    arns: list[str] = []
     for source in list_data_sources(account_id=account_id, boto3_session=boto3_session):
         if source["Name"] == name:
             arns.append(source["Arn"])
     return arns
 
 
-def get_data_source_arn(
-    name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> str:
+def get_data_source_arn(name: str, account_id: str | None = None, boto3_session: boto3.Session | None = None) -> str:
     """Get QuickSight data source ARN given a name and fails if there is more than 1 ARN associated with this name.
 
     Note
@@ -764,7 +752,7 @@ def get_data_source_arn(
     >>> import awswrangler as wr
     >>> arn = wr.quicksight.get_data_source_arn("...")
     """
-    arns: List[str] = get_data_source_arns(name=name, account_id=account_id, boto3_session=boto3_session)
+    arns: list[str] = get_data_source_arns(name=name, account_id=account_id, boto3_session=boto3_session)
     if len(arns) == 0:
         raise exceptions.InvalidArgument(f"There is not data source with name {name}")
     if len(arns) > 1:

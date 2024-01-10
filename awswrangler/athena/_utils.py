@@ -1,4 +1,7 @@
 """Utilities Module for Amazon Athena."""
+
+from __future__ import annotations
+
 import base64
 import csv
 import json
@@ -12,11 +15,8 @@ from typing import (
     Any,
     Dict,
     Generator,
-    List,
     NamedTuple,
-    Optional,
     Sequence,
-    Tuple,
     TypedDict,
     Union,
     cast,
@@ -38,7 +38,7 @@ from ._cache import _cache_manager, _LocalMetadataCacheManager
 if TYPE_CHECKING:
     from mypy_boto3_glue.type_defs import ColumnTypeDef
 
-_QUERY_FINAL_STATES: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
+_QUERY_FINAL_STATES: list[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
 _QUERY_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -46,26 +46,26 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 class _QueryMetadata(NamedTuple):
     execution_id: str
-    dtype: Dict[str, str]
-    parse_timestamps: List[str]
-    parse_dates: List[str]
-    parse_geometry: List[str]
-    converters: Dict[str, Any]
-    binaries: List[str]
-    output_location: Optional[str]
-    manifest_location: Optional[str]
-    raw_payload: Dict[str, Any]
+    dtype: dict[str, str]
+    parse_timestamps: list[str]
+    parse_dates: list[str]
+    parse_geometry: list[str]
+    converters: dict[str, Any]
+    binaries: list[str]
+    output_location: str | None
+    manifest_location: str | None
+    raw_payload: dict[str, Any]
 
 
 class _WorkGroupConfig(NamedTuple):
     enforced: bool
-    s3_output: Optional[str]
-    encryption: Optional[str]
-    kms_key: Optional[str]
+    s3_output: str | None
+    encryption: str | None
+    kms_key: str | None
 
 
 def _get_s3_output(
-    s3_output: Optional[str], wg_config: _WorkGroupConfig, boto3_session: Optional[boto3.Session] = None
+    s3_output: str | None, wg_config: _WorkGroupConfig, boto3_session: boto3.Session | None = None
 ) -> str:
     if wg_config.enforced and wg_config.s3_output is not None:
         return wg_config.s3_output
@@ -79,17 +79,17 @@ def _get_s3_output(
 def _start_query_execution(
     sql: str,
     wg_config: _WorkGroupConfig,
-    database: Optional[str] = None,
-    data_source: Optional[str] = None,
-    s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    execution_params: Optional[List[str]] = None,
-    client_request_token: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    database: str | None = None,
+    data_source: str | None = None,
+    s3_output: str | None = None,
+    workgroup: str | None = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
+    execution_params: list[str] | None = None,
+    client_request_token: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
-    args: Dict[str, Any] = {"QueryString": sql}
+    args: dict[str, Any] = {"QueryString": sql}
 
     # s3_output
     args["ResultConfiguration"] = {
@@ -136,20 +136,20 @@ def _start_query_execution(
     return response["QueryExecutionId"]
 
 
-def _get_workgroup_config(session: Optional[boto3.Session] = None, workgroup: str = "primary") -> _WorkGroupConfig:
+def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str = "primary") -> _WorkGroupConfig:
     enforced: bool
-    wg_s3_output: Optional[str]
-    wg_encryption: Optional[str]
-    wg_kms_key: Optional[str]
+    wg_s3_output: str | None
+    wg_encryption: str | None
+    wg_kms_key: str | None
 
     enforced, wg_s3_output, wg_encryption, wg_kms_key = False, None, None, None
     if workgroup is not None:
         res = get_work_group(workgroup=workgroup, boto3_session=session)
         enforced = res["WorkGroup"]["Configuration"]["EnforceWorkGroupConfiguration"]
-        config: Dict[str, Any] = res["WorkGroup"]["Configuration"].get("ResultConfiguration")
+        config: dict[str, Any] = res["WorkGroup"]["Configuration"].get("ResultConfiguration")
         if config is not None:
             wg_s3_output = config.get("OutputLocation")
-            encrypt_config: Optional[Dict[str, str]] = config.get("EncryptionConfiguration")
+            encrypt_config: dict[str, str] | None = config.get("EncryptionConfiguration")
             wg_encryption = None if encrypt_config is None else encrypt_config.get("EncryptionOption")
             wg_kms_key = None if encrypt_config is None else encrypt_config.get("KmsKey")
     wg_config: _WorkGroupConfig = _WorkGroupConfig(
@@ -162,8 +162,8 @@ def _get_workgroup_config(session: Optional[boto3.Session] = None, workgroup: st
 def _fetch_txt_result(
     query_metadata: _QueryMetadata,
     keep_files: bool,
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, str]],
+    boto3_session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, str] | None,
 ) -> pd.DataFrame:
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:
         return pd.DataFrame()
@@ -195,7 +195,7 @@ def _fetch_txt_result(
 
 def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
     origin_df_dict = df.to_dict()
-    target_df_dict: Dict[str, List[Union[str, bool]]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
+    target_df_dict: dict[str, list[str | bool]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
     for index, col_name in origin_df_dict["col_name"].items():
         col_name = col_name.strip()  # noqa: PLW2901
         if col_name.startswith("#") or not col_name:
@@ -211,14 +211,14 @@ def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(data=target_df_dict)
 
 
-def _get_query_metadata(  # pylint: disable=too-many-statements
+def _get_query_metadata(
     query_execution_id: str,
-    boto3_session: Optional[boto3.Session] = None,
-    categories: Optional[List[str]] = None,
-    query_execution_payload: Optional[Dict[str, Any]] = None,
-    metadata_cache_manager: Optional[_LocalMetadataCacheManager] = None,
+    boto3_session: boto3.Session | None = None,
+    categories: list[str] | None = None,
+    query_execution_payload: dict[str, Any] | None = None,
+    metadata_cache_manager: _LocalMetadataCacheManager | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-    execution_params: Optional[List[str]] = None,
+    execution_params: list[str] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> _QueryMetadata:
     """Get query metadata."""
@@ -226,23 +226,23 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
         if query_execution_payload["Status"]["State"] != "SUCCEEDED":
             reason: str = query_execution_payload["Status"]["StateChangeReason"]
             raise exceptions.QueryFailed(f"Query error: {reason}")
-        _query_execution_payload: Dict[str, Any] = query_execution_payload
+        _query_execution_payload: dict[str, Any] = query_execution_payload
     else:
         _query_execution_payload = _executions.wait_query(
             query_execution_id=query_execution_id,
             boto3_session=boto3_session,
             athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         )
-    cols_types: Dict[str, str] = get_query_columns_types(
+    cols_types: dict[str, str] = get_query_columns_types(
         query_execution_id=query_execution_id, boto3_session=boto3_session
     )
     _logger.debug("Casting query column types: %s", cols_types)
-    dtype: Dict[str, str] = {}
-    parse_timestamps: List[str] = []
-    parse_dates: List[str] = []
-    parse_geometry: List[str] = []
-    converters: Dict[str, Any] = {}
-    binaries: List[str] = []
+    dtype: dict[str, str] = {}
+    parse_timestamps: list[str] = []
+    parse_dates: list[str] = []
+    parse_geometry: list[str] = []
+    converters: dict[str, Any] = {}
+    binaries: list[str] = []
     col_name: str
     col_type: str
     for col_name, col_type in cols_types.items():
@@ -263,12 +263,12 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
         else:
             dtype[col_name] = pandas_type
 
-    output_location: Optional[str] = None
+    output_location: str | None = None
     if "ResultConfiguration" in _query_execution_payload:
         output_location = _query_execution_payload["ResultConfiguration"].get("OutputLocation")
 
-    athena_statistics: Dict[str, Union[int, str]] = _query_execution_payload.get("Statistics", {})
-    manifest_location: Optional[str] = str(athena_statistics.get("DataManifestLocation"))
+    athena_statistics: dict[str, int | str] = _query_execution_payload.get("Statistics", {})
+    manifest_location: str | None = str(athena_statistics.get("DataManifestLocation"))
 
     if metadata_cache_manager is not None and query_execution_id not in metadata_cache_manager:
         metadata_cache_manager.update_cache(items=[_query_execution_payload])
@@ -290,7 +290,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
 
 def _empty_dataframe_response(
     chunked: bool, query_metadata: _QueryMetadata
-) -> Union[pd.DataFrame, Generator[None, None, None]]:
+) -> pd.DataFrame | Generator[None, None, None]:
     """Generate an empty DataFrame response."""
     if chunked is False:
         df = pd.DataFrame()
@@ -307,12 +307,12 @@ def _apply_query_metadata(df: pd.DataFrame, query_metadata: _QueryMetadata) -> p
 
 
 class _FormatterTypeQMark(TypedDict):
-    params: List[str]
+    params: list[str]
     paramstyle: Literal["qmark"]
 
 
 class _FormatterTypeNamed(TypedDict):
-    params: Dict[str, Any]
+    params: dict[str, Any]
     paramstyle: Literal["named"]
 
 
@@ -320,7 +320,7 @@ _FormatterType = Union[_FormatterTypeQMark, _FormatterTypeNamed, None]
 
 
 def _verify_formatter(
-    params: Union[Dict[str, Any], List[str], None],
+    params: dict[str, Any] | list[str] | None,
     paramstyle: Literal["qmark", "named"],
 ) -> _FormatterType:
     if params is None:
@@ -353,9 +353,9 @@ def _verify_formatter(
 
 def _apply_formatter(
     sql: str,
-    params: Union[Dict[str, Any], List[str], None],
+    params: dict[str, Any] | list[str] | None,
     paramstyle: Literal["qmark", "named"],
-) -> Tuple[str, Optional[List[str]]]:
+) -> tuple[str, list[str] | None]:
     formatter_settings = _verify_formatter(params, paramstyle)
 
     if formatter_settings is None:
@@ -372,7 +372,7 @@ def _apply_formatter(
 
 def get_named_query_statement(
     named_query_id: str,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """
     Get the named query statement string from a query ID.
@@ -394,7 +394,7 @@ def get_named_query_statement(
     return client_athena.get_named_query(NamedQueryId=named_query_id)["NamedQuery"]["QueryString"]
 
 
-def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
+def get_query_columns_types(query_execution_id: str, boto3_session: boto3.Session | None = None) -> dict[str, str]:
     """Get the data type of all columns queried.
 
     https://docs.aws.amazon.com/athena/latest/ug/data-types.html
@@ -429,7 +429,7 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     )
 
 
-def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
+def create_athena_bucket(boto3_session: boto3.Session | None = None) -> str:
     """Create the default Athena bucket if it doesn't exist.
 
     Parameters
@@ -469,14 +469,14 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
 @apply_configs
 def repair_table(
     table: str,
-    database: Optional[str] = None,
-    data_source: Optional[str] = None,
-    s3_output: Optional[str] = None,
+    database: str | None = None,
+    data_source: str | None = None,
+    s3_output: str | None = None,
     workgroup: str = "primary",
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Run the Hive's metastore consistency check: 'MSCK REPAIR TABLE table;'.
 
@@ -497,7 +497,7 @@ def repair_table(
         Table name.
     database : str, optional
         AWS Glue/Athena database name.
-    data_source : Optional[str], optional
+    data_source: str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' is used.
     s3_output : str, optional
         AWS S3 path.
@@ -536,7 +536,7 @@ def repair_table(
         kms_key=kms_key,
         boto3_session=boto3_session,
     )
-    response: Dict[str, Any] = _executions.wait_query(
+    response: dict[str, Any] = _executions.wait_query(
         query_execution_id=query_id,
         boto3_session=boto3_session,
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
@@ -550,14 +550,14 @@ def repair_table(
 )
 def describe_table(
     table: str,
-    database: Optional[str] = None,
-    s3_output: Optional[str] = None,
+    database: str | None = None,
+    s3_output: str | None = None,
     workgroup: str = "primary",
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
     """Show the list of columns, including partition columns: 'DESCRIBE table;'.
 
@@ -585,7 +585,7 @@ def describe_table(
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs : dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
@@ -629,28 +629,28 @@ def describe_table(
 
 
 @apply_configs
-def create_ctas_table(  # pylint: disable=too-many-locals
+def create_ctas_table(
     sql: str,
-    database: Optional[str] = None,
-    ctas_table: Optional[str] = None,
-    ctas_database: Optional[str] = None,
-    s3_output: Optional[str] = None,
-    storage_format: Optional[str] = None,
-    write_compression: Optional[str] = None,
-    partitioning_info: Optional[List[str]] = None,
-    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
-    field_delimiter: Optional[str] = None,
+    database: str | None = None,
+    ctas_table: str | None = None,
+    ctas_database: str | None = None,
+    s3_output: str | None = None,
+    storage_format: str | None = None,
+    write_compression: str | None = None,
+    partitioning_info: list[str] | None = None,
+    bucketing_info: typing.BucketingInfoTuple | None = None,
+    field_delimiter: str | None = None,
     schema_only: bool = False,
     workgroup: str = "primary",
-    data_source: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    categories: Optional[List[str]] = None,
+    data_source: str | None = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
+    categories: list[str] | None = None,
     wait: bool = False,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-    execution_params: Optional[List[str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Union[str, _QueryMetadata]]:
+    execution_params: list[str] | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, str | _QueryMetadata]:
     """Create a new table populated with the results of a SELECT query.
 
     https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html
@@ -659,36 +659,36 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     ----------
     sql : str
         SELECT SQL query.
-    database : Optional[str], optional
+    database: str, optional
         The name of the database where the original table is stored.
-    ctas_table : Optional[str], optional
+    ctas_table: str, optional
         The name of the CTAS table.
         If None, a name with a random string is used.
-    ctas_database : Optional[str], optional
+    ctas_database: str, optional
         The name of the alternative database where the CTAS table should be stored.
         If None, `database` is used, that is the CTAS table is stored in the same database as the original table.
-    s3_output : Optional[str], optional
+    s3_output: str, optional
         The output Amazon S3 path.
         If None, either the Athena workgroup or client-side location setting is used.
         If a workgroup enforces a query results location, then it overrides this argument.
-    storage_format : Optional[str], optional
+    storage_format: str, optional
         The storage format for the CTAS query results, such as ORC, PARQUET, AVRO, JSON, or TEXTFILE.
         PARQUET by default.
-    write_compression : Optional[str], optional
+    write_compression: str, optional
         The compression type to use for any storage format that allows compression to be specified.
-    partitioning_info : Optional[List[str]], optional
+    partitioning_info: list[str], optional
         A list of columns by which the CTAS table will be partitioned.
-    bucketing_info : Optional[Tuple[List[str], int]], optional
+    bucketing_info : tuple[list[str], int], optional
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    field_delimiter : Optional[str], optional
+    field_delimiter: str, optional
         The single-character field delimiter for files in CSV, TSV, and text files.
     schema_only : bool, optional
         _description_, by default False
     workgroup : str
         Athena workgroup. Primary by default.
-    data_source : Optional[str], optional
+    data_source: str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' is used.
     encryption : str, optional
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Note: 'CSE_KMS' is not supported.
@@ -701,7 +701,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
         Whether to wait for the query to finish and return a dictionary with the Query metadata.
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
-    boto3_session : Optional[boto3.Session], optional
+    boto3_session: boto3.Session, optional
         Boto3 Session. The default boto3 session is used if boto3_session is None.
 
     Returns
@@ -816,7 +816,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
             )
         raise ex
 
-    response: Dict[str, Union[str, _QueryMetadata]] = {"ctas_database": ctas_database, "ctas_table": ctas_table}
+    response: dict[str, str | _QueryMetadata] = {"ctas_database": ctas_database, "ctas_table": ctas_table}
     if wait:
         try:
             response["ctas_query_metadata"] = _get_query_metadata(
@@ -854,14 +854,14 @@ def create_ctas_table(  # pylint: disable=too-many-locals
 )
 def show_create_table(
     table: str,
-    database: Optional[str] = None,
-    s3_output: Optional[str] = None,
+    database: str | None = None,
+    s3_output: str | None = None,
     workgroup: str = "primary",
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
+    encryption: str | None = None,
+    kms_key: str | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Generate the query that created it: 'SHOW CREATE TABLE table;'.
 
@@ -888,7 +888,7 @@ def show_create_table(
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
-    s3_additional_kwargs : Optional[Dict[str, Any]]
+    s3_additional_kwargs: dict[str, Any]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
@@ -934,11 +934,11 @@ def show_create_table(
 @apply_configs
 def generate_create_query(
     table: str,
-    database: Optional[str] = None,
-    transaction_id: Optional[str] = None,
-    query_as_of_time: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    database: str | None = None,
+    transaction_id: str | None = None,
+    query_as_of_time: str | None = None,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> str:
     """Generate the query that created a table(EXTERNAL_TABLE) or a view(VIRTUAL_TABLE).
 
@@ -974,7 +974,7 @@ def generate_create_query(
     """
 
     def parse_columns(columns_description: Sequence["ColumnTypeDef"]) -> str:
-        columns_str: List[str] = []
+        columns_str: list[str] = []
         for column in columns_description:
             column_str = f"  `{column['Name']}` {column['Type']}"
             if "Comment" in column:
@@ -982,8 +982,8 @@ def generate_create_query(
             columns_str.append(column_str)
         return ", \n".join(columns_str)
 
-    def parse_properties(parameters: Dict[str, str]) -> str:
-        properties_str: List[str] = []
+    def parse_properties(parameters: dict[str, str]) -> str:
+        properties_str: list[str] = []
         for key, value in parameters.items():
             if key == "EXTERNAL":
                 continue
@@ -1006,7 +1006,7 @@ def generate_create_query(
         return f"""CREATE OR REPLACE VIEW "{table}" AS \n{glue_query}"""
     if table_detail["TableType"] == "EXTERNAL_TABLE":
         columns: str = parse_columns(columns_description=table_detail["StorageDescriptor"]["Columns"])
-        query_parts: List[str] = [f"""CREATE EXTERNAL TABLE `{table}`(\n{columns})"""]
+        query_parts: list[str] = [f"""CREATE EXTERNAL TABLE `{table}`(\n{columns})"""]
         partitioned_columns: str = parse_columns(columns_description=table_detail["PartitionKeys"])
         if partitioned_columns:
             query_parts.append(f"""PARTITIONED BY ( \n{partitioned_columns})""")
@@ -1029,7 +1029,7 @@ def generate_create_query(
     raise NotImplementedError()
 
 
-def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
+def get_work_group(workgroup: str, boto3_session: boto3.Session | None = None) -> dict[str, Any]:
     """Return information about the workgroup with the specified name.
 
     Parameters
@@ -1064,8 +1064,8 @@ def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None
 
 
 def get_query_executions(
-    query_execution_ids: List[str], return_unprocessed: bool = False, boto3_session: Optional[boto3.Session] = None
-) -> Union[Tuple[pd.DataFrame, pd.DataFrame], pd.DataFrame]:
+    query_execution_ids: list[str], return_unprocessed: bool = False, boto3_session: boto3.Session | None = None
+) -> tuple[pd.DataFrame, pd.DataFrame] | pd.DataFrame:
     """From specified query execution IDs, return a DataFrame of query execution details.
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.batch_get_query_execution
@@ -1114,7 +1114,7 @@ def get_query_executions(
     return pd.json_normalize(query_executions)
 
 
-def list_query_executions(workgroup: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def list_query_executions(workgroup: str | None = None, boto3_session: boto3.Session | None = None) -> list[str]:
     """Fetch list query execution IDs ran in specified workgroup or primary work group if not specified.
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.list_query_executions
@@ -1139,10 +1139,10 @@ def list_query_executions(workgroup: Optional[str] = None, boto3_session: Option
 
     """
     client_athena = _utils.client(service_name="athena", session=boto3_session)
-    kwargs: Dict[str, Any] = {"base": 1}
+    kwargs: dict[str, Any] = {"base": 1}
     if workgroup:
         kwargs["WorkGroup"] = workgroup
-    query_list: List[str] = []
+    query_list: list[str] = []
     response = _utils.try_it(
         f=client_athena.list_query_executions,
         ex=botocore.exceptions.ClientError,

@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging
 import random
 import string
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any
 
 import numpy as np
 import pytest  # type: ignore
@@ -40,7 +42,7 @@ def neptune_iam_enabled(cloudformation_outputs) -> int:
 
 
 @pytest.fixture(scope="session")
-def neptune_load_iam_role_arn(cloudformation_outputs: Dict[str, Any]) -> str:
+def neptune_load_iam_role_arn(cloudformation_outputs: dict[str, Any]) -> str:
     return cloudformation_outputs["NeptuneBulkLoadRole"]
 
 
@@ -56,7 +58,7 @@ def test_connection_neptune_https_iam(neptune_endpoint, neptune_port):
     assert resp["status"] == "healthy"
 
 
-def test_opencypher_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_opencypher_query(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     wr.neptune.execute_opencypher(client, "create (a:Foo { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
     df = wr.neptune.execute_opencypher(client, "MATCH (n) RETURN n LIMIT 1")
@@ -75,7 +77,7 @@ def test_opencypher_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert row["labels(n)"]
 
 
-def test_flatten_df(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_flatten_df(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     wr.neptune.execute_opencypher(client, "create (a:Foo1 { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
     df = wr.neptune.execute_opencypher(client, "MATCH (n:Foo1) RETURN n LIMIT 1")
@@ -101,7 +103,7 @@ def test_flatten_df(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert row["~properties_type"]
 
 
-def test_opencypher_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_opencypher_malformed_query(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     with pytest.raises(wr.exceptions.QueryFailed):
         wr.neptune.execute_opencypher(client, "MATCH (n) LIMIT 2")
@@ -109,7 +111,7 @@ def test_opencypher_malformed_query(neptune_endpoint, neptune_port) -> Dict[str,
         wr.neptune.execute_opencypher(client, "")
 
 
-def test_gremlin_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_gremlin_malformed_query(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     with pytest.raises(wr.exceptions.QueryFailed):
         wr.neptune.execute_gremlin(client, "g.V().limit(1")
@@ -117,7 +119,7 @@ def test_gremlin_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, An
         wr.neptune.execute_gremlin(client, "")
 
 
-def test_sparql_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_sparql_malformed_query(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     with pytest.raises(wr.exceptions.QueryFailed):
         wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?pLIMIT 1")
@@ -125,7 +127,7 @@ def test_sparql_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, Any
         wr.neptune.execute_sparql(client, "")
 
 
-def test_gremlin_query_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_gremlin_query_vertices(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
     wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{uuid.uuid4()}')")
@@ -136,7 +138,7 @@ def test_gremlin_query_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     assert df.shape == (2, 3)
 
 
-def test_gremlin_query_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_gremlin_query_edges(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
     wr.neptune.execute_gremlin(client, "g.addE('bar').from(addV('foo')).to(addV('foo'))")
@@ -147,14 +149,14 @@ def test_gremlin_query_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert df.shape == (2, 5)
 
 
-def test_gremlin_query_no_results(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_gremlin_query_no_results(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
     df = wr.neptune.execute_gremlin(client, "g.V('foo').drop()")
     assert df.empty
 
 
-def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_sparql_query(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     df = wr.neptune.execute_sparql(client, "INSERT DATA { <test> <test> <test>}")
     df = wr.neptune.execute_sparql(client, "INSERT DATA { <test1> <test1> <test1>}")
@@ -171,7 +173,7 @@ def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert_columns_in_pandas_data_frame(df, ["s", "p", "o"])
 
 
-def test_write_vertex_property_nan(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_write_vertex_property_nan(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     id = uuid.uuid4()
     wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{str(id)}')")
@@ -184,7 +186,7 @@ def test_write_vertex_property_nan(neptune_endpoint, neptune_port) -> Dict[str, 
     assert res
 
 
-def test_gremlin_write_different_cols(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_gremlin_write_different_cols(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     id = uuid.uuid4()
     wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{str(id)}')")
@@ -279,7 +281,7 @@ def test_gremlin_bulk_load_from_files(
     neptune_port: int,
     neptune_load_iam_role_arn: str,
     path: str,
-    parser_config: Optional[BulkLoadParserConfiguration],
+    parser_config: BulkLoadParserConfiguration | None,
 ) -> None:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
@@ -300,7 +302,7 @@ def test_gremlin_bulk_load_from_files(
     assert res_df.shape == input_df.shape
 
 
-def test_gremlin_write_updates(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_gremlin_write_updates(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     id = uuid.uuid4()
     wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{str(id)}')")
@@ -332,7 +334,7 @@ def test_gremlin_write_updates(neptune_endpoint, neptune_port) -> Dict[str, Any]
     assert "bar" in saved_row["name"]
 
 
-def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     wr.neptune.execute_gremlin(client, "g.addV('foo')")
 
@@ -393,7 +395,7 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     assert len(saved_row["str"]) == 2
 
 
-def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
     initial_cnt_df = wr.neptune.execute_gremlin(client, "g.E().hasLabel('bar').count()")
@@ -426,7 +428,7 @@ def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert batch_cnt_df.iloc[0][0] == final_cnt_df.iloc[0][0] + 50
 
 
-def test_sparql_write_different_cols(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_sparql_write_different_cols(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
     data = [_create_dummy_triple(), _create_dummy_triple()]
@@ -442,7 +444,7 @@ def test_sparql_write_different_cols(neptune_endpoint, neptune_port) -> Dict[str
     assert res
 
 
-def test_sparql_write_triples(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_sparql_write_triples(neptune_endpoint, neptune_port) -> dict[str, Any]:
     label = f"foo_{uuid.uuid4()}"
     sparkql_query = f"SELECT ?p ?o WHERE {{ <{label}> ?p ?o .}}"
 
@@ -467,7 +469,7 @@ def test_sparql_write_triples(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert len(batch_df.index) == len(final_df.index) + 50
 
 
-def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_sparql_write_quads(neptune_endpoint, neptune_port) -> dict[str, Any]:
     label = f"foo_{uuid.uuid4()}"
     sparkql_query = f"SELECT ?p ?o FROM <bar> WHERE {{ <{label}> ?p ?o .}}"
 
@@ -492,14 +494,14 @@ def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert len(batch_df.index) == len(final_df.index) + 50
 
 
-def test_gremlin_write_empty(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+def test_gremlin_write_empty(neptune_endpoint, neptune_port) -> dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port)
 
     with pytest.raises(wr.exceptions.EmptyDataFrame):
         wr.neptune.to_property_graph(client, pd.DataFrame(columns=["~id", "~label"]))
 
 
-def _create_dummy_vertex(label: str = "foo") -> Dict[str, Any]:
+def _create_dummy_vertex(label: str = "foo") -> dict[str, Any]:
     return {
         "~id": str(uuid.uuid4()),
         "~label": label,
@@ -509,7 +511,7 @@ def _create_dummy_vertex(label: str = "foo") -> Dict[str, Any]:
     }
 
 
-def _create_dummy_edge() -> Dict[str, Any]:
+def _create_dummy_edge() -> dict[str, Any]:
     return {
         "~id": str(uuid.uuid4()),
         "~label": "bar",
@@ -520,7 +522,7 @@ def _create_dummy_edge() -> Dict[str, Any]:
     }
 
 
-def _create_dummy_triple(s: str = "foo") -> Dict[str, Any]:
+def _create_dummy_triple(s: str = "foo") -> dict[str, Any]:
     return {
         "s": s,
         "p": str(uuid.uuid4()),
@@ -528,7 +530,7 @@ def _create_dummy_triple(s: str = "foo") -> Dict[str, Any]:
     }
 
 
-def _create_dummy_quad(s: str = "foo") -> Dict[str, Any]:
+def _create_dummy_quad(s: str = "foo") -> dict[str, Any]:
     return {
         **_create_dummy_triple(s=s),
         "g": "bar",

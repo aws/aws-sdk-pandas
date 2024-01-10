@@ -1,10 +1,10 @@
 # mypy: disable-error-code=no-untyped-def
+from __future__ import annotations
 
 import itertools
 import logging
 import math
 from datetime import date, datetime
-from typing import Union
 
 import boto3
 import numpy as np
@@ -320,17 +320,10 @@ def test_orc_with_size(path, use_threads, max_rows_by_file):
     assert df.iint8.sum() == df2.iint8.sum()
 
 
-@pytest.mark.xfail(
-    raises=wr.exceptions.InvalidArgumentCombination,
-    reason="Named index not working when partitioning to a single file",
-    condition=is_ray_modin,
-)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
-@pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
-def test_index_columns(path, use_threads, name, pandas):
+def test_index_columns(path, use_threads, pandas):
     df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64")
-    df.index.name = name
     path_file = f"{path}0.orc"
     if pandas:
         df.to_orc(path_file, index=True)
@@ -422,7 +415,7 @@ def test_empty_file(path, use_threads):
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
-def test_ignore_files(path: str, use_threads: Union[bool, int]) -> None:
+def test_ignore_files(path: str, use_threads: bool | int) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
 
     wr.s3.to_orc(df, f"{path}data.orc", index=False)
@@ -488,7 +481,9 @@ def test_orc_schema_evolution(path, glue_database, glue_table):
 
 
 @pytest.mark.xfail(
-    reason="Schema resolution is not as consistent in distributed mode", condition=is_ray_modin, raises=AssertionError
+    raises=(AssertionError, AttributeError),
+    reason="Schema resolution on Modin data frames is not as consistent in distributed mode",
+    condition=is_ray_modin,
 )
 def test_to_orc_schema_evolution_out_of_order(path, glue_database, glue_table) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"]})

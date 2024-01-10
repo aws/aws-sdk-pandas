@@ -1,9 +1,11 @@
 """Secrets Manager module."""
 
+from __future__ import annotations
+
 import base64
 import json
 import logging
-from typing import Any, Dict, Optional, Union, cast
+from typing import Any, Dict, cast
 
 import boto3
 
@@ -12,7 +14,7 @@ from awswrangler import _utils
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def get_secret(name: str, boto3_session: Optional[boto3.Session] = None) -> Union[str, bytes]:
+def get_secret(name: str, boto3_session: boto3.Session | None = None) -> str | bytes:
     """Get secret value.
 
     Parameters
@@ -41,7 +43,7 @@ def get_secret(name: str, boto3_session: Optional[boto3.Session] = None) -> Unio
     return base64.b64decode(response["SecretBinary"])
 
 
-def get_secret_json(name: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
+def get_secret_json(name: str, boto3_session: boto3.Session | None = None) -> dict[str, Any]:
     """Get JSON secret value.
 
     Parameters

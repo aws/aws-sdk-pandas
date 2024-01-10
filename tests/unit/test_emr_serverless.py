@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 import time
-from typing import Any, Dict, Literal
+from typing import Any, Literal
 
 import boto3
 import pytest
@@ -89,7 +91,7 @@ def test_run_job(
         bucket, key = wr._utils.parse_path(job_driver_args["query"])
         client_s3.put_object(Body="SELECT 1", Bucket=bucket, Key=key)
 
-    job_run: Dict[str, Any] = wr.emr_serverless.run_job(
+    job_run: dict[str, Any] = wr.emr_serverless.run_job(
         application_id=emr_serverless_spark_application_id
         if job_type == "Spark"
         else emr_serverless_hive_application_id,

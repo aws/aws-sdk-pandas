@@ -1,6 +1,8 @@
 """Modin on Ray S3 read text module (PRIVATE)."""
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import modin.pandas as pd
 from pyarrow import csv
@@ -45,13 +47,13 @@ class CSVReadConfiguration(TypedDict):
 
 
 class JSONReadConfiguration(TypedDict):
-    read_options: Dict[str, Any]
-    parse_options: Dict[str, Any]
+    read_options: dict[str, Any]
+    parse_options: dict[str, Any]
 
 
 def _parse_csv_configuration(
-    pandas_kwargs: Dict[str, Any],
-) -> CSVReadConfiguration:
+    pandas_kwargs: dict[str, Any],
+) -> dict[str, CSVReadConfiguration]:
     _check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
 
     read_options = csv.ReadOptions(
@@ -67,31 +69,35 @@ def _parse_csv_configuration(
     )
     convert_options = csv.ConvertOptions()
 
-    return CSVReadConfiguration(
-        read_options=read_options,
-        parse_options=parse_options,
-        convert_options=convert_options,
-    )
+    return {
+        "arrow_csv_args": CSVReadConfiguration(
+            read_options=read_options,
+            parse_options=parse_options,
+            convert_options=convert_options,
+        )
+    }
 
 
 def _parse_json_configuration(
-    pandas_kwargs: Dict[str, Any],
-) -> JSONReadConfiguration:
+    pandas_kwargs: dict[str, Any],
+) -> dict[str, JSONReadConfiguration]:
     _check_parameters(pandas_kwargs, _JSON_SUPPORTED_PARAMS)
 
     # json.ReadOptions and json.ParseOptions cannot be pickled for some reason so we're building a Python dict
-    return JSONReadConfiguration(
-        read_options=dict(use_threads=False),
-        parse_options={},
-    )
+    return {
+        "arrow_json_args": JSONReadConfiguration(
+            read_options=dict(use_threads=False),
+            parse_options={},
+        )
+    }
 
 
 def _parse_configuration(
     file_format: str,
-    version_ids: Optional[Dict[str, str]],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    pandas_kwargs: Dict[str, Any],
-) -> Union[CSVReadConfiguration, JSONReadConfiguration]:
+    version_ids: dict[str, str] | None,
+    s3_additional_kwargs: dict[str, str] | None,
+    pandas_kwargs: dict[str, Any],
+) -> dict[str, CSVReadConfiguration] | dict[str, JSONReadConfiguration]:
     if version_ids:
         raise exceptions.InvalidArgument("Specific version ID found for object")
 
@@ -107,31 +113,36 @@ def _parse_configuration(
     raise exceptions.InvalidArgument(f"File is in the {file_format} format")
 
 
-def _resolve_format(read_format: str, can_use_arrow: bool) -> Any:
+def _resolve_datasource(
+    read_format: str,
+    can_use_arrow: bool,
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
     if read_format == "csv":
-        return ArrowCSVDatasource() if can_use_arrow else PandasCSVDataSource()
+        return ArrowCSVDatasource(*args, **kwargs) if can_use_arrow else PandasCSVDataSource(*args, **kwargs)
     if read_format == "fwf":
-        return PandasFWFDataSource()
+        return PandasFWFDataSource(*args, **kwargs)
     if read_format == "json":
-        return ArrowJSONDatasource() if can_use_arrow else PandasJSONDatasource()
+        return ArrowJSONDatasource(*args, **kwargs) if can_use_arrow else PandasJSONDatasource(*args, **kwargs)
     raise exceptions.UnsupportedType("Unsupported read format")
 
 
-def _read_text_distributed(  # pylint: disable=unused-argument
+def _read_text_distributed(
     read_format: str,
-    paths: List[str],
-    path_root: Optional[str],
-    use_threads: Union[bool, int],
-    s3_client: Optional["S3Client"],
-    s3_additional_kwargs: Optional[Dict[str, str]],
+    paths: list[str],
+    path_root: str | None,
+    use_threads: bool | int,
+    s3_client: "S3Client" | None,
+    s3_additional_kwargs: dict[str, str] | None,
     dataset: bool,
     ignore_index: bool,
     parallelism: int,
-    version_ids: Optional[Dict[str, str]],
-    pandas_kwargs: Dict[str, Any],
+    version_ids: dict[str, str] | None,
+    pandas_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
     try:
-        configuration: Dict[str, Any] = _parse_configuration(  # type: ignore[assignment]
+        configuration: dict[str, Any] = _parse_configuration(
             read_format,
             version_ids,
             s3_additional_kwargs,
@@ -148,15 +159,18 @@ def _read_text_distributed(  # pylint: disable=unused-argument
         can_use_arrow = False
 
     ray_dataset = read_datasource(
-        datasource=_resolve_format(read_format, can_use_arrow),
+        datasource=_resolve_datasource(
+            read_format,
+            can_use_arrow,
+            paths,
+            dataset,
+            path_root,
+            version_ids=version_ids,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pandas_kwargs=pandas_kwargs,
+            meta_provider=FastFileMetadataProvider(),
+            **configuration,
+        ),
         parallelism=parallelism,
-        paths=paths,
-        path_root=path_root,
-        dataset=dataset,
-        version_ids=version_ids,
-        s3_additional_kwargs=s3_additional_kwargs,
-        pandas_kwargs=pandas_kwargs,
-        meta_provider=FastFileMetadataProvider(),
-        **configuration,
     )
     return _to_modin(dataset=ray_dataset, ignore_index=ignore_index)

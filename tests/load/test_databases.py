@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import time
 from datetime import datetime
-from typing import Dict
 
 import modin.pandas as pd
 import pytest
@@ -77,7 +78,7 @@ def test_redshift_copy_unload(
     path: str,
     redshift_table: str,
     redshift_con: Connection,
-    databases_parameters: Dict[str, str],
+    databases_parameters: dict[str, str],
     request,
 ) -> None:
     df = wr.s3.read_parquet(path=[f"s3://ursa-labs-taxi-data/2018/{i}/data.parquet" for i in range(10, 13)])

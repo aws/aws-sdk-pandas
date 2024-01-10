@@ -1,6 +1,5 @@
 """Distributed engine and memory format configuration."""
-
-# pylint: disable=import-outside-toplevel
+from __future__ import annotations
 
 import importlib.util
 import os
@@ -9,7 +8,7 @@ from collections import defaultdict
 from enum import Enum, unique
 from functools import wraps
 from importlib import reload
-from typing import Any, Callable, Dict, Literal, Optional, TypeVar, cast
+from typing import Any, Callable, Literal, TypeVar, cast
 
 EngineLiteral = Literal["python", "ray"]
 MemoryFormatLiteral = Literal["pandas", "modin"]
@@ -17,8 +16,8 @@ MemoryFormatLiteral = Literal["pandas", "modin"]
 FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
 
-WR_ENGINE: Optional[EngineLiteral] = os.getenv("WR_ENGINE")  # type: ignore[assignment]
-WR_MEMORY_FORMAT: Optional[MemoryFormatLiteral] = os.getenv("WR_MEMORY_FORMAT")  # type: ignore[assignment]
+WR_ENGINE: EngineLiteral | None = os.getenv("WR_ENGINE")  # type: ignore[assignment]
+WR_MEMORY_FORMAT: MemoryFormatLiteral | None = os.getenv("WR_MEMORY_FORMAT")  # type: ignore[assignment]
 
 
 @unique
@@ -40,9 +39,9 @@ class MemoryFormatEnum(Enum):
 class Engine:
     """Execution engine configuration class."""
 
-    _engine: Optional[EngineEnum] = EngineEnum[WR_ENGINE.upper()] if WR_ENGINE else None
-    _initialized_engine: Optional[EngineEnum] = None
-    _registry: Dict[EngineLiteral, Dict[str, Callable[..., Any]]] = defaultdict(dict)
+    _engine: EngineEnum | None = EngineEnum[WR_ENGINE.upper()] if WR_ENGINE else None
+    _initialized_engine: EngineEnum | None = None
+    _registry: dict[EngineLiteral, dict[str, Callable[..., Any]]] = defaultdict(dict)
     _lock: threading.RLock = threading.RLock()
 
     @classmethod
@@ -81,7 +80,7 @@ class Engine:
             cls._engine = EngineEnum[name.upper()]
 
     @classmethod
-    def dispatch_func(cls, source_func: FunctionType, value: Optional[EngineLiteral] = None) -> FunctionType:
+    def dispatch_func(cls, source_func: FunctionType, value: EngineLiteral | None = None) -> FunctionType:
         """Dispatch a func based on value or the distribution engine and the source function."""
         try:
             with cls._lock:
@@ -100,16 +99,16 @@ class Engine:
         """Dispatch on engine function decorator."""
 
         @wraps(func)
-        def wrapper(*args: Any, **kw: Dict[str, Any]) -> Any:
+        def wrapper(*args: Any, **kw: dict[str, Any]) -> Any:
             cls.initialize(name=cls.get().value)
             return cls.dispatch_func(func)(*args, **kw)
 
         # Save the original function
-        wrapper._source_func = func  # type: ignore[attr-defined]  # pylint: disable=protected-access
+        wrapper._source_func = func  # type: ignore[attr-defined]
         return wrapper  # type: ignore[return-value]
 
     @classmethod
-    def register(cls, name: Optional[EngineLiteral] = None) -> None:
+    def register(cls, name: EngineLiteral | None = None) -> None:
         """Register the distribution engine dispatch methods."""
         with cls._lock:
             engine_name = cast(EngineLiteral, name or cls.get().value)
@@ -122,7 +121,7 @@ class Engine:
                 register_ray()
 
     @classmethod
-    def initialize(cls, name: Optional[EngineLiteral] = None) -> None:
+    def initialize(cls, name: EngineLiteral | None = None) -> None:
         """Initialize the distribution engine."""
         with cls._lock:
             engine_name = cast(EngineLiteral, name or cls.get_installed().value)
@@ -133,7 +132,7 @@ class Engine:
             cls._initialized_engine = EngineEnum[engine_name.upper()]
 
     @classmethod
-    def is_initialized(cls, name: Optional[EngineLiteral] = None) -> bool:
+    def is_initialized(cls, name: EngineLiteral | None = None) -> bool:
         """Check if the distribution engine is initialized."""
         with cls._lock:
             engine_name = cast(EngineLiteral, name or cls.get_installed().value)
@@ -144,7 +143,7 @@ class Engine:
 class MemoryFormat:
     """Memory format configuration class."""
 
-    _enum: Optional[MemoryFormatEnum] = MemoryFormatEnum[WR_MEMORY_FORMAT.upper()] if WR_MEMORY_FORMAT else None
+    _enum: MemoryFormatEnum | None = MemoryFormatEnum[WR_MEMORY_FORMAT.upper()] if WR_MEMORY_FORMAT else None
     _lock: threading.RLock = threading.RLock()
 
     @classmethod

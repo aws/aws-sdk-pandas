@@ -1,7 +1,8 @@
 """STS module."""
 
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
 import boto3
 
@@ -10,7 +11,7 @@ from awswrangler import _utils
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def get_account_id(boto3_session: Optional[boto3.Session] = None) -> str:
+def get_account_id(boto3_session: boto3.Session | None = None) -> str:
     """Get Account ID.
 
     Parameters
@@ -32,7 +33,7 @@ def get_account_id(boto3_session: Optional[boto3.Session] = None) -> str:
     return _utils.client(service_name="sts", session=boto3_session).get_caller_identity()["Account"]
 
 
-def get_current_identity_arn(boto3_session: Optional[boto3.Session] = None) -> str:
+def get_current_identity_arn(boto3_session: boto3.Session | None = None) -> str:
     """Get current user/role ARN.
 
     Parameters
@@ -54,7 +55,7 @@ def get_current_identity_arn(boto3_session: Optional[boto3.Session] = None) -> s
     return _utils.client(service_name="sts", session=boto3_session).get_caller_identity()["Arn"]
 
 
-def get_current_identity_name(boto3_session: Optional[boto3.Session] = None) -> str:
+def get_current_identity_name(boto3_session: boto3.Session | None = None) -> str:
     """Get current user/role name.
 
     Parameters

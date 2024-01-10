@@ -1,14 +1,14 @@
 """Ray PandasTextDatasource Module."""
-import io
+from __future__ import annotations
+
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional
+from typing import Any, Callable, Iterator
 
 import pandas as pd
 import pyarrow
-from ray.data.block import BlockAccessor
+from ray.data.datasource.file_based_datasource import FileBasedDatasource
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -18,162 +18,154 @@ _logger: logging.Logger = logging.getLogger(__name__)
 READER_ROW_BATCH_SIZE = 10_0000
 
 
-class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
-    """Pandas text datasource, for reading and writing text files using Pandas."""
+class PandasTextDatasource(FileBasedDatasource):
+    """Pandas text datasource, for reading text files using Pandas."""
 
     def __init__(
         self,
-        read_text_func: Callable[..., pd.DataFrame],
-        write_text_func: Optional[Callable[..., None]],
-    ) -> None:
-        super().__init__()
-
-        self.read_text_func = read_text_func
-        self.write_text_func = write_text_func
-
-        self._write_paths: List[str] = []
-
-    def _read_stream(  # type: ignore[override]  # pylint: disable=arguments-differ
-        self,
-        f: pyarrow.NativeFile,  # Refactor reader to use wr.open_s3_object
-        path: str,
-        path_root: str,
+        paths: str | list[str],
         dataset: bool,
-        version_ids: Optional[Dict[str, str]],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        pandas_kwargs: Optional[Dict[str, Any]],
-        **reader_args: Any,
-    ) -> Iterator[pd.DataFrame]:
+        path_root: str,
+        read_text_func: Callable[..., pd.DataFrame],
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
+        **file_based_datasource_kwargs: Any,
+    ) -> None:
+        super().__init__(paths, **file_based_datasource_kwargs)
+
+        self.dataset = dataset
+        self.path_root = path_root
+        self.read_text_func = read_text_func
+
+        self.version_ids = version_ids or {}
+        self.s3_additional_kwargs = s3_additional_kwargs or {}
+        self.pandas_kwargs = pandas_kwargs or {}
+
+    def _read_stream(self, f: pyarrow.NativeFile, path: str) -> Iterator[pd.DataFrame]:
         read_text_func = self.read_text_func
-
-        if not s3_additional_kwargs:
-            s3_additional_kwargs = {}
-
-        if not pandas_kwargs:
-            pandas_kwargs = {}
 
         s3_path = f"s3://{path}"
         yield from _read_text_chunked(
             path=s3_path,
             chunksize=READER_ROW_BATCH_SIZE,
             parser_func=read_text_func,
-            path_root=path_root,
-            dataset=dataset,
+            path_root=self.path_root,
+            dataset=self.dataset,
             s3_client=None,
-            pandas_kwargs=pandas_kwargs,
-            s3_additional_kwargs=s3_additional_kwargs,
+            pandas_kwargs=self.pandas_kwargs,
+            s3_additional_kwargs=self.s3_additional_kwargs,
             use_threads=False,
-            version_id=version_ids.get(s3_path) if version_ids else None,
+            version_id=self.version_ids.get(s3_path) if self.version_ids else None,
         )
 
-    def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
-        raise NotImplementedError()
 
-    def _write_block(  # type: ignore[override]  # pylint: disable=arguments-differ, arguments-renamed
+class PandasCSVDataSource(PandasTextDatasource):
+    """Pandas CSV datasource, for reading CSV files using Pandas."""
+
+    _FILE_EXTENSIONS = ["csv"]
+
+    def __init__(
         self,
-        f: io.TextIOWrapper,
-        block: BlockAccessor,
-        pandas_kwargs: Optional[Dict[str, Any]],
-        **writer_args: Any,
-    ) -> None:
-        write_text_func = self.write_text_func
-
-        if not pandas_kwargs:
-            pandas_kwargs = {}
-
-        write_text_func(block.to_pandas(), f, **pandas_kwargs)  # type: ignore[misc]
-
-
-class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
-    """Pandas CSV datasource, for reading and writing CSV files using Pandas."""
-
-    _FILE_EXTENSION = "csv"
-
-    def __init__(self) -> None:
-        super().__init__(pd.read_csv, pd.DataFrame.to_csv)
-
-    def _read_stream(  # type: ignore[override]
-        self,
-        f: pyarrow.NativeFile,
-        path: str,
-        path_root: str,
+        paths: str | list[str],
         dataset: bool,
-        version_ids: Optional[Dict[str, str]],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        pandas_kwargs: Dict[str, Any],
-        **reader_args: Any,
-    ) -> Iterator[pd.DataFrame]:
-        pandas_header_arg = pandas_kwargs.get("header", "infer")
-        pandas_names_arg = pandas_kwargs.get("names", None)
+        path_root: str,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
+        **file_based_datasource_kwargs: Any,
+    ) -> None:
+        super().__init__(
+            paths,
+            dataset,
+            path_root,
+            pd.read_csv,
+            version_ids=version_ids,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pandas_kwargs=pandas_kwargs,
+            **file_based_datasource_kwargs,
+        )
+
+    def _read_stream(self, f: pyarrow.NativeFile, path: str) -> Iterator[pd.DataFrame]:
+        pandas_header_arg = self.pandas_kwargs.get("header", "infer")
+        pandas_names_arg = self.pandas_kwargs.get("names", None)
 
         if pandas_header_arg is None and not pandas_names_arg:
             raise exceptions.InvalidArgumentCombination(
                 "Distributed read_csv cannot read CSV files without header, or a `names` parameter."
             )
 
-        yield from super()._read_stream(
-            f,
-            path,
-            path_root,
+        yield from super()._read_stream(f, path)
+
+
+class PandasFWFDataSource(PandasTextDatasource):
+    """Pandas FWF datasource, for reading FWF files using Pandas."""
+
+    _FILE_EXTENSIONS = ["fwf"]
+
+    def __init__(
+        self,
+        paths: str | list[str],
+        dataset: bool,
+        path_root: str,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
+        **file_based_datasource_kwargs: Any,
+    ) -> None:
+        super().__init__(
+            paths,
             dataset,
-            version_ids,
-            s3_additional_kwargs,
-            pandas_kwargs,
-            **reader_args,
+            path_root,
+            pd.read_fwf,
+            version_ids=version_ids,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pandas_kwargs=pandas_kwargs,
+            **file_based_datasource_kwargs,
         )
 
 
-class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
-    """Pandas FWF datasource, for reading and writing FWF files using Pandas."""
+class PandasJSONDatasource(PandasTextDatasource):
+    """Pandas JSON datasource, for reading JSON files using Pandas."""
 
-    _FILE_EXTENSION = "fwf"
+    _FILE_EXTENSIONS = ["json"]
 
-    def __init__(self) -> None:
-        super().__init__(pd.read_fwf, None)
-
-
-class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-method
-    """Pandas JSON datasource, for reading and writing JSON files using Pandas."""
-
-    _FILE_EXTENSION = "json"
-
-    def __init__(self) -> None:
-        super().__init__(pd.read_json, pd.DataFrame.to_json)
-
-    def _read_stream(  # type: ignore[override]
+    def __init__(
         self,
-        f: pyarrow.NativeFile,
-        path: str,
-        path_root: str,
+        paths: str | list[str],
         dataset: bool,
-        version_ids: Optional[Dict[str, str]],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        pandas_kwargs: Dict[str, Any],
-        **reader_args: Any,
-    ) -> Iterator[pd.DataFrame]:
+        path_root: str,
+        version_ids: dict[str, str] | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+        pandas_kwargs: dict[str, Any] | None = None,
+        **file_based_datasource_kwargs: Any,
+    ) -> None:
+        super().__init__(
+            paths,
+            dataset,
+            path_root,
+            pd.read_json,
+            version_ids=version_ids,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pandas_kwargs=pandas_kwargs,
+            **file_based_datasource_kwargs,
+        )
+
+    def _read_stream(self, f: pyarrow.NativeFile, path: str) -> Iterator[pd.DataFrame]:
         read_text_func = self.read_text_func
 
-        pandas_lines = pandas_kwargs.get("lines", False)
+        pandas_lines = self.pandas_kwargs.get("lines", False)
         if pandas_lines:
-            yield from super()._read_stream(
-                f,
-                path,
-                path_root,
-                dataset,
-                version_ids,
-                s3_additional_kwargs,
-                pandas_kwargs,
-                **reader_args,
-            )
+            yield from super()._read_stream(f, path)
         else:
             s3_path = f"s3://{path}"
             yield _read_text_file(
                 path=s3_path,
                 parser_func=read_text_func,
-                path_root=path_root,
-                dataset=dataset,
+                path_root=self.path_root,
+                dataset=self.dataset,
                 s3_client=None,
-                pandas_kwargs=pandas_kwargs,
-                s3_additional_kwargs=s3_additional_kwargs,
-                version_id=version_ids.get(s3_path) if version_ids else None,
+                pandas_kwargs=self.pandas_kwargs,
+                s3_additional_kwargs=self.s3_additional_kwargs,
+                version_id=self.version_ids.get(s3_path) if self.version_ids else None,
             )

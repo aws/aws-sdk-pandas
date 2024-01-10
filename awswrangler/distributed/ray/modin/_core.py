@@ -1,8 +1,9 @@
 """Modin on Ray Core module (PRIVATE)."""
-# pylint: disable=import-outside-toplevel
+from __future__ import annotations
+
 import logging
 from functools import wraps
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -56,8 +57,8 @@ def modin_repartition(function: FunctionType) -> FunctionType:
     def wrapper(
         df: pd.DataFrame,
         *args: Any,
-        axis: Optional[int] = None,
-        row_lengths: Optional[int] = None,
+        axis: int | None = None,
+        row_lengths: int | None = None,
         validate_partitions: bool = True,
         **kwargs: Any,
     ) -> Any:
