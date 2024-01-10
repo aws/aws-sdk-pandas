@@ -65,7 +65,7 @@ def pyarrow2athena(  # noqa: PLR0911,PLR0912
     raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
-def pyarrow2redshift(  # noqa: PLR0911
+def pyarrow2redshift(  # noqa: PLR0911,PLR0912
     dtype: pa.DataType, string_type: str
 ) -> str:
     """Pyarrow to Redshift data types conversion."""
@@ -93,6 +93,8 @@ def pyarrow2redshift(  # noqa: PLR0911
         return "DATE"
     if pa.types.is_time(dtype):
         return "TIME"
+    if pa.types.is_binary(dtype):
+        return "VARBYTE"
     if pa.types.is_decimal(dtype):
         return f"DECIMAL({dtype.precision},{dtype.scale})"
     if pa.types.is_dictionary(dtype):
@@ -435,6 +437,8 @@ def athena2redshift(  # noqa: PLR0911
         return "TIMESTAMP"
     if dtype == "date":
         return "DATE"
+    if dtype == "binary":
+        return "VARBYTE"
     if dtype.startswith("decimal"):
         return dtype.upper()
     if dtype.startswith("array") or dtype.startswith("struct"):
