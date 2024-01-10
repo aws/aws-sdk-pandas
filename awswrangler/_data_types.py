@@ -65,7 +65,7 @@ def pyarrow2athena(  # noqa: PLR0911,PLR0912
     raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
-def pyarrow2redshift(  # noqa: PLR0911
+def pyarrow2redshift(  # noqa: PLR0911,PLR0912
     dtype: pa.DataType, string_type: str
 ) -> str:
     """Pyarrow to Redshift data types conversion."""
