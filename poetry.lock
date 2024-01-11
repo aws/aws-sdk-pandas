@@ -6254,7 +6254,7 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [extras]
 deltalake = ["deltalake"]
 geopandas = ["geopandas", "geopandas"]
-gremlin = ["aiohttp", "gremlinpython", "requests"]
+gremlin = ["aiohttp", "async-timeout", "gremlinpython", "requests"]
 modin = ["modin", "modin"]
 mysql = ["pymysql"]
 opencypher = ["requests"]
@@ -6271,4 +6271,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "2d9b3816c6f582cc839dc25f1ba6f390b3091dab6340a2e67cdb9e38910386e9"
+content-hash = "16c38d4d9a4cf7c82fcedb37f3c397a0bd77cb4ad85ecd3405e26988bef5e24b"
