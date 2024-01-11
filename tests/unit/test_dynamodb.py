@@ -656,7 +656,8 @@ def test_deserialization_read_query(params: dict[str, Any], dynamodb_table: str)
 
     items_df = wr.dynamodb.read_items(
         table_name=dynamodb_table,
-        key_condition_expression=Key("par0").eq(0),
+        key_condition_expression="par0 = :v1",
+        expression_attribute_values={":v1": 0},
         consistent=True,
     )
 
