@@ -35,14 +35,15 @@ from awswrangler.dynamodb._utils import _deserialize_item, _serialize_item, exec
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.client import DynamoDBClient
+    from mypy_boto3_dynamodb.type_defs import TableAttributeValueTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_ItemsListType = List[Dict[str, Any]]
+_ItemsListType = List[Dict[str, "TableAttributeValueTypeDef"]]
 
 
-def _read_chunked(iterator: Iterator[dict[str, Any]]) -> Iterator[pd.DataFrame]:
+def _read_chunked(iterator: Iterator[dict[str, "TableAttributeValueTypeDef"]]) -> Iterator[pd.DataFrame]:
     for item in iterator:
         yield pd.DataFrame(item)
 

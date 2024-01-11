@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         AttributeValueTypeDef,
         ExecuteStatementOutputTypeDef,
         KeySchemaElementTypeDef,
+        TableAttributeValueTypeDef,
         WriteRequestTypeDef,
     )
 
@@ -57,7 +58,7 @@ def get_table(
 
 
 def _serialize_item(
-    item: Mapping[str, Any], serializer: TypeSerializer | None = None
+    item: Mapping[str, "TableAttributeValueTypeDef"], serializer: TypeSerializer | None = None
 ) -> dict[str, "AttributeValueTypeDef"]:
     serializer = serializer if serializer else TypeSerializer()
     return {k: serializer.serialize(v) for k, v in item.items()}
@@ -65,7 +66,7 @@ def _serialize_item(
 
 def _deserialize_item(
     item: Mapping[str, "AttributeValueTypeDef"], deserializer: TypeDeserializer | None = None
-) -> dict[str, Any]:
+) -> dict[str, "TableAttributeValueTypeDef"]:
     deserializer = deserializer if deserializer else TypeDeserializer()
     return {k: deserializer.deserialize(v) for k, v in item.items()}
 
