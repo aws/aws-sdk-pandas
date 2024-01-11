@@ -44,9 +44,6 @@ search = "https://img.shields.io/badge/{current_version}-brightgreen.svg"
 replace = "https://img.shields.io/badge/{new_version}-brightgreen.svg"
 
 [[tool.bumpversion.files]]
-filename = "CONTRIBUTING_COMMON_ERRORS.md"
-
-[[tool.bumpversion.files]]
 filename = "docs/source/install.rst"
 search = "awswrangler=={current_version}"
 replace = "awswrangler=={new_version}"
