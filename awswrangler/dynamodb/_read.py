@@ -252,7 +252,7 @@ def _read_query_chunked(table_name: str, dynamodb_client: "DynamoDBClient", **kw
         response = dynamodb_client.query(TableName=table_name, **kwargs)
         items = response.get("Items", [])
         total_items += len(items)
-        yield items
+        yield [_deserialize_item(item) for item in items]
 
         if ("Limit" in kwargs) and (total_items >= kwargs["Limit"]):
             break

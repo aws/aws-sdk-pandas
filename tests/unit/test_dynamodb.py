@@ -549,3 +549,153 @@ def test_read_items_schema(params, dynamodb_table: str, chunked: bool):
     }
     wr.dynamodb.read_items(allow_full_scan=True, **kwargs)
     wr.dynamodb.read_items(filter_expression=Attr("id").eq(1), **kwargs)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "par0", "AttributeType": "N"},
+                {"AttributeName": "par1", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+def test_deserialization_read_single_item(params: dict[str, Any], dynamodb_table: str) -> None:
+    wr.dynamodb.put_items(
+        items=[
+            {
+                "par0": 0,
+                "par1": "foo",
+            },
+            {
+                "par0": 1,
+                "par1": "bar",
+            },
+        ],
+        table_name=dynamodb_table,
+    )
+
+    items_df = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        partition_values=[0],
+        sort_values=["foo"],
+        consistent=True,
+    )
+
+    assert not isinstance(items_df.iloc[0]["par0"], dict)
+    assert not isinstance(items_df.iloc[0]["par1"], dict)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "par0", "AttributeType": "N"},
+                {"AttributeName": "par1", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+def test_deserialization_read_batch_items(params: dict[str, Any], dynamodb_table: str) -> None:
+    wr.dynamodb.put_items(
+        items=[
+            {
+                "par0": 0,
+                "par1": "foo",
+            },
+            {
+                "par0": 1,
+                "par1": "bar",
+            },
+        ],
+        table_name=dynamodb_table,
+    )
+
+    items_df = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        partition_values=[0, 1],
+        sort_values=["foo", "bar"],
+        consistent=True,
+    )
+
+    assert not isinstance(items_df.iloc[0]["par0"], dict)
+    assert not isinstance(items_df.iloc[0]["par1"], dict)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "par0", "AttributeType": "N"},
+                {"AttributeName": "par1", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+def test_deserialization_read_query(params: dict[str, Any], dynamodb_table: str) -> None:
+    wr.dynamodb.put_items(
+        items=[
+            {
+                "par0": 0,
+                "par1": "foo",
+            },
+            {
+                "par0": 1,
+                "par1": "bar",
+            },
+        ],
+        table_name=dynamodb_table,
+    )
+
+    items_df = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        key_condition_expression=Key("par0").eq(0),
+        consistent=True,
+    )
+
+    assert not isinstance(items_df.iloc[0]["par0"], dict)
+    assert not isinstance(items_df.iloc[0]["par1"], dict)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "par0", "AttributeType": "N"},
+                {"AttributeName": "par1", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+def test_deserialization_full_scan(params: dict[str, Any], dynamodb_table: str) -> None:
+    wr.dynamodb.put_items(
+        items=[
+            {
+                "par0": 0,
+                "par1": "foo",
+            },
+            {
+                "par0": 1,
+                "par1": "bar",
+            },
+        ],
+        table_name=dynamodb_table,
+    )
+
+    items_df = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        allow_full_scan=True,
+        consistent=True,
+    )
+
+    assert not isinstance(items_df.iloc[0]["par0"], dict)
+    assert not isinstance(items_df.iloc[0]["par1"], dict)
