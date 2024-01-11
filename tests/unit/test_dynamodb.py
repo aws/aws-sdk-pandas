@@ -33,12 +33,16 @@ pytestmark = pytest.mark.distributed
 )
 @pytest.mark.parametrize("use_threads", [False, True])
 def test_write(params: dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
-    df = pd.DataFrame(
-        {
-            "title": ["Titanic", "Snatch", "The Godfather"],
-            "year": [1997, 2000, 1972],
-            "genre": ["drama", "caper story", "crime"],
-        }
+    df = (
+        pd.DataFrame(
+            {
+                "title": ["Titanic", "Snatch", "The Godfather"],
+                "year": [1997, 2000, 1972],
+                "genre": ["drama", "caper story", "crime"],
+            }
+        )
+        .sort_values(by="year")
+        .reset_index(drop=True)
     )
     path = tempfile.gettempdir()
     query = f'SELECT * FROM "{dynamodb_table}"'
@@ -62,7 +66,7 @@ def test_write(params: dict[str, Any], use_threads: bool, dynamodb_table: str) -
     df3 = wr.dynamodb.read_partiql_query(query)
     df3 = df3[df.columns].sort_values(by="year").reset_index(drop=True)
     df3["year"] = df3["year"].astype("int64")
-    assert_pandas_equals(df.sort_values(by="year").reset_index(drop=True), df3)
+    assert_pandas_equals(df, df3)
 
 
 @pytest.mark.parametrize(
