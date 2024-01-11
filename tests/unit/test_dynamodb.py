@@ -49,7 +49,7 @@ def test_write(params: dict[str, Any], use_threads: bool, dynamodb_table: str) -
     wr.dynamodb.put_json(file_path, dynamodb_table, use_threads=use_threads)
 
     df2 = wr.dynamodb.read_partiql_query(query)
-    df2 = df2[df.columns].sort_values(by="year", ascending=True).reset_index(drop=True)
+    df2 = df2[df.columns].sort_values(by="year").reset_index(drop=True)
     df2["year"] = df["year"].astype("int64")
     assert_pandas_equals(df, df2)
 
@@ -60,9 +60,9 @@ def test_write(params: dict[str, Any], use_threads: bool, dynamodb_table: str) -
     wr.dynamodb.put_csv(file_path, dynamodb_table, use_threads=use_threads)
 
     df3 = wr.dynamodb.read_partiql_query(query)
-    df3 = df3[df.columns].sort_values(by="year", ascending=True).reset_index(drop=True)
+    df3 = df3[df.columns].sort_values(by="year").reset_index(drop=True)
     df3["year"] = df3["year"].astype("int64")
-    assert_pandas_equals(df.sort_values(by="year", ascending=True).reset_index(drop=True), df3)
+    assert_pandas_equals(df.sort_values(by="year").reset_index(drop=True), df3)
 
 
 @pytest.mark.parametrize(
@@ -165,10 +165,10 @@ def test_execute_statement(params: dict[str, Any], use_threads: bool, dynamodb_t
         parameters=[title, year],
     )
     df3 = wr.dynamodb.read_partiql_query(f'SELECT * FROM "{dynamodb_table}"')
-    df3 = df3[df.columns].sort_values(by="year", ascending=True).reset_index(drop=True)
+    df3 = df3[df.columns].sort_values(by="year").reset_index(drop=True)
     df3["year"] = df3["year"].astype("int64")
     assert_pandas_equals(
-        df.sort_values(by="year", ascending=True).reset_index(drop=True),
+        df.sort_values(by="year").reset_index(drop=True),
         df3,
     )
 
@@ -210,7 +210,7 @@ def test_dynamodb_put_from_file(
         raise RuntimeError(f"Unknown format {format}")
 
     df2 = wr.dynamodb.read_partiql_query(query=f"SELECT * FROM {dynamodb_table}")
-    df2 = df2.sort_values(by="par0", ascending=True).reset_index(drop=True)
+    df2 = df2.sort_values(by="par0").reset_index(drop=True)
     df2["par0"] = df["par0"].astype("int64")
     assert_pandas_equals(df, df2)
 
@@ -606,8 +606,8 @@ def test_deserialization_read_single_item(params: dict[str, Any], dynamodb_table
         consistent=True,
     )
 
-    assert not isinstance(items_df.iloc[0]["par0"], dict)
-    assert not isinstance(items_df.iloc[0]["par1"], dict)
+    assert items_df.iloc[0]["par0"] == 0
+    assert items_df.iloc[0]["par1"] == "foo"
 
 
 @pytest.mark.parametrize(
@@ -642,10 +642,12 @@ def test_deserialization_read_batch_items(params: dict[str, Any], dynamodb_table
         partition_values=[0, 1],
         sort_values=["foo", "bar"],
         consistent=True,
-    )
+    ).sort_values(by=["par0"])
 
-    assert not isinstance(items_df.iloc[0]["par0"], dict)
-    assert not isinstance(items_df.iloc[0]["par1"], dict)
+    assert items_df.iloc[0]["par0"] == 0
+    assert items_df.iloc[0]["par1"] == "foo"
+    assert items_df.iloc[1]["par0"] == 1
+    assert items_df.iloc[1]["par1"] == "bar"
 
 
 @pytest.mark.parametrize(
@@ -682,8 +684,8 @@ def test_deserialization_read_query(params: dict[str, Any], dynamodb_table: str)
         consistent=True,
     )
 
-    assert not isinstance(items_df.iloc[0]["par0"], dict)
-    assert not isinstance(items_df.iloc[0]["par1"], dict)
+    assert items_df.iloc[0]["par0"] == 0
+    assert items_df.iloc[0]["par1"] == "foo"
 
 
 @pytest.mark.parametrize(
@@ -717,7 +719,9 @@ def test_deserialization_full_scan(params: dict[str, Any], dynamodb_table: str) 
         table_name=dynamodb_table,
         allow_full_scan=True,
         consistent=True,
-    )
+    ).sort_values(by=["par0"])
 
-    assert not isinstance(items_df.iloc[0]["par0"], dict)
-    assert not isinstance(items_df.iloc[0]["par1"], dict)
+    assert items_df.iloc[0]["par0"] == 0
+    assert items_df.iloc[0]["par1"] == "foo"
+    assert items_df.iloc[1]["par0"] == 1
+    assert items_df.iloc[1]["par1"] == "bar"
