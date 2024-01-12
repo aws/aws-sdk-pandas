@@ -123,7 +123,7 @@ s3fs = "0.4.2"  # Must be pinned to 0.4.2
 tox = "^4.5.0"
 
 # Docs
-bump2version = "^1.0.1"
+bump-my-version = "^0.16.1"
 IPython = "^8.10.0"
 jupyterlab = "^4.0"
 nbsphinx = "^0.9.3"

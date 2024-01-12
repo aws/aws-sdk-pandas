@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 import awswrangler as wr
 import awswrangler.pandas as pd
 
-from .._utils import is_ray_modin
+from .._utils import assert_pandas_equals, is_ray_modin
 
 pytestmark = pytest.mark.distributed
 
@@ -33,12 +33,16 @@ pytestmark = pytest.mark.distributed
 )
 @pytest.mark.parametrize("use_threads", [False, True])
 def test_write(params: dict[str, Any], use_threads: bool, dynamodb_table: str) -> None:
-    df = pd.DataFrame(
-        {
-            "title": ["Titanic", "Snatch", "The Godfather"],
-            "year": [1997, 2000, 1972],
-            "genre": ["drama", "caper story", "crime"],
-        }
+    df = (
+        pd.DataFrame(
+            {
+                "title": ["Titanic", "Snatch", "The Godfather"],
+                "year": [1997, 2000, 1972],
+                "genre": ["drama", "caper story", "crime"],
+            }
+        )
+        .sort_values(by="year")
+        .reset_index(drop=True)
     )
     path = tempfile.gettempdir()
     query = f'SELECT * FROM "{dynamodb_table}"'
@@ -47,16 +51,22 @@ def test_write(params: dict[str, Any], use_threads: bool, dynamodb_table: str) -
     file_path = f"{path}/movies.json"
     df.to_json(file_path, orient="records")
     wr.dynamodb.put_json(file_path, dynamodb_table, use_threads=use_threads)
+
     df2 = wr.dynamodb.read_partiql_query(query)
-    assert df.shape == df2.shape
+    df2 = df2[df.columns].sort_values(by="year").reset_index(drop=True)
+    df2["year"] = df["year"].astype("int64")
+    assert_pandas_equals(df, df2)
 
     # CSV
     wr.dynamodb.delete_items(items=df.to_dict("records"), table_name=dynamodb_table)
     file_path = f"{path}/movies.csv"
     df.to_csv(file_path, index=False)
     wr.dynamodb.put_csv(file_path, dynamodb_table, use_threads=use_threads)
+
     df3 = wr.dynamodb.read_partiql_query(query)
-    assert df.shape == df3.shape
+    df3 = df3[df.columns].sort_values(by="year").reset_index(drop=True)
+    df3["year"] = df3["year"].astype("int64")
+    assert_pandas_equals(df, df3)
 
 
 @pytest.mark.parametrize(
@@ -159,7 +169,12 @@ def test_execute_statement(params: dict[str, Any], use_threads: bool, dynamodb_t
         parameters=[title, year],
     )
     df3 = wr.dynamodb.read_partiql_query(f'SELECT * FROM "{dynamodb_table}"')
-    assert df.shape == df3.shape
+    df3 = df3[df.columns].sort_values(by="year").reset_index(drop=True)
+    df3["year"] = df3["year"].astype("int64")
+    assert_pandas_equals(
+        df.sort_values(by="year").reset_index(drop=True),
+        df3,
+    )
 
 
 @pytest.mark.parametrize(
@@ -199,8 +214,9 @@ def test_dynamodb_put_from_file(
         raise RuntimeError(f"Unknown format {format}")
 
     df2 = wr.dynamodb.read_partiql_query(query=f"SELECT * FROM {dynamodb_table}")
-
-    assert df.shape == df2.shape
+    df2 = df2.sort_values(by="par0").reset_index(drop=True)
+    df2["par0"] = df["par0"].astype("int64")
+    assert_pandas_equals(df, df2)
 
 
 @pytest.mark.parametrize(
@@ -394,7 +410,16 @@ def test_read_items_index(params: dict[str, Any], dynamodb_table: str, use_threa
     )
     if chunked:
         df3 = pd.concat(df3)
-    assert df3.shape == df.shape
+
+    df3 = df3[df.columns].sort_values(by=["Title"]).reset_index(drop=True)
+    df3["Author"] = df3["Author"].astype(str)
+    df3["Title"] = df3["Title"].astype(str)
+    df3["Category"] = df3["Category"].astype(str)
+    assert_pandas_equals(
+        df.sort_values(by=["Title"]).reset_index(drop=True).drop(columns=["Formats"]),
+        df3.drop(columns=["Formats"]),
+    )
+    assert df.shape == df3.shape
 
 
 @pytest.mark.parametrize(
@@ -549,3 +574,158 @@ def test_read_items_schema(params, dynamodb_table: str, chunked: bool):
     }
     wr.dynamodb.read_items(allow_full_scan=True, **kwargs)
     wr.dynamodb.read_items(filter_expression=Attr("id").eq(1), **kwargs)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "par0", "AttributeType": "N"},
+                {"AttributeName": "par1", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+def test_deserialization_read_single_item(params: dict[str, Any], dynamodb_table: str) -> None:
+    wr.dynamodb.put_items(
+        items=[
+            {
+                "par0": 0,
+                "par1": "foo",
+            },
+            {
+                "par0": 1,
+                "par1": "bar",
+            },
+        ],
+        table_name=dynamodb_table,
+    )
+
+    items_df = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        partition_values=[0],
+        sort_values=["foo"],
+        consistent=True,
+    )
+
+    assert items_df.iloc[0]["par0"] == 0
+    assert items_df.iloc[0]["par1"] == "foo"
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "par0", "AttributeType": "N"},
+                {"AttributeName": "par1", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+def test_deserialization_read_batch_items(params: dict[str, Any], dynamodb_table: str) -> None:
+    wr.dynamodb.put_items(
+        items=[
+            {
+                "par0": 0,
+                "par1": "foo",
+            },
+            {
+                "par0": 1,
+                "par1": "bar",
+            },
+        ],
+        table_name=dynamodb_table,
+    )
+
+    items_df = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        partition_values=[0, 1],
+        sort_values=["foo", "bar"],
+        consistent=True,
+    ).sort_values(by=["par0"])
+
+    assert items_df.iloc[0]["par0"] == 0
+    assert items_df.iloc[0]["par1"] == "foo"
+    assert items_df.iloc[1]["par0"] == 1
+    assert items_df.iloc[1]["par1"] == "bar"
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "par0", "AttributeType": "N"},
+                {"AttributeName": "par1", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+def test_deserialization_read_query(params: dict[str, Any], dynamodb_table: str) -> None:
+    wr.dynamodb.put_items(
+        items=[
+            {
+                "par0": 0,
+                "par1": "foo",
+            },
+            {
+                "par0": 1,
+                "par1": "bar",
+            },
+        ],
+        table_name=dynamodb_table,
+    )
+
+    items_df = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        key_condition_expression="par0 = :v1",
+        expression_attribute_values={":v1": 0},
+        consistent=True,
+    )
+
+    assert items_df.iloc[0]["par0"] == 0
+    assert items_df.iloc[0]["par1"] == "foo"
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "par0", "AttributeType": "N"},
+                {"AttributeName": "par1", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+def test_deserialization_full_scan(params: dict[str, Any], dynamodb_table: str) -> None:
+    wr.dynamodb.put_items(
+        items=[
+            {
+                "par0": 0,
+                "par1": "foo",
+            },
+            {
+                "par0": 1,
+                "par1": "bar",
+            },
+        ],
+        table_name=dynamodb_table,
+    )
+
+    items_df = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        allow_full_scan=True,
+        consistent=True,
+    ).sort_values(by=["par0"])
+
+    assert items_df.iloc[0]["par0"] == 0
+    assert items_df.iloc[0]["par1"] == "foo"
+    assert items_df.iloc[1]["par0"] == 1
+    assert items_df.iloc[1]["par1"] == "bar"
