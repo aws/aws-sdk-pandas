@@ -27,7 +27,7 @@ def _create_iceberg_table(
     df: pd.DataFrame,
     database: str,
     table: str,
-    path: str,
+    path: str | None,
     wg_config: _WorkGroupConfig,
     partition_cols: list[str] | None,
     additional_table_properties: dict[str, Any] | None,
@@ -338,7 +338,7 @@ def to_iceberg(
                 df=df,
                 database=database,
                 table=table,
-                path=table_location,  # type: ignore[arg-type]
+                path=table_location,
                 wg_config=wg_config,
                 partition_cols=partition_cols,
                 additional_table_properties=additional_table_properties,
