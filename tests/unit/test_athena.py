@@ -1628,11 +1628,10 @@ def test_athena_to_iceberg_schema_evolution_modify_columns(
     assert str(df2_out["c2"].dtype).startswith("Int64")
 
 
-def test_athena_to_iceberg_schema_evolution_remove_columns(
+def test_athena_to_iceberg_schema_evolution_drop_columns_error(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
-    # Version 1
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
     wr.athena.to_iceberg(
         df=df,
         database=glue_database,
@@ -1643,41 +1642,17 @@ def test_athena_to_iceberg_schema_evolution_remove_columns(
         schema_evolution=True,
     )
 
-    column_types = wr.catalog.get_table_types(glue_database, glue_table)
-    assert len(column_types) == len(df.columns)
+    df = pd.DataFrame({"c0": [6, 7, 8]})
 
-    # Version 2
-    df2 = pd.DataFrame({"c0": [10, 11, 12], "c1": [13, 14, 15]})
-    wr.athena.to_iceberg(
-        df=df2,
-        database=glue_database,
-        table=glue_table,
-        table_location=path,
-        temp_path=path2,
-        keep_files=False,
-        schema_evolution=True,
-    )
-
-    df2_out = wr.athena.read_sql_table(
-        table=glue_table,
-        database=glue_database,
-        ctas_approach=False,
-        unload_approach=False,
-    )
-    assert len(df2_out) == len(df) * 2
-    assert np.all(df2_out.columns == df2.columns)
-
-    # Version 3
-    df3 = pd.DataFrame({"c0": [20, 21, 22]})
-    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.athena.to_iceberg(
-            df=df3,
+            df=df,
             database=glue_database,
             table=glue_table,
             table_location=path,
             temp_path=path2,
             keep_files=False,
-            schema_evolution=False,
+            schema_evolution=True,
         )
 
 

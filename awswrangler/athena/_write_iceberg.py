@@ -147,9 +147,8 @@ def _alter_iceberg_table(
         )
 
     if schema_changes["to_drop"]:
-        sql_statements += _alter_iceberg_table_drop_columns_sql(
-            table=table,
-            columns_to_drop=schema_changes["to_drop"],
+        raise exceptions.InvalidArgumentCombination(
+            f"Dropping columns of Iceberg tables is not currently supported: {schema_changes['to_drop']}"
         )
 
     for statement in sql_statements:
@@ -183,18 +182,6 @@ def _alter_iceberg_table_change_columns_sql(
 
     for col_name, col_type in columns_to_change.items():
         sql_statements.append(f"ALTER TABLE {table} CHANGE COLUMN {col_name} {col_name} {col_type}")
-
-    return sql_statements
-
-
-def _alter_iceberg_table_drop_columns_sql(
-    table: str,
-    columns_to_drop: set[str],
-) -> list[str]:
-    sql_statements = []
-
-    for col_name in columns_to_drop:
-        sql_statements.append(f"ALTER TABLE {table} DROP COLUMN {col_name}")
 
     return sql_statements
 
