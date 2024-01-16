@@ -116,9 +116,9 @@ def _determine_differences(
         for col in original_column_names.intersection(new_column_names)
         if frame_columns_types[col] != catalog_column_types[col]
     ]
-    to_change = {col: frame_columns_types[col] for col in columns_to_change}
+    modified_columns = {col: frame_columns_types[col] for col in columns_to_change}
 
-    return _SchemaChanges(new_columns=new_columns, modified_columns=to_change, missing_columns=missing_columns)
+    return _SchemaChanges(new_columns=new_columns, modified_columns=modified_columns, missing_columns=missing_columns)
 
 
 def _alter_iceberg_table(
