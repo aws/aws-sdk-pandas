@@ -80,9 +80,9 @@ def _create_iceberg_table(
 
 
 class _SchemaChanges(TypedDict):
-    to_add: dict[str, str]
-    to_change: dict[str, str]
-    to_drop: dict[str, str]
+    new_columns: dict[str, str]
+    modified_columns: dict[str, str]
+    missing_columns: dict[str, str]
 
 
 def _determine_differences(
@@ -105,20 +105,20 @@ def _determine_differences(
         catalog.get_table_types(database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session),
     )
 
-    original_columns = set(catalog_column_types)
-    new_columns = set(frame_columns_types)
+    original_column_names = set(catalog_column_types)
+    new_column_names = set(frame_columns_types)
 
-    to_add = {col: frame_columns_types[col] for col in new_columns - original_columns}
-    to_drop = {col: catalog_column_types[col] for col in original_columns - new_columns}
+    new_columns = {col: frame_columns_types[col] for col in new_column_names - original_column_names}
+    missing_columns = {col: catalog_column_types[col] for col in original_column_names - new_column_names}
 
     columns_to_change = [
         col
-        for col in original_columns.intersection(new_columns)
+        for col in original_column_names.intersection(new_column_names)
         if frame_columns_types[col] != catalog_column_types[col]
     ]
     to_change = {col: frame_columns_types[col] for col in columns_to_change}
 
-    return _SchemaChanges(to_add=to_add, to_change=to_change, to_drop=to_drop)
+    return _SchemaChanges(new_columns=new_columns, modified_columns=to_change, missing_columns=missing_columns)
 
 
 def _alter_iceberg_table(
@@ -135,21 +135,22 @@ def _alter_iceberg_table(
 ) -> None:
     sql_statements: list[str] = []
 
-    if schema_changes["to_add"]:
+    if schema_changes["new_columns"]:
         sql_statements += _alter_iceberg_table_add_columns_sql(
             table=table,
-            columns_to_add=schema_changes["to_add"],
+            columns_to_add=schema_changes["new_columns"],
         )
 
-    if schema_changes["to_change"]:
+    if schema_changes["modified_columns"]:
         sql_statements += _alter_iceberg_table_change_columns_sql(
             table=table,
-            columns_to_change=schema_changes["to_change"],
+            columns_to_change=schema_changes["modified_columns"],
         )
 
-    if schema_changes["to_drop"] and not schema_fill_missing:
+    if schema_changes["missing_columns"] and not schema_fill_missing:
         raise exceptions.InvalidArgumentCombination(
-            f"Dropping columns of Iceberg tables is not currently supported: {schema_changes['to_drop']}"
+            f"Dropping columns of Iceberg tables is not supported: {schema_changes['missing_columns']}. "
+            "Please use `schema_fill_missing=True` to fill missing columns with N/A."
         )
 
     for statement in sql_statements:
@@ -273,6 +274,10 @@ def to_iceberg(
         If none is provided, the AWS account ID is used by default
     schema_evolution: bool
         If True allows schema evolution for new columns or changes in column types.
+        Missing columns will throw an error unless ``schema_fill_missing`` is set to ``True``.
+    schema_fill_missing: bool
+        If True, fill missing columns with NULL values.
+        Only takes effect if ``schema_evolution`` is set to True.
     columns_comments: GlueTableSettings, optional
         Glue/Athena catalog: Settings for writing to the Glue table.
         Currently only the 'columns_comments' attribute is supported for this function.
@@ -374,8 +379,8 @@ def to_iceberg(
             )
 
             # Add missing columns to the DataFrame
-            if schema_differences["to_drop"] and schema_fill_missing:
-                for col_name, col_type in schema_differences["to_drop"].items():
+            if schema_differences["missing_columns"] and schema_fill_missing:
+                for col_name, col_type in schema_differences["missing_columns"].items():
                     df[col_name] = None
                     df[col_name] = df[col_name].astype(col_type)
 
