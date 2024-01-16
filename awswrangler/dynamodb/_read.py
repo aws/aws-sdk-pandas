@@ -440,6 +440,12 @@ def _convert_condition_base_to_expression(
     key_condition_expression: ConditionBase, is_key_condition: bool, serializer: TypeSerializer
 ) -> dict[str, Any]:
     builder = ConditionExpressionBuilder()
+
+    # Use different namespaces for key and filter conditions
+    if is_key_condition:
+        builder._name_placeholder = "kn"
+        builder._value_placeholder = "kv"
+
     expression = builder.build_expression(key_condition_expression, is_key_condition=is_key_condition)
 
     return _ExpressionTuple(
@@ -692,8 +698,15 @@ def read_items(  # noqa: PLR0912
                 key_condition_expression, is_key_condition=True, serializer=serializer
             )
             kwargs["KeyConditionExpression"] = expression_tuple.condition_expression
-            kwargs["ExpressionAttributeNames"] = expression_tuple.attribute_name_placeholders
-            kwargs["ExpressionAttributeValues"] = expression_tuple.attribute_value_placeholders
+
+            kwargs["ExpressionAttributeNames"] = {
+                **kwargs.get("ExpressionAttributeNames", {}),
+                **expression_tuple.attribute_name_placeholders,
+            }
+            kwargs["ExpressionAttributeValues"] = {
+                **kwargs.get("ExpressionAttributeValues", {}),
+                **expression_tuple.attribute_value_placeholders,
+            }
 
     if filter_expression:
         if isinstance(filter_expression, str):
@@ -703,15 +716,28 @@ def read_items(  # noqa: PLR0912
                 filter_expression, is_key_condition=False, serializer=serializer
             )
             kwargs["FilterExpression"] = expression_tuple.condition_expression
-            kwargs["ExpressionAttributeNames"] = expression_tuple.attribute_name_placeholders
-            kwargs["ExpressionAttributeValues"] = expression_tuple.attribute_value_placeholders
+
+            kwargs["ExpressionAttributeNames"] = {
+                **kwargs.get("ExpressionAttributeNames", {}),
+                **expression_tuple.attribute_name_placeholders,
+            }
+            kwargs["ExpressionAttributeValues"] = {
+                **kwargs.get("ExpressionAttributeValues", {}),
+                **expression_tuple.attribute_value_placeholders,
+            }
 
     if columns:
         kwargs["ProjectionExpression"] = ", ".join(columns)
     if expression_attribute_names:
-        kwargs["ExpressionAttributeNames"] = expression_attribute_names
+        kwargs["ExpressionAttributeNames"] = {
+            **kwargs.get("ExpressionAttributeNames", {}),
+            **expression_attribute_names,
+        }
     if expression_attribute_values:
-        kwargs["ExpressionAttributeValues"] = _serialize_item(expression_attribute_values, serializer)
+        kwargs["ExpressionAttributeValues"] = {
+            **kwargs.get("ExpressionAttributeValues", {}),
+            **_serialize_item(expression_attribute_values, serializer),
+        }
     if max_items_evaluated:
         kwargs["Limit"] = max_items_evaluated
 

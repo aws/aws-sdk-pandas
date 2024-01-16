@@ -729,3 +729,38 @@ def test_deserialization_full_scan(params: dict[str, Any], dynamodb_table: str) 
     assert items_df.iloc[0]["par1"] == "foo"
     assert items_df.iloc[1]["par0"] == 1
     assert items_df.iloc[1]["par1"] == "bar"
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "par0", "AttributeType": "N"},
+                {"AttributeName": "par1", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_read_items_expressions(params: dict[str, Any], dynamodb_table: str, use_threads: bool) -> None:
+    df = pd.DataFrame(
+        {
+            "par0": [1, 1, 2],
+            "par1": ["a", "b", "c"],
+            "operator": ["Ali", "Sarah", "Eido"],
+            "volume": [100, 200, 300],
+            "compliant": [True, False, False],
+        }
+    )
+    wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
+
+    # KeyConditionExpression as Key
+    df2 = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        key_condition_expression=(Key("par0").eq(1) & Key("par1").eq("b")),
+        filter_expression=Attr("operator").eq("Sarah"),
+        use_threads=use_threads,
+    )
+    assert df2.shape == (1, len(df.columns))
