@@ -1628,6 +1628,49 @@ def test_athena_to_iceberg_schema_evolution_modify_columns(
     assert str(df2_out["c2"].dtype).startswith("Int64")
 
 
+def test_athena_to_iceberg_schema_evolution_fill_missing_columns(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["foo", "bar", "baz"]})
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+
+    print(wr.catalog.table(glue_database, glue_table))
+
+    df = pd.DataFrame({"c0": [3, 4, 5]})
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+        schema_evolution=True,
+        schema_fill_missing=True,
+    )
+    print(wr.catalog.table(glue_database, glue_table))
+
+    df_actual = wr.athena.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+    df_actual = df_actual.sort_values("c0").reset_index(drop=True)
+    df_actual["c0"] = df_actual["c0"].astype("int64")
+
+    df_expected = pd.DataFrame({"c0": [0, 1, 2, 3, 4, 5], "c1": ["foo", "bar", "baz", np.nan, np.nan, np.nan]})
+    df_expected["c1"] = df_expected["c1"].astype("string")
+
+    assert_pandas_equals(df_actual, df_expected)
+
+
 def test_athena_to_iceberg_schema_evolution_drop_columns_error(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:

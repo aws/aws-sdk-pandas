@@ -82,7 +82,7 @@ def _create_iceberg_table(
 class _SchemaChanges(TypedDict):
     to_add: dict[str, str]
     to_change: dict[str, str]
-    to_drop: set[str]
+    to_drop: dict[str, str]
 
 
 def _determine_differences(
@@ -109,7 +109,7 @@ def _determine_differences(
     new_columns = set(frame_columns_types)
 
     to_add = {col: frame_columns_types[col] for col in new_columns - original_columns}
-    to_drop = original_columns - new_columns
+    to_drop = {col: catalog_column_types[col] for col in original_columns - new_columns}
 
     columns_to_change = [
         col
@@ -125,6 +125,7 @@ def _alter_iceberg_table(
     database: str,
     table: str,
     schema_changes: _SchemaChanges,
+    schema_fill_missing: bool,
     wg_config: _WorkGroupConfig,
     data_source: str | None = None,
     workgroup: str | None = None,
@@ -146,7 +147,7 @@ def _alter_iceberg_table(
             columns_to_change=schema_changes["to_change"],
         )
 
-    if schema_changes["to_drop"]:
+    if schema_changes["to_drop"] and not schema_fill_missing:
         raise exceptions.InvalidArgumentCombination(
             f"Dropping columns of Iceberg tables is not currently supported: {schema_changes['to_drop']}"
         )
@@ -210,6 +211,7 @@ def to_iceberg(
     dtype: dict[str, str] | None = None,
     catalog_id: str | None = None,
     schema_evolution: bool = False,
+    schema_fill_missing: bool = False,
     glue_table_settings: GlueTableSettings | None = None,
 ) -> None:
     """
@@ -362,6 +364,7 @@ def to_iceberg(
                 database=database,
                 table=table,
                 schema_changes=schema_differences,
+                schema_fill_missing=schema_fill_missing,
                 wg_config=wg_config,
                 data_source=data_source,
                 workgroup=workgroup,
@@ -369,6 +372,12 @@ def to_iceberg(
                 kms_key=kms_key,
                 boto3_session=boto3_session,
             )
+
+            # Add missing columns to the DataFrame
+            if schema_differences["to_drop"] and schema_fill_missing:
+                for col_name, col_type in schema_differences["to_drop"].items():
+                    df[col_name] = None
+                    df[col_name] = df[col_name].astype(col_type)
 
         # Create temporary external table, write the results
         s3.to_parquet(
