@@ -237,8 +237,13 @@ def _read_parquet_chunked(
             chunks = pq_file.iter_batches(
                 batch_size=batch_size, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False
             )
+
+            schema = pq_file.schema.to_arrow_schema()
+            if columns:
+                schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
+
             table = _add_table_partitions(
-                table=pa.Table.from_batches(chunks, schema=pq_file.schema.to_arrow_schema()),
+                table=pa.Table.from_batches(chunks, schema=schema),
                 path=path,
                 path_root=path_root,
             )
@@ -603,7 +608,7 @@ def read_parquet_table(
         must return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/3.5.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.5.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     columns : List[str], optional
         List of columns to read from the file(s).
     validate_schema : bool, default False

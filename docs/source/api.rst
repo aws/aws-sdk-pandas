@@ -140,6 +140,7 @@ Amazon Athena
     read_sql_table
     repair_table
     run_spark_calculation
+    show_create_table
     start_query_execution
     stop_query_execution
     to_iceberg

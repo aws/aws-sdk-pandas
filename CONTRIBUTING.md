@@ -250,8 +250,8 @@ Check the file below to check the common errors and solutions
 [ERRORS](https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING_COMMON_ERRORS.md)
 
 ## Bumping the version
-When there is a new release you can use `bump2version` for updating the version number in relevant files.
-You can run `bump2version major|minor|patch` in the top directory and the following steps will be executed:
-- The version number in all files which are listed in `.bumpversion.cfg` is updated
+When there is a new release you can use `bump-my-version` for updating the version number in relevant files.
+You can run `bump-my-version major|minor|patch` in the top directory and the following steps will be executed:
+- The version number in all files which are listed in `.bumpversion.toml` is updated
 - A new commit with message `Bump version: {current_version} → {new_version}` is created
 - A new Git tag `{new_version}` is created

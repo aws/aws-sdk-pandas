@@ -816,3 +816,18 @@ def test_read_parquet_schema_validation_with_index_column(path) -> None:
         validate_schema=True,
     )
     assert df0.shape == df1.shape
+
+
+@pytest.mark.parametrize("columns", [None, ["c0"], ["c0", "c1"]])
+@pytest.mark.parametrize("chunked", [False, True, 2])
+def test_chunked_columns(path, columns, chunked):
+    df = pd.DataFrame({"c0": [0, 1, 2, 3, 4], "c1": [2, 3, 4, 5, 6], "c3": [3, 4, 5, 6, 7]})
+    path_file = f"{path}0.parquet"
+
+    wr.s3.to_parquet(df, path_file)
+    df2 = wr.s3.read_parquet(path_file, columns=columns, chunked=chunked)
+
+    if chunked:
+        df2 = pd.concat(list(df2), ignore_index=True)
+
+    assert df[columns].shape if columns else df.shape == df2.shape
