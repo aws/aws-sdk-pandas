@@ -21,29 +21,29 @@ pytestmark = pytest.mark.distributed
 
 @pytest.fixture(scope="function")
 def postgresql_con() -> Iterator[pg8000.Connection]:
-    con = wr.postgresql.connect("aws-sdk-pandas-postgresql")
-    yield con
-    con.close()
+    with wr.postgresql.connect("aws-sdk-pandas-postgresql") as con:
+        yield con
 
 
-def test_glue_connection():
-    wr.postgresql.connect("aws-sdk-pandas-postgresql", timeout=10).close()
+def test_glue_connection() -> None:
+    with wr.postgresql.connect("aws-sdk-pandas-postgresql", timeout=10):
+        pass
 
 
-def test_glue_connection_ssm_credential_type():
-    wr.postgresql.connect("aws-sdk-pandas-postgresql-ssm", timeout=10).close()
+def test_glue_connection_ssm_credential_type() -> None:
+    with wr.postgresql.connect("aws-sdk-pandas-postgresql-ssm", timeout=10):
+        pass
 
 
 def test_read_sql_query_simple(databases_parameters):
-    con = pg8000.connect(
+    with pg8000.connect(
         host=databases_parameters["postgresql"]["host"],
         port=int(databases_parameters["postgresql"]["port"]),
         database=databases_parameters["postgresql"]["database"],
         user=databases_parameters["user"],
         password=databases_parameters["password"],
-    )
-    df = wr.postgresql.read_sql_query("SELECT 1", con=con)
-    con.close()
+    ) as con:
+        df = wr.postgresql.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 
 
@@ -540,7 +540,7 @@ def test_timestamp_overflow(postgresql_table, postgresql_con):
     assert df.c0.values[0] == df2.c0.values[0]
 
 
-def test_column_with_reserved_keyword(postgresql_con: pg8000.Connection, postgresql_table: str) -> None:
+def test_column_with_reserved_keyword(postgresql_table: str, postgresql_con: pg8000.Connection) -> None:
     df = pd.DataFrame({"col0": [1], "end": ["foo"]})
     wr.postgresql.to_sql(
         df=df, con=postgresql_con, table=postgresql_table, schema="public", mode="append", use_column_names=True
