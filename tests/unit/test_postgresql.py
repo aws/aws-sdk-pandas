@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from decimal import Decimal
+from typing import Iterator
 
 import pg8000
 import pyarrow as pa
@@ -19,7 +20,7 @@ pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="function")
-def postgresql_con():
+def postgresql_con() -> Iterator[pg8000.Connection]:
     con = wr.postgresql.connect("aws-sdk-pandas-postgresql")
     yield con
     con.close()
@@ -537,3 +538,13 @@ def test_timestamp_overflow(postgresql_table, postgresql_con):
         con=postgresql_con, schema="public", table=postgresql_table, timestamp_as_object=True
     )
     assert df.c0.values[0] == df2.c0.values[0]
+
+
+def test_column_with_reserved_keyword(postgresql_con: pg8000.Connection, postgresql_table: str) -> None:
+    df = pd.DataFrame({"col0": [1], "end": ["foo"]})
+    wr.postgresql.to_sql(
+        df=df, con=postgresql_con, table=postgresql_table, schema="public", mode="append", use_column_names=True
+    )
+
+    df2 = wr.postgresql.read_sql_table(con=postgresql_con, table=postgresql_table, schema="public")
+    assert (df.columns == df2.columns).all()
