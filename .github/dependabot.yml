@@ -20,6 +20,6 @@ updates:
       time: "09:00"
       timezone: "Europe/London"
     groups:
-      devops:
+      github-actions:
         patterns:
           - "*"
