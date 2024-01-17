@@ -332,11 +332,10 @@ def postgresql_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.postgresql.connect("aws-sdk-pandas-postgresql")
-    with con.cursor() as cursor:
-        cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
-    con.commit()
-    con.close()
+    with wr.postgresql.connect("aws-sdk-pandas-postgresql") as con:
+        with con.cursor() as cursor:
+            cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
+        con.commit()
 
 
 @pytest.fixture(scope="function")
