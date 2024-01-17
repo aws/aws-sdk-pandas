@@ -6,20 +6,31 @@ from __future__ import annotations
 import logging
 import uuid
 from ssl import SSLContext
-from typing import Any, Iterator, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, Iterator, Literal, cast, overload
 
 import boto3
 import pyarrow as pa
 
 import awswrangler.pandas as pd
-from awswrangler import _data_types, _utils, exceptions
+from awswrangler import _data_types, _sql_utils, _utils, exceptions
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
 
-pg8000 = _utils.import_optional_dependency("pg8000")
-pg8000_native = _utils.import_optional_dependency("pg8000.native")
+if TYPE_CHECKING:
+    try:
+        import pg8000
+        from pg8000 import native as pg8000_native
+    except ImportError:
+        pass
+else:
+    pg8000 = _utils.import_optional_dependency("pg8000")
+    pg8000_native = _utils.import_optional_dependency("pg8000.native")
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _identifier(sql: str) -> str:
+    return _sql_utils.identifier(sql, sql_mode="ansi")
 
 
 def _validate_connection(con: "pg8000.Connection") -> None:
@@ -32,8 +43,8 @@ def _validate_connection(con: "pg8000.Connection") -> None:
 
 
 def _drop_table(cursor: "pg8000.Cursor", schema: str | None, table: str) -> None:
-    schema_str = f"{pg8000_native.identifier(schema)}." if schema else ""
-    sql = f"DROP TABLE IF EXISTS {schema_str}{pg8000_native.identifier(table)}"
+    schema_str = f"{_identifier(schema)}." if schema else ""
+    sql = f"DROP TABLE IF EXISTS {schema_str}{_identifier(table)}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -71,15 +82,15 @@ def _create_table(
         varchar_lengths=varchar_lengths,
         converter_func=_data_types.pyarrow2postgresql,
     )
-    cols_str: str = "".join([f"{pg8000_native.identifier(k)} {v},\n" for k, v in postgresql_types.items()])[:-2]
-    sql = f"CREATE TABLE IF NOT EXISTS {pg8000_native.identifier(schema)}.{pg8000_native.identifier(table)} (\n{cols_str})"
+    cols_str: str = "".join([f"{_identifier(k)} {v},\n" for k, v in postgresql_types.items()])[:-2]
+    sql = f"CREATE TABLE IF NOT EXISTS {_identifier(schema)}.{_identifier(table)} (\n{cols_str})"
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
 
 
 def _iterate_server_side_cursor(
     sql: str,
-    con: Any,
+    con: "pg8000.Connection",
     chunksize: int,
     index_col: str | list[str] | None,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None,
@@ -97,16 +108,12 @@ def _iterate_server_side_cursor(
     """
     with con.cursor() as cursor:
         sscursor_name: str = f"c_{uuid.uuid4().hex}"
-        cursor_args = _db_utils._convert_params(
-            f"DECLARE {pg8000_native.identifier(sscursor_name)} CURSOR FOR {sql}", params
-        )
+        cursor_args = _db_utils._convert_params(f"DECLARE {_identifier(sscursor_name)} CURSOR FOR {sql}", params)
         cursor.execute(*cursor_args)
 
         try:
             while True:
-                cursor.execute(
-                    f"FETCH FORWARD {pg8000_native.literal(chunksize)} FROM {pg8000_native.identifier(sscursor_name)}"
-                )
+                cursor.execute(f"FETCH FORWARD {pg8000_native.literal(chunksize)} FROM {_identifier(sscursor_name)}")
                 records = cursor.fetchall()
 
                 if not records:
@@ -122,7 +129,7 @@ def _iterate_server_side_cursor(
                     dtype_backend=dtype_backend,
                 )
         finally:
-            cursor.execute(f"CLOSE {pg8000_native.identifier(sscursor_name)}")
+            cursor.execute(f"CLOSE {_identifier(sscursor_name)}")
 
 
 @_utils.check_optional_dependency(pg8000, "pg8000")
@@ -466,9 +473,9 @@ def read_sql_table(
 
     """
     sql: str = (
-        f"SELECT * FROM {pg8000_native.identifier(table)}"
+        f"SELECT * FROM {_identifier(table)}"
         if schema is None
-        else f"SELECT * FROM {pg8000_native.identifier(schema)}.{pg8000_native.identifier(table)}"
+        else f"SELECT * FROM {_identifier(schema)}.{_identifier(table)}"
     )
     return read_sql_query(
         sql=sql,
@@ -586,7 +593,7 @@ def to_sql(
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
             column_placeholders: str = ", ".join(["%s"] * len(df.columns))
-            column_names = [pg8000_native.identifier(column) for column in df.columns]
+            column_names = [_identifier(column) for column in df.columns]
             insertion_columns = ""
             upsert_str = ""
             if use_column_names:
@@ -602,7 +609,7 @@ def to_sql(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
             for placeholders, parameters in placeholder_parameter_pair_generator:
-                sql: str = f"INSERT INTO {pg8000_native.identifier(schema)}.{pg8000_native.identifier(table)} {insertion_columns} VALUES {placeholders}{upsert_str}"
+                sql: str = f"INSERT INTO {_identifier(schema)}.{_identifier(table)} {insertion_columns} VALUES {placeholders}{upsert_str}"
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
