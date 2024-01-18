@@ -237,6 +237,8 @@ def read_csv(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.5.2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    s3_additional_kwargs: dict[str, Any], optional
+        Forwarded to botocore requests.
     ray_args: typing.RaySettings, optional
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     pandas_kwargs :
@@ -397,6 +399,8 @@ def read_fwf(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.5.2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    s3_additional_kwargs: dict[str, Any], optional
+        Forwarded to botocore requests.
     ray_args: typing.RaySettings, optional
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     pandas_kwargs:
@@ -564,6 +568,8 @@ def read_json(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.5.2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    s3_additional_kwargs: dict[str, Any], optional
+        Forwarded to botocore requests.
     ray_args: typing.RaySettings, optional
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     pandas_kwargs:
