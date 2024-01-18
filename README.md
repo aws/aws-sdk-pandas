@@ -11,9 +11,10 @@ Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, Q
 
 > An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative | aws-proserve-opensource@amazon.com
 
-[![Release](https://img.shields.io/badge/3.5.2-brightgreen.svg)](https://pypi.org/project/awswrangler/)
-[![Python Version](https://img.shields.io/badge/python-3.8%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![PyPi](https://img.shields.io/pypi/v/awswrangler)](https://pypi.org/project/awswrangler/)
+[![Conda](https://img.shields.io/conda/vn/conda-forge/awswrangler)](https://anaconda.org/conda-forge/awswrangler)
+[![Python Version](https://img.shields.io/pypi/pyversions/awswrangler.svg)](https://pypi.org/project/awswrangler/)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
