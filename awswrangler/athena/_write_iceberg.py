@@ -94,7 +94,7 @@ def _determine_differences(
     boto3_session: boto3.Session | None,
     dtype: dict[str, str] | None,
     catalog_id: str | None,
-) -> _SchemaChanges:
+) -> tuple[_SchemaChanges, list[str]]:
     frame_columns_types, frame_partitions_types = _data_types.athena_types_from_pandas_partitioned(
         df=df, index=index, partition_cols=partition_cols, dtype=dtype
     )
@@ -118,14 +118,17 @@ def _determine_differences(
     ]
     modified_columns = {col: frame_columns_types[col] for col in columns_to_change}
 
-    return _SchemaChanges(new_columns=new_columns, modified_columns=modified_columns, missing_columns=missing_columns)
+    return (
+        _SchemaChanges(new_columns=new_columns, modified_columns=modified_columns, missing_columns=missing_columns),
+        [key for key in catalog_column_types],
+    )
 
 
 def _alter_iceberg_table(
     database: str,
     table: str,
     schema_changes: _SchemaChanges,
-    schema_fill_missing: bool,
+    fill_missing_columns_in_df: bool,
     wg_config: _WorkGroupConfig,
     data_source: str | None = None,
     workgroup: str | None = None,
@@ -147,10 +150,10 @@ def _alter_iceberg_table(
             columns_to_change=schema_changes["modified_columns"],
         )
 
-    if schema_changes["missing_columns"] and not schema_fill_missing:
+    if schema_changes["missing_columns"] and not fill_missing_columns_in_df:
         raise exceptions.InvalidArgumentCombination(
             f"Dropping columns of Iceberg tables is not supported: {schema_changes['missing_columns']}. "
-            "Please use `schema_fill_missing=True` to fill missing columns with N/A."
+            "Please use `fill_missing_columns_in_df=True` to fill missing columns with N/A."
         )
 
     for statement in sql_statements:
@@ -212,7 +215,7 @@ def to_iceberg(
     dtype: dict[str, str] | None = None,
     catalog_id: str | None = None,
     schema_evolution: bool = False,
-    schema_fill_missing: bool = False,
+    fill_missing_columns_in_df: bool = True,
     glue_table_settings: GlueTableSettings | None = None,
 ) -> None:
     """
@@ -272,12 +275,14 @@ def to_iceberg(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default
-    schema_evolution: bool
-        If True allows schema evolution for new columns or changes in column types.
-        Missing columns will throw an error unless ``schema_fill_missing`` is set to ``True``.
-    schema_fill_missing: bool
-        If True, fill missing columns with NULL values.
-        Only takes effect if ``schema_evolution`` is set to True.
+    schema_evolution: bool, optional
+        If ``True`` allows schema evolution for new columns or changes in column types.
+        Columns missing from the DataFrame that are present in the Iceberg schema
+        will throw an error unless ``fill_missing_columns_in_df`` is set to ``True``.
+        Default is ``False``.
+    fill_missing_columns_in_df: bool, optional
+        If ``True``, fill columns that was missing in the DataFrame with ``NULL`` values.
+        Default is ``True``.
     columns_comments: GlueTableSettings, optional
         Glue/Athena catalog: Settings for writing to the Glue table.
         Currently only the 'columns_comments' attribute is supported for this function.
@@ -352,7 +357,7 @@ def to_iceberg(
                 columns_comments=glue_table_settings.get("columns_comments"),
             )
         else:
-            schema_differences = _determine_differences(
+            schema_differences, catalog_cols = _determine_differences(
                 df=df,
                 database=database,
                 table=table,
@@ -362,6 +367,19 @@ def to_iceberg(
                 dtype=dtype,
                 catalog_id=catalog_id,
             )
+
+            # Add missing columns to the DataFrame
+            if fill_missing_columns_in_df and schema_differences["missing_columns"]:
+                for col_name, col_type in schema_differences["missing_columns"].items():
+                    df[col_name] = None
+                    df[col_name] = df[col_name].astype(_data_types.athena2pandas(col_type))
+
+                schema_differences["missing_columns"] = {}
+
+                # Ensure that the ordering of the DF is the same as in the catalog.
+                # This is required for the INSERT command to work.
+                df = df[catalog_cols]
+
             if schema_evolution is False and any([schema_differences[x] for x in schema_differences]):  # type: ignore[literal-required]
                 raise exceptions.InvalidArgumentValue(f"Schema change detected: {schema_differences}")
 
@@ -369,7 +387,7 @@ def to_iceberg(
                 database=database,
                 table=table,
                 schema_changes=schema_differences,
-                schema_fill_missing=schema_fill_missing,
+                fill_missing_columns_in_df=fill_missing_columns_in_df,
                 wg_config=wg_config,
                 data_source=data_source,
                 workgroup=workgroup,
@@ -377,12 +395,6 @@ def to_iceberg(
                 kms_key=kms_key,
                 boto3_session=boto3_session,
             )
-
-            # Add missing columns to the DataFrame
-            if schema_differences["missing_columns"] and schema_fill_missing:
-                for col_name, col_type in schema_differences["missing_columns"].items():
-                    df[col_name] = None
-                    df[col_name] = df[col_name].astype(col_type)
 
         # Create temporary external table, write the results
         s3.to_parquet(
