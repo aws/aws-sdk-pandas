@@ -14,3 +14,9 @@ jobs:
         alert-lookup: true
         compat-lookup: true
         github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Add a label for all PRs with an alert state
+      if: ${{ steps.dependabot-metadata.outputs.alert-state != '' }}
+      run: gh pr edit "$PR_URL" --add-label "vulnerability"
+      env:
+        PR_URL: ${{github.event.pull_request.html_url}}
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
