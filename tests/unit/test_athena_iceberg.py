@@ -234,6 +234,91 @@ def test_athena_to_iceberg_overwrite_partitions(
     assert_pandas_equals(df_expected, df_actual)
 
 
+def test_athena_to_iceberg_overwrite_partitions_no_partition_error(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    df1 = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "name": ["foo", "bar", "baz"],
+        }
+    )
+
+    wr.athena.to_iceberg(
+        df=df1,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=["name"],
+        keep_files=False,
+    )
+
+    df2 = pd.DataFrame(
+        {
+            "id": [4, 5],
+            "name": ["foo", "bar"],
+        }
+    )
+
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.to_iceberg(
+            df=df2,
+            database=glue_database,
+            table=glue_table,
+            table_location=path,
+            temp_path=path2,
+            partition_cols=["name"],
+            merge_cols=["id"],
+            keep_files=False,
+            mode="overwrite_partitions",
+        )
+
+
+def test_athena_to_iceberg_overwrite_partitions_merge_cols_error(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    df1 = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:15:00.0")],
+        }
+    )
+
+    wr.athena.to_iceberg(
+        df=df1,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+
+    df2 = pd.DataFrame(
+        {
+            "id": [4, 5],
+            "ts": [ts("2020-01-03 12:30:00.0"), ts("2020-01-03 16:45:00.0")],
+        }
+    )
+
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.to_iceberg(
+            df=df2,
+            database=glue_database,
+            table=glue_table,
+            table_location=path,
+            temp_path=path2,
+            keep_files=False,
+            mode="overwrite_partitions",
+        )
+
+
 def test_athena_to_iceberg_schema_evolution_add_columns(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
@@ -563,6 +648,37 @@ def test_athena_to_iceberg_merge_into(path: str, path2: str, glue_database: str,
     assert_pandas_equals(df_expected, df_out)
 
 
+def test_athena_to_iceberg_empty_df_error(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    with pytest.raises(wr.exceptions.EmptyDataFrame):
+        wr.athena.to_iceberg(
+            df=pd.DataFrame(),
+            database=glue_database,
+            table=glue_table,
+            table_location=path,
+            temp_path=path2,
+        )
+
+
+def test_athena_to_iceberg_no_table_location_error(
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.athena.to_iceberg(
+            df=pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]}),
+            database=glue_database,
+            table=glue_table,
+            table_location=None,
+            temp_path=path2,
+        )
+
+
 @pytest.mark.parametrize("partition_cols", [None, ["name"], ["name", "day(ts)"]])
 def test_athena_delete_from_iceberg_table(
     path: str,
@@ -591,14 +707,8 @@ def test_athena_delete_from_iceberg_table(
         keep_files=False,
     )
 
-    df_keys_to_remove = pd.DataFrame(
-        {
-            "id": [1, 2],
-        },
-    )
-
     wr.athena.delete_from_iceberg_table(
-        df=df_keys_to_remove,
+        df=pd.DataFrame({"id": [1, 2]}),
         database=glue_database,
         table=glue_table,
         temp_path=path2,
@@ -624,3 +734,84 @@ def test_athena_delete_from_iceberg_table(
     df_expected["name"] = df_expected["name"].astype("string")
 
     assert_pandas_equals(df_expected, df_actual)
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["name"]])
+def test_athena_delete_from_iceberg_table_no_merge_cols_error(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+    partition_cols: list[str] | None,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "name": ["a", "b", "c"],
+            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+        }
+    )
+    df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
+    df["name"] = df["name"].astype("string")
+
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=partition_cols,
+        keep_files=False,
+    )
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.athena.delete_from_iceberg_table(
+            df=pd.DataFrame({"id": [1, 2]}),
+            database=glue_database,
+            table=glue_table,
+            temp_path=path2,
+            merge_cols=[],
+            keep_files=False,
+        )
+
+
+def test_athena_delete_from_iceberg_table_no_table_error(
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    with pytest.raises(wr.exceptions.InvalidTable):
+        wr.athena.delete_from_iceberg_table(
+            df=pd.DataFrame({"id": [1, 2]}),
+            database=glue_database,
+            table=glue_table,
+            temp_path=path2,
+            merge_cols=["id"],
+            keep_files=False,
+        )
+
+
+def test_athena_delete_from_iceberg_empty_df_error(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    wr.athena.to_iceberg(
+        df=pd.DataFrame({"id": [1, 2, 3]}),
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+
+    with pytest.raises(wr.exceptions.EmptyDataFrame):
+        wr.athena.delete_from_iceberg_table(
+            df=pd.DataFrame(),
+            database=glue_database,
+            table=glue_table,
+            merge_cols=["id"],
+            temp_path=path2,
+            keep_files=False,
+        )
