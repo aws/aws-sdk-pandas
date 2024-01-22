@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import typing
 import uuid
-from typing import Any, Dict, TypedDict, cast
+from typing import Any, Dict, Literal, TypedDict, cast
 
 import boto3
 import pandas as pd
@@ -191,6 +191,33 @@ def _alter_iceberg_table_change_columns_sql(
     return sql_statements
 
 
+def _validate_args(
+    df: pd.DataFrame,
+    temp_path: str | None,
+    wg_config: _WorkGroupConfig,
+    mode: Literal["append", "overwrite", "overwrite_partitions"],
+    partition_cols: list[str] | None,
+    merge_cols: list[str] | None,
+) -> None:
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+
+    if not temp_path and not wg_config.s3_output:
+        raise exceptions.InvalidArgumentCombination(
+            "Either path or workgroup path must be specified to store the temporary results."
+        )
+
+    if mode == "overwrite_partitions":
+        if not partition_cols:
+            raise exceptions.InvalidArgumentCombination(
+                "When mode is 'overwrite_partitions' partition_cols must be specified."
+            )
+        if merge_cols:
+            raise exceptions.InvalidArgumentCombination(
+                "When mode is 'overwrite_partitions' merge_cols must not be specified."
+            )
+
+
 @apply_configs
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
@@ -207,6 +234,7 @@ def to_iceberg(
     keep_files: bool = True,
     data_source: str | None = None,
     workgroup: str = "primary",
+    mode: Literal["append", "overwrite", "overwrite_partitions"] = "append",
     encryption: str | None = None,
     kms_key: str | None = None,
     boto3_session: boto3.Session | None = None,
@@ -254,6 +282,8 @@ def to_iceberg(
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     workgroup : str
         Athena workgroup. Primary by default.
+    mode: str
+        ``append`` (default), ``overwrite``, ``overwrite_partitions``.
     encryption : str, optional
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     kms_key : str, optional
@@ -318,21 +348,27 @@ def to_iceberg(
     ... )
 
     """
-    if df.empty is True:
-        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
-
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     temp_table: str = f"temp_table_{uuid.uuid4().hex}"
 
-    if not temp_path and not wg_config.s3_output:
-        raise exceptions.InvalidArgumentCombination(
-            "Either path or workgroup path must be specified to store the temporary results."
-        )
+    _validate_args(
+        df=df,
+        temp_path=temp_path,
+        wg_config=wg_config,
+        mode=mode,
+        partition_cols=partition_cols,
+        merge_cols=merge_cols,
+    )
 
     glue_table_settings = cast(
         GlueTableSettings,
         glue_table_settings if glue_table_settings else {},
     )
+
+    if mode == "overwrite":
+        catalog.delete_table_if_exists(
+            database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session
+        )
 
     try:
         # Create Iceberg table if it doesn't exist
@@ -394,6 +430,24 @@ def to_iceberg(
                 encryption=encryption,
                 kms_key=kms_key,
                 boto3_session=boto3_session,
+            )
+
+        # if mode == "overwrite_partitions", drop matched partitions
+        if mode == "overwrite_partitions":
+            delete_from_iceberg_table(
+                df=df,
+                database=database,
+                table=table,
+                merge_cols=partition_cols,
+                temp_path=temp_path,
+                keep_files=False,
+                data_source=data_source,
+                workgroup=workgroup,
+                encryption=encryption,
+                kms_key=kms_key,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+                catalog_id=catalog_id,
             )
 
         # Create temporary external table, write the results

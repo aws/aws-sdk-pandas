@@ -64,6 +64,176 @@ def test_athena_to_iceberg(
     assert assert_pandas_equals(df, df_out)
 
 
+@pytest.mark.parametrize("partition_cols", [None, ["name"]])
+def test_athena_to_iceberg_append(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+    partition_cols: list[str] | None,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5],
+            "name": ["a", "b", "c", "a", "c"],
+        }
+    )
+    df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
+    df["name"] = df["name"].astype("string")
+
+    split_index = 4
+
+    wr.athena.to_iceberg(
+        df=df.iloc[:split_index],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=partition_cols,
+        keep_files=False,
+    )
+
+    wr.athena.to_iceberg(
+        df=df.iloc[split_index:],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=partition_cols,
+        keep_files=False,
+        mode="append",
+    )
+
+    df_actual = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert_pandas_equals(df, df_actual)
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["name"]])
+def test_athena_to_iceberg_overwrite(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+    partition_cols: list[str] | None,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5],
+            "name": ["a", "b", "c", "a", "c"],
+        }
+    )
+    df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
+    df["name"] = df["name"].astype("string")
+
+    split_index = 4
+
+    wr.athena.to_iceberg(
+        df=df.iloc[:split_index],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=partition_cols,
+        keep_files=False,
+    )
+
+    wr.athena.to_iceberg(
+        df=df.iloc[split_index:],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=partition_cols,
+        keep_files=False,
+        mode="overwrite",
+    )
+
+    df_actual = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+    df_expected = df.iloc[split_index:].reset_index(drop=True)
+
+    assert_pandas_equals(df_expected, df_actual)
+
+
+def test_athena_to_iceberg_overwrite_partitions(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    df1 = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:15:00.0")],
+        }
+    )
+    df1["id"] = df1["id"].astype("Int64")  # Cast as nullable int64 type
+    df1["day"] = df1["ts"].dt.day.astype("string")
+
+    wr.athena.to_iceberg(
+        df=df1,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=["day"],
+        keep_files=False,
+    )
+
+    df2 = pd.DataFrame(
+        {
+            "id": [4, 5],
+            "ts": [ts("2020-01-03 12:30:00.0"), ts("2020-01-03 16:45:00.0")],
+        }
+    )
+    df2["id"] = df2["id"].astype("Int64")  # Cast as nullable int64 type
+    df2["day"] = df2["ts"].dt.day.astype("string")
+
+    wr.athena.to_iceberg(
+        df=df2,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=["day"],
+        keep_files=False,
+        mode="overwrite_partitions",
+    )
+
+    df_actual = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    df_expected = pd.DataFrame(
+        {
+            "id": [1, 2, 4, 5],
+            "ts": [
+                ts("2020-01-01 00:00:00.0"),
+                ts("2020-01-02 00:00:01.0"),
+                ts("2020-01-03 12:30:00.0"),
+                ts("2020-01-03 16:45:00.0"),
+            ],
+        }
+    )
+    df_expected["id"] = df_expected["id"].astype("Int64")  # Cast as nullable int64 type
+    df_expected["day"] = df_expected["ts"].dt.day.astype("string")
+
+    assert_pandas_equals(df_expected, df_actual)
+
+
 def test_athena_to_iceberg_schema_evolution_add_columns(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
