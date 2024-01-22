@@ -144,6 +144,7 @@ Amazon Athena
     start_query_execution
     stop_query_execution
     to_iceberg
+    delete_from_iceberg_table
     unload
     wait_query
     create_prepared_statement

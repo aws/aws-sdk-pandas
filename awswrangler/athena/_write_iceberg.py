@@ -474,6 +474,70 @@ def delete_from_iceberg_table(
     s3_additional_kwargs: dict[str, Any] | None = None,
     catalog_id: str | None = None,
 ) -> None:
+    """
+    Delete rows from an Iceberg table.
+
+    Creates temporary external table, writes staged files and then deletes any rows which match the contents of the temporary table.
+
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        Pandas DataFrame containing the IDs of rows that are to be deleted from the Iceberg table.
+    database: str
+        Database name.
+    table: str
+        Table name.
+    merge_cols: list[str]
+        List of columns to be used to determine which rows of the Iceberg table should be deleted.
+
+        `MERGE INTO <https://docs.aws.amazon.com/athena/latest/ug/merge-into-statement.html>`_
+    temp_path: str, optional
+        S3 path to temporarily store the DataFrame.
+    keep_files: bool
+        Whether staging files produced by Athena are retained. ``True`` by default.
+    data_source: str, optional
+        The AWS KMS key ID or alias used to encrypt the data.
+    workgroup: str, optional
+        Athena workgroup name.
+    encryption: str, optional
+        Valid values: [``None``, ``"SSE_S3"``, ``"SSE_KMS"``]. Notice: ``"CSE_KMS"`` is not supported.
+    kms_key: str, optional
+        For SSE-KMS, this is the KMS key ARN or ID.
+    boto3_session: boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if ``boto3_session`` receive None.
+    s3_additional_kwargs: Optional[Dict[str, Any]]
+        Forwarded to botocore requests.
+        e.g. ```s3_additional_kwargs={"RequestPayer": "requester"}```
+    catalog_id: str, optional
+        The ID of the Data Catalog which contains the database and table.
+        If none is provided, the AWS account ID is used by default.
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> df = pd.DataFrame({"id": [1, 2, 3], "col": ["foo", "bar", "baz"]})
+    >>> wr.athena.to_iceberg(
+    ...     df=df,
+    ...     database="my_database",
+    ...     table="my_table",
+    ...     temp_path="s3://bucket/temp/",
+    ... )
+    >>> df_delete = pd.DataFrame({"id": [1, 3]})
+    >>> wr.athena.delete_from_iceberg_table(
+    ...     df=df_delete,
+    ...     database="my_database",
+    ...     table="my_table",
+    ...     merge_cols=["id"],
+    ... )
+    >>> wr.athena.read_sql_table(table="my_table", database="my_database")
+        id  col
+    0   2   bar
+    """
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
