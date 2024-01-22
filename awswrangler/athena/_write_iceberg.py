@@ -438,7 +438,7 @@ def to_iceberg(
                 df=df,
                 database=database,
                 table=table,
-                merge_cols=partition_cols,
+                merge_cols=partition_cols,  # type: ignore[arg-type]
                 temp_path=temp_path,
                 keep_files=False,
                 data_source=data_source,

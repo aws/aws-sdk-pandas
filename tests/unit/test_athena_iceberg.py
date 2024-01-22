@@ -61,7 +61,7 @@ def test_athena_to_iceberg(
         unload_approach=False,
     )
 
-    assert assert_pandas_equals(df, df_out)
+    assert_pandas_equals(df, df_out)
 
 
 @pytest.mark.parametrize("partition_cols", [None, ["name"]])
