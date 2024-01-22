@@ -31,7 +31,7 @@ from awswrangler.athena._utils import (
     repair_table,
     show_create_table,
 )
-from awswrangler.athena._write_iceberg import to_iceberg
+from awswrangler.athena._write_iceberg import to_iceberg, delete_from_iceberg_table
 
 
 __all__ = [
@@ -60,4 +60,5 @@ __all__ = [
     "list_prepared_statements",
     "delete_prepared_statement",
     "to_iceberg",
+    "delete_from_iceberg_table",
 ]

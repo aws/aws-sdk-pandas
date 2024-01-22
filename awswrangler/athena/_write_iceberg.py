@@ -453,3 +453,93 @@ def to_iceberg(
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
             )
+
+
+@apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
+def delete_from_iceberg_table(
+    df: pd.DataFrame,
+    database: str,
+    table: str,
+    merge_cols: list[str],
+    temp_path: str | None = None,
+    keep_files: bool = True,
+    data_source: str | None = None,
+    workgroup: str = "primary",
+    encryption: str | None = None,
+    kms_key: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    catalog_id: str | None = None,
+) -> None:
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+
+    if not merge_cols:
+        raise exceptions.InvalidArgumentValue("Merge columns must be specified.")
+
+    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    temp_table: str = f"temp_table_{uuid.uuid4().hex}"
+
+    if not temp_path and not wg_config.s3_output:
+        raise exceptions.InvalidArgumentCombination(
+            "Either path or workgroup path must be specified to store the temporary results."
+        )
+
+    if not catalog.does_table_exist(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id):
+        raise exceptions.InvalidTable(f"Table {table} does not exist in database {database}.")
+
+    df = df[merge_cols].drop_duplicates(ignore_index=True)
+
+    try:
+        # Create temporary external table, write the results
+        s3.to_parquet(
+            df=df,
+            path=temp_path or wg_config.s3_output,
+            dataset=True,
+            database=database,
+            table=temp_table,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            catalog_id=catalog_id,
+            index=False,
+        )
+
+        sql_statement = f"""
+            MERGE INTO "{database}"."{table}" target
+            USING "{database}"."{temp_table}" source
+            ON {' AND '.join([f'target."{x}" = source."{x}"' for x in merge_cols])}
+            WHEN MATCHED THEN
+                DELETE
+        """
+
+        query_execution_id: str = _start_query_execution(
+            sql=sql_statement,
+            workgroup=workgroup,
+            wg_config=wg_config,
+            database=database,
+            data_source=data_source,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=boto3_session,
+        )
+        wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
+
+    except Exception as ex:
+        _logger.error(ex)
+
+        raise
+
+    finally:
+        catalog.delete_table_if_exists(
+            database=database, table=temp_table, boto3_session=boto3_session, catalog_id=catalog_id
+        )
+
+        if keep_files is False:
+            s3.delete_objects(
+                path=temp_path or wg_config.s3_output,  # type: ignore[arg-type]
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )

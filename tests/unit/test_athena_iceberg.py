@@ -61,7 +61,7 @@ def test_athena_to_iceberg(
         unload_approach=False,
     )
 
-    assert df.equals(df_out)
+    assert assert_pandas_equals(df, df_out)
 
 
 def test_athena_to_iceberg_schema_evolution_add_columns(
@@ -391,3 +391,66 @@ def test_athena_to_iceberg_merge_into(path: str, path2: str, glue_database: str,
     )
 
     assert_pandas_equals(df_expected, df_out)
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["name"], ["name", "day(ts)"]])
+def test_athena_delete_from_iceberg_table(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+    partition_cols: list[str] | None,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "name": ["a", "b", "c"],
+            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+        }
+    )
+    df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
+    df["name"] = df["name"].astype("string")
+
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=partition_cols,
+        keep_files=False,
+    )
+
+    df_keys_to_remove = pd.DataFrame(
+        {
+            "id": [1, 2],
+        },
+    )
+
+    wr.athena.delete_from_iceberg_table(
+        df=df_keys_to_remove,
+        database=glue_database,
+        table=glue_table,
+        temp_path=path2,
+        merge_cols=["id"],
+        keep_files=False,
+    )
+
+    df_actual = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    df_expected = pd.DataFrame(
+        {
+            "id": [3],
+            "name": ["c"],
+            "ts": [ts("2020-01-03 00:00:00.0")],
+        }
+    )
+    df_expected["id"] = df_expected["id"].astype("Int64")  # Cast as nullable int64 type
+    df_expected["name"] = df_expected["name"].astype("string")
+
+    assert_pandas_equals(df_expected, df_actual)
