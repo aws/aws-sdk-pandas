@@ -489,12 +489,13 @@ def index_documents(
     use_threads: bool | int = False,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Index all documents to OpenSearch index.
+    """
+    Index all documents to OpenSearch index.
 
     Note
     ----
     `max_retries`, `initial_backoff`, and `max_backoff` are not supported with parallel bulk
-     (when `use_threads`is set to True).
+    (when `use_threads` is set to True).
 
     Note
     ----
