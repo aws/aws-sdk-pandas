@@ -119,7 +119,7 @@ pytest-cov = "^4.0"
 pytest-rerunfailures = "^13.0"
 pytest-timeout = "^2.1.0"
 pytest-xdist = "^3.0.2"
-s3fs = "2023.12.2"  # Must be pinned to 0.4.2
+s3fs = "0.4.2"  # Must be pinned to 0.4.2
 tox = "^4.5.0"
 
 # Docs
