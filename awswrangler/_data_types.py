@@ -49,15 +49,17 @@ def pyarrow2athena(  # noqa: PLR0911,PLR0912
     if pa.types.is_binary(dtype):
         return "binary"
     if pa.types.is_dictionary(dtype):
-        return pyarrow2athena(dtype=dtype.value_type)
+        return pyarrow2athena(dtype=dtype.value_type, ignore_null=ignore_null)
     if pa.types.is_decimal(dtype):
         return f"decimal({dtype.precision},{dtype.scale})"
     if pa.types.is_list(dtype):
-        return f"array<{pyarrow2athena(dtype=dtype.value_type)}>"
+        return f"array<{pyarrow2athena(dtype=dtype.value_type, ignore_null=ignore_null)}>"
     if pa.types.is_struct(dtype):
-        return f"struct<{','.join([f'{f.name}:{pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
+        return (
+            f"struct<{','.join([f'{f.name}:{pyarrow2athena(dtype=f.type, ignore_null=ignore_null)}' for f in dtype])}>"
+        )
     if pa.types.is_map(dtype):
-        return f"map<{pyarrow2athena(dtype=dtype.key_type)},{pyarrow2athena(dtype=dtype.item_type)}>"
+        return f"map<{pyarrow2athena(dtype=dtype.key_type, ignore_null=ignore_null)},{pyarrow2athena(dtype=dtype.item_type, ignore_null=ignore_null)}>"
     if dtype == pa.null():
         if ignore_null:
             return ""
