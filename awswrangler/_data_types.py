@@ -702,17 +702,12 @@ def pyarrow_schema_from_pandas(
 
 def athena_types_from_pyarrow_schema(
     schema: pa.Schema,
-    partitions: pyarrow.parquet.ParquetPartitions | None,
     ignore_null: bool = False,
-) -> tuple[dict[str, str], dict[str, str] | None]:
+) -> dict[str, str]:
     """Extract the related Athena data types from any PyArrow Schema considering possible partitions."""
     columns_types: dict[str, str] = {str(f.name): pyarrow2athena(dtype=f.type, ignore_null=ignore_null) for f in schema}
     _logger.debug("columns_types: %s", columns_types)
-    partitions_types: dict[str, str] | None = None
-    if partitions is not None:
-        partitions_types = {p.name: pyarrow2athena(p.dictionary.type, ignore_null=ignore_null) for p in partitions}
-    _logger.debug("partitions_types: %s", partitions_types)
-    return columns_types, partitions_types
+    return columns_types
 
 
 def cast_pandas_with_athena_types(
