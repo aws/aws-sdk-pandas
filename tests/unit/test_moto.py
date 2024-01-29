@@ -23,13 +23,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="module")
-def moto_emr():
-    with moto.mock_aws():
-        yield True
-
-
-@pytest.fixture(scope="module")
-def moto_sts():
+def moto_aws():
     with moto.mock_aws():
         yield True
 
@@ -510,7 +504,7 @@ def test_s3_raise_delete_object_exception_success(moto_s3_client: "S3Client") ->
             wr.s3.delete_objects(path=path)
 
 
-def test_emr(moto_s3_client: "S3Client", moto_emr, moto_sts, moto_subnet_id: str) -> None:
+def test_emr(moto_s3_client: "S3Client", moto_aws, moto_subnet_id: str) -> None:
     session = boto3.Session(region_name="us-west-1")
     cluster_id = wr.emr.create_cluster(
         cluster_name="wrangler_cluster",
