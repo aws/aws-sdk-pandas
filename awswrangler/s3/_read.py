@@ -280,8 +280,8 @@ class _TableMetadataReader(ABC):
         merged_schemas = _validate_schemas(schemas=schemas, validate_schema=False)
 
         columns_types: dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
-            schema=merged_schemas, partitions=None, ignore_null=ignore_null
-        )[0]
+            schema=merged_schemas, ignore_null=ignore_null
+        )
 
         # Partitions
         partitions_types: dict[str, str] | None = None
