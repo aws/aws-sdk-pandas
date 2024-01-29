@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 import awswrangler as wr
 from awswrangler.exceptions import InvalidArgumentCombination, InvalidArgumentValue
 
-from .._utils import ensure_data_types, get_df_csv, get_df_list
+from .._utils import _get_unique_suffix, ensure_data_types, get_df_csv, get_df_list
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -24,19 +24,19 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 @pytest.fixture(scope="module")
 def moto_emr():
-    with moto.mock_emr():
+    with moto.mock_aws():
         yield True
 
 
 @pytest.fixture(scope="module")
 def moto_sts():
-    with moto.mock_sts():
+    with moto.mock_aws():
         yield True
 
 
 @pytest.fixture(scope="module")
 def moto_subnet_id() -> str:
-    with moto.mock_ec2():
+    with moto.mock_aws():
         ec2_client = boto3.client("ec2", region_name="us-west-1")
 
         vpc_id = ec2_client.create_vpc(
@@ -54,7 +54,7 @@ def moto_subnet_id() -> str:
 
 @pytest.fixture(scope="function")
 def moto_s3_client() -> "S3Client":
-    with moto.mock_s3():
+    with moto.mock_aws():
         s3_client = boto3.client("s3", region_name="us-east-1")
         s3_client.create_bucket(Bucket="bucket")
         yield s3_client
@@ -62,7 +62,7 @@ def moto_s3_client() -> "S3Client":
 
 @pytest.fixture(scope="module")
 def moto_glue():
-    with moto.mock_glue():
+    with moto.mock_aws():
         region_name = "us-east-1"
         with patch.dict(os.environ, {"AWS_DEFAULT_REGION": region_name}):
             glue = boto3.client("glue", region_name=region_name)
@@ -71,15 +71,21 @@ def moto_glue():
 
 @pytest.fixture(scope="function")
 def moto_dynamodb_client():
-    with moto.mock_dynamodb():
+    with moto.mock_aws():
         dynamodb_client = boto3.client("dynamodb")
-        dynamodb_client.create_table(
-            TableName="table",
-            KeySchema=[{"AttributeName": "key", "KeyType": "HASH"}],
-            AttributeDefinitions=[{"AttributeName": "key", "AttributeType": "N"}],
-            BillingMode="PAY_PER_REQUEST",
-        )
         yield dynamodb_client
+
+
+@pytest.fixture(scope="function")
+def moto_dynamodb_table(moto_dynamodb_client):
+    table_name = f"table_{_get_unique_suffix()}"
+    moto_dynamodb_client.create_table(
+        TableName=table_name,
+        KeySchema=[{"AttributeName": "key", "KeyType": "HASH"}],
+        AttributeDefinitions=[{"AttributeName": "key", "AttributeType": "N"}],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    yield table_name
 
 
 def get_content_md5(desc: dict):
@@ -587,25 +593,23 @@ def test_glue_get_partition(moto_glue):
     assert parquet_partition_value == values
 
 
-def test_dynamodb_basic_usage(moto_dynamodb_client):
-    table_name = "table"
+def test_dynamodb_basic_usage(moto_dynamodb_client, moto_dynamodb_table):
     items = [{"key": 1}, {"key": 2, "my_value": "Hello"}]
 
-    wr.dynamodb.put_items(items=items, table_name=table_name)
-    table = wr.dynamodb.get_table(table_name=table_name)
+    wr.dynamodb.put_items(items=items, table_name=moto_dynamodb_table)
+    table = wr.dynamodb.get_table(table_name=moto_dynamodb_table)
     assert table.item_count == len(items)
 
-    wr.dynamodb.delete_items(items=items, table_name=table_name)
-    table = wr.dynamodb.get_table(table_name=table_name)
+    wr.dynamodb.delete_items(items=items, table_name=moto_dynamodb_table)
+    table = wr.dynamodb.get_table(table_name=moto_dynamodb_table)
     assert table.item_count == 0
 
 
-def test_dynamodb_fail_on_invalid_items(moto_dynamodb_client):
-    table_name = "table"
+def test_dynamodb_fail_on_invalid_items(moto_dynamodb_client, moto_dynamodb_table):
     items = [{"key": 1}, {"id": 2}]
 
     with pytest.raises(InvalidArgumentValue):
-        wr.dynamodb.put_items(items=items, table_name=table_name)
+        wr.dynamodb.put_items(items=items, table_name=moto_dynamodb_table)
 
 
 def mock_data_api_connector(connector, has_result_set=True):
