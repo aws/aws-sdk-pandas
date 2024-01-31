@@ -41,4 +41,4 @@ jobs:
       - name: Documentation check
         run: doc8 --max-line-length 120 docs/source
       - name: Check poetry.lock consistency with pyproject.toml
-        run: poetry check --lock
+        run: poetry lock --check
