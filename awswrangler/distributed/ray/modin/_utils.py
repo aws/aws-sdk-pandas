@@ -70,10 +70,10 @@ def _arrow_refs_to_df(
         return table.num_rows > 0 or table.num_columns > 0
 
     if isinstance(arrow_refs[0], pa.Table):
-        arrow_tables = cast(list[pa.Table], arrow_refs)
-        table_list: list[pa.Table] = [table for table in arrow_tables if table.num_rows > 0 or table.num_columns > 0]
+        tables = cast(list[pa.Table], arrow_refs)
+        tables = [table for table in tables if table.num_rows > 0 or table.num_columns > 0]
         return _to_modin(
-            dataset=ray.data.from_arrow(table_list) if len(table_list) > 0 else ray.data.from_arrow([pa.Table.from_arrays([])]),
+            dataset=ray.data.from_arrow(tables) if len(tables) > 0 else ray.data.from_arrow([pa.Table.from_arrays([])]),
             to_pandas_kwargs=kwargs,
         )
 
