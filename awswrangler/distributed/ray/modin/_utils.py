@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import modin.pandas as modin_pd
 import pandas as pd
@@ -70,9 +70,10 @@ def _arrow_refs_to_df(
         return table.num_rows > 0 or table.num_columns > 0
 
     if isinstance(arrow_refs[0], pa.Table):
-        refs: list[pa.Table] = [table for table in arrow_refs if table.num_rows > 0 or table.num_columns > 0]
+        arrow_tables = cast(list[pa.Table], arrow_refs)
+        table_list: list[pa.Table] = [table for table in arrow_tables if table.num_rows > 0 or table.num_columns > 0]
         return _to_modin(
-            dataset=ray.data.from_arrow(refs) if len(refs) > 0 else ray.data.from_arrow([pa.Table.from_arrays([])]),
+            dataset=ray.data.from_arrow(table_list) if len(table_list) > 0 else ray.data.from_arrow([pa.Table.from_arrays([])]),
             to_pandas_kwargs=kwargs,
         )
 
