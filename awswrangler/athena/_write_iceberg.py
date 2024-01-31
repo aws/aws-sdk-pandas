@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import typing
 import uuid
-from typing import Any, Dict, TypedDict, cast
+from typing import Any, Dict, Literal, TypedDict, cast
 
 import boto3
 import pandas as pd
@@ -191,6 +191,33 @@ def _alter_iceberg_table_change_columns_sql(
     return sql_statements
 
 
+def _validate_args(
+    df: pd.DataFrame,
+    temp_path: str | None,
+    wg_config: _WorkGroupConfig,
+    mode: Literal["append", "overwrite", "overwrite_partitions"],
+    partition_cols: list[str] | None,
+    merge_cols: list[str] | None,
+) -> None:
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+
+    if not temp_path and not wg_config.s3_output:
+        raise exceptions.InvalidArgumentCombination(
+            "Either path or workgroup path must be specified to store the temporary results."
+        )
+
+    if mode == "overwrite_partitions":
+        if not partition_cols:
+            raise exceptions.InvalidArgumentCombination(
+                "When mode is 'overwrite_partitions' partition_cols must be specified."
+            )
+        if merge_cols:
+            raise exceptions.InvalidArgumentCombination(
+                "When mode is 'overwrite_partitions' merge_cols must not be specified."
+            )
+
+
 @apply_configs
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
@@ -207,6 +234,7 @@ def to_iceberg(
     keep_files: bool = True,
     data_source: str | None = None,
     workgroup: str = "primary",
+    mode: Literal["append", "overwrite", "overwrite_partitions"] = "append",
     encryption: str | None = None,
     kms_key: str | None = None,
     boto3_session: boto3.Session | None = None,
@@ -254,6 +282,8 @@ def to_iceberg(
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     workgroup : str
         Athena workgroup. Primary by default.
+    mode: str
+        ``append`` (default), ``overwrite``, ``overwrite_partitions``.
     encryption : str, optional
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     kms_key : str, optional
@@ -318,21 +348,27 @@ def to_iceberg(
     ... )
 
     """
-    if df.empty is True:
-        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
-
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     temp_table: str = f"temp_table_{uuid.uuid4().hex}"
 
-    if not temp_path and not wg_config.s3_output:
-        raise exceptions.InvalidArgumentCombination(
-            "Either path or workgroup path must be specified to store the temporary results."
-        )
+    _validate_args(
+        df=df,
+        temp_path=temp_path,
+        wg_config=wg_config,
+        mode=mode,
+        partition_cols=partition_cols,
+        merge_cols=merge_cols,
+    )
 
     glue_table_settings = cast(
         GlueTableSettings,
         glue_table_settings if glue_table_settings else {},
     )
+
+    if mode == "overwrite":
+        catalog.delete_table_if_exists(
+            database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session
+        )
 
     try:
         # Create Iceberg table if it doesn't exist
@@ -396,6 +432,24 @@ def to_iceberg(
                 boto3_session=boto3_session,
             )
 
+        # if mode == "overwrite_partitions", drop matched partitions
+        if mode == "overwrite_partitions":
+            delete_from_iceberg_table(
+                df=df,
+                database=database,
+                table=table,
+                merge_cols=partition_cols,  # type: ignore[arg-type]
+                temp_path=temp_path,
+                keep_files=False,
+                data_source=data_source,
+                workgroup=workgroup,
+                encryption=encryption,
+                kms_key=kms_key,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+                catalog_id=catalog_id,
+            )
+
         # Create temporary external table, write the results
         s3.to_parquet(
             df=df,
@@ -442,6 +496,160 @@ def to_iceberg(
         _logger.error(ex)
 
         raise
+    finally:
+        catalog.delete_table_if_exists(
+            database=database, table=temp_table, boto3_session=boto3_session, catalog_id=catalog_id
+        )
+
+        if keep_files is False:
+            s3.delete_objects(
+                path=temp_path or wg_config.s3_output,  # type: ignore[arg-type]
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
+
+
+@apply_configs
+@_utils.validate_distributed_kwargs(
+    unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
+)
+def delete_from_iceberg_table(
+    df: pd.DataFrame,
+    database: str,
+    table: str,
+    merge_cols: list[str],
+    temp_path: str | None = None,
+    keep_files: bool = True,
+    data_source: str | None = None,
+    workgroup: str = "primary",
+    encryption: str | None = None,
+    kms_key: str | None = None,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, Any] | None = None,
+    catalog_id: str | None = None,
+) -> None:
+    """
+    Delete rows from an Iceberg table.
+
+    Creates temporary external table, writes staged files and then deletes any rows which match the contents of the temporary table.
+
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        Pandas DataFrame containing the IDs of rows that are to be deleted from the Iceberg table.
+    database: str
+        Database name.
+    table: str
+        Table name.
+    merge_cols: list[str]
+        List of columns to be used to determine which rows of the Iceberg table should be deleted.
+
+        `MERGE INTO <https://docs.aws.amazon.com/athena/latest/ug/merge-into-statement.html>`_
+    temp_path: str, optional
+        S3 path to temporarily store the DataFrame.
+    keep_files: bool
+        Whether staging files produced by Athena are retained. ``True`` by default.
+    data_source: str, optional
+        The AWS KMS key ID or alias used to encrypt the data.
+    workgroup: str, optional
+        Athena workgroup name.
+    encryption: str, optional
+        Valid values: [``None``, ``"SSE_S3"``, ``"SSE_KMS"``]. Notice: ``"CSE_KMS"`` is not supported.
+    kms_key: str, optional
+        For SSE-KMS, this is the KMS key ARN or ID.
+    boto3_session: boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if ``boto3_session`` receive None.
+    s3_additional_kwargs: Optional[Dict[str, Any]]
+        Forwarded to botocore requests.
+        e.g. ```s3_additional_kwargs={"RequestPayer": "requester"}```
+    catalog_id: str, optional
+        The ID of the Data Catalog which contains the database and table.
+        If none is provided, the AWS account ID is used by default.
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> df = pd.DataFrame({"id": [1, 2, 3], "col": ["foo", "bar", "baz"]})
+    >>> wr.athena.to_iceberg(
+    ...     df=df,
+    ...     database="my_database",
+    ...     table="my_table",
+    ...     temp_path="s3://bucket/temp/",
+    ... )
+    >>> df_delete = pd.DataFrame({"id": [1, 3]})
+    >>> wr.athena.delete_from_iceberg_table(
+    ...     df=df_delete,
+    ...     database="my_database",
+    ...     table="my_table",
+    ...     merge_cols=["id"],
+    ... )
+    >>> wr.athena.read_sql_table(table="my_table", database="my_database")
+        id  col
+    0   2   bar
+    """
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+
+    if not merge_cols:
+        raise exceptions.InvalidArgumentValue("Merge columns must be specified.")
+
+    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    temp_table: str = f"temp_table_{uuid.uuid4().hex}"
+
+    if not temp_path and not wg_config.s3_output:
+        raise exceptions.InvalidArgumentCombination(
+            "Either path or workgroup path must be specified to store the temporary results."
+        )
+
+    if not catalog.does_table_exist(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id):
+        raise exceptions.InvalidTable(f"Table {table} does not exist in database {database}.")
+
+    df = df[merge_cols].drop_duplicates(ignore_index=True)
+
+    try:
+        # Create temporary external table, write the results
+        s3.to_parquet(
+            df=df,
+            path=temp_path or wg_config.s3_output,
+            dataset=True,
+            database=database,
+            table=temp_table,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            catalog_id=catalog_id,
+            index=False,
+        )
+
+        sql_statement = f"""
+            MERGE INTO "{database}"."{table}" target
+            USING "{database}"."{temp_table}" source
+            ON {' AND '.join([f'target."{x}" = source."{x}"' for x in merge_cols])}
+            WHEN MATCHED THEN
+                DELETE
+        """
+
+        query_execution_id: str = _start_query_execution(
+            sql=sql_statement,
+            workgroup=workgroup,
+            wg_config=wg_config,
+            database=database,
+            data_source=data_source,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=boto3_session,
+        )
+        wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
+
+    except Exception as ex:
+        _logger.error(ex)
+
+        raise
+
     finally:
         catalog.delete_table_if_exists(
             database=database, table=temp_table, boto3_session=boto3_session, catalog_id=catalog_id
