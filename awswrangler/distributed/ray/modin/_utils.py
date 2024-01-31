@@ -62,10 +62,17 @@ def _split_modin_frame(df: modin_pd.DataFrame, splits: int) -> list[ObjectRef[An
     return object_refs
 
 
-def _arrow_refs_to_df(arrow_refs: list[Callable[..., Any]], kwargs: dict[str, Any] | None) -> modin_pd.DataFrame:
+def _arrow_refs_to_df(arrow_refs: list[Callable[..., Any] | pa.Table], kwargs: dict[str, Any] | None) -> modin_pd.DataFrame:
     @ray_remote()
     def _is_not_empty(table: pa.Table) -> Any:
         return table.num_rows > 0 or table.num_columns > 0
+
+    if isinstance(arrow_refs[0], pa.Table):
+        refs: list[pa.Table] = [table for table in arrow_refs if table.num_rows > 0 or table.num_columns > 0]
+        return _to_modin(
+            dataset=ray.data.from_arrow(refs) if len(refs) > 0 else ray.data.from_arrow([pa.Table.from_arrays([])]),
+            to_pandas_kwargs=kwargs,
+        )
 
     ref_rows: list[bool] = ray_get([_is_not_empty(arrow_ref) for arrow_ref in arrow_refs])
     refs: list[Callable[..., Any]] = [ref for ref_rows, ref in zip(ref_rows, arrow_refs) if ref_rows]
