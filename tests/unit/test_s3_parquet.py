@@ -507,6 +507,24 @@ def test_index_columns(path, use_threads, name, pandas):
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
+@pytest.mark.parametrize("pandas", [True, False])
+def test_index_partition_columns(path, use_threads, pandas):
+    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64")
+    df = df.set_index("c0")
+
+    path_files = []
+    for iteration in range(2):
+        path_files.append(f"{path}{iteration}.parquet")
+        if pandas:
+            df.to_parquet(path_files[-1], index=True, partition_cols=["c0"])
+        else:
+            wr.s3.to_parquet(df, path_files[-1], index=True, partition_cols=["c0"])
+
+    df2 = wr.s3.read_parquet(path_files, use_threads=use_threads)
+    assert pd.concat([df] * 2).equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
 @pytest.mark.parametrize("drop", [True, False])
