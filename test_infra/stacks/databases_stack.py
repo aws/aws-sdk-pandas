@@ -356,7 +356,7 @@ class DatabasesStack(Stack):  # type: ignore
             self,
             "aws-sdk-pandas-postgresql-params",
             engine=rds.DatabaseClusterEngine.aurora_postgres(
-                version=rds.AuroraPostgresEngineVersion.VER_13_7,
+                version=rds.AuroraPostgresEngineVersion.VER_13_8,
             ),
             parameters={
                 "apg_plan_mgmt.capture_plan_baselines": "off",
@@ -367,7 +367,7 @@ class DatabasesStack(Stack):  # type: ignore
             "aws-sdk-pandas-aurora-cluster-postgresql",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_postgres(
-                version=rds.AuroraPostgresEngineVersion.VER_13_7,
+                version=rds.AuroraPostgresEngineVersion.VER_13_8,
             ),
             cluster_identifier="postgresql-cluster-sdk-pandas",
             credentials=rds.Credentials.from_password(
@@ -448,7 +448,7 @@ class DatabasesStack(Stack):  # type: ignore
             "aws-sdk-pandas-aurora-cluster-mysql",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_mysql(
-                version=rds.AuroraMysqlEngineVersion.VER_2_10_2,
+                version=rds.AuroraMysqlEngineVersion.VER_2_11_4,
             ),
             cluster_identifier="mysql-cluster-sdk-pandas",
             default_database_name=database,
@@ -532,7 +532,7 @@ class DatabasesStack(Stack):  # type: ignore
             "aws-sdk-pandas-aurora-cluster-mysql-serverless",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_mysql(
-                version=rds.AuroraMysqlEngineVersion.VER_2_10_2,
+                version=rds.AuroraMysqlEngineVersion.VER_2_11_4,
             ),
             cluster_identifier="mysql-serverless-cluster-sdk-pandas",
             default_database_name=database,
@@ -587,7 +587,7 @@ class DatabasesStack(Stack):  # type: ignore
             "aws-sdk-pandas-aurora-cluster-postgresql-serverless",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_postgres(
-                version=rds.AuroraPostgresEngineVersion.VER_11_19,
+                version=rds.AuroraPostgresEngineVersion.VER_13_8,
             ),
             cluster_identifier="postgresql-serverless-cluster-sdk-pandas",
             default_database_name=database,
