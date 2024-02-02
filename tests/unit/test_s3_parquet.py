@@ -518,7 +518,7 @@ def test_index_partition_columns(path, use_threads, pandas):
         if pandas:
             df.to_parquet(path_files[-1], index=True, partition_cols=["c0"])
         else:
-            wr.s3.to_parquet(df, path_files[-1], index=True, partition_cols=["c0"])
+            wr.s3.to_parquet(df, path_files[-1], index=True, dataset=True, partition_cols=["c0"])
 
     df2 = wr.s3.read_parquet(path_files, use_threads=use_threads)
     assert pd.concat([df] * 2).equals(df2)
