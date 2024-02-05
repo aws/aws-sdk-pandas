@@ -520,7 +520,7 @@ def test_index_partition_columns(path, use_threads, pandas, index):
             wr.s3.to_parquet(df, path_file, index=True, dataset=True, partition_cols=["c0"])
 
     df2 = wr.s3.read_parquet(path, validate_schema=True, use_threads=use_threads)
-    assert pd.concat([df] * 2).equals(df2)
+    assert pd.concat([df] * 2, sort=True).equals(df2)
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
