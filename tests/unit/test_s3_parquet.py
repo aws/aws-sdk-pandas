@@ -511,12 +511,12 @@ def test_index_columns(path, use_threads, name, pandas):
 def test_index_partition_columns(path, use_threads, pandas):
     df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64")
     df = df.set_index("c0")
-
+    path_file = f"{path}0.parquet"
     for _ in range(2):
         if pandas:
-            df.to_parquet(path, index=True, partition_cols=["c0"])
+            df.to_parquet(path_file, index=True, partition_cols=["c0"])
         else:
-            wr.s3.to_parquet(df, path, index=True, dataset=True, partition_cols=["c0"])
+            wr.s3.to_parquet(df, path_file, index=True, dataset=True, partition_cols=["c0"])
 
     df2 = wr.s3.read_parquet(path, use_threads=use_threads)
     assert pd.concat([df] * 2).equals(df2)
