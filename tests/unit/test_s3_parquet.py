@@ -506,21 +506,14 @@ def test_index_columns(path, use_threads, name, pandas):
     assert df[["c0"]].equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False, 2])
-@pytest.mark.parametrize("pandas", [True, False])
 @pytest.mark.parametrize("index", [["c0"], ["c0", "c1"]])
-@pytest.mark.parametrize("partition_cols", [None, ["c0"]])
-def test_index_partition_columns(path, use_threads, pandas, partition_cols, index):
+def test_index_schema_validation(path, glue_database, glue_table, index):
     df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3], "c2": [4, 5]}, dtype="Int64")
     df = df.set_index(index)
-    path_file = f"{path}0.parquet"
     for _ in range(2):
-        if pandas:
-            df.to_parquet(path_file, index=True, partition_cols=partition_cols)
-        else:
-            wr.s3.to_parquet(df, path_file, index=True, dataset=True, partition_cols=partition_cols)
+        wr.s3.to_parquet(df, path, index=True, dataset=True, database=glue_database, table=glue_table)
 
-    df2 = wr.s3.read_parquet(path, validate_schema=True, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, validate_schema=True)
     expected = pd.concat([df] * 2, sort=True)
     assert expected.equals(df2), f"Expected:\n{expected}\n\nvs. actual:\n{df2}"
 
