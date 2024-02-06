@@ -563,10 +563,12 @@ def pyarrow_types_from_pandas(  # noqa: PLR0912,PLR0915
         for field in fields:
             name = str(field.name)
             # Check if any of the index columns must be ignored
-            if name not in ignore_cols:
+            if name in ignore_cols:
+                cols_dtypes[name] = None
+            else:
                 _logger.debug("Inferring PyArrow type from index: %s", name)
                 cols_dtypes[name] = field.type
-                indexes.append(name)
+            indexes.append(name)
 
     # Merging Index
     sorted_cols: list[str] = indexes + list(df.columns) if index_left is True else list(df.columns) + indexes
@@ -693,7 +695,7 @@ def pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=ignore_plus
     )
     for k, v in casts.items():
-        if (k in df.columns) and (k not in ignore):
+        if (k in df.columns or k in df.index.names) and (k not in ignore):
             columns_types[k] = athena2pyarrow(dtype=v)
     columns_types = {k: v for k, v in columns_types.items() if v is not None}
     _logger.debug("columns_types: %s", columns_types)
