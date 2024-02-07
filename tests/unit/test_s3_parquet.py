@@ -517,6 +517,39 @@ def test_index_schema_validation(path, glue_database, glue_table, index):
     assert_pandas_equals(pd.concat([df, df]), df2)
 
 
+@pytest.mark.parametrize("index", [["c0"], ["c0", "c1"]])
+@pytest.mark.parametrize("partition_cols", [["c0"], ["c0", "c1"]])
+def test_index_partition(path, glue_database, glue_table, index, partition_cols):
+    # build dataframe with object categoricals for partition columns, because that is how they come back on read
+    df = pd.DataFrame({
+        col: list(map(str, range(i * 2, i * 2 + 3))) if col in partition_cols else list(range(i * 2, i * 2 + 3))
+        for i, col in enumerate(("c0", "c1", "c2"))
+    })
+    for col in df.columns:
+        df[col] = df[col].astype("category") if col in partition_cols else df[col].astype("Int64")
+
+    df = df.set_index(index)
+    for _ in range(2):
+        wr.s3.to_parquet(
+            df,
+            path,
+            index=True,
+            dataset=True,
+            partition_cols=partition_cols,
+            database=glue_database,
+            table=glue_table,
+        )
+
+    df2 = wr.s3.read_parquet(path, dataset=True)
+    assert_pandas_equals(
+        # partitioned on index, so the data comes back sorted on the index
+        pd.concat([df, df]).sort_index(),
+        # however, need to reapply index manually because this is not preserved
+        # also need to reorder columns, because partition columns are appended
+        df2.reset_index().set_index(index)[df.columns],
+    )
+
+
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
