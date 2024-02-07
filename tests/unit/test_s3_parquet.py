@@ -524,27 +524,22 @@ def test_index_partition(path, glue_database, glue_table, index, partition_cols)
     df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3], "c2": [4, 5]}, dtype="Int64")
     df = df.set_index(index)
 
-    to_parquet_kwargs = {
-        "index": True,
-        "dataset": True,
-        "partition_cols": partition_cols,
-        "database": glue_database,
-        "table": glue_table,
-    }
-
-    if is_ray_modin and index == partition_cols:
-        with pytest.raises(ValueError, match="one level must be left"):
-            wr.s3.to_parquet(df, path, **to_parquet_kwargs)
-
-        pytest.xfail("Modin does not support partitioning (= dropping) full index")
-
     for _ in range(2):
-        wr.s3.to_parquet(df, path, **to_parquet_kwargs)
+        wr.s3.to_parquet(
+            df,
+            path,
+            index=True,
+            dataset=True,
+            partition_cols=partition_cols,
+            database=glue_database,
+            table=glue_table,
+        )
 
     df2 = wr.s3.read_parquet(path, dataset=True)
 
     # partitioned index is not preserved, so reset unpartitioned index for recreation
-    df2 = df2.reset_index(level=[idx for idx in index if idx not in partition_cols])
+    assert all(idx in df2.index.names for idx in [idx for idx in index if idx not in partition_cols])
+    df2 = df2.reset_index()
 
     # partition columns come back as categorical, so convert back
     for col in partition_cols:
