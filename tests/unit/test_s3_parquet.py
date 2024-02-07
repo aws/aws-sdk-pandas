@@ -517,6 +517,7 @@ def test_index_schema_validation(path, glue_database, glue_table, index):
     assert_pandas_equals(pd.concat([df, df]), df2)
 
 
+@pytest.mark.modin_index
 @pytest.mark.parametrize("index", [["c0"], ["c0", "c1"]])
 @pytest.mark.parametrize("partition_cols", [["c0"], ["c0", "c1"]])
 def test_index_partition(path, glue_database, glue_table, index, partition_cols):
@@ -530,6 +531,12 @@ def test_index_partition(path, glue_database, glue_table, index, partition_cols)
         "database": glue_database,
         "table": glue_table,
     }
+
+    if is_ray_modin and index == partition_cols:
+        with pytest.raises(ValueError, match="one level must be left"):
+            wr.s3.to_parquet(df, path, **to_parquet_kwargs)
+
+        pytest.xfail("Modin does not support partitioning (= dropping) full index")
 
     for _ in range(2):
         wr.s3.to_parquet(df, path, **to_parquet_kwargs)
