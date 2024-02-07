@@ -514,8 +514,7 @@ def test_index_schema_validation(path, glue_database, glue_table, index):
         wr.s3.to_parquet(df, path, index=True, dataset=True, database=glue_database, table=glue_table)
 
     df2 = wr.s3.read_parquet(path, validate_schema=True)
-    expected = pd.concat([df] * 2, sort=True)
-    assert expected.equals(df2), f"Expected:\n{expected}\n\nvs. actual:\n{df2}"
+    assert_pandas_equals(pd.concat([df, df]), df2)
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
