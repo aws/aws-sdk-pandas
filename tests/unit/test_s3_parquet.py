@@ -520,17 +520,9 @@ def test_index_schema_validation(path, glue_database, glue_table, index):
 @pytest.mark.parametrize("index", [["c0"], ["c0", "c1"]])
 @pytest.mark.parametrize("partition_cols", [["c0"], ["c0", "c1"]])
 def test_index_partition(path, glue_database, glue_table, index, partition_cols):
-    # build dataframe with object categoricals for partition columns, because that is how they come back on read
-    df = pd.DataFrame(
-        {
-            col: list(map(str, range(i * 2, i * 2 + 3))) if col in partition_cols else list(range(i * 2, i * 2 + 3))
-            for i, col in enumerate(("c0", "c1", "c2"))
-        }
-    )
-    for col in df.columns:
-        df[col] = df[col].astype("category") if col in partition_cols else df[col].astype("Int64")
-
+    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3], "c2": [4, 5]}, dtype="Int64")
     df = df.set_index(index)
+
     for _ in range(2):
         wr.s3.to_parquet(
             df,
