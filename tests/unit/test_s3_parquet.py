@@ -535,12 +535,22 @@ def test_index_partition(path, glue_database, glue_table, index, partition_cols)
         )
 
     df2 = wr.s3.read_parquet(path, dataset=True)
+
+    # partitioned index is not preserved, so reset unpartitioned index for recreation
+    df2 = df2.reset_index(level=[idx for idx in index if idx not in partition_cols])
+
+    # partition columns come back as categorical, so convert back
+    for col in partition_cols:
+        df2[col] = df2[col].astype("Int64")
+
+    # apply full index again
+    df2 = df2.set_index(index)
+
     assert_pandas_equals(
         # partitioned on index, so the data comes back sorted on the index
         pd.concat([df, df]).sort_index(),
-        # however, need to reapply index manually because this is not preserved
-        # also need to reorder columns, because partition columns are appended
-        df2.reset_index().set_index(index)[df.columns],
+        # need to reorder columns, because partition columns are appended
+        df2[df.columns],
     )
 
 
