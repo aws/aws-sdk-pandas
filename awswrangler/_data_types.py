@@ -40,7 +40,7 @@ def pyarrow2athena(  # noqa: PLR0911,PLR0912
         return "double"
     if pa.types.is_boolean(dtype):
         return "boolean"
-    if pa.types.is_string(dtype):
+    if pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
         return "string"
     if pa.types.is_timestamp(dtype):
         return "timestamp"
