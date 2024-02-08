@@ -12,7 +12,6 @@ import random
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
 from functools import partial, wraps
-from packaging import version
 from types import ModuleType
 from typing import (
     TYPE_CHECKING,
@@ -32,6 +31,7 @@ import botocore.credentials
 import numpy as np
 import pyarrow as pa
 from botocore.config import Config
+from packaging import version
 
 import awswrangler.pandas as pd
 from awswrangler import _config, exceptions
