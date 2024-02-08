@@ -506,10 +506,15 @@ def test_index_columns(path, use_threads, name, pandas):
     assert df[["c0"]].equals(df2)
 
 
-@pytest.mark.parametrize("index", [["c0"], ["c0", "c1"]])
+@pytest.mark.parametrize("index", [None, ["c0"], ["c0", "c1"]])
 def test_index_schema_validation(path, glue_database, glue_table, index):
     df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3], "c2": [4, 5]}, dtype="Int64")
-    df = df.set_index(index)
+
+    if index is not None:
+        df = df.set_index(index)
+    else:
+        df.index = df.index.astype("Int64")
+
     for _ in range(2):
         wr.s3.to_parquet(df, path, index=True, dataset=True, database=glue_database, table=glue_table)
 
