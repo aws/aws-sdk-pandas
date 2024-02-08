@@ -87,7 +87,7 @@ def pyarrow2redshift(  # noqa: PLR0911,PLR0912
         return "FLOAT8"
     if pa.types.is_boolean(dtype):
         return "BOOL"
-    if pa.types.is_string(dtype):
+    if pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
         return string_type
     if pa.types.is_timestamp(dtype):
         return "TIMESTAMP"
@@ -132,7 +132,7 @@ def pyarrow2mysql(  # noqa: PLR0911,PLR0912
         return "DOUBLE PRECISION"
     if pa.types.is_boolean(dtype):
         return "BOOLEAN"
-    if pa.types.is_string(dtype):
+    if pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
         return string_type
     if pa.types.is_timestamp(dtype):
         return "TIMESTAMP"
@@ -167,7 +167,7 @@ def pyarrow2oracle(  # noqa: PLR0911
         return "BINARY_DOUBLE"
     if pa.types.is_boolean(dtype):
         return "NUMBER(3)"
-    if pa.types.is_string(dtype):
+    if pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
         return string_type
     if pa.types.is_timestamp(dtype):
         return "TIMESTAMP"
@@ -202,7 +202,7 @@ def pyarrow2postgresql(  # noqa: PLR0911
         return "FLOAT8"
     if pa.types.is_boolean(dtype):
         return "BOOL"
-    if pa.types.is_string(dtype):
+    if pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
         return string_type
     if pa.types.is_timestamp(dtype):
         return "TIMESTAMP"
@@ -237,7 +237,7 @@ def pyarrow2sqlserver(  # noqa: PLR0911
         return "FLOAT"
     if pa.types.is_boolean(dtype):
         return "BIT"
-    if pa.types.is_string(dtype):
+    if pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
         return string_type
     if pa.types.is_timestamp(dtype):
         return "DATETIME2"
@@ -270,7 +270,7 @@ def pyarrow2timestream(dtype: pa.DataType) -> str:  # noqa: PLR0911
         return "DOUBLE"
     if pa.types.is_boolean(dtype):
         return "BOOLEAN"
-    if pa.types.is_string(dtype):
+    if pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
         return "VARCHAR"
     if pa.types.is_date(dtype):
         return "DATE"
@@ -470,7 +470,7 @@ def pyarrow2pandas_extension(  # noqa: PLR0911
         return pd.UInt64Dtype()
     if pa.types.is_boolean(dtype):
         return pd.BooleanDtype()
-    if pa.types.is_string(dtype):
+    if pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
         return pd.StringDtype()
     return None
 
