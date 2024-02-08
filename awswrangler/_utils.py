@@ -894,10 +894,9 @@ def split_pandas_frame(df: pd.DataFrame, splits: int) -> list[pd.DataFrame]:
 @engine.dispatch_on_engine
 def table_refs_to_df(tables: list[pa.Table], kwargs: dict[str, Any]) -> pd.DataFrame:
     """Build Pandas DataFrame from list of PyArrow tables."""
+    promote_kwargs: dict[str, bool | str] = {"promote": True}
     if version.parse(pa.__version__) >= version.parse("14.0.0"):
         promote_kwargs = {"promote_options": "default"}
-    else:
-        promote_kwargs = {"promote": True}
 
     return _table_to_df(pa.concat_tables(tables, **promote_kwargs), kwargs=kwargs)
 
