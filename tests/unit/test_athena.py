@@ -1429,6 +1429,18 @@ def test_get_query_execution(workgroup0, workgroup1):
     assert {"aaa", "bbb"}.intersection(set(unprocessed_query_executions_df["QueryExecutionId"].values.tolist()))
 
 
+@pytest.mark.parametrize("max_results", [55, 3])
+def test_list_query_executions_max_results(workgroup0: str, max_results: int):
+    for _ in range(max_results + 1):
+        wr.athena.start_query_execution(sql="SELECT random(10)", workgroup=workgroup0, wait=False)
+
+    query_execution_ids = wr.athena.list_query_executions(workgroup=workgroup0)
+    assert len(query_execution_ids) > max_results
+
+    query_execution_ids_max_results = wr.athena.list_query_executions(workgroup=workgroup0, max_results=max_results)
+    assert len(query_execution_ids_max_results) == max_results
+
+
 @pytest.mark.parametrize("compression", [None, "snappy", "gzip"])
 def test_read_sql_query_ctas_write_compression(path, glue_database, glue_table, compression):
     wr.s3.to_parquet(

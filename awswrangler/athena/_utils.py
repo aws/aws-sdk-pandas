@@ -1114,17 +1114,24 @@ def get_query_executions(
     return pd.json_normalize(query_executions)
 
 
-def list_query_executions(workgroup: str | None = None, boto3_session: boto3.Session | None = None) -> list[str]:
+def list_query_executions(
+    workgroup: str | None = None,
+    max_results: int | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> list[str]:
     """Fetch list query execution IDs ran in specified workgroup or primary work group if not specified.
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.list_query_executions
 
     Parameters
     ----------
-    workgroup : str
+    workgroup: str
         The name of the workgroup from which the query_id are being returned.
         If not specified, a list of available query execution IDs for the queries in the primary workgroup is returned.
-    boto3_session : boto3.Session(), optional
+    max_results: int, optional
+        The maximum number of query execution IDs to return in this request.
+        If not present, all execution IDs will be returned.
+    boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
@@ -1139,9 +1146,14 @@ def list_query_executions(workgroup: str | None = None, boto3_session: boto3.Ses
 
     """
     client_athena = _utils.client(service_name="athena", session=boto3_session)
-    kwargs: dict[str, Any] = {"base": 1}
+
+    kwargs: dict[str, Any] = {}
     if workgroup:
         kwargs["WorkGroup"] = workgroup
+
+        if max_results is not None:
+            kwargs["MaxResults"] = min(max_results, 50)
+
     query_list: list[str] = []
     response = _utils.try_it(
         f=client_athena.list_query_executions,
@@ -1151,8 +1163,16 @@ def list_query_executions(workgroup: str | None = None, boto3_session: boto3.Ses
         **kwargs,
     )
     query_list += response["QueryExecutionIds"]
+
     while "NextToken" in response:
         kwargs["NextToken"] = response["NextToken"]
+
+        if max_results is not None:
+            if len(query_list) >= max_results:
+                break
+
+            kwargs["MaxResults"] = min(max_results - len(query_list), 50)
+
         response = _utils.try_it(
             f=client_athena.list_query_executions,
             ex=botocore.exceptions.ClientError,
@@ -1161,5 +1181,6 @@ def list_query_executions(workgroup: str | None = None, boto3_session: boto3.Ses
             **kwargs,
         )
         query_list += response["QueryExecutionIds"]
+
     _logger.debug("Running %d query executions", len(query_list))
     return query_list
