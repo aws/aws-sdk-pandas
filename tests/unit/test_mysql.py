@@ -38,7 +38,6 @@ def mysql_con_sscursor():
 
 @pytest.mark.parametrize("connection", ["aws-sdk-pandas-mysql", "aws-sdk-pandas-mysql-ssl"])
 def test_connection(connection):
-    _logger.info("CURRENT IDENTITY ARN: " + wr.sts.get_current_identity_arn())
     with wr.mysql.connect(connection, connect_timeout=10):
         pass
 

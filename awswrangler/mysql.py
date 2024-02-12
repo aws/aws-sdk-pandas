@@ -11,7 +11,7 @@ import boto3
 import pyarrow as pa
 
 import awswrangler.pandas as pd
-from awswrangler import _data_types, _utils, exceptions
+from awswrangler import _data_types, _utils, exceptions, sts
 from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
 from awswrangler._sql_utils import identifier
@@ -169,6 +169,7 @@ def connect(
     >>> con.close()
 
     """
+    _logger.info("CURRENT IDENTITY ARN: " + sts.get_current_identity_arn())
     attrs: _db_utils.ConnectionAttributes = _db_utils.get_connection_attributes(
         connection=connection, secret_id=secret_id, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
     )
