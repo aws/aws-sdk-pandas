@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import logging
 from decimal import Decimal
+from typing import Any, Iterator
 
 import pyarrow as pa
 import pymysql
 import pytest
-from pymysql.cursors import SSCursor
+from pymysql.connections import Connection
+from pymysql.cursors import Cursor, SSCursor
 
 import awswrangler as wr
 import awswrangler.pandas as pd
@@ -17,66 +21,62 @@ pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="function")
-def mysql_con():
-    con = wr.mysql.connect("aws-sdk-pandas-mysql")
-    yield con
-    con.close()
+def mysql_con() -> Iterator[Connection[Cursor]]:
+    with wr.mysql.connect("aws-sdk-pandas-mysql") as con:
+        yield con
 
 
 @pytest.fixture(scope="function")
-def mysql_con_ssl():
-    con = wr.mysql.connect("aws-sdk-pandas-mysql-ssl")
-    yield con
-    con.close()
+def mysql_con_ssl() -> Iterator[Connection[Cursor]]:
+    with wr.mysql.connect("aws-sdk-pandas-mysql-ssl") as con:
+        yield con
 
 
 @pytest.fixture(scope="function")
-def mysql_con_sscursor():
-    con = wr.mysql.connect("aws-sdk-pandas-mysql", cursorclass=SSCursor)
-    yield con
-    con.close()
+def mysql_con_sscursor() -> Iterator[Connection[SSCursor]]:
+    with wr.mysql.connect("aws-sdk-pandas-mysql", cursorclass=SSCursor) as con:
+        yield con
 
 
 @pytest.mark.parametrize("connection", ["aws-sdk-pandas-mysql", "aws-sdk-pandas-mysql-ssl"])
-def test_connection(connection):
-    wr.mysql.connect(connection, connect_timeout=10).close()
+def test_connection(connection: str) -> None:
+    with wr.mysql.connect(connection, connect_timeout=10):
+        pass
 
 
-def test_read_sql_query_simple(databases_parameters):
-    con = pymysql.connect(
+def test_read_sql_query_simple(databases_parameters: dict[str, Any]) -> None:
+    with pymysql.connect(
         host=databases_parameters["mysql"]["host"],
         port=int(databases_parameters["mysql"]["port"]),
         database=databases_parameters["mysql"]["database"],
         user=databases_parameters["user"],
         password=databases_parameters["password"],
-    )
-    df = wr.mysql.read_sql_query("SELECT 1", con=con)
-    con.close()
+    ) as con:
+        df = wr.mysql.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 
 
-def test_conn_cursor():
-    con = wr.mysql.connect("aws-sdk-pandas-mysql", cursorclass=SSCursor)
+def test_conn_cursor() -> None:
+    with wr.mysql.connect("aws-sdk-pandas-mysql", cursorclass=SSCursor) as con:
+        assert con.cursorclass == SSCursor
 
-    assert con.cursorclass == SSCursor
 
-
-def test_to_sql_simple(mysql_table, mysql_con):
+def test_to_sql_simple(mysql_table: str, mysql_con: Connection[Cursor]):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
     wr.mysql.to_sql(df, mysql_con, mysql_table, "test", "overwrite", True)
 
 
-def test_to_sql_simple_sscursor(mysql_table, mysql_con_sscursor):
+def test_to_sql_simple_sscursor(mysql_table: str, mysql_con_sscursor: Connection[SSCursor]):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
     wr.mysql.to_sql(df, mysql_con_sscursor, mysql_table, "test", "overwrite", True)
 
 
-def test_to_sql_simple_ssl(mysql_table, mysql_con_ssl):
+def test_to_sql_simple_ssl(mysql_table: str, mysql_con_ssl: Connection[Cursor]) -> None:
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
     wr.mysql.to_sql(df, mysql_con_ssl, mysql_table, "test", "overwrite", True)
 
 
-def test_sql_types(mysql_table, mysql_con):
+def test_sql_types(mysql_table: str, mysql_con: Connection[Cursor]) -> None:
     table = mysql_table
     df = get_df()
     df.drop(["binary"], axis=1, inplace=True)
@@ -115,7 +115,7 @@ def test_sql_types(mysql_table, mysql_con):
         ensure_data_types(df, has_list=False)
 
 
-def test_to_sql_cast(mysql_table, mysql_con):
+def test_to_sql_cast(mysql_table: str, mysql_con: Connection[Cursor]) -> None:
     table = mysql_table
     df = pd.DataFrame(
         {
@@ -140,7 +140,7 @@ def test_to_sql_cast(mysql_table, mysql_con):
     assert df.equals(df2)
 
 
-def test_null(mysql_table, mysql_con):
+def test_null(mysql_table: str, mysql_con: Connection[Cursor]) -> None:
     table = mysql_table
     df = pd.DataFrame({"id": [1, 2, 3], "nothing": [None, None, None]})
     wr.mysql.to_sql(
@@ -165,7 +165,7 @@ def test_null(mysql_table, mysql_con):
     assert pandas_equals(pd.concat(objs=[df, df], ignore_index=True), df2)
 
 
-def test_decimal_cast(mysql_table, mysql_con):
+def test_decimal_cast(mysql_table: str, mysql_con: Connection[Cursor]) -> None:
     df = pd.DataFrame(
         {
             "col0": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
@@ -183,7 +183,7 @@ def test_decimal_cast(mysql_table, mysql_con):
     assert df2.col2.sum() == 2
 
 
-def test_read_retry(mysql_con):
+def test_read_retry(mysql_con: Connection[Cursor]) -> None:
     try:
         wr.mysql.read_sql_query("ERROR", mysql_con)
     except:  # noqa
@@ -203,13 +203,13 @@ def test_table_name(mysql_con):
 
 
 @pytest.mark.parametrize("dbname", [None, "test"])
-def test_connect_secret_manager(dbname):
-    con = wr.mysql.connect(secret_id="aws-sdk-pandas/mysql", dbname=dbname)
-    df = wr.mysql.read_sql_query("SELECT 1", con=con)
+def test_connect_secret_manager(dbname: str | None) -> None:
+    with wr.mysql.connect(secret_id="aws-sdk-pandas/mysql", dbname=dbname) as con:
+        df = wr.mysql.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 
 
-def test_insert_with_column_names(mysql_table, mysql_con):
+def test_insert_with_column_names(mysql_table: str, mysql_con: Connection[Cursor]) -> None:
     create_table_sql = (
         f"CREATE TABLE test.{mysql_table} " "(c0 varchar(100) NULL, " "c1 INT DEFAULT 42 NULL, " "c2 INT NOT NULL);"
     )
@@ -234,7 +234,7 @@ def test_insert_with_column_names(mysql_table, mysql_con):
     assert df.equals(df2)
 
 
-def test_upsert_distinct(mysql_table, mysql_con):
+def test_upsert_distinct(mysql_table: str, mysql_con: Connection[Cursor]) -> None:
     create_table_sql = (
         f"CREATE TABLE test.{mysql_table} " "(c0 varchar(100) NULL, " "c1 INT DEFAULT 42 NULL, " "c2 INT NOT NULL);"
     )
@@ -274,7 +274,7 @@ def test_upsert_distinct(mysql_table, mysql_con):
     assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
 
 
-def test_upsert_duplicate_key(mysql_table, mysql_con):
+def test_upsert_duplicate_key(mysql_table: str, mysql_con: Connection[Cursor]) -> None:
     create_table_sql = (
         f"CREATE TABLE test.{mysql_table} "
         "(c0 varchar(100) PRIMARY KEY, "
@@ -317,7 +317,7 @@ def test_upsert_duplicate_key(mysql_table, mysql_con):
     assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
 
 
-def test_upsert_replace(mysql_table, mysql_con):
+def test_upsert_replace(mysql_table: str, mysql_con: Connection[Cursor]) -> None:
     create_table_sql = (
         f"CREATE TABLE test.{mysql_table} "
         "(c0 varchar(100) PRIMARY KEY, "
@@ -361,7 +361,9 @@ def test_upsert_replace(mysql_table, mysql_con):
 
 
 @pytest.mark.parametrize("chunksize", [1, 10, 500])
-def test_dfs_are_equal_for_different_chunksizes(mysql_table, mysql_con, chunksize):
+def test_dfs_are_equal_for_different_chunksizes(
+    mysql_table: str, mysql_con: Connection[Cursor], chunksize: int
+) -> None:
     df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
     wr.mysql.to_sql(df=df, con=mysql_con, schema="test", table=mysql_table, chunksize=chunksize)
 
@@ -373,7 +375,7 @@ def test_dfs_are_equal_for_different_chunksizes(mysql_table, mysql_con, chunksiz
     assert df.equals(df2)
 
 
-def test_ignore(mysql_table, mysql_con):
+def test_ignore(mysql_table: str, mysql_con: Connection[Cursor]) -> None:
     create_table_sql = (
         f"CREATE TABLE test.{mysql_table} "
         "(c0 varchar(100) PRIMARY KEY, "
