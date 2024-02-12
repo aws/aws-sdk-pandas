@@ -25,6 +25,7 @@ def mysql_con():
 
 @pytest.fixture(scope="function")
 def mysql_con_ssl():
+    print(wr.sts.get_current_identity_arn())
     con = wr.mysql.connect("aws-sdk-pandas-mysql-ssl")
     yield con
     con.close()
