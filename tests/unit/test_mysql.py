@@ -18,48 +18,44 @@ pytestmark = pytest.mark.distributed
 
 @pytest.fixture(scope="function")
 def mysql_con():
-    con = wr.mysql.connect("aws-sdk-pandas-mysql")
-    yield con
-    con.close()
+    with wr.mysql.connect("aws-sdk-pandas-mysql") as con:
+        yield con
 
 
 @pytest.fixture(scope="function")
 def mysql_con_ssl():
-    con = wr.mysql.connect("aws-sdk-pandas-mysql-ssl")
-    yield con
-    con.close()
+    with wr.mysql.connect("aws-sdk-pandas-mysql-ssl") as con:
+        yield con
 
 
 @pytest.fixture(scope="function")
 def mysql_con_sscursor():
-    con = wr.mysql.connect("aws-sdk-pandas-mysql", cursorclass=SSCursor)
-    yield con
-    con.close()
+    with wr.mysql.connect("aws-sdk-pandas-mysql", cursorclass=SSCursor) as con:
+        yield con
 
 
 @pytest.mark.parametrize("connection", ["aws-sdk-pandas-mysql", "aws-sdk-pandas-mysql-ssl"])
 def test_connection(connection):
-    print(wr.sts.get_current_identity_arn())
-    wr.mysql.connect(connection, connect_timeout=10).close()
+    print("CURRENT IDENTITY ARN", wr.sts.get_current_identity_arn())
+    with wr.mysql.connect(connection, connect_timeout=10):
+        pass
 
 
 def test_read_sql_query_simple(databases_parameters):
-    con = pymysql.connect(
+    with pymysql.connect(
         host=databases_parameters["mysql"]["host"],
         port=int(databases_parameters["mysql"]["port"]),
         database=databases_parameters["mysql"]["database"],
         user=databases_parameters["user"],
         password=databases_parameters["password"],
-    )
-    df = wr.mysql.read_sql_query("SELECT 1", con=con)
-    con.close()
+    ) as con:
+        df = wr.mysql.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 
 
 def test_conn_cursor():
-    con = wr.mysql.connect("aws-sdk-pandas-mysql", cursorclass=SSCursor)
-
-    assert con.cursorclass == SSCursor
+    with wr.mysql.connect("aws-sdk-pandas-mysql", cursorclass=SSCursor) as con:
+        assert con.cursorclass == SSCursor
 
 
 def test_to_sql_simple(mysql_table, mysql_con):
