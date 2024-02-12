@@ -13,6 +13,8 @@ from .._utils import ensure_data_types, get_df, pandas_equals
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
+_logger: logging.Logger = logging.getLogger(__name__)
+
 pytestmark = pytest.mark.distributed
 
 
@@ -36,7 +38,7 @@ def mysql_con_sscursor():
 
 @pytest.mark.parametrize("connection", ["aws-sdk-pandas-mysql", "aws-sdk-pandas-mysql-ssl"])
 def test_connection(connection):
-    print("CURRENT IDENTITY ARN", wr.sts.get_current_identity_arn())
+    _logger.info("CURRENT IDENTITY ARN: " + wr.sts.get_current_identity_arn())
     with wr.mysql.connect(connection, connect_timeout=10):
         pass
 
