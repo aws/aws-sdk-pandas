@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import logging
 from decimal import Decimal
+from typing import Any, Iterator
 
 import boto3
 import pyarrow as pa
@@ -17,37 +20,35 @@ pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="module", autouse=True)
-def create_sql_server_database(databases_parameters):
+def create_sql_server_database(databases_parameters: dict[str, Any]) -> None:
     connection_str = (
         f"DRIVER={{ODBC Driver 17 for SQL Server}};"
         f"SERVER={databases_parameters['sqlserver']['host']},{databases_parameters['sqlserver']['port']};"
         f"UID={databases_parameters['user']};"
         f"PWD={databases_parameters['password']}"
     )
-    con = pyodbc.connect(connection_str, autocommit=True)
     sql_create_db = (
         f"IF NOT EXISTS(SELECT * FROM sys.databases WHERE name = '{databases_parameters['sqlserver']['database']}') "
         "BEGIN "
         f"CREATE DATABASE {databases_parameters['sqlserver']['database']} "
         "END"
     )
-    with con.cursor() as cursor:
-        cursor.execute(sql_create_db)
-        con.commit()
-    con.close()
 
-    yield
+    with pyodbc.connect(connection_str, autocommit=True) as con:
+        with con.cursor() as cursor:
+            cursor.execute(sql_create_db)
+            con.commit()
 
 
 @pytest.fixture(scope="function")
-def sqlserver_con():
-    con = wr.sqlserver.connect("aws-sdk-pandas-sqlserver")
-    yield con
-    con.close()
+def sqlserver_con() -> Iterator[pyodbc.Connection]:
+    with wr.sqlserver.connect("aws-sdk-pandas-sqlserver") as con:
+        yield con
 
 
-def test_connection():
-    wr.sqlserver.connect("aws-sdk-pandas-sqlserver", timeout=10).close()
+def test_connection() -> None:
+    with wr.sqlserver.connect("aws-sdk-pandas-sqlserver", timeout=10):
+        pass
 
 
 def test_read_sql_query_simple(databases_parameters, sqlserver_con):
@@ -195,7 +196,7 @@ def test_read_retry(sqlserver_con):
     assert df.shape == (1, 1)
 
 
-def test_table_name(sqlserver_con):
+def test_table_name(sqlserver_con: pyodbc.Connection) -> None:
     df = pd.DataFrame({"col0": [1]})
     wr.sqlserver.to_sql(df, sqlserver_con, "Test Name", "dbo", mode="overwrite")
     df = wr.sqlserver.read_sql_table(schema="dbo", con=sqlserver_con, table="Test Name")
@@ -208,14 +209,14 @@ def test_table_name(sqlserver_con):
 @pytest.mark.parametrize("dbname", [None, "test"])
 def test_connect_secret_manager(dbname):
     try:
-        con = wr.sqlserver.connect(secret_id="aws-sdk-pandas/sqlserver", dbname=dbname)
-        df = wr.sqlserver.read_sql_query("SELECT 1", con=con)
+        with wr.sqlserver.connect(secret_id="aws-sdk-pandas/sqlserver", dbname=dbname) as con:
+            df = wr.sqlserver.read_sql_query("SELECT 1", con=con)
         assert df.shape == (1, 1)
     except boto3.client("secretsmanager").exceptions.ResourceNotFoundException:
         pass  # Workaround for secretmanager inconsistance
 
 
-def test_insert_with_column_names(sqlserver_table, sqlserver_con):
+def test_insert_with_column_names(sqlserver_table: str, sqlserver_con: pyodbc.Connection) -> None:
     create_table_sql = (
         f"CREATE TABLE dbo.{sqlserver_table} " "(c0 varchar(100) NULL," "c1 INT DEFAULT 42 NULL," "c2 INT NOT NULL);"
     )
