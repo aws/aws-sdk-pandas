@@ -17,26 +17,17 @@ pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="module", autouse=True)
-def create_sql_server_database(databases_parameters):
-    connection_str = (
-        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-        f"SERVER={databases_parameters['sqlserver']['host']},{databases_parameters['sqlserver']['port']};"
-        f"UID={databases_parameters['user']};"
-        f"PWD={databases_parameters['password']}"
-    )
-    con = pyodbc.connect(connection_str, autocommit=True)
+def create_sql_server_database(databases_parameters) -> None:
     sql_create_db = (
         f"IF NOT EXISTS(SELECT * FROM sys.databases WHERE name = '{databases_parameters['sqlserver']['database']}') "
         "BEGIN "
         f"CREATE DATABASE {databases_parameters['sqlserver']['database']} "
         "END"
     )
-    with con.cursor() as cursor:
-        cursor.execute(sql_create_db)
-        con.commit()
-    con.close()
-
-    yield
+    with wr.sqlserver.connect("aws-sdk-pandas-sqlserver") as con:
+        with con.cursor() as cursor:
+            cursor.execute(sql_create_db)
+            con.commit()
 
 
 @pytest.fixture(scope="function")
