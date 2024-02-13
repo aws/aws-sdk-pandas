@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import math
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, cast
 
 import boto3
 import pandas as pd
@@ -46,30 +46,17 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _new_writer(
     file_path: str,
     compression: str | None,
-    pyarrow_additional_kwargs: TypedDict(
-        "pyarrow_additional_kwargs",
-        {
-            "crypto_factory": pyarrow.parquet.encryption.CryptoFactory,
-            "kms_connection_config": pyarrow.parquet.encryption.KmsConnectionConfig,
-            "encryption_config": pyarrow.parquet.encryption.EncryptionConfiguration,
-            "coerce_timestamps": str,
-            "flavor": str,
-            "version": str,
-            "use_dictionary": bool,
-            "write_statistics": bool,
-            "schema": pa.Schema,
-        },
-    )
-    | None,
+    pyarrow_additional_kwargs: dict[str, Any] | None,
     schema: pa.Schema,
     s3_client: "S3Client",
     s3_additional_kwargs: dict[str, str] | None,
     use_threads: bool | int,
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: pyarrow.parquet.ParquetWriter | None = None
+    if pyarrow_additional_kwargs is None:
+        pyarrow_additional_kwargs = {}
     is_client_side_encryption_materials_present = (
-        pyarrow_additional_kwargs is not None
-        and "crypto_factory" in pyarrow_additional_kwargs
+        "crypto_factory" in pyarrow_additional_kwargs
         and "kms_connection_config" in pyarrow_additional_kwargs
         and "encryption_config" in pyarrow_additional_kwargs
     )
