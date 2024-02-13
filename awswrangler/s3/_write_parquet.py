@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import math
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, TypedDict, cast
 
 import boto3
 import pandas as pd
@@ -46,29 +46,49 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _new_writer(
     file_path: str,
     compression: str | None,
-    pyarrow_additional_kwargs: dict[str, Any] | None,
+    pyarrow_additional_kwargs: TypedDict(
+        "pyarrow_additional_kwargs",
+        {
+            "crypto_factory": pyarrow.parquet.encryption.CryptoFactory,
+            "kms_connection_config": pyarrow.parquet.encryption.KmsConnectionConfig,
+            "encryption_config": pyarrow.parquet.encryption.EncryptionConfiguration,
+            "coerce_timestamps": str,
+            "flavor": str,
+            "version": str,
+            "use_dictionary": bool,
+            "write_statistics": bool,
+            "schema": pa.Schema,
+        },
+    )
+    | None,
     schema: pa.Schema,
     s3_client: "S3Client",
     s3_additional_kwargs: dict[str, str] | None,
     use_threads: bool | int,
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: pyarrow.parquet.ParquetWriter | None = None
-    if not pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs = {}
-    if "coerce_timestamps" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
-    if "flavor" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["flavor"] = "spark"
-    if "version" not in pyarrow_additional_kwargs:
+    is_client_side_encryption_materials_present = (
+        pyarrow_additional_kwargs is not None
+        and "crypto_factory" in pyarrow_additional_kwargs
+        and "kms_connection_config" in pyarrow_additional_kwargs
+        and "encryption_config" in pyarrow_additional_kwargs
+    )
+    pyarrow_additional_settings = {
+        "coerce_timestamps": pyarrow_additional_kwargs.get("coerce_timestamps", "ms"),
+        "flavor": pyarrow_additional_kwargs.get("flavor", "spark"),
         # By default, use version 1.0 logical type set to maximize compatibility
-        pyarrow_additional_kwargs["version"] = "1.0"
-    if "use_dictionary" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["use_dictionary"] = True
-    if "write_statistics" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["write_statistics"] = True
-    if "schema" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["schema"] = schema
-
+        "version": pyarrow_additional_kwargs.get("version", "1.0"),
+        "use_dictionary": pyarrow_additional_kwargs.get("use_dictionary", True),
+        "write_statistics": pyarrow_additional_kwargs.get("write_statistics", True),
+        "schema": pyarrow_additional_kwargs.get("schema", schema),
+        # When client side encryption materials are given
+        # construct file encryption properties object and pass it to pyarrow writer
+        "encryption_properties": pyarrow_additional_kwargs["crypto_factory"].file_encryption_properties(
+            pyarrow_additional_kwargs["kms_connection_config"], pyarrow_additional_kwargs["encryption_config"]
+        )
+        if is_client_side_encryption_materials_present
+        else None,
+    }
     with open_s3_object(
         path=file_path,
         mode="wb",
@@ -80,7 +100,7 @@ def _new_writer(
             writer = pyarrow.parquet.ParquetWriter(
                 where=f,
                 compression="NONE" if compression is None else compression,
-                **pyarrow_additional_kwargs,
+                **pyarrow_additional_settings,
             )
             yield writer
         finally:
