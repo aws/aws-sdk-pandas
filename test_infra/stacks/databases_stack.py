@@ -1,4 +1,5 @@
 import json
+from urllib.request import urlopen
 
 from aws_cdk import Aws, CfnOutput, Duration, RemovalPolicy, Stack
 from aws_cdk import aws_ec2 as ec2
@@ -493,7 +494,9 @@ class DatabasesStack(Stack):  # type: ignore
                 "USERNAME": self.db_username,
                 "PASSWORD": self.db_password,
                 "JDBC_ENFORCE_SSL": "true",
-                "CUSTOM_JDBC_CERT": "s3://aws-glue-assets-658066294590-us-east-1/certificates/global-bundle.pem",
+                "CUSTOM_JDBC_CERT_STRING": urlopen("https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem")
+                .read()
+                .decode("utf-8"),
             },
             subnet=self.glue_connection_subnet,
             security_groups=[self.db_security_group],
