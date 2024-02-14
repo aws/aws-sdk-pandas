@@ -183,8 +183,8 @@ def test_table_name(postgresql_con):
 
 @pytest.mark.parametrize("dbname", [None, "postgres"])
 def test_connect_secret_manager(dbname):
-    con = wr.postgresql.connect(secret_id="aws-sdk-pandas/postgresql", dbname=dbname)
-    df = wr.postgresql.read_sql_query("SELECT 1", con=con)
+    with wr.postgresql.connect(secret_id="aws-sdk-pandas/postgresql", dbname=dbname) as con:
+        df = wr.postgresql.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 
 

@@ -206,8 +206,8 @@ def test_table_name(oracle_con: "oracledb.Connection") -> None:
 @pytest.mark.parametrize("dbname", [None, "ORCL"])
 def test_connect_secret_manager(dbname: str) -> None:
     try:
-        con = wr.oracle.connect(secret_id="aws-sdk-pandas/oracle", dbname=dbname)
-        df = wr.oracle.read_sql_query("SELECT 1 FROM DUAL", con=con)
+        with wr.oracle.connect(secret_id="aws-sdk-pandas/oracle", dbname=dbname) as con:
+            df = wr.oracle.read_sql_query("SELECT 1 FROM DUAL", con=con)
         assert df.shape == (1, 1)
     except boto3.client("secretsmanager").exceptions.ResourceNotFoundException:
         pass  # Workaround for secretmanager inconsistance

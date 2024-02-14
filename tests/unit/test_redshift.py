@@ -48,14 +48,13 @@ def test_connection() -> None:
 
 
 def test_read_sql_query_simple(databases_parameters: dict[str, Any]) -> None:
-    con = redshift_connector.connect(
+    with redshift_connector.connect(
         host=databases_parameters["redshift"]["host"],
         port=int(databases_parameters["redshift"]["port"]),
         database=databases_parameters["redshift"]["database"],
         user=databases_parameters["user"],
         password=databases_parameters["password"],
-    )
-    with con:
+    ) as con:
         df = wr.redshift.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 
