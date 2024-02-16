@@ -506,6 +506,61 @@ def test_index_columns(path, use_threads, name, pandas):
     assert df[["c0"]].equals(df2)
 
 
+@pytest.mark.parametrize("index", [None, ["c0"], ["c0", "c1"]])
+def test_index_schema_validation(path, glue_database, glue_table, index):
+    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3], "c2": [4, 5]}, dtype="Int64")
+
+    if index is not None:
+        df = df.set_index(index)
+    else:
+        df.index = df.index.astype("Int64")
+
+    for _ in range(2):
+        wr.s3.to_parquet(df, path, index=True, dataset=True, database=glue_database, table=glue_table)
+
+    df2 = wr.s3.read_parquet(path, validate_schema=True)
+    assert_pandas_equals(pd.concat([df, df]), df2)
+
+
+@pytest.mark.modin_index
+@pytest.mark.parametrize("index", [["c0"], ["c0", "c1"]])
+@pytest.mark.parametrize("partition_cols", [["c0"], ["c0", "c1"]])
+def test_index_partition(path, glue_database, glue_table, index, partition_cols):
+    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3], "c2": [4, 5]}, dtype="Int64")
+    df = df.set_index(index)
+
+    for _ in range(2):
+        wr.s3.to_parquet(
+            df,
+            path,
+            index=True,
+            dataset=True,
+            partition_cols=partition_cols,
+            database=glue_database,
+            table=glue_table,
+        )
+
+    df2 = wr.s3.read_parquet(path, dataset=True)
+
+    # partitioned index is not preserved, so reset unpartitioned index for recreation
+    assert all(idx in df2.index.names for idx in [idx for idx in index if idx not in partition_cols])
+    df2 = df2.reset_index()
+
+    # partition columns come back as categorical, so convert back
+    for col in partition_cols:
+        df2[col] = df2[col].astype("Int64")
+
+    # apply full index again
+    df2 = df2.set_index(index)
+
+    assert_pandas_equals(
+        # partitioned on index, so the data comes back sorted on the index
+        pd.concat([df, df]).sort_index(),
+        # need to reorder columns, because partition columns are appended
+        df2[df.columns],
+    )
+
+
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
