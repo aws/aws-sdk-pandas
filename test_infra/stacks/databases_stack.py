@@ -6,7 +6,7 @@ from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
-from aws_cdk import aws_neptune_alpha as neptune
+from aws_cdk import aws_neptune as neptune
 from aws_cdk import aws_rds as rds
 from aws_cdk import aws_redshift_alpha as redshift
 from aws_cdk import aws_redshiftserverless as redshiftserverless
