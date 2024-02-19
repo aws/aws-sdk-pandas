@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import List, Literal, NamedTuple, Tuple, TypedDict
 
+import pyarrow
 from typing_extensions import NotRequired, Required
 
 BucketingInfoTuple = Tuple[List[str], int]
@@ -190,6 +191,13 @@ class TimestreamBatchLoadReportS3Configuration(TypedDict):
     """
     Optional KMS key ID for the error reports.
     """
+
+
+class ArrowDescryptionConfiguration(TypedDict):
+    """Configuration for decrypting encrypted columns."""
+
+    crypto_factory: pyarrow.parquet.encryption.CryptoFactory
+    kms_connection_config: pyarrow.parquet.encryption.KmsConnectionConfig
 
 
 class RaySettings(TypedDict):

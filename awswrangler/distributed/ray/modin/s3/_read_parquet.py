@@ -39,10 +39,13 @@ def _read_parquet_distributed(
     s3_additional_kwargs: dict[str, Any] | None,
     arrow_kwargs: dict[str, Any],
     bulk_read: bool,
+    file_decryption_properties: pa.parquet.encryption.DecryptionConfiguration | None = None,
 ) -> pd.DataFrame:
     dataset_kwargs = {}
     if coerce_int96_timestamp_unit:
         dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
+    if file_decryption_properties:
+        dataset_kwargs["decryption_properties"] = file_decryption_properties
 
     dataset = read_datasource(
         **_resolve_datasource_parameters(

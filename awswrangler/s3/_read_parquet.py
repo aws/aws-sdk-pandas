@@ -12,7 +12,6 @@ from typing import (
     Any,
     Callable,
     Iterator,
-    TypedDict,
 )
 
 import boto3
@@ -41,7 +40,7 @@ from awswrangler.s3._read import (
     _InternalReadTableMetadataReturnValue,
     _TableMetadataReader,
 )
-from awswrangler.typing import RayReadParquetSettings, _ReadTableMetadataReturnValue
+from awswrangler.typing import ArrowDescryptionConfiguration, RayReadParquetSettings, _ReadTableMetadataReturnValue
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -337,14 +336,7 @@ def read_parquet(
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, Any] | None = None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
-    decryption_configurations: TypedDict(
-        "decryption_configurations",
-        {
-            "crypto_factory": pyarrow.parquet.encryption.CryptoFactory,
-            "kms_connection_config": pyarrow.parquet.encryption.KmsConnectionConfig,
-        },
-    )
-    | None = None,
+    decryption_configurations: ArrowDescryptionConfiguration | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read Parquet file(s) from an S3 prefix or list of S3 objects paths.
 
@@ -449,9 +441,9 @@ def read_parquet(
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
-    decryption_configurations: TypedDict("decryption_configurations", {"crypto_factory" : pyarrow.parquet.encryption.CryptoFactory , "kms_connection_config" : pyarrow.parquet.encryption.KmsConnectionConfig}), optional
-        optional pyarrow.parquet.encryption.CryptoFactory and pyarrow.parquet.encryption.KmsConnectionConfig objects dict
-        used to create a pyarrow CryptoFactory.file_decryption_properties object to forward to pyarrow reader.
+    decryption_configurations: Dict[str, Any], optional
+        optional ``pyarrow.parquet.encryption.CryptoFactory`` and ``pyarrow.parquet.encryption.KmsConnectionConfig`` objects dict
+        used to create a PyArrow ``CryptoFactory.file_decryption_properties`` object to forward to PyArrow reader.
 
     Returns
     -------
@@ -601,14 +593,7 @@ def read_parquet_table(
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, Any] | None = None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
-    decryption_configurations: TypedDict(
-        "decryption_configurations",
-        {
-            "crypto_factory": pyarrow.parquet.encryption.CryptoFactory,
-            "kms_connection_config": pyarrow.parquet.encryption.KmsConnectionConfig,
-        },
-    )
-    | None = None,
+    decryption_configurations: ArrowDescryptionConfiguration | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read Apache Parquet table registered in the AWS Glue Catalog.
 
@@ -687,6 +672,9 @@ def read_parquet_table(
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
+    decryption_configurations: Dict[str, Any], optional
+        optional ``pyarrow.parquet.encryption.CryptoFactory`` and ``pyarrow.parquet.encryption.KmsConnectionConfig`` objects dict
+        used to create a PyArrow ``CryptoFactory.file_decryption_properties`` object to forward to PyArrow reader.
 
     Returns
     -------

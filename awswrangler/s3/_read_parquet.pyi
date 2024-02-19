@@ -5,7 +5,7 @@ import boto3
 import pandas as pd
 import pyarrow as pa
 
-from awswrangler.typing import RayReadParquetSettings
+from awswrangler.typing import ArrowDescryptionConfiguration, RayReadParquetSettings
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -88,6 +88,7 @@ def read_parquet(
     boto3_session: boto3.Session | None = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    decryption_configurations: ArrowDescryptionConfiguration | None = ...,
 ) -> pd.DataFrame: ...
 @overload
 def read_parquet(
@@ -113,6 +114,7 @@ def read_parquet(
     boto3_session: boto3.Session | None = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    decryption_configurations: ArrowDescryptionConfiguration | None = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_parquet(
@@ -138,6 +140,7 @@ def read_parquet(
     boto3_session: boto3.Session | None = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    decryption_configurations: ArrowDescryptionConfiguration | None = ...,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 @overload
 def read_parquet(
@@ -163,6 +166,7 @@ def read_parquet(
     boto3_session: boto3.Session | None = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    decryption_configurations: ArrowDescryptionConfiguration | None = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_parquet_table(
@@ -183,6 +187,7 @@ def read_parquet_table(
     boto3_session: boto3.Session | None = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    decryption_configurations: ArrowDescryptionConfiguration | None = ...,
 ) -> pd.DataFrame: ...
 @overload
 def read_parquet_table(
@@ -203,6 +208,7 @@ def read_parquet_table(
     boto3_session: boto3.Session | None = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    decryption_configurations: ArrowDescryptionConfiguration | None = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_parquet_table(
@@ -223,6 +229,7 @@ def read_parquet_table(
     boto3_session: boto3.Session | None = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    decryption_configurations: ArrowDescryptionConfiguration | None = ...,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 @overload
 def read_parquet_table(
@@ -243,4 +250,5 @@ def read_parquet_table(
     boto3_session: boto3.Session | None = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    decryption_configurations: ArrowDescryptionConfiguration | None = ...,
 ) -> Iterator[pd.DataFrame]: ...

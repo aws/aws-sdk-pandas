@@ -40,12 +40,14 @@ class ArrowParquetBaseDatasource(FileBasedDatasource):
 
         dataset_kwargs = arrow_parquet_args.get("dataset_kwargs", {})
         coerce_int96_timestamp_unit: str | None = dataset_kwargs.get("coerce_int96_timestamp_unit", None)
+        decryption_properties = dataset_kwargs.get("decryption_properties", None)
 
         table = pq.read_table(
             f,
             use_threads=use_threads,
             columns=columns,
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            decryption_properties=decryption_properties,
         )
 
         table = _add_table_partitions(
