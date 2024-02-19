@@ -888,6 +888,11 @@ def test_chunked_columns(path, columns, chunked):
     assert df[columns].shape if columns else df.shape == df2.shape
 
 
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=TypeError,
+    reason="Ray Modin cannot serialize Pyarrow crytography objects since they are C++ objects",
+)
 @pytest.mark.parametrize("max_rows_by_file", [1, 2, 100])
 @pytest.mark.parametrize("chunked", [False, True, 2])
 @pytest.mark.parametrize("columns", [["c0", "c1", "c3"], ["c0"], ["c0", "c1"]])
