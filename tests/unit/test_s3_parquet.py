@@ -922,11 +922,6 @@ def test_write_to_parquet_with_client_encryption_config(
     assert_pandas_equals(df, df_out)
 
 
-@pytest.mark.xfail(
-    is_ray_modin,
-    raises=TypeError,
-    reason="Ray Modin cannot serialize Pyarrow crytography objects since they are C++ objects",
-)
 @pytest.mark.parametrize(
     "validate_schema",
     [
@@ -940,6 +935,11 @@ def test_write_to_parquet_with_client_encryption_config(
             ),
         ),
     ],
+)
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=TypeError,
+    reason="Ray Modin cannot serialize Pyarrow crytography objects since they are C++ objects",
 )
 @pytest.mark.parametrize("columns", [["c0", "c1"], ["c0"]])
 def test_read_parquet_table_with_client_side_encryption(

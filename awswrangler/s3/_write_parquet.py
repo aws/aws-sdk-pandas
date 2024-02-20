@@ -53,28 +53,39 @@ def _new_writer(
     use_threads: bool | int,
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: pyarrow.parquet.ParquetWriter | None = None
-    if pyarrow_additional_kwargs is None:
+    if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
+    if "coerce_timestamps" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+    if "flavor" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["flavor"] = "spark"
+    if "version" not in pyarrow_additional_kwargs:
+        # By default, use version 1.0 logical type set to maximize compatibility
+        pyarrow_additional_kwargs["version"] = "1.0"
+    if "use_dictionary" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["use_dictionary"] = True
+    if "write_statistics" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["write_statistics"] = True
+    if "schema" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["schema"] = schema
+
     is_client_side_encryption_materials_present = (
         "crypto_factory" in pyarrow_additional_kwargs
         and "kms_connection_config" in pyarrow_additional_kwargs
         and "encryption_config" in pyarrow_additional_kwargs
     )
-    pyarrow_additional_settings = {
-        "coerce_timestamps": pyarrow_additional_kwargs.get("coerce_timestamps", "ms"),
-        "flavor": pyarrow_additional_kwargs.get("flavor", "spark"),
-        # By default, use version 1.0 logical type set to maximize compatibility
-        "version": pyarrow_additional_kwargs.get("version", "1.0"),
-        "use_dictionary": pyarrow_additional_kwargs.get("use_dictionary", True),
-        "write_statistics": pyarrow_additional_kwargs.get("write_statistics", True),
-        "schema": pyarrow_additional_kwargs.get("schema", schema),
+    if is_client_side_encryption_materials_present:
         # When client side encryption materials are given
         # construct file encryption properties object and pass it to pyarrow writer
-        "encryption_properties": pyarrow_additional_kwargs["crypto_factory"].file_encryption_properties(
+        pyarrow_additional_kwargs["encryption_properties"] = pyarrow_additional_kwargs[
+            "crypto_factory"
+        ].file_encryption_properties(
             pyarrow_additional_kwargs["kms_connection_config"], pyarrow_additional_kwargs["encryption_config"]
         )
-        if is_client_side_encryption_materials_present
-        else None,
+    pyarrow_additional_settings = {
+        k: v
+        for k, v in pyarrow_additional_kwargs.items()
+        if k not in ["crypto_factory", "kms_connection_config", "encryption_config"]
     }
     with open_s3_object(
         path=file_path,
