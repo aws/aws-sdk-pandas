@@ -444,6 +444,8 @@ def read_parquet(
     decryption_configurations: Dict[str, Any], optional
         optional ``pyarrow.parquet.encryption.CryptoFactory`` and ``pyarrow.parquet.encryption.KmsConnectionConfig`` objects dict
         used to create a PyArrow ``CryptoFactory.file_decryption_properties`` object to forward to PyArrow reader.
+        see: https://arrow.apache.org/docs/python/parquet.html#decryption-configuration
+        Client Decryption not supported in distributed mode.
 
     Returns
     -------

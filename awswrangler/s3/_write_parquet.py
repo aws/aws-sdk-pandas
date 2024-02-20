@@ -385,6 +385,11 @@ def to_parquet(
         Additional parameters forwarded to pyarrow.
         e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
         'allow_truncated_timestamps'=False}
+        e.g. For Parquet Client Encryption provide encryption materials as follows pyarrow_additional_kwargs={'crypto_factory': pyarrow.parquet.encryption.CryptoFactory,
+            'kms_connection_config': pyarrow.parquet.encryption.KmsConnectionConfig,
+            'encryption_config': pyarrow.parquet.encryption.EncryptionConfiguration}
+            see: https://arrow.apache.org/docs/python/parquet.html#parquet-modular-encryption-columnar-encryption
+            Client Encryption not supported in distributed mode.
     max_rows_by_file : int
         Max number of rows in each file.
         Default is None i.e. don't split the files.
