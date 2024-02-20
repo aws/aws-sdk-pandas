@@ -197,7 +197,11 @@ class ArrowDescryptionConfiguration(TypedDict):
     """Configuration for decrypting encrypted columns."""
 
     crypto_factory: pyarrow.parquet.encryption.CryptoFactory
+    """Pyarrow Crypto factory for encrypting and decrypting columns.
+    see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.CryptoFactory.html"""
     kms_connection_config: pyarrow.parquet.encryption.KmsConnectionConfig
+    """Pyarrow Configuration of the connection to the Key Management Service (KMS).
+    see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.KmsClient.html"""
 
 
 class RaySettings(TypedDict):

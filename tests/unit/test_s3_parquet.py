@@ -927,14 +927,23 @@ def test_write_to_parquet_with_client_encryption_config(
     raises=TypeError,
     reason="Ray Modin cannot serialize Pyarrow crytography objects since they are C++ objects",
 )
-@pytest.mark.xfail(
-    not is_ray_modin,
-    raises=OSError,
-    reason="Issue with pyarrow read_table when using client side encryption, see https://github.com/apache/arrow/issues/39645",
+@pytest.mark.parametrize(
+    "validate_schema",
+    [
+        pytest.param(False),
+        pytest.param(
+            True,
+            marks=pytest.mark.xfail(
+                not is_ray_modin,
+                raises=OSError,
+                reason="Issue with pyarrow read_table when using client side encryption, see https://github.com/apache/arrow/issues/39645",
+            ),
+        ),
+    ],
 )
 @pytest.mark.parametrize("columns", [["c0", "c1"], ["c0"]])
 def test_read_parquet_table_with_client_side_encryption(
-    path, glue_database, glue_table, kms_key_id, columns, client_encryption_materials
+    path, glue_database, glue_table, kms_key_id, columns, validate_schema, client_encryption_materials
 ):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     crypto_factory, kms_connection_config, encryption_config = client_encryption_materials
@@ -954,5 +963,7 @@ def test_read_parquet_table_with_client_side_encryption(
         table=glue_table,
         database=glue_database,
         decryption_configurations={"crypto_factory": crypto_factory, "kms_connection_config": kms_connection_config},
+        validate_schema=validate_schema,
+        columns=columns,
     )
-    assert df_out.shape == (3, 3)
+    assert df_out.shape == (3, len(columns))
