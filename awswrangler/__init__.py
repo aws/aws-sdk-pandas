@@ -8,6 +8,8 @@ Documentation: https://aws-sdk-pandas.readthedocs.io/
 import logging as _logging
 
 from awswrangler import (
+    _arrow,  # noqa: F401
+    adbc,
     athena,
     catalog,
     chime,
@@ -41,6 +43,7 @@ from awswrangler._distributed import EngineEnum, MemoryFormatEnum, engine, memor
 engine.register()
 
 __all__ = [
+    "adbc",
     "athena",
     "catalog",
     "chime",

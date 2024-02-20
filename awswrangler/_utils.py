@@ -107,6 +107,7 @@ INSTALL_MAPPING = {
     "gremlin_python": "gremlin",
     "opensearchpy": "opensearch",
     "oracledb": "oracle",
+    "pg_abapi": "adbc-driver-postgresql",
 }
 
 
