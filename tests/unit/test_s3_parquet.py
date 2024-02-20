@@ -905,7 +905,7 @@ def test_write_to_parquet_with_client_encryption_config(
     wr.s3.to_parquet(
         df,
         path_file,
-        pyarrow_additional_kwargs={
+        encryption_configuration={
             "crypto_factory": crypto_factory,
             "kms_connection_config": kms_connection_config,
             "encryption_config": encryption_config,
@@ -953,7 +953,7 @@ def test_read_parquet_table_with_client_side_encryption(
         dataset=True,
         database=glue_database,
         table=glue_table,
-        pyarrow_additional_kwargs={
+        encryption_configuration={
             "crypto_factory": crypto_factory,
             "kms_connection_config": kms_connection_config,
             "encryption_config": encryption_config,

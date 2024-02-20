@@ -216,6 +216,7 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
         filename_prefix: str | None = None,
         max_rows_by_file: int | None = 0,
         bucketing: bool = False,
+        encryption_configuration: typing.ArrowEncryptionConfiguration | None = None,
     ) -> list[str]:
         return _to_orc(
             df=df,
@@ -712,4 +713,5 @@ def to_orc(
         athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
         compression_ext=compression_ext,
+        encryption_configuration=None,
     )

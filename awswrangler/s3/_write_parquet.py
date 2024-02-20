@@ -30,6 +30,7 @@ from awswrangler.s3._write import (
 )
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.typing import (
+    ArrowEncryptionConfiguration,
     AthenaPartitionProjectionSettings,
     BucketingInfoTuple,
     GlueTableSettings,
@@ -51,6 +52,7 @@ def _new_writer(
     s3_client: "S3Client",
     s3_additional_kwargs: dict[str, str] | None,
     use_threads: bool | int,
+    encryption_configuration: ArrowEncryptionConfiguration | None,
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: pyarrow.parquet.ParquetWriter | None = None
     if not pyarrow_additional_kwargs:
@@ -69,24 +71,14 @@ def _new_writer(
     if "schema" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["schema"] = schema
 
-    is_client_side_encryption_materials_present = (
-        "crypto_factory" in pyarrow_additional_kwargs
-        and "kms_connection_config" in pyarrow_additional_kwargs
-        and "encryption_config" in pyarrow_additional_kwargs
-    )
-    if is_client_side_encryption_materials_present:
+    if encryption_configuration:
         # When client side encryption materials are given
         # construct file encryption properties object and pass it to pyarrow writer
-        pyarrow_additional_kwargs["encryption_properties"] = pyarrow_additional_kwargs[
+        pyarrow_additional_kwargs["encryption_properties"] = encryption_configuration[
             "crypto_factory"
         ].file_encryption_properties(
-            pyarrow_additional_kwargs["kms_connection_config"], pyarrow_additional_kwargs["encryption_config"]
+            encryption_configuration["kms_connection_config"], encryption_configuration["encryption_config"]
         )
-    pyarrow_additional_settings = {
-        k: v
-        for k, v in pyarrow_additional_kwargs.items()
-        if k not in ["crypto_factory", "kms_connection_config", "encryption_config"]
-    }
     with open_s3_object(
         path=file_path,
         mode="wb",
@@ -98,7 +90,7 @@ def _new_writer(
             writer = pyarrow.parquet.ParquetWriter(
                 where=f,
                 compression="NONE" if compression is None else compression,
-                **pyarrow_additional_settings,
+                **pyarrow_additional_kwargs,
             )
             yield writer
         finally:
@@ -116,6 +108,7 @@ def _write_chunk(
     offset: int,
     chunk_size: int,
     use_threads: bool | int,
+    encryption_configuration: ArrowEncryptionConfiguration | None,
 ) -> list[str]:
     write_table_args = _get_write_table_args(pyarrow_additional_kwargs)
     with _new_writer(
@@ -126,6 +119,7 @@ def _write_chunk(
         s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         use_threads=use_threads,
+        encryption_configuration=encryption_configuration,
     ) as writer:
         writer.write_table(table.slice(offset, chunk_size), **write_table_args)
     return [file_path]
@@ -141,6 +135,7 @@ def _to_parquet_chunked(
     max_rows_by_file: int,
     num_of_rows: int,
     cpus: int,
+    encryption_configuration: ArrowEncryptionConfiguration | None,
 ) -> list[str]:
     chunks: int = math.ceil(num_of_rows / max_rows_by_file)
     use_threads: bool | int = cpus > 1
@@ -159,6 +154,7 @@ def _to_parquet_chunked(
             offset=offset,
             chunk_size=max_rows_by_file,
             use_threads=use_threads,
+            encryption_configuration=encryption_configuration,
         )
     return proxy.close()  # blocking
 
@@ -181,6 +177,7 @@ def _to_parquet(
     filename_prefix: str | None = None,
     max_rows_by_file: int | None = 0,
     bucketing: bool = False,
+    encryption_configuration: ArrowEncryptionConfiguration | None = None,
 ) -> list[str]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     file_path = _get_file_path(
@@ -202,6 +199,7 @@ def _to_parquet(
             max_rows_by_file=max_rows_by_file,
             num_of_rows=df.shape[0],
             cpus=cpus,
+            encryption_configuration=encryption_configuration,
         )
     else:
         write_table_args = _get_write_table_args(pyarrow_additional_kwargs)
@@ -213,6 +211,7 @@ def _to_parquet(
             s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             use_threads=use_threads,
+            encryption_configuration=encryption_configuration,
         ) as writer:
             writer.write_table(table, **write_table_args)
         paths = [file_path]
@@ -242,6 +241,7 @@ class _S3ParquetWriteStrategy(_S3WriteStrategy):
         filename_prefix: str | None = None,
         max_rows_by_file: int | None = 0,
         bucketing: bool = False,
+        encryption_configuration: ArrowEncryptionConfiguration | None = None,
     ) -> list[str]:
         return _to_parquet(
             df=df,
@@ -260,6 +260,7 @@ class _S3ParquetWriteStrategy(_S3WriteStrategy):
             filename_prefix=filename_prefix,
             max_rows_by_file=max_rows_by_file,
             bucketing=bucketing,
+            encryption_configuration=encryption_configuration,
         )
 
     def _create_glue_table(
@@ -358,6 +359,7 @@ def to_parquet(
     dtype: dict[str, str] | None = None,
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
     catalog_id: str | None = None,
+    encryption_configuration: ArrowEncryptionConfiguration | None = None,
 ) -> _S3WriteDataReturnValue:
     """Write Parquet file or dataset on Amazon S3.
 
@@ -396,11 +398,6 @@ def to_parquet(
         Additional parameters forwarded to pyarrow.
         e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
         'allow_truncated_timestamps'=False}
-        e.g. For Parquet Client Encryption provide encryption materials as follows pyarrow_additional_kwargs={'crypto_factory': pyarrow.parquet.encryption.CryptoFactory,
-            'kms_connection_config': pyarrow.parquet.encryption.KmsConnectionConfig,
-            'encryption_config': pyarrow.parquet.encryption.EncryptionConfiguration}
-            see: https://arrow.apache.org/docs/python/parquet.html#parquet-modular-encryption-columnar-encryption
-            Client Encryption is not supported in distributed mode.
     max_rows_by_file : int
         Max number of rows in each file.
         Default is None i.e. don't split the files.
@@ -511,6 +508,12 @@ def to_parquet(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
+    encryption_configuration: typing.ArrowEncryptionConfiguration, optional
+        For Arrow client-side encryption provide materials as follows {'crypto_factory': pyarrow.parquet.encryption.CryptoFactory,
+        'kms_connection_config': pyarrow.parquet.encryption.KmsConnectionConfig,
+        'encryption_config': pyarrow.parquet.encryption.EncryptionConfiguration}
+        see: https://arrow.apache.org/docs/python/parquet.html#parquet-modular-encryption-columnar-encryption
+        Client Encryption is not supported in distributed mode.
 
     Returns
     -------
@@ -770,6 +773,7 @@ def to_parquet(
         athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
         compression_ext=compression_ext,
+        encryption_configuration=encryption_configuration,
     )
 
 

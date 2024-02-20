@@ -194,14 +194,29 @@ class TimestreamBatchLoadReportS3Configuration(TypedDict):
 
 
 class ArrowDecryptionConfiguration(TypedDict):
-    """Configuration for decrypting encrypted columns."""
+    """Configuration for Arrow file decrypting."""
 
     crypto_factory: pyarrow.parquet.encryption.CryptoFactory
-    """Pyarrow Crypto factory for encrypting and decrypting columns.
+    """Crypto factory for encrypting and decrypting columns.
     see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.CryptoFactory.html"""
     kms_connection_config: pyarrow.parquet.encryption.KmsConnectionConfig
-    """Pyarrow Configuration of the connection to the Key Management Service (KMS).
+    """Configuration of the connection to the Key Management Service (KMS).
     see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.KmsClient.html"""
+
+
+class ArrowEncryptionConfiguration(TypedDict):
+    """Configuration for Arrow file encrypting."""
+
+    crypto_factory: pyarrow.parquet.encryption.CryptoFactory
+    """Crypto factory for encrypting and decrypting columns.
+    see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.CryptoFactory.html"""
+    kms_connection_config: pyarrow.parquet.encryption.KmsConnectionConfig
+    """Configuration of the connection to the Key Management Service (KMS).
+    see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.KmsClient.html"""
+    encryption_config: pyarrow.parquet.encryption.EncryptionConfiguration
+    """Configuration of the encryption, such as which columns to encrypt
+    see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.EncryptionConfiguration.html
+    """
 
 
 class RaySettings(TypedDict):
