@@ -44,9 +44,34 @@ def connect(
     secret_id: str | None = None,
     catalog_id: str | None = None,
     dbname: str | None = None,
-    boto3_session: boto3.Session | None = None,
     timeout: int | None = None,
+    boto3_session: boto3.Session | None = None,
 ) -> "dbapi.Connection":
+    """
+    Connect to a database using the ArrowDBC connector.
+
+    Parameters
+    ----------
+    connection: str, optional
+        Glue Catalog Connection name.
+    secret_id: str, optional
+        Specifies the secret containing the credentials that are used to connect to the database.
+        You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
+    catalog_id: str, optional
+        The ID of the Data Catalog.
+        If none is provided, the AWS account ID is used by default.
+    dbname: str, optional
+        The name of a database.
+    timeout : int, optional
+        Timeout in seconds.
+    boto3_session: boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    dbapi.Connection
+        Connection object.
+    """
     attrs: _db_utils.ConnectionAttributes = _db_utils.get_connection_attributes(
         connection=connection, secret_id=secret_id, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
     )
