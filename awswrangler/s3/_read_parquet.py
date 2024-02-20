@@ -40,7 +40,7 @@ from awswrangler.s3._read import (
     _InternalReadTableMetadataReturnValue,
     _TableMetadataReader,
 )
-from awswrangler.typing import ArrowDescryptionConfiguration, RayReadParquetSettings, _ReadTableMetadataReturnValue
+from awswrangler.typing import ArrowDecryptionConfiguration, RayReadParquetSettings, _ReadTableMetadataReturnValue
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -56,13 +56,13 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _pyarrow_parquet_file_wrapper(
     source: Any,
     coerce_int96_timestamp_unit: str | None = None,
-    file_decryption_properties: pyarrow.parquet.encryption.DecryptionConfiguration | None = None,
+    decryption_properties: pyarrow.parquet.encryption.DecryptionConfiguration | None = None,
 ) -> pyarrow.parquet.ParquetFile:
     try:
         return pyarrow.parquet.ParquetFile(
             source=source,
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-            decryption_properties=file_decryption_properties,
+            decryption_properties=decryption_properties,
         )
     except pyarrow.ArrowInvalid as ex:
         if str(ex) == "Parquet file size is 0 bytes":
@@ -79,7 +79,7 @@ def _read_parquet_metadata_file(
     use_threads: bool | int,
     version_id: str | None = None,
     coerce_int96_timestamp_unit: str | None = None,
-    file_decryption_properties: pyarrow.parquet.encryption.DecryptionConfiguration | None = None,
+    decryption_properties: pyarrow.parquet.encryption.DecryptionConfiguration | None = None,
 ) -> pa.schema:
     with open_s3_object(
         path=path,
@@ -93,7 +93,7 @@ def _read_parquet_metadata_file(
         pq_file: pyarrow.parquet.ParquetFile | None = _pyarrow_parquet_file_wrapper(
             source=f,
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-            file_decryption_properties=file_decryption_properties,
+            decryption_properties=decryption_properties,
         )
         if pq_file:
             return pq_file.schema.to_arrow_schema()
@@ -164,7 +164,7 @@ def _read_parquet_file(
     use_threads: bool | int,
     version_id: str | None = None,
     schema: pa.schema | None = None,
-    file_decryption_properties: pyarrow.parquet.encryption.DecryptionConfiguration | None = None,
+    decryption_properties: pyarrow.parquet.encryption.DecryptionConfiguration | None = None,
 ) -> pa.Table:
     s3_block_size: int = FULL_READ_S3_BLOCK_SIZE if columns else -1  # One shot for a full read or see constant
     with open_s3_object(
@@ -185,7 +185,7 @@ def _read_parquet_file(
                     use_threads=False,
                     use_pandas_metadata=False,
                     coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-                    decryption_properties=file_decryption_properties,
+                    decryption_properties=decryption_properties,
                 )
             except pyarrow.ArrowInvalid as ex:
                 if "Parquet file size is 0 bytes" in str(ex):
@@ -200,7 +200,7 @@ def _read_parquet_file(
             pq_file: pyarrow.parquet.ParquetFile | None = _pyarrow_parquet_file_wrapper(
                 source=f,
                 coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-                file_decryption_properties=file_decryption_properties,
+                decryption_properties=decryption_properties,
             )
             if pq_file is None:
                 raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
@@ -223,7 +223,7 @@ def _read_parquet_chunked(
     s3_additional_kwargs: dict[str, str] | None,
     arrow_kwargs: dict[str, Any],
     version_ids: dict[str, str] | None = None,
-    file_decryption_properties: pyarrow.parquet.encryption.DecryptionConfiguration | None = None,
+    decryption_properties: pyarrow.parquet.encryption.DecryptionConfiguration | None = None,
 ) -> Iterator[pd.DataFrame]:
     next_slice: pd.DataFrame | None = None
     batch_size = BATCH_READ_BLOCK_SIZE if chunked is True else chunked
@@ -241,7 +241,7 @@ def _read_parquet_chunked(
             pq_file: pyarrow.parquet.ParquetFile | None = _pyarrow_parquet_file_wrapper(
                 source=f,
                 coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-                file_decryption_properties=file_decryption_properties,
+                decryption_properties=decryption_properties,
             )
             if pq_file is None:
                 continue
@@ -291,7 +291,7 @@ def _read_parquet(
     s3_additional_kwargs: dict[str, Any] | None,
     arrow_kwargs: dict[str, Any],
     bulk_read: bool,
-    file_decryption_properties: pyarrow.parquet.encryption.DecryptionConfiguration | None = None,
+    decryption_properties: pyarrow.parquet.encryption.DecryptionConfiguration | None = None,
 ) -> pd.DataFrame:
     executor: _BaseExecutor = _get_executor(use_threads=use_threads)
     tables = executor.map(
@@ -305,7 +305,7 @@ def _read_parquet(
         itertools.repeat(use_threads),
         [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths],
         itertools.repeat(schema),
-        itertools.repeat(file_decryption_properties),
+        itertools.repeat(decryption_properties),
     )
     return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
 
@@ -336,7 +336,7 @@ def read_parquet(
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, Any] | None = None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
-    decryption_configurations: ArrowDescryptionConfiguration | None = None,
+    decryption_configuration: ArrowDecryptionConfiguration | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read Parquet file(s) from an S3 prefix or list of S3 objects paths.
 
@@ -441,8 +441,8 @@ def read_parquet(
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
-    decryption_configurations: Dict[str, Any], optional
-        optional ``pyarrow.parquet.encryption.CryptoFactory`` and ``pyarrow.parquet.encryption.KmsConnectionConfig`` objects dict
+    decryption_configuration: typing.ArrowDecryptionConfiguration, optional
+        ``pyarrow.parquet.encryption.CryptoFactory`` and ``pyarrow.parquet.encryption.KmsConnectionConfig`` objects dict
         used to create a PyArrow ``CryptoFactory.file_decryption_properties`` object to forward to PyArrow reader.
         see: https://arrow.apache.org/docs/python/parquet.html#decryption-configuration
         Client Decryption is not supported in distributed mode.
@@ -529,15 +529,13 @@ def read_parquet(
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         )
 
-    pyarrow_decryption_properties = None
-    if (
-        decryption_configurations is not None
-        and "crypto_factory" in decryption_configurations
-        and "kms_connection_config" in decryption_configurations
-    ):
-        crypto_factory = decryption_configurations.pop("crypto_factory")
-        kms_connection_config = decryption_configurations.pop("kms_connection_config")
-        pyarrow_decryption_properties = crypto_factory.file_decryption_properties(kms_connection_config)
+    decryption_properties = (
+        decryption_configuration["crypto_factory"].file_decryption_properties(
+            decryption_configuration["kms_connection_config"]
+        )
+        if decryption_configuration
+        else None
+    )
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(
         use_threads=use_threads, kwargs=pyarrow_additional_kwargs, dtype_backend=dtype_backend
@@ -554,7 +552,7 @@ def read_parquet(
             s3_additional_kwargs=s3_additional_kwargs,
             arrow_kwargs=arrow_kwargs,
             version_ids=version_ids,
-            file_decryption_properties=pyarrow_decryption_properties,
+            decryption_properties=decryption_properties,
         )
 
     return _read_parquet(
@@ -570,7 +568,7 @@ def read_parquet(
         arrow_kwargs=arrow_kwargs,
         version_ids=version_ids,
         bulk_read=bulk_read,
-        file_decryption_properties=pyarrow_decryption_properties,
+        decryption_properties=decryption_properties,
     )
 
 
@@ -595,7 +593,7 @@ def read_parquet_table(
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, Any] | None = None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
-    decryption_configurations: ArrowDescryptionConfiguration | None = None,
+    decryption_configuration: ArrowDecryptionConfiguration | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Read Apache Parquet table registered in the AWS Glue Catalog.
 
@@ -674,8 +672,8 @@ def read_parquet_table(
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
-    decryption_configurations: Dict[str, Any], optional
-        optional ``pyarrow.parquet.encryption.CryptoFactory`` and ``pyarrow.parquet.encryption.KmsConnectionConfig`` objects dict
+    decryption_configuration: typing.ArrowDecryptionConfiguration, optional
+        ``pyarrow.parquet.encryption.CryptoFactory`` and ``pyarrow.parquet.encryption.KmsConnectionConfig`` objects dict
         used to create a PyArrow ``CryptoFactory.file_decryption_properties`` object to forward to PyArrow reader.
         Client Decryption is not supported in distributed mode.
 
@@ -735,7 +733,7 @@ def read_parquet_table(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-        decryption_configurations=decryption_configurations,
+        decryption_configuration=decryption_configuration,
     )
 
     partial_cast_function = functools.partial(

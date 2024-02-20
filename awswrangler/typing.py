@@ -193,7 +193,7 @@ class TimestreamBatchLoadReportS3Configuration(TypedDict):
     """
 
 
-class ArrowDescryptionConfiguration(TypedDict):
+class ArrowDecryptionConfiguration(TypedDict):
     """Configuration for decrypting encrypted columns."""
 
     crypto_factory: pyarrow.parquet.encryption.CryptoFactory

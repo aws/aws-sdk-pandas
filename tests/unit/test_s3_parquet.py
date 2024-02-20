@@ -897,7 +897,7 @@ def test_chunked_columns(path, columns, chunked):
 @pytest.mark.parametrize("chunked", [False, True, 2])
 @pytest.mark.parametrize("columns", [["c0", "c1", "c3"], ["c0"], ["c0", "c1"]])
 def test_write_to_parquet_with_client_encryption_config(
-    path, bucket, kms_key_id, max_rows_by_file, chunked, columns, client_encryption_materials
+    path, kms_key_id, max_rows_by_file, chunked, columns, client_encryption_materials
 ):
     df = pd.DataFrame({"c0": [0, 1, 2, 3, 4], "c1": [2, 3, 4, 5, 6], "c3": [3, 4, 5, 6, 7]}, dtype="Int64")
     path_file = f"{path}0.parquet"
@@ -914,7 +914,7 @@ def test_write_to_parquet_with_client_encryption_config(
     )
     df_out = wr.s3.read_parquet(
         path,
-        decryption_configurations={"crypto_factory": crypto_factory, "kms_connection_config": kms_connection_config},
+        decryption_configuration={"crypto_factory": crypto_factory, "kms_connection_config": kms_connection_config},
         chunked=chunked,
     )
     if chunked:
@@ -962,7 +962,7 @@ def test_read_parquet_table_with_client_side_encryption(
     df_out = wr.s3.read_parquet_table(
         table=glue_table,
         database=glue_database,
-        decryption_configurations={"crypto_factory": crypto_factory, "kms_connection_config": kms_connection_config},
+        decryption_configuration={"crypto_factory": crypto_factory, "kms_connection_config": kms_connection_config},
         validate_schema=validate_schema,
         columns=columns,
     )
