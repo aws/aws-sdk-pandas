@@ -389,7 +389,7 @@ def to_parquet(
             'kms_connection_config': pyarrow.parquet.encryption.KmsConnectionConfig,
             'encryption_config': pyarrow.parquet.encryption.EncryptionConfiguration}
             see: https://arrow.apache.org/docs/python/parquet.html#parquet-modular-encryption-columnar-encryption
-            Client Encryption not supported in distributed mode.
+            Client Encryption is not supported in distributed mode.
     max_rows_by_file : int
         Max number of rows in each file.
         Default is None i.e. don't split the files.
