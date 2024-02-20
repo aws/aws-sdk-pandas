@@ -928,6 +928,7 @@ def test_write_to_parquet_with_client_encryption_config(
     reason="Ray Modin cannot serialize Pyarrow crytography objects since they are C++ objects",
 )
 @pytest.mark.xfail(
+    not is_ray_modin,
     raises=OSError,
     reason="Issue with pyarrow read_table when using client side encryption, see https://github.com/apache/arrow/issues/39645",
 )
