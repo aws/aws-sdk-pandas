@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Iterator, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlencode
 
 import boto3
@@ -26,6 +26,16 @@ else:
 
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _validate_connection(con: "dbapi.Connection") -> None:
+    if not isinstance(con, pg_dbapi.Connection):
+        raise exceptions.InvalidConnection(
+            "Invalid 'con' argument, please pass a "
+            "adbc_driver_postgresql.dbapi.Connection object. "
+            "Use adbc_driver_postgresql.dbapi.connect() to use "
+            "credentials directly or wr.adbc.connect() to fetch it from the Glue Catalog."
+        )
 
 
 @_utils.check_optional_dependency(pg_dbapi, "pg_abapi")
@@ -67,7 +77,9 @@ def read_sql_query(
     dtype: dict[str, pa.DataType] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     **pandas_kwargs: Any,
-) -> pd.DataFrame | Iterator[pd.DataFrame]:
+) -> pd.DataFrame:
+    _validate_connection(con=con)
+
     return pd.read_sql(
         sql,
         con,
@@ -82,23 +94,24 @@ def read_sql_query(
 
 @_utils.check_optional_dependency(pg_dbapi, "pg_abapi")
 def read_sql_table(
-    table_name: str,
+    table: str,
     con: "dbapi.Connection",
+    schema: str | None = None,
     index_col: str | list[str] | None = None,
     columns: list[str] | None = None,
-    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
     chunksize: int | None = None,
-    dtype: dict[str, pa.DataType] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     **pandas_kwargs: Any,
-) -> pd.DataFrame | Iterator[pd.DataFrame]:
+) -> pd.DataFrame:
+    _validate_connection(con=con)
+
     return pd.read_sql_table(
-        table_name,
+        table,
         con,
+        schema=schema,
         index_col=index_col,
         columns=columns,
         chunksize=chunksize,
-        dtype=dtype,
         dtype_backend=dtype_backend,
         **pandas_kwargs,
     )
@@ -112,19 +125,19 @@ def to_sql(
     schema: str | None = False,
     if_exists: Literal["fail", "replace", "append"] = "fail",
     index: bool = False,
-    index_label: str | list[str] | None = None,
-    chunksize: int | None = None,
-    dtype: dict[str, Any] | None = None,
     **pandas_kwargs: Any,
 ) -> None:
-    df.to_sql(
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+
+    _validate_connection(con=con)
+
+    rows = df.to_sql(
         name=table,
         con=con,
         schema=schema,
         if_exists=if_exists,
         index=index,
-        index_label=index_label,
-        chunksize=chunksize,
-        dtype=dtype,
         **pandas_kwargs,
     )
+    _logger.debug("to_sql() affected %s rows", rows)
