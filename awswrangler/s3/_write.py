@@ -195,6 +195,7 @@ class _S3WriteStrategy(ABC):
         filename_prefix: str | None = None,
         max_rows_by_file: int | None = 0,
         bucketing: bool = False,
+        encryption_configuration: typing.ArrowEncryptionConfiguration | None = None,
     ) -> list[str]:
         pass
 
@@ -269,6 +270,7 @@ class _S3WriteStrategy(ABC):
         athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
         catalog_id: str | None,
         compression_ext: str,
+        encryption_configuration: typing.ArrowEncryptionConfiguration | None,
     ) -> typing._S3WriteDataReturnValue:
         # Initializing defaults
         partition_cols = partition_cols if partition_cols else []
@@ -349,6 +351,7 @@ class _S3WriteStrategy(ABC):
                 dtype=dtype,
                 max_rows_by_file=max_rows_by_file,
                 use_threads=use_threads,
+                encryption_configuration=encryption_configuration,
             )
         else:
             columns_types: dict[str, str] = {}
@@ -417,6 +420,7 @@ class _S3WriteStrategy(ABC):
                 s3_additional_kwargs=s3_additional_kwargs,
                 schema=schema,
                 max_rows_by_file=max_rows_by_file,
+                encryption_configuration=encryption_configuration,
             )
             if database and table:
                 try:
