@@ -156,6 +156,7 @@ def _to_orc(
     filename_prefix: str | None = None,
     max_rows_by_file: int | None = 0,
     bucketing: bool = False,
+    encryption_configuration: typing.ArrowEncryptionConfiguration | None = None,
 ) -> list[str]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     file_path = _get_file_path(
@@ -235,6 +236,7 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
             filename_prefix=filename_prefix,
             max_rows_by_file=max_rows_by_file,
             bucketing=bucketing,
+            encryption_configuration=encryption_configuration,
         )
 
     def _create_glue_table(

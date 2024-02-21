@@ -71,14 +71,16 @@ def _new_writer(
     if "schema" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["schema"] = schema
 
-    if encryption_configuration:
-        # When client side encryption materials are given
-        # construct file encryption properties object and pass it to pyarrow writer
-        pyarrow_additional_kwargs["encryption_properties"] = encryption_configuration[
-            "crypto_factory"
-        ].file_encryption_properties(
+    # When client side encryption materials are given
+    # construct file encryption properties object and pass it to pyarrow writer
+    encryption_properties = (
+        encryption_configuration["crypto_factory"].file_encryption_properties(
             encryption_configuration["kms_connection_config"], encryption_configuration["encryption_config"]
         )
+        if encryption_configuration
+        else None
+    )
+
     with open_s3_object(
         path=file_path,
         mode="wb",
@@ -90,6 +92,7 @@ def _new_writer(
             writer = pyarrow.parquet.ParquetWriter(
                 where=f,
                 compression="NONE" if compression is None else compression,
+                encryption_properties=encryption_properties,
                 **pyarrow_additional_kwargs,
             )
             yield writer
