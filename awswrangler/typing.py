@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import List, Literal, NamedTuple, Tuple, TypedDict
 
+import pyarrow
 from typing_extensions import NotRequired, Required
 
 BucketingInfoTuple = Tuple[List[str], int]
@@ -189,6 +190,32 @@ class TimestreamBatchLoadReportS3Configuration(TypedDict):
     KmsKeyId: NotRequired[str]
     """
     Optional KMS key ID for the error reports.
+    """
+
+
+class ArrowDecryptionConfiguration(TypedDict):
+    """Configuration for Arrow file decrypting."""
+
+    crypto_factory: pyarrow.parquet.encryption.CryptoFactory
+    """Crypto factory for encrypting and decrypting columns.
+    see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.CryptoFactory.html"""
+    kms_connection_config: pyarrow.parquet.encryption.KmsConnectionConfig
+    """Configuration of the connection to the Key Management Service (KMS).
+    see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.KmsClient.html"""
+
+
+class ArrowEncryptionConfiguration(TypedDict):
+    """Configuration for Arrow file encrypting."""
+
+    crypto_factory: pyarrow.parquet.encryption.CryptoFactory
+    """Crypto factory for encrypting and decrypting columns.
+    see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.CryptoFactory.html"""
+    kms_connection_config: pyarrow.parquet.encryption.KmsConnectionConfig
+    """Configuration of the connection to the Key Management Service (KMS).
+    see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.KmsClient.html"""
+    encryption_config: pyarrow.parquet.encryption.EncryptionConfiguration
+    """Configuration of the encryption, such as which columns to encrypt
+    see: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.encryption.EncryptionConfiguration.html
     """
 
 

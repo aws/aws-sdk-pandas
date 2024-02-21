@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import uuid
@@ -10,6 +11,7 @@ from typing import Iterator
 
 import boto3
 import botocore.exceptions
+import pyarrow.parquet.encryption as pe
 import pytest
 
 import awswrangler as wr
@@ -526,3 +528,55 @@ def data_gen_bucket() -> str | None:
     except botocore.exceptions.ClientError:
         return None
     return ssm_parameter["Parameter"]["Value"]  # type: ignore
+
+
+@pytest.fixture(scope="function")
+def client_encryption_materials(
+    kms_key_id, columns
+) -> tuple[pe.CryptoFactory, pe.KmsConnectionConfig, pe.EncryptionConfiguration]:
+    class AwsKmsClientException(Exception):
+        pass
+
+    class AwsKmsClient(pe.KmsClient):
+        def __init__(self, kms_connection_config):
+            pe.KmsClient.__init__(self)
+            self.kms_client = boto3.client(
+                "kms",
+                region_name=kms_connection_config.custom_kms_conf["aws_region_name"],
+            )
+
+        def wrap_key(self, key_bytes: bytes, master_key_identifier: str) -> bytes:
+            try:
+                response = self.kms_client.encrypt(KeyId=master_key_identifier, Plaintext=key_bytes)
+                cipher_text_blob = response["CiphertextBlob"]
+                return base64.b64encode(cipher_text_blob)
+            except Exception as e:
+                raise AwsKmsClientException(f"Failed to wrap key with master key {master_key_identifier}. Error: {e}")
+
+        def unwrap_key(self, wrapped_key: str, master_key_identifier: str) -> str:
+            try:
+                wrapped_key = base64.b64decode(wrapped_key)
+                response = self.kms_client.decrypt(
+                    CiphertextBlob=wrapped_key,
+                    KeyId=master_key_identifier,
+                )
+                return response["Plaintext"]
+            except Exception as e:
+                raise AwsKmsClientException(f"Failed to unwrap key with master key {master_key_identifier}. Error: {e}")
+
+    kms_connection_config = pe.KmsConnectionConfig(
+        custom_kms_conf={"aws_region_name": os.environ["AWS_DEFAULT_REGION"]}
+    )
+
+    def kms_factory(kms_connection_configuration):
+        return AwsKmsClient(kms_connection_configuration)
+
+    crypto_factory = pe.CryptoFactory(kms_factory)
+    encryption_config = pe.EncryptionConfiguration(
+        plaintext_footer=True,
+        footer_key=kms_key_id,
+        column_keys={
+            kms_key_id: columns,
+        },
+    )
+    return crypto_factory, kms_connection_config, encryption_config
