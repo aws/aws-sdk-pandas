@@ -493,7 +493,7 @@ class DatabasesStack(Stack):  # type: ignore
                 "USERNAME": self.db_username,
                 "PASSWORD": self.db_password,
                 "JDBC_ENFORCE_SSL": "true",
-                "CUSTOM_JDBC_CERT": "s3://aws-glue-assets-658066294590-us-east-1/certificates/global-bundle.pem",
+                "CUSTOM_JDBC_CERT": "s3://aws-data-wrangler-public-artifacts/certificates/global-bundle.pem",
             },
             subnet=self.glue_connection_subnet,
             security_groups=[self.db_security_group],
