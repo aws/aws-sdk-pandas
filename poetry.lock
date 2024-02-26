@@ -435,17 +435,17 @@ wcwidth = ">=0.1.4"
 
 [[package]]
 name = "boto3"
-version = "1.34.39"
+version = "1.34.44"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">= 3.8"
 files = [
-    {file = "boto3-1.34.39-py3-none-any.whl", hash = "sha256:476896e70d36c9134d4125834280c597c17b54bff4902baf2e5fcde74f8acec8"},
-    {file = "boto3-1.34.39.tar.gz", hash = "sha256:35bcbecf1b5d3620c93f0062d2994177f8bda25a9d2cba144d6462793c16065b"},
+    {file = "boto3-1.34.44-py3-none-any.whl", hash = "sha256:40f89fb2acee0a0879effe81badffcd801a348e715483227223241ae311c48fc"},
+    {file = "boto3-1.34.44.tar.gz", hash = "sha256:86bcf79a56631609a9f8023fe8f53e2869702bdd4c9047c6d9f091eb39c9b0fa"},
 ]
 
 [package.dependencies]
-botocore = ">=1.34.39,<1.35.0"
+botocore = ">=1.34.44,<1.35.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.10.0,<0.11.0"
 
@@ -879,13 +879,13 @@ xray = ["mypy-boto3-xray (>=1.34.0,<1.35.0)"]
 
 [[package]]
 name = "botocore"
-version = "1.34.44"
+version = "1.34.49"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">= 3.8"
 files = [
-    {file = "botocore-1.34.44-py3-none-any.whl", hash = "sha256:8d9837fb33256e70b9c8955a32d3e60fa70a0b72849a909737cf105fcc3b5deb"},
-    {file = "botocore-1.34.44.tar.gz", hash = "sha256:b0f40c54477e8e0a5c43377a927b8959a86bb8824aaef2d28db7c9c367cdefaa"},
+    {file = "botocore-1.34.49-py3-none-any.whl", hash = "sha256:4ed9d7603a04b5bb5bd5de63b513bc2c8a7e8b1cd0088229c5ceb461161f43b6"},
+    {file = "botocore-1.34.49.tar.gz", hash = "sha256:d89410bc60673eaff1699f3f1fdcb0e3a5e1f7a6a048c0d88c3ce5c3549433ec"},
 ]
 
 [package.dependencies]
@@ -4009,13 +4009,13 @@ ptyprocess = ">=0.5"
 
 [[package]]
 name = "pg8000"
-version = "1.30.4"
+version = "1.30.5"
 description = "PostgreSQL interface library"
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "pg8000-1.30.4-py3-none-any.whl", hash = "sha256:64bbe27b11588a53cee08e840988416227263dc5191b649fab963949f3ddd84d"},
-    {file = "pg8000-1.30.4.tar.gz", hash = "sha256:2fa6964fff591a5e076fa6dd21a317c74de2caaa52991bb1f8b3d8ef2e56d172"},
+    {file = "pg8000-1.30.5-py3-none-any.whl", hash = "sha256:1abf18da652b0ad8e9cbfe57ed841c350b5330c33d8151303555db1fe5ce57f8"},
+    {file = "pg8000-1.30.5.tar.gz", hash = "sha256:072f7ad00cd723695cb2e9fc02c1dfb84c781455e97b8de6f4c4281eea08078c"},
 ]
 
 [package.dependencies]
@@ -5051,31 +5051,31 @@ docs = ["Sphinx (>=3.3,<4.0)", "sphinx-autobuild (>=2020.9.1,<2021.0.0)", "sphin
 
 [[package]]
 name = "ray"
-version = "2.9.2"
+version = "2.9.3"
 description = "Ray provides a simple, universal API for building distributed applications."
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "ray-2.9.2-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:f879522e7d9b809d3aa28fb627ab87344b31cf79e1829b9b67f0581305e2bb84"},
-    {file = "ray-2.9.2-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:ccbcf7f57bf10c52b3ebcec6e8d9114491ef12a20255e70ba0d5f12a81e9391c"},
-    {file = "ray-2.9.2-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:a3059e1d4287db33811e7604b4ecc1aa79dc2d745b49e5ec3415060da61cb749"},
-    {file = "ray-2.9.2-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:11a0fd3f75ca07f727b1e83c3b2c74e75dc1fe0aba99a416a865f83e7ff23620"},
-    {file = "ray-2.9.2-cp310-cp310-win_amd64.whl", hash = "sha256:1e5c4733314bab19d89b373836899e76b2ab839d45f59966b431c89076feaab7"},
-    {file = "ray-2.9.2-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:1a734c1c586e666f5024b46405c3df52b634977c9565bca16a01d6fefc457578"},
-    {file = "ray-2.9.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:47975fcb4b6e6cadd35da4b78f3e643f5ab6e99a688d79980ca2f0dca345d034"},
-    {file = "ray-2.9.2-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:7d7ed76fa40abe81eefb158d505f046de0614d994fc8027f5b05889824503257"},
-    {file = "ray-2.9.2-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:83fd7961d39da5ae68731be430891a21a13d0257bc25ab6adf13712297e309fa"},
-    {file = "ray-2.9.2-cp311-cp311-win_amd64.whl", hash = "sha256:5929ac8221ba3b6446cd0885a0ade50cfaaecacba771dfeed57ead8b5c6fdd14"},
-    {file = "ray-2.9.2-cp38-cp38-macosx_10_15_x86_64.whl", hash = "sha256:61b5a742f1f249e92893433720423f729018d40ee26a015b6a12b443d0e2e3eb"},
-    {file = "ray-2.9.2-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:51552b1142944e13ba1da0c44395a627701c563fbe3f6c490001e6e4fd0ee011"},
-    {file = "ray-2.9.2-cp38-cp38-manylinux2014_aarch64.whl", hash = "sha256:8b715b0ad9aa027836ecb7dc33b3a2dfc91c5d9d22a0ddf72c0844df5d641fca"},
-    {file = "ray-2.9.2-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:e1a35e2a3de4e3875bd1e76770fb89149adc773193a5e79488db4047ef14ffd0"},
-    {file = "ray-2.9.2-cp38-cp38-win_amd64.whl", hash = "sha256:8d97f674c675370550ec4347e7e8dee0f99e38dd8f220ff8acb8ca15c208d73a"},
-    {file = "ray-2.9.2-cp39-cp39-macosx_10_15_x86_64.whl", hash = "sha256:efa2c60ab11f41e4d43a227cd6bf491f9f2f8ed820c482c7d8d86a2412b6fd05"},
-    {file = "ray-2.9.2-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:5ebd71ef2e4d76752a1ff048e9d4c22811c7e990e8d4e3b30974b3e4099411b6"},
-    {file = "ray-2.9.2-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:d84064ab3aa2868991a98dc6a54cc2221abcaf9406eb95fa2ec0f66006585f92"},
-    {file = "ray-2.9.2-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:bc95efd035dcdc2f2b549ce3e13c5abf2043f3136b8a5980d77f4f098a9a6796"},
-    {file = "ray-2.9.2-cp39-cp39-win_amd64.whl", hash = "sha256:aea2ad4dbad2d6bd21ba17f7a2fcf762f53d8bcbc30b9d6916245e447a971e48"},
+    {file = "ray-2.9.3-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:09b4d3f3cacc66f256695a5f72960111815cee3986bdcf7a9c3f6f0fac144100"},
+    {file = "ray-2.9.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:287eed74fa536651aa799c4295e1b27eee1650f29236fa94487985b76bffff35"},
+    {file = "ray-2.9.3-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:d5334fb43468f56a52ebd8fb30f39bbc6d2a6a16ecf3d9f78be59952aa533b6a"},
+    {file = "ray-2.9.3-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:c54e35eb78816c722a58f31d75f5ec82834433fa639ecf70daee0d7b182598ca"},
+    {file = "ray-2.9.3-cp310-cp310-win_amd64.whl", hash = "sha256:266f890ea8bb6ce417a4890ae495082eece45ac1c1ad0db92a5f6fb52792a3bc"},
+    {file = "ray-2.9.3-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:8e72b92122c612f54224ffb33ef34f437aec59f370382882f4519b6fd55bb349"},
+    {file = "ray-2.9.3-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:615a5b8d17a69713178cdb2184c4f6d11c5d3a1a5a358bd3617f9404d782323e"},
+    {file = "ray-2.9.3-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:b493412cf3f38861f517664312da40d622baa7deb8b5a9811ca1b1fb60bd444a"},
+    {file = "ray-2.9.3-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:747343a1115f7b851da287e0e2b1cd3c703c843c9dd1f522c1e47bfc76e14c9e"},
+    {file = "ray-2.9.3-cp311-cp311-win_amd64.whl", hash = "sha256:606dded40b17350b2d29b1fc0cb7be7085a8f39c9576a63e450d86fc5670f01a"},
+    {file = "ray-2.9.3-cp38-cp38-macosx_10_15_x86_64.whl", hash = "sha256:d3219d341b4f32ff9cb747783615fbdabe45a202d6e50f9a8510470d117ba40e"},
+    {file = "ray-2.9.3-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:fb4bb8db188155671125facc8ed89d1d70314959c66f2bf8dba6f087ab3024e2"},
+    {file = "ray-2.9.3-cp38-cp38-manylinux2014_aarch64.whl", hash = "sha256:cc064f1760775600a2edd281fcbe70f2b84ec09c9b6fd3f0cf21cbe6e0e34269"},
+    {file = "ray-2.9.3-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:41f3b8d6c8ff57875dbf8b2b1c9bb8bbd7c6fc0b6c2048772ddd704f53eec653"},
+    {file = "ray-2.9.3-cp38-cp38-win_amd64.whl", hash = "sha256:06fedfd0bfb875cd504870a9960a244f41d202a61388edd23b7a8513bb007de2"},
+    {file = "ray-2.9.3-cp39-cp39-macosx_10_15_x86_64.whl", hash = "sha256:0b892cdbc7bdd3cebb5ee71811c468b922b3c99e65aeb890a522af36f1933350"},
+    {file = "ray-2.9.3-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:f597662dafd3c5b91b41f892acb1ef12e69732ced845f40060c3455192e1bd29"},
+    {file = "ray-2.9.3-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:febae4acb05b132f9c49cd3b2a9dd8bfaa1cb8a52ef75f734659469956efe9f1"},
+    {file = "ray-2.9.3-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:859e7be3cfcc1eb52762aa0065a3c7c57002e67e23f2858b40cf5f3081e13391"},
+    {file = "ray-2.9.3-cp39-cp39-win_amd64.whl", hash = "sha256:2befd5f928c896357170bf46ac1ab197509561dce1cc733db9b235e02039dfe7"},
 ]
 
 [package.dependencies]
@@ -5110,9 +5110,9 @@ virtualenv = {version = ">=20.0.24,<20.21.1 || >20.21.1", optional = true, marke
 
 [package.extras]
 air = ["aiohttp (>=3.7)", "aiohttp-cors", "aiorwlock", "colorful", "fastapi (<=0.108.0)", "fsspec", "gpustat (>=1.0.0)", "grpcio (>=1.32.0)", "grpcio (>=1.42.0)", "numpy (>=1.20)", "opencensus", "pandas", "pandas (>=1.3)", "prometheus-client (>=0.7.1)", "py-spy (>=0.2.0)", "pyarrow (>=6.0.1)", "pydantic (<2.0.dev0 || >=2.5.dev0,<3)", "requests", "smart-open", "starlette", "tensorboardX (>=1.9)", "uvicorn[standard]", "virtualenv (>=20.0.24,!=20.21.1)", "watchfiles"]
-all = ["aiohttp (>=3.7)", "aiohttp-cors", "aiorwlock", "colorful", "dm-tree", "fastapi (<=0.108.0)", "fsspec", "gpustat (>=1.0.0)", "grpcio (!=1.56.0)", "grpcio (>=1.32.0)", "grpcio (>=1.42.0)", "gymnasium (==0.28.1)", "lz4", "numpy (>=1.20)", "opencensus", "opentelemetry-api", "opentelemetry-exporter-otlp", "opentelemetry-sdk", "pandas", "pandas (>=1.3)", "prometheus-client (>=0.7.1)", "py-spy (>=0.2.0)", "pyarrow (>=6.0.1)", "pydantic (<2.0.dev0 || >=2.5.dev0,<3)", "pyyaml", "ray-cpp (==2.9.2)", "requests", "rich", "scikit-image", "scipy", "smart-open", "starlette", "tensorboardX (>=1.9)", "typer", "uvicorn[standard]", "virtualenv (>=20.0.24,!=20.21.1)", "watchfiles"]
+all = ["aiohttp (>=3.7)", "aiohttp-cors", "aiorwlock", "colorful", "dm-tree", "fastapi (<=0.108.0)", "fsspec", "gpustat (>=1.0.0)", "grpcio (!=1.56.0)", "grpcio (>=1.32.0)", "grpcio (>=1.42.0)", "gymnasium (==0.28.1)", "lz4", "numpy (>=1.20)", "opencensus", "opentelemetry-api", "opentelemetry-exporter-otlp", "opentelemetry-sdk", "pandas", "pandas (>=1.3)", "prometheus-client (>=0.7.1)", "py-spy (>=0.2.0)", "pyarrow (>=6.0.1)", "pydantic (<2.0.dev0 || >=2.5.dev0,<3)", "pyyaml", "ray-cpp (==2.9.3)", "requests", "rich", "scikit-image", "scipy", "smart-open", "starlette", "tensorboardX (>=1.9)", "typer", "uvicorn[standard]", "virtualenv (>=20.0.24,!=20.21.1)", "watchfiles"]
 client = ["grpcio (!=1.56.0)"]
-cpp = ["ray-cpp (==2.9.2)"]
+cpp = ["ray-cpp (==2.9.3)"]
 data = ["fsspec", "numpy (>=1.20)", "pandas (>=1.3)", "pyarrow (>=6.0.1)"]
 default = ["aiohttp (>=3.7)", "aiohttp-cors", "colorful", "gpustat (>=1.0.0)", "grpcio (>=1.32.0)", "grpcio (>=1.42.0)", "opencensus", "prometheus-client (>=0.7.1)", "py-spy (>=0.2.0)", "pydantic (<2.0.dev0 || >=2.5.dev0,<3)", "requests", "smart-open", "virtualenv (>=20.0.24,!=20.21.1)"]
 observability = ["opentelemetry-api", "opentelemetry-exporter-otlp", "opentelemetry-sdk"]
@@ -5145,12 +5145,12 @@ networkx = ["networkx (>=2.0.0,<3.0.0)"]
 
 [[package]]
 name = "redshift-connector"
-version = "2.0.918"
+version = "2.1.0"
 description = "Redshift interface library"
 optional = true
 python-versions = ">=3.6"
 files = [
-    {file = "redshift_connector-2.0.918-py3-none-any.whl", hash = "sha256:9e4e2ad3527ab32b7aca1797d2b638546686f9fb3867e6f68895ed06a5c5e0d3"},
+    {file = "redshift_connector-2.1.0-py3-none-any.whl", hash = "sha256:3073bd47853ea2bc3d03ce984b9d73cb7c9623a5eaa3a68de52887a58bc29be1"},
 ]
 
 [package.dependencies]
@@ -5528,19 +5528,19 @@ win32 = ["pywin32"]
 
 [[package]]
 name = "setuptools"
-version = "69.1.0"
+version = "69.1.1"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "setuptools-69.1.0-py3-none-any.whl", hash = "sha256:c054629b81b946d63a9c6e732bc8b2513a7c3ea645f11d0139a2191d735c60c6"},
-    {file = "setuptools-69.1.0.tar.gz", hash = "sha256:850894c4195f09c4ed30dba56213bf7c3f21d86ed6bdaafb5df5972593bfc401"},
+    {file = "setuptools-69.1.1-py3-none-any.whl", hash = "sha256:02fa291a0471b3a18b2b2481ed902af520c69e8ae0919c13da936542754b4c56"},
+    {file = "setuptools-69.1.1.tar.gz", hash = "sha256:5c0806c7d9af348e6dd3777b4f4dbb42c7ad85b190104837488eab9a7c945cf8"},
 ]
 
 [package.extras]
 docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "pygments-github-lexers (==0.0.5)", "rst.linker (>=1.9)", "sphinx (<7.2.5)", "sphinx (>=3.5)", "sphinx-favicon", "sphinx-inline-tabs", "sphinx-lint", "sphinx-notfound-page (>=1,<2)", "sphinx-reredirects", "sphinxcontrib-towncrier"]
-testing = ["build[virtualenv]", "filelock (>=3.4.0)", "flake8-2020", "ini2toml[lite] (>=0.9)", "jaraco.develop (>=7.21)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "pip (>=19.1)", "pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-home (>=0.5)", "pytest-mypy (>=0.9.1)", "pytest-perf", "pytest-ruff (>=0.2.1)", "pytest-timeout", "pytest-xdist", "tomli-w (>=1.0.0)", "virtualenv (>=13.0.0)", "wheel"]
-testing-integration = ["build[virtualenv] (>=1.0.3)", "filelock (>=3.4.0)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "packaging (>=23.1)", "pytest", "pytest-enabler", "pytest-xdist", "tomli", "virtualenv (>=13.0.0)", "wheel"]
+testing = ["build[virtualenv]", "filelock (>=3.4.0)", "flake8-2020", "ini2toml[lite] (>=0.9)", "jaraco.develop (>=7.21)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "packaging (>=23.2)", "pip (>=19.1)", "pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-home (>=0.5)", "pytest-mypy (>=0.9.1)", "pytest-perf", "pytest-ruff (>=0.2.1)", "pytest-timeout", "pytest-xdist", "tomli-w (>=1.0.0)", "virtualenv (>=13.0.0)", "wheel"]
+testing-integration = ["build[virtualenv] (>=1.0.3)", "filelock (>=3.4.0)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "packaging (>=23.2)", "pytest", "pytest-enabler", "pytest-xdist", "tomli", "virtualenv (>=13.0.0)", "wheel"]
 
 [[package]]
 name = "shapely"
@@ -6028,13 +6028,13 @@ files = [
 
 [[package]]
 name = "typing-extensions"
-version = "4.9.0"
+version = "4.10.0"
 description = "Backported and Experimental Type Hints for Python 3.8+"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "typing_extensions-4.9.0-py3-none-any.whl", hash = "sha256:af72aea155e91adfc61c3ae9e0e342dbc0cba726d6cba4b6c72c1f34e47291cd"},
-    {file = "typing_extensions-4.9.0.tar.gz", hash = "sha256:23478f88c37f27d76ac8aee6c905017a143b0b1b886c3c9f66bc2fd94f9f5783"},
+    {file = "typing_extensions-4.10.0-py3-none-any.whl", hash = "sha256:69b1a937c3a517342112fb4c6df7e72fc39a38e7891a5730ed4985b5214b5475"},
+    {file = "typing_extensions-4.10.0.tar.gz", hash = "sha256:b0abd7c89e8fb96f98db18d86106ff1d90ab692004eb746cf6eda2682f91b3cb"},
 ]
 
 [[package]]
