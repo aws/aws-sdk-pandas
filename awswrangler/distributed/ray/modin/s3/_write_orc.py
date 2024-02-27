@@ -12,6 +12,7 @@ from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvide
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import ArrowORCDatasink, UserProvidedKeyBlockWritePathProvider
 from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
+from awswrangler.typing import ArrowEncryptionConfiguration
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -36,6 +37,7 @@ def _to_orc_distributed(
     filename_prefix: str | None = None,
     max_rows_by_file: int | None = 0,
     bucketing: bool = False,
+    encryption_configuration: ArrowEncryptionConfiguration | None = None,
 ) -> list[str]:
     if bucketing:
         # Add bucket id to the prefix

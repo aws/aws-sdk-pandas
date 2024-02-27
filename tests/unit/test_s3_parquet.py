@@ -506,6 +506,61 @@ def test_index_columns(path, use_threads, name, pandas):
     assert df[["c0"]].equals(df2)
 
 
+@pytest.mark.parametrize("index", [None, ["c0"], ["c0", "c1"]])
+def test_index_schema_validation(path, glue_database, glue_table, index):
+    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3], "c2": [4, 5]}, dtype="Int64")
+
+    if index is not None:
+        df = df.set_index(index)
+    else:
+        df.index = df.index.astype("Int64")
+
+    for _ in range(2):
+        wr.s3.to_parquet(df, path, index=True, dataset=True, database=glue_database, table=glue_table)
+
+    df2 = wr.s3.read_parquet(path, validate_schema=True)
+    assert_pandas_equals(pd.concat([df, df]), df2)
+
+
+@pytest.mark.modin_index
+@pytest.mark.parametrize("index", [["c0"], ["c0", "c1"]])
+@pytest.mark.parametrize("partition_cols", [["c0"], ["c0", "c1"]])
+def test_index_partition(path, glue_database, glue_table, index, partition_cols):
+    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3], "c2": [4, 5]}, dtype="Int64")
+    df = df.set_index(index)
+
+    for _ in range(2):
+        wr.s3.to_parquet(
+            df,
+            path,
+            index=True,
+            dataset=True,
+            partition_cols=partition_cols,
+            database=glue_database,
+            table=glue_table,
+        )
+
+    df2 = wr.s3.read_parquet(path, dataset=True)
+
+    # partitioned index is not preserved, so reset unpartitioned index for recreation
+    assert all(idx in df2.index.names for idx in [idx for idx in index if idx not in partition_cols])
+    df2 = df2.reset_index()
+
+    # partition columns come back as categorical, so convert back
+    for col in partition_cols:
+        df2[col] = df2[col].astype("Int64")
+
+    # apply full index again
+    df2 = df2.set_index(index)
+
+    assert_pandas_equals(
+        # partitioned on index, so the data comes back sorted on the index
+        pd.concat([df, df]).sort_index(),
+        # need to reorder columns, because partition columns are appended
+        df2[df.columns],
+    )
+
+
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
@@ -831,3 +886,84 @@ def test_chunked_columns(path, columns, chunked):
         df2 = pd.concat(list(df2), ignore_index=True)
 
     assert df[columns].shape if columns else df.shape == df2.shape
+
+
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=TypeError,
+    reason="Ray Modin cannot serialize Pyarrow crytography objects since they are C++ objects",
+)
+@pytest.mark.parametrize("max_rows_by_file", [1, 2, 100])
+@pytest.mark.parametrize("chunked", [False, True, 2])
+@pytest.mark.parametrize("columns", [["c0", "c1", "c3"], ["c0"], ["c0", "c1"]])
+def test_write_to_parquet_with_client_encryption_config(
+    path, kms_key_id, max_rows_by_file, chunked, columns, client_encryption_materials
+):
+    df = pd.DataFrame({"c0": [0, 1, 2, 3, 4], "c1": [2, 3, 4, 5, 6], "c3": [3, 4, 5, 6, 7]}, dtype="Int64")
+    path_file = f"{path}0.parquet"
+    crypto_factory, kms_connection_config, encryption_config = client_encryption_materials
+    wr.s3.to_parquet(
+        df,
+        path_file,
+        encryption_configuration={
+            "crypto_factory": crypto_factory,
+            "kms_connection_config": kms_connection_config,
+            "encryption_config": encryption_config,
+        },
+        max_rows_by_file=max_rows_by_file,
+    )
+    df_out = wr.s3.read_parquet(
+        path,
+        decryption_configuration={"crypto_factory": crypto_factory, "kms_connection_config": kms_connection_config},
+        chunked=chunked,
+    )
+    if chunked:
+        df_out = pd.concat(list(df_out), ignore_index=True)
+    assert_pandas_equals(df, df_out)
+
+
+@pytest.mark.parametrize(
+    "validate_schema",
+    [
+        pytest.param(False),
+        pytest.param(
+            True,
+            marks=pytest.mark.xfail(
+                not is_ray_modin,
+                raises=OSError,
+                reason="Issue with pyarrow read_table when using client side encryption, see https://github.com/apache/arrow/issues/39645",
+            ),
+        ),
+    ],
+)
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=TypeError,
+    reason="Ray Modin cannot serialize Pyarrow crytography objects since they are C++ objects",
+)
+@pytest.mark.parametrize("columns", [["c0", "c1"], ["c0"]])
+def test_read_parquet_table_with_client_side_encryption(
+    path, glue_database, glue_table, kms_key_id, columns, validate_schema, client_encryption_materials
+):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
+    crypto_factory, kms_connection_config, encryption_config = client_encryption_materials
+    wr.s3.to_parquet(
+        df,
+        path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        encryption_configuration={
+            "crypto_factory": crypto_factory,
+            "kms_connection_config": kms_connection_config,
+            "encryption_config": encryption_config,
+        },
+    )
+    df_out = wr.s3.read_parquet_table(
+        table=glue_table,
+        database=glue_database,
+        decryption_configuration={"crypto_factory": crypto_factory, "kms_connection_config": kms_connection_config},
+        validate_schema=validate_schema,
+        columns=columns,
+    )
+    assert df_out.shape == (3, len(columns))

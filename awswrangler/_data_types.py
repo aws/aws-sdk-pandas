@@ -563,10 +563,12 @@ def pyarrow_types_from_pandas(  # noqa: PLR0912,PLR0915
         for field in fields:
             name = str(field.name)
             # Check if any of the index columns must be ignored
-            if name not in ignore_cols:
+            if name in ignore_cols:
+                cols_dtypes[name] = None
+            else:
                 _logger.debug("Inferring PyArrow type from index: %s", name)
                 cols_dtypes[name] = field.type
-                indexes.append(name)
+            indexes.append(name)
 
     # Merging Index
     sorted_cols: list[str] = indexes + list(df.columns) if index_left is True else list(df.columns) + indexes
@@ -693,11 +695,24 @@ def pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=ignore_plus
     )
     for k, v in casts.items():
-        if (k in df.columns) and (k not in ignore):
+        if (k not in ignore) and (k in df.columns or _is_index_name(k, df.index)):
             columns_types[k] = athena2pyarrow(dtype=v)
     columns_types = {k: v for k, v in columns_types.items() if v is not None}
     _logger.debug("columns_types: %s", columns_types)
     return pa.schema(fields=columns_types)
+
+
+def _is_index_name(name: str, index: pd.Index) -> bool:
+    if name in index.names:
+        # named index level
+        return True
+
+    if (match := re.match(r"__index_level_(?P<level>\d+)__", name)) is not None:
+        # unnamed index level
+        if len(index.names) > (level := int(match.group("level"))):
+            return index.names[level] is None
+
+    return False
 
 
 def athena_types_from_pyarrow_schema(

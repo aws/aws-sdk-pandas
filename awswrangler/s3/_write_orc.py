@@ -156,6 +156,7 @@ def _to_orc(
     filename_prefix: str | None = None,
     max_rows_by_file: int | None = 0,
     bucketing: bool = False,
+    encryption_configuration: typing.ArrowEncryptionConfiguration | None = None,
 ) -> list[str]:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     file_path = _get_file_path(
@@ -216,6 +217,7 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
         filename_prefix: str | None = None,
         max_rows_by_file: int | None = 0,
         bucketing: bool = False,
+        encryption_configuration: typing.ArrowEncryptionConfiguration | None = None,
     ) -> list[str]:
         return _to_orc(
             df=df,
@@ -234,6 +236,7 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
             filename_prefix=filename_prefix,
             max_rows_by_file=max_rows_by_file,
             bucketing=bucketing,
+            encryption_configuration=encryption_configuration,
         )
 
     def _create_glue_table(
@@ -404,7 +407,7 @@ def to_orc(
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-sdk-pandas.readthedocs.io/en/3.5.2/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.6.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
     catalog_versioning : bool
@@ -413,7 +416,7 @@ def to_orc(
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised. True by default.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.5.2/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.6.0/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -712,4 +715,5 @@ def to_orc(
         athena_partition_projection_settings=athena_partition_projection_settings,
         catalog_id=catalog_id,
         compression_ext=compression_ext,
+        encryption_configuration=None,
     )
