@@ -35,16 +35,16 @@ test = ["duckdb", "pandas", "pyarrow (>=8.0.0)", "pytest"]
 
 [[package]]
 name = "adbc-driver-postgresql"
-version = "0.9.0"
+version = "0.10.0"
 description = "A libpq-based ADBC driver for working with PostgreSQL."
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "adbc_driver_postgresql-0.9.0-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:1241c8e2659fe5d5025a3ccda8b68a131badc4bafbed3056c50a5b8d765c0e9c"},
-    {file = "adbc_driver_postgresql-0.9.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:070f671b763ab63fa32d26bc9663b9f007de5c9d6b6aa316d80988e089bd325c"},
-    {file = "adbc_driver_postgresql-0.9.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e3b518e4feedcd6ddf47868629d66051e5ceb26aa89167e56ab5a6e07db488e9"},
-    {file = "adbc_driver_postgresql-0.9.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d308858dd45cd581d6751a3a824f343ff7abec41d4c1fe60acbabcf5d27ca696"},
-    {file = "adbc_driver_postgresql-0.9.0-py3-none-win_amd64.whl", hash = "sha256:79365162970e9d15f43d189ebf25a1bcfac6c492d2957bd722750a0ad3943de6"},
+    {file = "adbc_driver_postgresql-0.10.0-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:727fc6852bd504deda6a03c6b77aa1a788ba9485012f043fd9b647476f9c0501"},
+    {file = "adbc_driver_postgresql-0.10.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:9cc41c581c1c13899ff92c196ce23bc8287cb069524271d60bedeabb824a89b2"},
+    {file = "adbc_driver_postgresql-0.10.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6bcd69ce87186bd827c9f9f459af0523d5cf14a135ea28baf313d5a9c8749fd8"},
+    {file = "adbc_driver_postgresql-0.10.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:28baf681f539fbaa9f6b192a69025b5b4f218c5172c8fc8e27fd3a4570aeda71"},
+    {file = "adbc_driver_postgresql-0.10.0-py3-none-win_amd64.whl", hash = "sha256:1bea75ced7d0bfa0672ebfc0fd051246d728a3dc77b5d2f8cdd9d4980541b904"},
 ]
 
 [package.dependencies]
@@ -6391,4 +6391,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "59535b8dcaf8772eae7796f5d7f83217dd89e2e616c0c692447774df6d104b07"
+content-hash = "2bf7026861207bc41ff263f3f1d599557eacc1c39b71752a29820b64039ca6e7"
