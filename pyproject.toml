@@ -101,6 +101,7 @@ ray = ["ray"]
 [tool.poetry.dev-dependencies]
 # Build
 setuptools = "*"
+poetry = "^1.8.1"
 wheel = "^0.42.0"
 msgpack = "*"
 
