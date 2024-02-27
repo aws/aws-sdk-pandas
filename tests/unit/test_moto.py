@@ -636,43 +636,43 @@ def mock_data_api_connector(connector, has_result_set=True):
 
 def test_data_api_redshift_create_connection():
     cluster_id = "cluster123"
-    con = wr.data_api.redshift.connect(cluster_id=cluster_id, database="db1", db_user="admin")
-    assert con.cluster_id == cluster_id
+    with wr.data_api.redshift.connect(cluster_id=cluster_id, database="db1", db_user="admin") as con:
+        assert con.cluster_id == cluster_id
 
 
 def test_data_api_redshift_read_sql_results():
     cluster_id = "cluster123"
-    con = wr.data_api.redshift.connect(cluster_id=cluster_id, database="db1", db_user="admin")
-    expected_dataframe = mock_data_api_connector(con)
-    dataframe = wr.data_api.redshift.read_sql_query("SELECT * FROM test", con=con)
+    with wr.data_api.redshift.connect(cluster_id=cluster_id, database="db1", db_user="admin") as con:
+        expected_dataframe = mock_data_api_connector(con)
+        dataframe = wr.data_api.redshift.read_sql_query("SELECT * FROM test", con=con)
     pd.testing.assert_frame_equal(dataframe, expected_dataframe)
 
 
 def test_data_api_redshift_read_sql_no_results():
     cluster_id = "cluster123"
-    con = wr.data_api.redshift.connect(cluster_id=cluster_id, database="db1", db_user="admin")
-    mock_data_api_connector(con, has_result_set=False)
-    dataframe = wr.data_api.redshift.read_sql_query("DROP TABLE test", con=con)
+    with wr.data_api.redshift.connect(cluster_id=cluster_id, database="db1", db_user="admin") as con:
+        mock_data_api_connector(con, has_result_set=False)
+        dataframe = wr.data_api.redshift.read_sql_query("DROP TABLE test", con=con)
     assert dataframe.empty is True
 
 
 def test_data_api_rds_create_connection():
     resource_arn = "arn123"
-    conn = wr.data_api.rds.connect(resource_arn, "db1", secret_arn="arn123")
-    assert conn.resource_arn == resource_arn
+    with wr.data_api.rds.connect(resource_arn, "db1", secret_arn="arn123") as con:
+        assert con.resource_arn == resource_arn
 
 
 def test_data_api_rds_read_sql_results():
     resource_arn = "arn123"
-    con = wr.data_api.rds.connect(resource_arn, "db1", secret_arn="arn123")
-    expected_dataframe = mock_data_api_connector(con)
-    dataframe = wr.data_api.rds.read_sql_query("SELECT * FROM test", con=con)
+    with wr.data_api.rds.connect(resource_arn, "db1", secret_arn="arn123") as con:
+        expected_dataframe = mock_data_api_connector(con)
+        dataframe = wr.data_api.rds.read_sql_query("SELECT * FROM test", con=con)
     pd.testing.assert_frame_equal(dataframe, expected_dataframe)
 
 
 def test_data_api_rds_read_sql_no_results():
     resource_arn = "arn123"
-    con = wr.data_api.rds.connect(resource_arn, "db1", secret_arn="arn123")
-    mock_data_api_connector(con, has_result_set=False)
-    dataframe = wr.data_api.rds.read_sql_query("DROP TABLE test", con=con)
+    with wr.data_api.rds.connect(resource_arn, "db1", secret_arn="arn123") as con:
+        mock_data_api_connector(con, has_result_set=False)
+        dataframe = wr.data_api.rds.read_sql_query("DROP TABLE test", con=con)
     assert dataframe.empty is True

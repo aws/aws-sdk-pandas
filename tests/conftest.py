@@ -343,11 +343,10 @@ def mysql_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.mysql.connect("aws-sdk-pandas-mysql")
-    with con.cursor() as cursor:
-        cursor.execute(f"DROP TABLE IF EXISTS test.{name}")
-    con.commit()
-    con.close()
+    with wr.mysql.connect("aws-sdk-pandas-mysql") as con:
+        with con.cursor() as cursor:
+            cursor.execute(f"DROP TABLE IF EXISTS test.{name}")
+        con.commit()
 
 
 @pytest.fixture(scope="function")
@@ -355,11 +354,10 @@ def sqlserver_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.sqlserver.connect("aws-sdk-pandas-sqlserver")
-    with con.cursor() as cursor:
-        cursor.execute(f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NOT NULL DROP TABLE dbo.{name}")
-    con.commit()
-    con.close()
+    with wr.sqlserver.connect("aws-sdk-pandas-sqlserver") as con:
+        with con.cursor() as cursor:
+            cursor.execute(f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NOT NULL DROP TABLE dbo.{name}")
+        con.commit()
 
 
 @pytest.fixture(scope="function")
