@@ -492,11 +492,6 @@ def cleanrooms_glue_database_name(cloudformation_outputs):
     return cloudformation_outputs["CleanRoomsGlueDatabaseName"]
 
 
-@pytest.fixture(scope="session")
-def cleanrooms_s3_bucket_name(cloudformation_outputs):
-    return cloudformation_outputs["CleanRoomsS3BucketName"]
-
-
 @pytest.fixture(scope="function")
 def local_filename() -> Iterator[str]:
     filename = os.path.join(".", f"{get_time_str_with_random_suffix()}.data")

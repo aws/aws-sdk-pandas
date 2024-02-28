@@ -51,7 +51,6 @@ if TYPE_CHECKING:
     from mypy_boto3_emr_serverless import EMRServerlessClient
     from mypy_boto3_glue import GlueClient
     from mypy_boto3_kms.client import KMSClient
-    from mypy_boto3_lakeformation.client import LakeFormationClient
     from mypy_boto3_logs.client import CloudWatchLogsClient
     from mypy_boto3_opensearch.client import OpenSearchServiceClient
     from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
@@ -75,7 +74,6 @@ if TYPE_CHECKING:
         "emr-serverless",
         "glue",
         "kms",
-        "lakeformation",
         "logs",
         "opensearch",
         "opensearchserverless",
@@ -267,8 +265,6 @@ def _get_endpoint_url(service_name: str) -> str | None:
         endpoint_url = _config.config.kms_endpoint_url
     elif service_name == "emr" and _config.config.emr_endpoint_url is not None:
         endpoint_url = _config.config.emr_endpoint_url
-    elif service_name == "lakeformation" and _config.config.lakeformation_endpoint_url is not None:
-        endpoint_url = _config.config.lakeformation_endpoint_url
     elif service_name == "dynamodb" and _config.config.dynamodb_endpoint_url is not None:
         endpoint_url = _config.config.dynamodb_endpoint_url
     elif service_name == "secretsmanager" and _config.config.secretsmanager_endpoint_url is not None:
@@ -298,16 +294,6 @@ def client(
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
 ) -> "CleanRoomsServiceClient":
-    ...
-
-
-@overload
-def client(
-    service_name: 'Literal["lakeformation"]',
-    session: boto3.Session | None = None,
-    botocore_config: Config | None = None,
-    verify: str | bool | None = None,
-) -> "LakeFormationClient":
     ...
 
 

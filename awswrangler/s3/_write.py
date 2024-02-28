@@ -12,7 +12,7 @@ import boto3
 import pandas as pd
 import pyarrow as pa
 
-from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation, typing
+from awswrangler import _data_types, _utils, catalog, exceptions, typing
 from awswrangler._distributed import EngineEnum
 from awswrangler._utils import copy_df_shallow
 from awswrangler.s3._delete import delete_objects
@@ -216,7 +216,6 @@ class _S3WriteStrategy(ABC):
         columns_comments: dict[str, str] | None,
         mode: str,
         catalog_versioning: bool,
-        transaction_id: str | None,
         athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
         boto3_session: boto3.Session | None,
         catalog_table_input: dict[str, Any] | None,
@@ -238,7 +237,7 @@ class _S3WriteStrategy(ABC):
     ) -> None:
         pass
 
-    def write(  # noqa: PLR0912,PLR0913,PLR0915
+    def write(  # noqa: PLR0912,PLR0913
         self,
         df: pd.DataFrame,
         path: str | None,
@@ -263,7 +262,6 @@ class _S3WriteStrategy(ABC):
         description: str | None,
         parameters: dict[str, str] | None,
         columns_comments: dict[str, str] | None,
-        transaction_id: str | None,
         regular_partitions: bool,
         table_type: str | None,
         dtype: dict[str, str] | None,
@@ -277,9 +275,6 @@ class _S3WriteStrategy(ABC):
         dtype = dtype if dtype else {}
         partitions_values: dict[str, list[str]] = {}
         mode = "append" if mode is None else mode
-        commit_trans: bool = False
-        if transaction_id:
-            table_type = "GOVERNED"
 
         filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
@@ -301,7 +296,6 @@ class _S3WriteStrategy(ABC):
                 database=database,
                 table=table,
                 boto3_session=boto3_session,
-                transaction_id=transaction_id,
                 catalog_id=catalog_id,
             )
             catalog_path: str | None = None
@@ -320,14 +314,6 @@ class _S3WriteStrategy(ABC):
                     raise exceptions.InvalidArgumentValue(
                         f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
                     )
-
-            if (table_type == "GOVERNED") and (not transaction_id):
-                _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-                transaction_id = lakeformation.start_transaction(
-                    read_only=False,
-                    boto3_session=boto3_session,
-                )
-                commit_trans = True
 
         df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
         schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
@@ -377,22 +363,11 @@ class _S3WriteStrategy(ABC):
                     "columns_comments": columns_comments,
                     "boto3_session": boto3_session,
                     "mode": mode,
-                    "transaction_id": transaction_id,
                     "catalog_versioning": catalog_versioning,
                     "athena_partition_projection_settings": athena_partition_projection_settings,
                     "catalog_id": catalog_id,
                     "catalog_table_input": catalog_table_input,
                 }
-
-                if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                    self._create_glue_table(**create_table_args)
-                    create_table_args["catalog_table_input"] = catalog._get_table_input(
-                        database=database,
-                        table=table,
-                        boto3_session=boto3_session,
-                        transaction_id=transaction_id,
-                        catalog_id=catalog_id,
-                    )
 
             paths, partitions_values = _to_dataset(
                 func=self._write_to_s3_func,
@@ -406,8 +381,6 @@ class _S3WriteStrategy(ABC):
                 catalog_id=catalog_id,
                 database=database,
                 table=table,
-                table_type=table_type,
-                transaction_id=transaction_id,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
                 cpus=cpus,
                 use_threads=use_threads,
@@ -425,7 +398,7 @@ class _S3WriteStrategy(ABC):
             if database and table:
                 try:
                     self._create_glue_table(**create_table_args)
-                    if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
+                    if partitions_values and (regular_partitions is True):
                         self._add_glue_partitions(
                             database=database,
                             table=table,
@@ -435,11 +408,6 @@ class _S3WriteStrategy(ABC):
                             boto3_session=boto3_session,
                             catalog_id=catalog_id,
                             columns_types=columns_types,
-                        )
-                    if commit_trans:
-                        lakeformation.commit_transaction(
-                            transaction_id=transaction_id,  # type: ignore[arg-type]
-                            boto3_session=boto3_session,
                         )
                 except Exception:
                     _logger.debug("Catalog write failed, cleaning up S3 objects (len(paths): %s).", len(paths))

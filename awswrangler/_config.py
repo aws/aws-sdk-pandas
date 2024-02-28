@@ -44,7 +44,6 @@ _CONFIG_ARGS: dict[str, _ConfigArg] = {
     "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "athena_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "cloudwatch_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
-    "lakeformation_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "neptune_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "timestream_batch_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "emr_serverless_job_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
@@ -61,7 +60,6 @@ _CONFIG_ARGS: dict[str, _ConfigArg] = {
     "redshift_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
-    "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "timestream_query_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
@@ -354,15 +352,6 @@ class _Config:
         self._set_config_value(key="cloudwatch_query_wait_polling_delay", value=value)
 
     @property
-    def lakeformation_query_wait_polling_delay(self) -> float:
-        """Property lakeformation_query_wait_polling_delay."""
-        return cast(float, self["lakeformation_query_wait_polling_delay"])
-
-    @lakeformation_query_wait_polling_delay.setter
-    def lakeformation_query_wait_polling_delay(self, value: float) -> None:
-        self._set_config_value(key="lakeformation_query_wait_polling_delay", value=value)
-
-    @property
     def neptune_load_wait_polling_delay(self) -> float:
         """Property neptune_load_wait_polling_delay."""
         return cast(float, self["neptune_load_wait_polling_delay"])
@@ -496,15 +485,6 @@ class _Config:
     @emr_endpoint_url.setter
     def emr_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="emr_endpoint_url", value=value)
-
-    @property
-    def lakeformation_endpoint_url(self) -> str | None:
-        """Property lakeformation_endpoint_url."""
-        return cast(Optional[str], self["lakeformation_endpoint_url"])
-
-    @lakeformation_endpoint_url.setter
-    def lakeformation_endpoint_url(self, value: str | None) -> None:
-        self._set_config_value(key="lakeformation_endpoint_url", value=value)
 
     @property
     def dynamodb_endpoint_url(self) -> str | None:
