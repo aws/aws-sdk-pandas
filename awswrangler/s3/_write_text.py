@@ -11,7 +11,7 @@ import boto3
 import pandas as pd
 from pandas.io.common import infer_compression
 
-from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation, typing
+from awswrangler import _data_types, _utils, catalog, exceptions, typing
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._utils import copy_df_shallow
@@ -408,30 +408,6 @@ def to_csv(  # noqa: PLR0912,PLR0915
         }
     }
 
-    Writing dataset to Glue governed table
-
-    >>> import awswrangler as wr
-    >>> import pandas as pd
-    >>> wr.s3.to_csv(
-    ...     df=pd.DataFrame({
-    ...         'col': [1, 2, 3],
-    ...         'col2': ['A', 'A', 'B'],
-    ...         'col3': [None, None, None]
-    ...     }),
-    ...     dataset=True,
-    ...     mode='append',
-    ...     database='default',  # Athena/Glue database
-    ...     table='my_table',  # Athena/Glue table
-    ...     glue_table_settings=wr.typing.GlueTableSettings(
-    ...         table_type="GOVERNED",
-    ...         transaction_id="xxx",
-    ...     ),
-    ... )
-    {
-        'paths': ['s3://.../x.csv'],
-        'partitions_values: {}
-    }
-
     Writing dataset casting empty column data type
 
     >>> import awswrangler as wr
@@ -467,7 +443,6 @@ def to_csv(  # noqa: PLR0912,PLR0915
     )
 
     table_type = glue_table_settings.get("table_type")
-    transaction_id = glue_table_settings.get("transaction_id")
     description = glue_table_settings.get("description")
     parameters = glue_table_settings.get("parameters")
     columns_comments = glue_table_settings.get("columns_comments")
@@ -493,9 +468,6 @@ def to_csv(  # noqa: PLR0912,PLR0915
     dtype = dtype if dtype else {}
     partitions_values: dict[str, list[str]] = {}
     mode = "append" if mode is None else mode
-    commit_trans: bool = False
-    if transaction_id:
-        table_type = "GOVERNED"
 
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     s3_client = _utils.client(service_name="s3", session=boto3_session)
@@ -516,7 +488,6 @@ def to_csv(  # noqa: PLR0912,PLR0915
             database=database,
             table=table,
             boto3_session=boto3_session,
-            transaction_id=transaction_id,
             catalog_id=catalog_id,
         )
 
@@ -540,13 +511,6 @@ def to_csv(  # noqa: PLR0912,PLR0915
             raise exceptions.InvalidArgumentCombination(
                 "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
             )
-        if (table_type == "GOVERNED") and (not transaction_id):
-            _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-            transaction_id = lakeformation.start_transaction(
-                read_only=False,
-                boto3_session=boto3_session,
-            )
-            commit_trans = True
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
@@ -610,7 +574,6 @@ def to_csv(  # noqa: PLR0912,PLR0915
                 "columns_comments": columns_comments,
                 "boto3_session": boto3_session,
                 "mode": mode,
-                "transaction_id": transaction_id,
                 "schema_evolution": schema_evolution,
                 "catalog_versioning": catalog_versioning,
                 "sep": sep,
@@ -623,17 +586,6 @@ def to_csv(  # noqa: PLR0912,PLR0915
                 "serde_parameters": None,
             }
 
-            if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_csv_table(**create_table_args)
-                catalog_table_input = catalog._get_table_input(
-                    database=database,
-                    table=table,
-                    boto3_session=boto3_session,
-                    transaction_id=transaction_id,
-                    catalog_id=catalog_id,
-                )
-                create_table_args["catalog_table_input"] = catalog_table_input
-
         paths, partitions_values = _to_dataset(
             func=_to_text,
             concurrent_partitioning=concurrent_partitioning,
@@ -642,15 +594,9 @@ def to_csv(  # noqa: PLR0912,PLR0915
             index=index,
             sep=sep,
             compression=compression,
-            catalog_id=catalog_id,
-            database=database,
-            table=table,
-            table_type=table_type,
-            transaction_id=transaction_id,
             filename_prefix=filename_prefix,
             use_threads=use_threads,
             partition_cols=partition_cols,
-            partitions_types=partitions_types,
             bucketing_info=bucketing_info,
             mode=mode,
             boto3_session=boto3_session,
@@ -670,7 +616,7 @@ def to_csv(  # noqa: PLR0912,PLR0915
                 create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
                 create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
                 catalog._create_csv_table(**create_table_args)
-                if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
+                if partitions_values and (regular_partitions is True):
                     catalog.add_csv_partitions(
                         database=database,
                         table=table,
@@ -683,11 +629,6 @@ def to_csv(  # noqa: PLR0912,PLR0915
                         catalog_id=catalog_id,
                         columns_types=columns_types,
                         compression=pandas_kwargs.get("compression"),
-                    )
-                if commit_trans:
-                    lakeformation.commit_transaction(
-                        transaction_id=transaction_id,  # type: ignore[arg-type]
-                        boto3_session=boto3_session,
                     )
             except Exception:
                 _logger.debug("Catalog write failed, cleaning up S3 objects (len(paths): %s).", len(paths))
@@ -951,7 +892,6 @@ def to_json(  # noqa: PLR0912,PLR0915
     )
 
     table_type = glue_table_settings.get("table_type")
-    transaction_id = glue_table_settings.get("transaction_id")
     description = glue_table_settings.get("description")
     parameters = glue_table_settings.get("parameters")
     columns_comments = glue_table_settings.get("columns_comments")
@@ -977,9 +917,6 @@ def to_json(  # noqa: PLR0912,PLR0915
     dtype = dtype if dtype else {}
     partitions_values: dict[str, list[str]] = {}
     mode = "append" if mode is None else mode
-    commit_trans: bool = False
-    if transaction_id:
-        table_type = "GOVERNED"
 
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     s3_client = _utils.client(service_name="s3", session=boto3_session)
@@ -1001,7 +938,6 @@ def to_json(  # noqa: PLR0912,PLR0915
             database=database,
             table=table,
             boto3_session=boto3_session,
-            transaction_id=transaction_id,
             catalog_id=catalog_id,
         )
         catalog_path: str | None = None
@@ -1024,13 +960,6 @@ def to_json(  # noqa: PLR0912,PLR0915
             raise exceptions.InvalidArgumentCombination(
                 "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
             )
-        if (table_type == "GOVERNED") and (not transaction_id):
-            _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-            transaction_id = lakeformation.start_transaction(
-                read_only=False,
-                boto3_session=boto3_session,
-            )
-            commit_trans = True
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
@@ -1072,7 +1001,6 @@ def to_json(  # noqa: PLR0912,PLR0915
             "columns_comments": columns_comments,
             "boto3_session": boto3_session,
             "mode": mode,
-            "transaction_id": transaction_id,
             "catalog_versioning": catalog_versioning,
             "schema_evolution": schema_evolution,
             "athena_partition_projection_settings": athena_partition_projection_settings,
@@ -1083,17 +1011,6 @@ def to_json(  # noqa: PLR0912,PLR0915
             "serde_parameters": None,
         }
 
-        if (catalog_table_input is None) and (table_type == "GOVERNED"):
-            catalog._create_json_table(**create_table_args)
-            catalog_table_input = catalog._get_table_input(
-                database=database,
-                table=table,
-                boto3_session=boto3_session,
-                transaction_id=transaction_id,
-                catalog_id=catalog_id,
-            )
-            create_table_args["catalog_table_input"] = catalog_table_input
-
     paths, partitions_values = _to_dataset(
         func=_to_text,
         concurrent_partitioning=concurrent_partitioning,
@@ -1102,14 +1019,8 @@ def to_json(  # noqa: PLR0912,PLR0915
         filename_prefix=filename_prefix,
         index=index,
         compression=compression,
-        catalog_id=catalog_id,
-        database=database,
-        table=table,
-        table_type=table_type,
-        transaction_id=transaction_id,
         use_threads=use_threads,
         partition_cols=partition_cols,
-        partitions_types=partitions_types,
         bucketing_info=bucketing_info,
         mode=mode,
         boto3_session=boto3_session,
@@ -1125,7 +1036,7 @@ def to_json(  # noqa: PLR0912,PLR0915
             create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
             create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
             catalog._create_json_table(**create_table_args)
-            if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
+            if partitions_values and (regular_partitions is True):
                 catalog.add_json_partitions(
                     database=database,
                     table=table,
@@ -1138,11 +1049,6 @@ def to_json(  # noqa: PLR0912,PLR0915
                     columns_types=columns_types,
                     compression=compression,
                 )
-                if commit_trans:
-                    lakeformation.commit_transaction(
-                        transaction_id=transaction_id,  # type: ignore[arg-type]
-                        boto3_session=boto3_session,
-                    )
         except Exception:
             _logger.debug("Catalog write failed, cleaning up S3 objects (len(paths): %s).", len(paths))
             delete_objects(

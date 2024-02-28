@@ -255,7 +255,6 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
         columns_comments: dict[str, str] | None = None,
         mode: str = "overwrite",
         catalog_versioning: bool = False,
-        transaction_id: str | None = None,
         athena_partition_projection_settings: AthenaPartitionProjectionSettings | None = None,
         boto3_session: boto3.Session | None = None,
         catalog_table_input: dict[str, Any] | None = None,
@@ -275,7 +274,6 @@ class _S3ORCWriteStrategy(_S3WriteStrategy):
             columns_comments=columns_comments,
             mode=mode,
             catalog_versioning=catalog_versioning,
-            transaction_id=transaction_id,
             athena_partition_projection_settings=athena_partition_projection_settings,
             boto3_session=boto3_session,
             catalog_table_input=catalog_table_input,
@@ -621,29 +619,6 @@ def to_orc(
         }
     }
 
-    Writing dataset to Glue governed table
-
-    >>> import awswrangler as wr
-    >>> import pandas as pd
-    >>> wr.s3.to_orc(
-    ...     df=pd.DataFrame({
-    ...         'col': [1, 2, 3],
-    ...         'col2': ['A', 'A', 'B'],
-    ...     }),
-    ...     dataset=True,
-    ...     mode='append',
-    ...     database='default',  # Athena/Glue database
-    ...     table='my_table',  # Athena/Glue table
-    ...     glue_table_settings=wr.typing.GlueTableSettings(
-    ...         table_type="GOVERNED",
-    ...         transaction_id="xxx",
-    ...     ),
-    ... )
-    {
-        'paths': ['s3://.../x.orc'],
-        'partitions_values: {}
-    }
-
     """
     glue_table_settings = cast(
         GlueTableSettings,
@@ -651,7 +626,6 @@ def to_orc(
     )
 
     table_type = glue_table_settings.get("table_type")
-    transaction_id = glue_table_settings.get("transaction_id")
     description = glue_table_settings.get("description")
     parameters = glue_table_settings.get("parameters")
     columns_comments = glue_table_settings.get("columns_comments")
@@ -709,7 +683,6 @@ def to_orc(
         parameters=parameters,
         columns_comments=columns_comments,
         table_type=table_type,
-        transaction_id=transaction_id,
         regular_partitions=regular_partitions,
         dtype=dtype,
         athena_partition_projection_settings=athena_partition_projection_settings,

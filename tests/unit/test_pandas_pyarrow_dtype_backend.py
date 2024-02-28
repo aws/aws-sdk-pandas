@@ -79,30 +79,6 @@ def test_s3_select(path: str) -> None:
     assert_pandas_equals(df, df2)
 
 
-def test_lakeformation_read_items(path: str, glue_database: str, glue_table: str) -> None:
-    df = pd.DataFrame({"id": [1, 2, 3], "val": ["foo", "boo", "bar"]})
-
-    wr.s3.to_parquet(
-        df=df,
-        path=path,
-        index=False,
-        dataset=True,
-        mode="overwrite",
-        table=glue_table,
-        database=glue_database,
-    )
-
-    df.id = df.id.astype(pd.ArrowDtype(pa.int64()))
-    df.val = df.val.astype(pd.ArrowDtype(pa.string()))
-
-    df2 = wr.lakeformation.read_sql_table(
-        table=glue_table,
-        database=glue_database,
-        dtype_backend="pyarrow",
-    )
-    assert_pandas_equals(df, df2)
-
-
 @pytest.mark.parametrize("ctas_approach,unload_approach", [(False, False), (True, False), (False, True)])
 def test_athena_csv_dtype_backend(
     path: str, path2: str, glue_table: str, glue_database: str, ctas_approach: bool, unload_approach: bool

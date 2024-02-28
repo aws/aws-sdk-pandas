@@ -46,6 +46,7 @@ GlueRayStack(
 CleanRoomsStack(
     app,
     "aws-sdk-pandas-cleanrooms",
+    base.get_bucket,
     **env,
 )
 
