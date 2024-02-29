@@ -355,6 +355,7 @@ def tables(
         "Database": [],
         "Table": [],
         "Description": [],
+        "TableType": [],
         "Columns": [],
         "Partitions": [],
     }
@@ -362,6 +363,7 @@ def tables(
         df_dict["Database"].append(tbl["DatabaseName"])
         df_dict["Table"].append(tbl["Name"])
         df_dict["Description"].append(tbl.get("Description", ""))
+        df_dict["TableType"].append(tbl.get("TableType", ""))
         try:
             columns = tbl["StorageDescriptor"]["Columns"]
             df_dict["Columns"].append(", ".join([x["Name"] for x in columns]))
