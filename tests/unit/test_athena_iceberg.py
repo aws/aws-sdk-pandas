@@ -844,6 +844,7 @@ def test_athena_iceberg_use_partition_function(
     df2 = pd.DataFrame(
         {
             "id": [4, 5],
+            "name": ["d", "e"],
             "ts": [ts("2020-01-03 12:30:00.0"), ts("2020-01-03 16:45:00.0")],
         }
     )
@@ -857,3 +858,13 @@ def test_athena_iceberg_use_partition_function(
         partition_cols=["day(ts)"],
         keep_files=False,
     )
+
+    df_out = wr.athena.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert len(df_out) == len(df) + len(df2)
+    assert len(df_out.columns) == len(df.columns)

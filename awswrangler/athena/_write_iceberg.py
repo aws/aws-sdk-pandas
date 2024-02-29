@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import typing
 import uuid
 from typing import Any, Dict, Literal, TypedDict, cast
@@ -95,6 +96,12 @@ def _determine_differences(
     dtype: dict[str, str] | None,
     catalog_id: str | None,
 ) -> tuple[_SchemaChanges, list[str]]:
+    if partition_cols:
+        # Remove columns using partition transform function,
+        # as they won't be found in the DataFrame or the Glue catalog.
+        pattern = r"[A-Za-z]+\(.+\)"
+        partition_cols = [col for col in partition_cols if re.match(pattern, col) is None]
+
     frame_columns_types, frame_partitions_types = _data_types.athena_types_from_pandas_partitioned(
         df=df, index=index, partition_cols=partition_cols, dtype=dtype
     )
