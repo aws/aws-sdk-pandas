@@ -815,3 +815,45 @@ def test_athena_delete_from_iceberg_empty_df_error(
             temp_path=path2,
             keep_files=False,
         )
+
+
+def test_athena_iceberg_use_partition_function(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "name": ["a", "b", "c"],
+            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+        }
+    )
+
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=["day(ts)"],
+        keep_files=False,
+    )
+
+    df2 = pd.DataFrame(
+        {
+            "id": [4, 5],
+            "ts": [ts("2020-01-03 12:30:00.0"), ts("2020-01-03 16:45:00.0")],
+        }
+    )
+
+    wr.athena.to_iceberg(
+        df=df2,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=["day(ts)"],
+        keep_files=False,
+    )
