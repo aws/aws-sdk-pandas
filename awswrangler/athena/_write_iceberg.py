@@ -99,7 +99,8 @@ def _determine_differences(
     if partition_cols:
         # Remove columns using partition transform function,
         # as they won't be found in the DataFrame or the Glue catalog.
-        pattern = r"[A-Za-z]+\(.+\)"
+        # Examples include day(column_name) and truncate(10, column_name).
+        pattern = r"[A-Za-z0-9_]+\(.+\)"
         partition_cols = [col for col in partition_cols if re.match(pattern, col) is None]
 
     frame_columns_types, frame_partitions_types = _data_types.athena_types_from_pandas_partitioned(
