@@ -8,15 +8,12 @@ from typing import Any
 import boto3
 
 import awswrangler.pandas as pd
-from awswrangler import _utils, exceptions
+from awswrangler import exceptions
 from awswrangler.s3._fs import open_s3_object
-
-openpyxl = _utils.import_optional_dependency("openpyxl")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-@_utils.check_optional_dependency(openpyxl, "openpyxl")
 def read_excel(
     path: str,
     version_id: str | None = None,
