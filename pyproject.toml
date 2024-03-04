@@ -7,7 +7,7 @@ license = "Apache License 2.0"
 
 readme = "README.md"
 
-include = ["README.md", "LICENSE.txt", "NOTICE.txt", "THIRD_PARTY.txt", "awswrangler/py.typed"]
+include = ["awswrangler/py.typed"]
 
 exclude = ["*.so", "*.pyc", "*~", "#*", ".git*", ".coverage*", "DS_Store", "__pycache__"]
 
