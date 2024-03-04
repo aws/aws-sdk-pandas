@@ -149,8 +149,8 @@ def _fetch_parquet_result(
         return df
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
-        if categories:
-            pyarrow_additional_kwargs["categories"] = categories
+    if categories:
+        pyarrow_additional_kwargs["categories"] = categories
     _logger.debug("Reading Parquet result from %d paths", len(paths))
     ret = s3.read_parquet(
         path=paths,
