@@ -20,6 +20,8 @@ from awswrangler._distributed import MemoryFormatEnum
 from .._utils import (
     assert_pandas_equals,
     ensure_data_types,
+    ensure_data_types_category,
+    get_df_category,
     get_df_list,
     is_ray_modin,
     to_pandas,
@@ -886,6 +888,29 @@ def test_chunked_columns(path, columns, chunked):
         df2 = pd.concat(list(df2), ignore_index=True)
 
     assert df[columns].shape if columns else df.shape == df2.shape
+
+
+@pytest.mark.xfail(raises=NotImplementedError, reason="Unable to create pandas categorical from pyarrow table")
+def test_category_s3_read_parquet(path: str, glue_table: str, glue_database: str) -> None:
+    df = get_df_category()
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        mode="overwrite",
+        partition_cols=["par0", "par1"],
+    )
+    df2 = wr.s3.read_parquet(
+        path=path,
+        dataset=True,
+        pyarrow_additional_kwargs={
+            "categories": [c for c in df.columns if c not in ["par0", "par1"]],
+            "strings_to_categorical": True,
+        },
+    )
+    ensure_data_types_category(df2)
 
 
 @pytest.mark.xfail(
