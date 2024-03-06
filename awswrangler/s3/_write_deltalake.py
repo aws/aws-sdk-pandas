@@ -22,14 +22,25 @@ else:
 
 
 def _set_default_storage_options_kwargs(
-    boto3_session: boto3.Session | None, s3_additional_kwargs: dict[str, Any] | None, s3_allow_unsafe_rename: bool
+    boto3_session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    s3_allow_unsafe_rename: bool,
+    lock_dynamodb_table: str | None = None,
 ) -> dict[str, Any]:
     defaults = {key.upper(): value for key, value in _utils.boto3_to_primitives(boto3_session=boto3_session).items()}
     defaults["AWS_REGION"] = defaults.pop("REGION_NAME")
+
     s3_additional_kwargs = s3_additional_kwargs or {}
+
+    s3_lock_arguments = {}
+    if lock_dynamodb_table:
+        s3_lock_arguments["AWS_S3_LOCKING_PROVIDER"] = "dynamodb"
+        s3_lock_arguments["DELTA_DYNAMO_TABLE_NAME"] = lock_dynamodb_table
+
     return {
         **defaults,
         **s3_additional_kwargs,
+        **s3_lock_arguments,
         "AWS_S3_ALLOW_UNSAFE_RENAME": "TRUE" if s3_allow_unsafe_rename else "FALSE",
     }
 
@@ -44,9 +55,10 @@ def to_deltalake(
     dtype: dict[str, str] | None = None,
     partition_cols: list[str] | None = None,
     overwrite_schema: bool = False,
+    lock_dynamodb_table: str | None = None,
+    s3_allow_unsafe_rename: bool = False,
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, str] | None = None,
-    s3_allow_unsafe_rename: bool = False,
 ) -> None:
     """Write a DataFrame to S3 as a DeltaLake table.
 
@@ -71,13 +83,19 @@ def to_deltalake(
         List of columns to partition the table by. Only required when creating a new table.
     overwrite_schema: bool
         If True, allows updating the schema of the table.
+    lock_dynamodb_table: str | None
+        DynamoDB table to use as a locking provider.
+        A locking mechanism is needed to prevent unsafe concurrent writes to a delta lake directory when writing to S3.
+        If you don't want to use a locking mechanism, you can choose to set ``s3_allow_unsafe_rename`` to True.
+
+        For information on how to set up the lock table,
+        please check `this page <https://delta-io.github.io/delta-rs/usage/writing/writing-to-s3-with-locking-provider/#dynamodb>`_.
+    s3_allow_unsafe_rename: bool
+        Allows using the default S3 backend without support for concurrent writers.
     boto3_session: boto3.Session, optional
         Boto3 Session. If None, the default boto3 session is used.
     pyarrow_additional_kwargs: dict[str, Any], optional
         Forwarded to the Delta Table class for the storage options of the S3 backend.
-    s3_allow_unsafe_rename: bool
-        Allows using the default S3 backend without support for concurrent writers.
-        Concurrent writing is currently not supported, so this option needs to be turned on explicitely.
 
     Examples
     --------
@@ -86,9 +104,9 @@ def to_deltalake(
     >>> import awswrangler as wr
     >>> import pandas as pd
     >>> wr.s3.to_deltalake(
-    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
-    ...     path='s3://bucket/prefix/',
-    ...     s3_allow_unsafe_rename=True,
+    ...     df=pd.DataFrame({"col": [1, 2, 3]}),
+    ...     path="s3://bucket/prefix/",
+    ...     lock_dynamodb_table="my-lock-table",
     ... )
 
     See Also
@@ -101,7 +119,12 @@ def to_deltalake(
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, index=index, ignore_cols=None, dtype=dtype)
     table: pa.Table = _df_to_table(df, schema, index, dtype)
 
-    storage_options = _set_default_storage_options_kwargs(boto3_session, s3_additional_kwargs, s3_allow_unsafe_rename)
+    storage_options = _set_default_storage_options_kwargs(
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        s3_allow_unsafe_rename=s3_allow_unsafe_rename,
+        lock_dynamodb_table=lock_dynamodb_table,
+    )
     deltalake.write_deltalake(
         table_or_uri=path,
         data=table,
