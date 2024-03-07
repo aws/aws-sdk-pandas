@@ -42,11 +42,20 @@ jobs:
           npm install -g aws-cdk
           cdk --version
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.11
       - name: Install Requirements
+        run: |
+          cd test_infra
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+          poetry env use python
+          poetry env info
+          source $(poetry env info --path)/bin/activate
+          poetry install -vvv
+      - name: Set up cdk.json
         run: |
           cd test_infra
           cat <<EOT >> cdk.context.json
@@ -61,12 +70,8 @@ jobs:
             ]
           }
           EOT
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-          poetry env use python
-          poetry env info
-          source $(poetry env info --path)/bin/activate
-          poetry install -vvv
+          cat cdk.json | jq -r '.context.databases.neptune = true' | jq -r '.context.databases.oracle = true' | jq -r '.context.databases.sqlserver = true' > overwrite.cdk.json
+          rm cdk.json && mv overwrite.cdk.json cdk.json
       - name: CDK Synth
         run: |
           cd test_infra
