@@ -39,7 +39,7 @@ numpy = [
     {version = "^1.18", markers = "python_version < \"3.12\""},
     {version = "^1.26", markers = "python_version >= \"3.12\""}
 ]
-pyarrow = ">=7.0.0"
+pyarrow = ">=8.0.0"
 typing-extensions = "^4.4.0"
 packaging = ">=21.1,<24.0"
 
