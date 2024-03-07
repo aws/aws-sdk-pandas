@@ -143,12 +143,13 @@ def _create_table(  # noqa: PLR0912,PLR0915
         DatabaseName=database,
         TableInput=table_input,
     )
-    if table_exist and mode in ("overwrite", "update"):
+    if table_exist:
         _logger.debug("Updating table (%s)...", mode)
         args["SkipArchive"] = skip_archive
         if mode == "overwrite":
             delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=boto3_session)
-        client_glue.update_table(**args)
+        if mode in ["overwrite", "update"]:
+            client_glue.update_table(**args)
     else:
         try:
             _logger.debug("Creating table (%s)...", mode)
