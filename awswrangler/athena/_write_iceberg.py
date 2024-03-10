@@ -486,7 +486,7 @@ def to_iceberg(
                     VALUES ({', '.join([f'source."{x}"' for x in df.columns])})
             """
         else:
-            sql_statement = f'INSERT INTO "{database}"."{table}" SELECT * FROM "{database}"."{temp_table}"'
+            sql_statement = f'INSERT INTO "{database}"."{table}" SELECT {', '.join([f'"{x}"' for x in df.columns])} FROM "{database}"."{temp_table}"'
 
         query_execution_id: str = _start_query_execution(
             sql=sql_statement,
