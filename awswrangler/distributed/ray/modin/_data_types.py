@@ -1,4 +1,5 @@
 """Internal (private) Data Types Module."""
+
 from __future__ import annotations
 
 import modin.pandas as pd

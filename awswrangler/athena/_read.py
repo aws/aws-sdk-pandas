@@ -1,4 +1,5 @@
 """Amazon Athena Module gathering all read_sql_* function."""
+
 from __future__ import annotations
 
 import csv

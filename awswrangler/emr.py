@@ -1,4 +1,5 @@
 """EMR (Elastic Map Reduce) module."""
+
 from __future__ import annotations
 
 import logging
@@ -252,9 +253,9 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
         )
     if pars["hive_glue_catalog"] is True:
         hive_conf: dict[str, Any] = {"Classification": "hive-site", "Properties": {}, "Configurations": []}
-        hive_conf["Properties"][
-            "hive.metastore.client.factory.class"
-        ] = "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
+        hive_conf["Properties"]["hive.metastore.client.factory.class"] = (
+            "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
+        )
         args["Configurations"].append(hive_conf)
     if pars["presto_glue_catalog"] is True:
         args["Configurations"].append(

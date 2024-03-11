@@ -1,4 +1,5 @@
 """Utilities Module for Amazon Neptune."""
+
 from awswrangler.neptune._client import BulkLoadParserConfiguration
 from awswrangler.neptune._gremlin_parser import GremlinParser
 from awswrangler.neptune._neptune import (

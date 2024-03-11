@@ -1,4 +1,5 @@
 """SQL utilities."""
+
 import re
 
 from awswrangler import exceptions
