@@ -1,6 +1,5 @@
 """Amazon Timestream Module."""
 
-
 from awswrangler.timestream._create import create_database, create_table
 from awswrangler.timestream._delete import delete_database, delete_table
 from awswrangler.timestream._list import list_databases, list_tables

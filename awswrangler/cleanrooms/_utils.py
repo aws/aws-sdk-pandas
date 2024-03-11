@@ -1,4 +1,5 @@
 """Utilities Module for Amazon Clean Rooms."""
+
 from __future__ import annotations
 
 import logging

@@ -1,4 +1,5 @@
 """Ray BlockPathProvider Module."""
+
 from __future__ import annotations
 
 import pyarrow

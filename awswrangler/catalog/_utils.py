@@ -1,4 +1,5 @@
 """Utilities Module for AWS Glue Catalog."""
+
 from __future__ import annotations
 
 import logging

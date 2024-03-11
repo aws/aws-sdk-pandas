@@ -1,5 +1,6 @@
 # mypy: disable-error-code=name-defined
 """Amazon Neptune GremlinParser Module (PRIVATE)."""
+
 from __future__ import annotations
 
 from typing import Any
