@@ -1,4 +1,5 @@
 """Modin on Ray S3 write text module (PRIVATE)."""
+
 from __future__ import annotations
 
 import logging
