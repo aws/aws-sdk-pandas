@@ -1,5 +1,6 @@
 # mypy: disable-error-code=name-defined
 """Amazon Redshift Utils Module (PRIVATE)."""
+
 from __future__ import annotations
 
 import json

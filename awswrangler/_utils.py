@@ -283,8 +283,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "AthenaClient":
-    ...
+) -> "AthenaClient": ...
 
 
 @overload
@@ -293,8 +292,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "CleanRoomsServiceClient":
-    ...
+) -> "CleanRoomsServiceClient": ...
 
 
 @overload
@@ -303,8 +301,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "CloudWatchLogsClient":
-    ...
+) -> "CloudWatchLogsClient": ...
 
 
 @overload
@@ -313,8 +310,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "DynamoDBClient":
-    ...
+) -> "DynamoDBClient": ...
 
 
 @overload
@@ -323,8 +319,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "EC2Client":
-    ...
+) -> "EC2Client": ...
 
 
 @overload
@@ -333,8 +328,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "EMRClient":
-    ...
+) -> "EMRClient": ...
 
 
 @overload
@@ -343,8 +337,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "EMRServerlessClient":
-    ...
+) -> "EMRServerlessClient": ...
 
 
 @overload
@@ -353,8 +346,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "GlueClient":
-    ...
+) -> "GlueClient": ...
 
 
 @overload
@@ -363,8 +355,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "KMSClient":
-    ...
+) -> "KMSClient": ...
 
 
 @overload
@@ -373,8 +364,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "OpenSearchServiceClient":
-    ...
+) -> "OpenSearchServiceClient": ...
 
 
 @overload
@@ -383,8 +373,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "OpenSearchServiceServerlessClient":
-    ...
+) -> "OpenSearchServiceServerlessClient": ...
 
 
 @overload
@@ -393,8 +382,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "QuickSightClient":
-    ...
+) -> "QuickSightClient": ...
 
 
 @overload
@@ -403,8 +391,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "RDSDataServiceClient":
-    ...
+) -> "RDSDataServiceClient": ...
 
 
 @overload
@@ -413,8 +400,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "RedshiftClient":
-    ...
+) -> "RedshiftClient": ...
 
 
 @overload
@@ -423,8 +409,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "RedshiftDataAPIServiceClient":
-    ...
+) -> "RedshiftDataAPIServiceClient": ...
 
 
 @overload
@@ -433,8 +418,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "S3Client":
-    ...
+) -> "S3Client": ...
 
 
 @overload
@@ -443,8 +427,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "SecretsManagerClient":
-    ...
+) -> "SecretsManagerClient": ...
 
 
 @overload
@@ -453,8 +436,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "STSClient":
-    ...
+) -> "STSClient": ...
 
 
 @overload
@@ -463,8 +445,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "TimestreamQueryClient":
-    ...
+) -> "TimestreamQueryClient": ...
 
 
 @overload
@@ -473,8 +454,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "TimestreamWriteClient":
-    ...
+) -> "TimestreamWriteClient": ...
 
 
 @overload
@@ -483,8 +463,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "BaseClient":
-    ...
+) -> "BaseClient": ...
 
 
 @apply_configs
@@ -511,8 +490,7 @@ def resource(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "DynamoDBServiceResource":
-    ...
+) -> "DynamoDBServiceResource": ...
 
 
 @overload
@@ -521,8 +499,7 @@ def resource(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "S3ServiceResource":
-    ...
+) -> "S3ServiceResource": ...
 
 
 @apply_configs

@@ -206,8 +206,7 @@ def read_sql_query(
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> pd.DataFrame:
-    ...
+) -> pd.DataFrame: ...
 
 
 @overload
@@ -222,8 +221,7 @@ def read_sql_query(
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Iterator[pd.DataFrame]:
-    ...
+) -> Iterator[pd.DataFrame]: ...
 
 
 @overload
@@ -238,8 +236,7 @@ def read_sql_query(
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> pd.DataFrame | Iterator[pd.DataFrame]:
-    ...
+) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 
 
 @_utils.check_optional_dependency(oracledb, "oracledb")
@@ -328,8 +325,7 @@ def read_sql_table(
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> pd.DataFrame:
-    ...
+) -> pd.DataFrame: ...
 
 
 @overload
@@ -345,8 +341,7 @@ def read_sql_table(
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> Iterator[pd.DataFrame]:
-    ...
+) -> Iterator[pd.DataFrame]: ...
 
 
 @overload
@@ -362,8 +357,7 @@ def read_sql_table(
     safe: bool = ...,
     timestamp_as_object: bool = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
-) -> pd.DataFrame | Iterator[pd.DataFrame]:
-    ...
+) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 
 
 @_utils.check_optional_dependency(oracledb, "oracledb")

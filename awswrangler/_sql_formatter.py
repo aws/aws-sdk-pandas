@@ -1,4 +1,5 @@
 """Formatting logic for SQL parameters."""
+
 from __future__ import annotations
 
 import datetime

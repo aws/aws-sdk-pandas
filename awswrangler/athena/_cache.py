@@ -1,4 +1,5 @@
 """Cache Module for Amazon Athena."""
+
 from __future__ import annotations
 
 import datetime

@@ -1,4 +1,5 @@
 """Amazon Redshift Write Module (PRIVATE)."""
+
 from __future__ import annotations
 
 import logging
