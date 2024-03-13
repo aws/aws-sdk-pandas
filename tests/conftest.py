@@ -35,6 +35,11 @@ def bucket(cloudformation_outputs):
 
 
 @pytest.fixture(scope="session")
+def bucket_access_point(cloudformation_outputs):
+    return cloudformation_outputs["BucketAccessPointArn"]
+
+
+@pytest.fixture(scope="session")
 def glue_database(cloudformation_outputs):
     return cloudformation_outputs["GlueDatabaseName"]
 
@@ -305,6 +310,11 @@ def path2(bucket):
 @pytest.fixture(scope="function")
 def path3(bucket):
     yield from path_generator(bucket)
+
+
+@pytest.fixture(scope="function")
+def access_point_path_path(bucket_access_point):
+    yield from path_generator(bucket_access_point)
 
 
 @pytest.fixture(scope="function")

@@ -80,6 +80,18 @@ class BaseStack(Stack):  # type: ignore
             ],
             versioned=True,
         )
+        self.bucket_access_point = s3.CfnAccessPoint(
+            self,
+            id="aws-sdk-pandas-access-point",
+            bucket=self.bucket.bucket_name,
+            bucket_account_id=self.account,
+            public_access_block_configuration=s3.CfnAccessPoint.PublicAccessBlockConfigurationProperty(
+                block_public_acls=True,
+                block_public_policy=True,
+                ignore_public_acls=True,
+                restrict_public_buckets=True,
+            ),
+        )
 
         glue_data_quality_role = iam.Role(
             self,
@@ -174,6 +186,11 @@ class BaseStack(Stack):  # type: ignore
             self,
             "BucketName",
             value=self.bucket.bucket_name,
+        )
+        CfnOutput(
+            self,
+            "BucketAccessPointArn",
+            value=self.bucket_access_point.attr_arn,
         )
         ssm.StringParameter(
             self,
