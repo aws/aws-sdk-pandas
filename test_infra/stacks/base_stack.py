@@ -198,6 +198,12 @@ class BaseStack(Stack):  # type: ignore
             parameter_name="/sdk-pandas/base/BucketName",
             string_value=self.bucket.bucket_name,
         )
+        ssm.StringParameter(
+            self,
+            "SSM Bucket Access Point ARN",
+            parameter_name="/sdk-pandas/base/BucketAccessPointArn",
+            string_value=self.bucket_access_point.attr_arn,
+        )
         CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
         CfnOutput(self, "GlueDataQualityRole", value=glue_data_quality_role.role_arn)
         CfnOutput(self, "EMRServerlessExecutionRoleArn", value=emr_serverless_exec_role.role_arn)
