@@ -992,3 +992,16 @@ def test_read_parquet_table_with_client_side_encryption(
         columns=columns,
     )
     assert df_out.shape == (3, len(columns))
+
+
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=pa.lib.ArrowInvalid,
+    reason="Ray Modin cannot read from access point because PyArrow doesn't support it",
+)
+def test_read_from_access_point(access_point_path_path: str) -> None:
+    path = access_point_path_path + "test.parquet"
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
+    wr.s3.to_parquet(df, path)
+    df_out = wr.s3.read_parquet(path)
+    assert df_out.shape == (3, 3)
