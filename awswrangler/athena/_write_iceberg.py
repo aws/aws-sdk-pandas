@@ -241,6 +241,7 @@ def to_iceberg(
     merge_cols: list[str] | None = None,
     keep_files: bool = True,
     data_source: str | None = None,
+    s3_output: str | None = None,
     workgroup: str = "primary",
     mode: Literal["append", "overwrite", "overwrite_partitions"] = "append",
     encryption: str | None = None,
@@ -288,6 +289,8 @@ def to_iceberg(
         Whether staging files produced by Athena are retained. 'True' by default.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    s3_output : str, optional
+        Amazon S3 path used for query execution.
     workgroup : str
         Athena workgroup. Primary by default.
     mode: str
@@ -498,6 +501,7 @@ def to_iceberg(
             wg_config=wg_config,
             database=database,
             data_source=data_source,
+            s3_output=s3_output,
             encryption=encryption,
             kms_key=kms_key,
             boto3_session=boto3_session,

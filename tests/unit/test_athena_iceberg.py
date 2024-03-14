@@ -68,6 +68,7 @@ def test_athena_to_iceberg(
 def test_athena_to_iceberg_append(
     path: str,
     path2: str,
+    path3: str,
     glue_database: str,
     glue_table: str,
     partition_cols: list[str] | None,
@@ -102,6 +103,7 @@ def test_athena_to_iceberg_append(
         partition_cols=partition_cols,
         keep_files=False,
         mode="append",
+        s3_output=path3,
     )
 
     df_actual = wr.athena.read_sql_query(
