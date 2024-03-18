@@ -29,6 +29,7 @@ from typing import (
 import boto3
 import botocore.credentials
 import numpy as np
+import numpy.core.numeric as _nx
 import pyarrow as pa
 from botocore.config import Config
 from packaging import version
@@ -851,7 +852,18 @@ def check_schema_changes(columns_types: dict[str, str], table_input: dict[str, A
 @engine.dispatch_on_engine
 def split_pandas_frame(df: pd.DataFrame, splits: int) -> list[pd.DataFrame]:
     """Split a DataFrame into n chunks."""
-    return [sub_df for sub_df in np.array_split(df, splits) if not sub_df.empty]  # type: ignore[attr-defined]
+    # Logic obtained from np.array_split definition
+    total = len(df)
+    each_section, extras = divmod(total, splits)
+    section_sizes = [0] + extras * [each_section + 1] + (splits - extras) * [each_section]
+    div_points = _nx.array(section_sizes, dtype=_nx.intp).cumsum()  # type: ignore[attr-defined]
+
+    sub_dfs = []
+    for i in range(splits):
+        sub_df = df.iloc[div_points[i] : div_points[i + 1]]
+        if not sub_df.empty:
+            sub_dfs.append(sub_df)
+    return sub_dfs
 
 
 @engine.dispatch_on_engine
