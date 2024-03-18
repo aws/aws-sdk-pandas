@@ -108,6 +108,9 @@ def _determine_differences(
     )
     frame_columns_types.update(frame_partitions_types)
 
+    # lowercase DataFrame columns, as all the column names from Athena will be lowercased
+    frame_columns_types = {k.lower(): v for k, v in frame_columns_types.items()}
+
     catalog_column_types = typing.cast(
         Dict[str, str],
         catalog.get_table_types(database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session),
