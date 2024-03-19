@@ -870,3 +870,57 @@ def test_athena_iceberg_use_partition_function(
 
     assert len(df_out) == len(df) + len(df2)
     assert len(df_out.columns) == len(df.columns)
+
+
+def test_to_iceberg_uppercase_columns(
+    path: str,
+    path2: str,
+    path3: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "ID": [1, 2, 3, 4, 5],
+            "TS": [
+                ts("2020-01-01 00:00:00.0"),
+                ts("2020-01-02 00:00:01.0"),
+                ts("2020-01-03 00:00:00.0"),
+                ts("2020-01-03 12:30:00.0"),
+                ts("2020-01-03 16:45:00.0"),
+            ],
+        }
+    )
+    df["ID"] = df["ID"].astype("Int64")  # Cast as nullable int64 type
+
+    split_index = 4
+
+    wr.athena.to_iceberg(
+        df=df.iloc[:split_index],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+
+    wr.athena.to_iceberg(
+        df=df.iloc[split_index:],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        s3_output=path3,
+        keep_files=False,
+        mode="append",
+        schema_evolution=True,
+    )
+
+    df_output = wr.athena.read_sql_query(
+        sql=f'SELECT ID, TS FROM "{glue_table}" ORDER BY ID',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert_pandas_equals(df, df_output)
