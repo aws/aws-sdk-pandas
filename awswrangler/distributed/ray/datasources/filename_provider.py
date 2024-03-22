@@ -38,11 +38,7 @@ class _DefaultFilenameProvider(FilenameProvider):
         filename = ""
         if self._dataset_uuid is not None:
             filename += f"{self._dataset_uuid}_"
-        if self._file_format == "parquet":
-            # For parquet files compression and file extension are reversed
-            filename += f"{file_id}{_COMPRESSION_2_EXT.get(self._compression)[1:]}.{self._file_format}"
-        else:
-            filename += f"{file_id}.{self._file_format}{_COMPRESSION_2_EXT.get(self._compression)}"
+        filename += f"{file_id}.{self._file_format}{_COMPRESSION_2_EXT.get(self._compression)}"
         return filename
 
 

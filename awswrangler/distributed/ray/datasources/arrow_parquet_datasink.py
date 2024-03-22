@@ -24,7 +24,8 @@ class _ParquetFilenameProvider(_DefaultFilenameProvider):
         filename = ""
         if self._dataset_uuid is not None:
             filename += f"{self._dataset_uuid}_"
-        filename += f"{file_id}{_COMPRESSION_2_EXT.get(self._compression)[1:]}.{self._file_format}"
+        compression_ext = _COMPRESSION_2_EXT.get(self._compression)
+        filename += f"{file_id}{compression_ext}.{self._file_format}"
         return filename
 
 

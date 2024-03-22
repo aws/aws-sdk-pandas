@@ -97,7 +97,7 @@ PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS = 1024
 # raw pyarrow file fragment causes S3 network calls.
 class _SerializedFragment:
     def __init__(self, frag: "ParquetFileFragment"):
-        self._data = cloudpickle.dumps(  # type: ignore[attr-defined,no-untyped-call]
+        self._data = cloudpickle.dumps(  # type: ignore[no-untyped-call]
             (frag.format, frag.path, frag.filesystem, frag.partition_expression)
         )
 
