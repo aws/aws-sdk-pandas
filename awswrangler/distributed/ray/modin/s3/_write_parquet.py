@@ -8,10 +8,9 @@ from typing import TYPE_CHECKING, Any, cast
 
 import modin.pandas as pd
 import pyarrow as pa
-from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray.datasources import ArrowParquetDatasink, UserProvidedKeyBlockWritePathProvider
+from awswrangler.distributed.ray.datasources import ArrowParquetDatasink, _UserFilenameProvider
 from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
 from awswrangler.typing import ArrowEncryptionConfiguration
 
@@ -72,9 +71,9 @@ def _to_parquet_distributed(
         dataset_uuid=filename_prefix,
         # If user has provided a single key, use that instead of generating a path per block
         # The dataset will be repartitioned into a single block
-        block_path_provider=UserProvidedKeyBlockWritePathProvider()
+        filename_provider=_UserFilenameProvider(path)
         if path and not path.endswith("/") and not max_rows_by_file
-        else DefaultBlockWritePathProvider(),
+        else None,
         index=index,
         dtype=dtype,
         compression=compression,

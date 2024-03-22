@@ -6,15 +6,14 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import modin.pandas as pd
-from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import (
     ArrowCSVDatasink,
     PandasCSVDatasink,
     PandasJSONDatasink,
-    UserProvidedKeyBlockWritePathProvider,
     _BlockFileDatasink,
+    _UserFilenameProvider,
 )
 from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters, _ray_dataset_from_df
 from awswrangler.s3._write import _COMPRESSION_2_EXT
@@ -141,11 +140,7 @@ def _to_text_distributed(
         file_format,
         can_use_arrow,
         file_path,
-        block_path_provider=(
-            UserProvidedKeyBlockWritePathProvider()
-            if path and not path.endswith("/")
-            else DefaultBlockWritePathProvider()
-        ),
+        filename_provider=(_UserFilenameProvider(path) if path and not path.endswith("/") else None),
         dataset_uuid=filename_prefix,
         open_s3_object_args={
             "mode": "wb" if can_use_arrow else mode,
