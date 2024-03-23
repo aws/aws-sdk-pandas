@@ -48,14 +48,17 @@ class ArrowParquetDatasink(_BlockFileDatasink):
     ):
         file_format = "parquet"
         pandas_kwargs = pandas_kwargs or {}
+        write_args = write_args or {}
 
         if filename_provider is None:
             compression = pandas_kwargs.get("compression", None)
+            bucket_id = write_args.get("bucket_id", None)
 
             filename_provider = _ParquetFilenameProvider(
                 dataset_uuid=dataset_uuid,
                 file_format=file_format,
                 compression=compression,
+                bucket_id=bucket_id,
             )
 
         super().__init__(

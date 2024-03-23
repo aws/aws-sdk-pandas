@@ -16,10 +16,12 @@ class _DefaultFilenameProvider(FilenameProvider):
         file_format: str,
         dataset_uuid: str | None = None,
         compression: str | None = None,
+        bucket_id: int | None = None,
     ):
         self._dataset_uuid = dataset_uuid
         self._file_format = file_format
         self._compression = compression
+        self._bucket_id = bucket_id
 
     def get_filename_for_block(
         self,
@@ -38,23 +40,7 @@ class _DefaultFilenameProvider(FilenameProvider):
         filename = ""
         if self._dataset_uuid is not None:
             filename += f"{self._dataset_uuid}_"
+        if self._bucket_id is not None:
+            filename += f"bucket-{self._bucket_id:05d}"
         filename += f"{file_id}.{self._file_format}{_COMPRESSION_2_EXT.get(self._compression)}"
         return filename
-
-
-class _UserFilenameProvider(FilenameProvider):
-    """Lets the user override path."""
-
-    def __init__(self, filename: str):
-        self._filename = filename
-
-    def get_filename_for_block(
-        self,
-        block: Block,
-        task_index: int,
-        block_index: int,
-    ) -> str:
-        return self._filename
-
-    def get_filename_for_row(self, row: dict[str, Any], task_index: int, block_index: int, row_index: int) -> str:
-        return self._filename

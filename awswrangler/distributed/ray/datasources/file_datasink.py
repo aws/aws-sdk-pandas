@@ -42,11 +42,13 @@ class _BlockFileDatasink(Datasink):
 
         if filename_provider is None:
             compression = self.pandas_kwargs.get("compression", None)
+            bucket_id = self.write_args.get("bucket_id", None)
 
             filename_provider = _DefaultFilenameProvider(
                 dataset_uuid=dataset_uuid,
                 file_format=file_format,
                 compression=compression,
+                bucket_id=bucket_id,
             )
 
         self.filename_provider = filename_provider
@@ -73,8 +75,11 @@ class _BlockFileDatasink(Datasink):
             builder.add_block(ray_get(block) if isinstance(block, ObjectRef) else block)  # type: ignore[arg-type]
         block = builder.build()
 
-        filename = self.filename_provider.get_filename_for_block(block, ctx.task_idx, 0)
-        write_path = posixpath.join(self.path, filename)
+        write_path = self.path
+
+        if write_path.endswith("/"):
+            filename = self.filename_provider.get_filename_for_block(block, ctx.task_idx, 0)
+            write_path = posixpath.join(self.path, filename)
 
         return _write_block(write_path, block)
 
