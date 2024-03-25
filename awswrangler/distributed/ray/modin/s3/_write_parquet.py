@@ -63,8 +63,11 @@ def _to_parquet_distributed(
             )
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
 
+        if path and not path.endswith("/"):
+            path = f"{path}/"
+
     datasink = ArrowParquetDatasink(
-        path=cast(str, path if path and not max_rows_by_file else path_root),
+        path=cast(str, path or path_root),
         dataset_uuid=filename_prefix,
         index=index,
         dtype=dtype,
