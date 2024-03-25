@@ -122,7 +122,7 @@ def _to_text_distributed(
     datasink: _BlockFileDatasink = _datasink_for_format(
         file_format,
         can_use_arrow,
-        path,
+        path or path_root,
         dataset_uuid=filename_prefix,
         open_s3_object_args={
             "mode": "wb" if can_use_arrow else mode,

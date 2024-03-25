@@ -24,8 +24,10 @@ class _ParquetFilenameProvider(_DefaultFilenameProvider):
         filename = ""
         if self._dataset_uuid is not None:
             filename += f"{self._dataset_uuid}_"
-        compression_ext = _COMPRESSION_2_EXT.get(self._compression)
-        filename += f"{file_id}{compression_ext}.{self._file_format}"
+        filename += f"{file_id}"
+        if self._bucket_id is not None:
+            filename += f"_bucket-{self._bucket_id:05d}"
+        filename += f"{_COMPRESSION_2_EXT.get(self._compression)}.{self._file_format}"
         return filename
 
 
@@ -44,14 +46,13 @@ class ArrowParquetDatasink(_BlockFileDatasink):
         index: bool = False,
         dtype: dict[str, str] | None = None,
         pyarrow_additional_kwargs: dict[str, Any] | None = None,
+        compression: str | None = None,
         **write_args: Any,
     ):
         file_format = "parquet"
-        pandas_kwargs = pandas_kwargs or {}
         write_args = write_args or {}
 
         if filename_provider is None:
-            compression = pandas_kwargs.get("compression", None)
             bucket_id = write_args.get("bucket_id", None)
 
             filename_provider = _ParquetFilenameProvider(

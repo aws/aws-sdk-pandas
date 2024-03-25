@@ -40,7 +40,8 @@ class _DefaultFilenameProvider(FilenameProvider):
         filename = ""
         if self._dataset_uuid is not None:
             filename += f"{self._dataset_uuid}_"
+        filename += f"{file_id}"
         if self._bucket_id is not None:
-            filename += f"bucket-{self._bucket_id:05d}"
-        filename += f"{file_id}.{self._file_format}{_COMPRESSION_2_EXT.get(self._compression)}"
+            filename += f"_bucket-{self._bucket_id:05d}"
+        filename += f".{self._file_format}{_COMPRESSION_2_EXT.get(self._compression)}"
         return filename
