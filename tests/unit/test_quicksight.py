@@ -14,7 +14,9 @@ client = boto3.client("quicksight")
 
 
 @pytest.mark.xfail(raises=client.exceptions.ConflictException)
-def test_quicksight(path, quicksight_datasource, quicksight_dataset, glue_database, glue_table):
+def test_quicksight(
+    path: str, quicksight_datasource: str, quicksight_dataset: str, glue_database: str, glue_table: str
+) -> None:
     df = get_df_quicksight()
     wr.s3.to_parquet(
         df=df, path=path, dataset=True, database=glue_database, table=glue_table, partition_cols=["par0", "par1"]
@@ -76,13 +78,14 @@ def test_quicksight(path, quicksight_datasource, quicksight_dataset, glue_databa
     wr.quicksight.get_dataset_ids(f"{quicksight_dataset}-sql")
     wr.quicksight.get_data_source_ids("test")
 
-    wr.quicksight.delete_all_datasets(regex_filter=quicksight_dataset)
+    wr.quicksight.delete_all_datasets(regex_filter=f"{quicksight_dataset}-.*")
     wr.quicksight.delete_all_data_sources(regex_filter=quicksight_datasource)
 
 
-def test_quicksight_delete_all_datasources_filter():
-    wr.quicksight.delete_all_data_sources(regex_filter="test.*")
-    resource_name = f"test-delete-{uuid.uuid4()}"
+def test_quicksight_delete_all_datasources_filter() -> None:
+    resource_name_prefix = f"test-delete-sources-{uuid.uuid4()}"
+    resource_name = f"{resource_name_prefix}-1"
+
     wr.quicksight.create_athena_data_source(
         name=resource_name,
         allowed_to_manage={"users": [wr.sts.get_current_identity_name()]},
@@ -92,17 +95,18 @@ def test_quicksight_delete_all_datasources_filter():
 
     assert len(wr.quicksight.get_data_source_ids(resource_name)) == 1
 
-    wr.quicksight.delete_all_data_sources(regex_filter="test-delete.*")
+    wr.quicksight.delete_all_data_sources(regex_filter=f"{resource_name_prefix}-.*")
     assert len(wr.quicksight.get_data_source_ids(resource_name)) == 0
 
 
-def test_quicksight_delete_all_datasets(path, glue_database, glue_table):
+def test_quicksight_delete_all_datasets(path: str, glue_database: str, glue_table: str) -> None:
     df = get_df_quicksight()
     wr.s3.to_parquet(
         df=df, path=path, dataset=True, database=glue_database, table=glue_table, partition_cols=["par0", "par1"]
     )
-    wr.quicksight.delete_all_datasets(regex_filter="test.*")
-    wr.quicksight.delete_all_data_sources(regex_filter="test.*")
+
+    resource_name_prefix = f"test-delete-datasets-{uuid.uuid4()}"
+    resource_name = f"{resource_name_prefix}-1"
 
     resource_name = f"test{str(uuid.uuid4())[:8]}"
     wr.quicksight.create_athena_data_source(
@@ -122,7 +126,7 @@ def test_quicksight_delete_all_datasets(path, glue_database, glue_table):
         tag_columns={"string": [{"ColumnGeographicRole": "CITY"}, {"ColumnDescription": {"Text": "some description"}}]},
         tags={"foo": "boo"},
     )
-    wr.quicksight.delete_all_datasets(regex_filter="test.*")
-    wr.quicksight.delete_all_data_sources(regex_filter="test.*")
+    wr.quicksight.delete_all_datasets(regex_filter=f"{resource_name_prefix}-.*")
+    wr.quicksight.delete_all_data_sources(regex_filter=f"{resource_name_prefix}-.*")
 
     assert len(wr.quicksight.get_dataset_ids(resource_name)) == 0
