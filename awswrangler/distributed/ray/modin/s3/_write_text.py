@@ -6,18 +6,15 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import modin.pandas as pd
-from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import (
     ArrowCSVDatasink,
     PandasCSVDatasink,
     PandasJSONDatasink,
-    UserProvidedKeyBlockWritePathProvider,
     _BlockFileDatasink,
 )
 from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters, _ray_dataset_from_df
-from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
 
 if TYPE_CHECKING:
@@ -91,21 +88,6 @@ def _to_text_distributed(
     if df.empty is True:
         _logger.warning("Empty DataFrame will be written.")
 
-    if bucketing:
-        # Add bucket id to the prefix
-        prefix = f"{filename_prefix}_bucket-{df.name:05d}"
-        extension = f"{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
-
-        file_path = f"{path_root}{prefix}.{extension}"
-        path = file_path
-
-    elif path is None and path_root is not None:
-        file_path = path_root
-    elif path is not None and path_root is None:
-        file_path = path
-    else:
-        raise RuntimeError("path and path_root received at the same time.")
-
     # Create Ray Dataset
     ds = _ray_dataset_from_df(df)
 
@@ -135,17 +117,12 @@ def _to_text_distributed(
         write_options = None
         can_use_arrow = False
 
-    mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
+    mode, encoding, newline = _get_write_details(path=path or path_root, pandas_kwargs=pandas_kwargs)  # type: ignore[arg-type]
 
     datasink: _BlockFileDatasink = _datasink_for_format(
         file_format,
         can_use_arrow,
-        file_path,
-        block_path_provider=(
-            UserProvidedKeyBlockWritePathProvider()
-            if path and not path.endswith("/")
-            else DefaultBlockWritePathProvider()
-        ),
+        path or path_root,
         dataset_uuid=filename_prefix,
         open_s3_object_args={
             "mode": "wb" if can_use_arrow else mode,
@@ -155,6 +132,7 @@ def _to_text_distributed(
         },
         pandas_kwargs=pandas_kwargs,
         write_options=write_options,
+        bucket_id=df.name if bucketing else None,
     )
 
     ds.write_datasink(datasink)

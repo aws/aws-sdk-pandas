@@ -8,10 +8,9 @@ from typing import TYPE_CHECKING, Any, cast
 
 import modin.pandas as pd
 import pyarrow as pa
-from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray.datasources import ArrowORCDatasink, UserProvidedKeyBlockWritePathProvider
+from awswrangler.distributed.ray.datasources import ArrowORCDatasink
 from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
 from awswrangler.typing import ArrowEncryptionConfiguration
 
@@ -40,10 +39,6 @@ def _to_orc_distributed(
     bucketing: bool = False,
     encryption_configuration: ArrowEncryptionConfiguration | None = None,
 ) -> list[str]:
-    if bucketing:
-        # Add bucket id to the prefix
-        path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}{compression_ext}.orc"
-
     # Create Ray Dataset
     ds = _ray_dataset_from_df(df)
 
@@ -63,14 +58,12 @@ def _to_orc_distributed(
     elif max_rows_by_file and (max_rows_by_file > 0):
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
 
+        if path and not path.endswith("/"):
+            path = f"{path}/"
+
     datasink = ArrowORCDatasink(
         path=cast(str, path or path_root),
         dataset_uuid=filename_prefix,
-        # If user has provided a single key, use that instead of generating a path per block
-        # The dataset will be repartitioned into a single block
-        block_path_provider=UserProvidedKeyBlockWritePathProvider()
-        if path and not path.endswith("/") and not max_rows_by_file
-        else DefaultBlockWritePathProvider(),
         open_s3_object_args={
             "s3_additional_kwargs": s3_additional_kwargs,
         },
@@ -79,6 +72,7 @@ def _to_orc_distributed(
         compression=compression,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         schema=schema,
+        bucket_id=df.name if bucketing else None,
     )
     ds.write_datasink(datasink)
     return datasink.get_write_paths()
