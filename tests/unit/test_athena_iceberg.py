@@ -926,7 +926,7 @@ def test_to_iceberg_uppercase_columns(
     assert_pandas_equals(df, df_output)
 
 
-def test_to_iceberg_fill_missing_columns(
+def test_to_iceberg_fill_missing_columns_map(
     path: str,
     path2: str,
     glue_database: str,
