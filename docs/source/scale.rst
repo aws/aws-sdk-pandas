@@ -2,6 +2,7 @@ At scale
 =========
 
 AWS SDK for pandas supports `Ray <https://www.ray.io/>`_ and `Modin <https://modin.readthedocs.io/en/stable/>`_, enabling you to scale your pandas workflows from a single machine to a multi-node environment, with no code changes.
+Head to our `tutorial <https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/035%20-%20Distributing%20Calls%20on%20Ray%20Remote%20Cluster.ipynb>`_ to set up a self-managed Ray cluster on Amazon Elastic Compute Cloud (Amazon EC2).
 
 Getting Started
 ----------------
