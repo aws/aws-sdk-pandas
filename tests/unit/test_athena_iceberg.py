@@ -926,7 +926,7 @@ def test_to_iceberg_uppercase_columns(
     assert_pandas_equals(df, df_output)
 
 
-def test_to_iceberg_fill_missing_columns_map(
+def test_to_iceberg_fill_missing_columns_with_complex_types(
     path: str,
     path2: str,
     glue_database: str,
@@ -937,6 +937,12 @@ def test_to_iceberg_fill_missing_columns_map(
             "partition": [1, 1, 2, 2],
             "column2": ["A", "B", "C", "D"],
             "map_col": [{"s": "d"}, {"s": "h"}, {"i": "l"}, {}],
+            "struct_col": [
+                {"a": "val1", "b": {"c": "val21"}},
+                {"a": "val1", "b": {"c": None}},
+                {"a": "val1", "b": None},
+                {},
+            ],
         }
     )
     df_missing_col = pd.DataFrame(
@@ -950,6 +956,7 @@ def test_to_iceberg_fill_missing_columns_map(
         "partition": "int",
         "column2": "string",
         "map_col": "map<string, string>",
+        "struct_col": "struct<a: string, b: struct<c: string>>",
     }
 
     wr.athena.to_iceberg(
