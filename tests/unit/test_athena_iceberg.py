@@ -924,3 +924,63 @@ def test_to_iceberg_uppercase_columns(
     )
 
     assert_pandas_equals(df, df_output)
+
+
+def test_to_iceberg_fill_missing_columns_with_complex_types(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    df_with_col = pd.DataFrame(
+        {
+            "partition": [1, 1, 2, 2],
+            "column2": ["A", "B", "C", "D"],
+            "map_col": [{"s": "d"}, {"s": "h"}, {"i": "l"}, {}],
+            "struct_col": [
+                {"a": "val1", "b": {"c": "val21"}},
+                {"a": "val1", "b": {"c": None}},
+                {"a": "val1", "b": None},
+                {},
+            ],
+        }
+    )
+    df_missing_col = pd.DataFrame(
+        {
+            "partition": [2, 2],
+            "column2": ["Z", "X"],
+        }
+    )
+
+    glue_dtypes = {
+        "partition": "int",
+        "column2": "string",
+        "map_col": "map<string, string>",
+        "struct_col": "struct<a: string, b: struct<c: string>>",
+    }
+
+    wr.athena.to_iceberg(
+        df=df_with_col,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+        dtype=glue_dtypes,
+        mode="overwrite_partitions",
+        partition_cols=["partition"],
+    )
+
+    wr.athena.to_iceberg(
+        df=df_missing_col,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+        dtype=glue_dtypes,
+        mode="overwrite_partitions",
+        partition_cols=["partition"],
+        schema_evolution=True,
+        fill_missing_columns_in_df=True,
+    )
