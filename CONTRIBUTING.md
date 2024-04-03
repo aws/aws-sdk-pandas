@@ -224,7 +224,7 @@ To run all database MySQL tests (Using 8 parallel processes):
 
 ``pytest -n 8 tests/unit/test_mysql.py``
 
-To run all tests for all python versions (assuming Amazon QuickSight is activated and the optional stacks deployed):
+To run all tests for all python versions (assuming Amazon QuickSight is activated and the optional stack deployed):
 
 ``./test.sh``
 

@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, cast
+from typing import Any, Callable
 
 import boto3
 import numpy as np
 import pandas as pd
 
-from awswrangler import exceptions, lakeformation, typing
+from awswrangler import exceptions, typing
 from awswrangler._distributed import engine
 from awswrangler._utils import client
 from awswrangler.s3._delete import delete_objects
@@ -83,12 +83,6 @@ def _delete_objects(
     use_threads: bool | int,
     mode: str,
     partition_cols: list[str],
-    partitions_types: dict[str, str] | None,
-    catalog_id: str | None,
-    database: str | None,
-    table: str | None,
-    table_type: str | None,
-    transaction_id: str | None,
     boto3_session: boto3.Session | None = None,
     **func_kwargs: Any,
 ) -> str:
@@ -96,34 +90,12 @@ def _delete_objects(
     keys = (keys,) if not isinstance(keys, tuple) else keys
     prefix = _get_subgroup_prefix(keys, partition_cols, path_root)
     if mode == "overwrite_partitions":
-        if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-            transaction_id = cast(str, transaction_id)
-            del_objects: list[dict[str, Any]] = lakeformation._get_table_objects(
-                catalog_id=catalog_id,
-                database=database,
-                table=table,
-                transaction_id=transaction_id,
-                partition_cols=partition_cols,
-                partitions_values=keys,  # type: ignore[arg-type]
-                partitions_types=partitions_types,
-                boto3_session=boto3_session,
-            )
-            if del_objects:
-                lakeformation._update_table_objects(
-                    catalog_id=catalog_id,
-                    database=database,
-                    table=table,
-                    transaction_id=transaction_id,
-                    del_objects=del_objects,
-                    boto3_session=boto3_session,
-                )
-        else:
-            delete_objects(
-                path=prefix,
-                use_threads=use_threads,
-                boto3_session=boto3_session,
-                s3_additional_kwargs=func_kwargs.get("s3_additional_kwargs"),
-            )
+        delete_objects(
+            path=prefix,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=func_kwargs.get("s3_additional_kwargs"),
+        )
     return prefix
 
 
@@ -136,12 +108,6 @@ def _to_partitions(
     use_threads: bool | int,
     mode: str,
     partition_cols: list[str],
-    partitions_types: dict[str, str] | None,
-    catalog_id: str | None,
-    database: str | None,
-    table: str | None,
-    table_type: str | None,
-    transaction_id: str | None,
     bucketing_info: typing.BucketingInfoTuple | None,
     filename_prefix: str,
     boto3_session: boto3.Session | None,
@@ -170,12 +136,6 @@ def _to_partitions(
             use_threads=use_threads,
             mode=mode,
             partition_cols=partition_cols,
-            partitions_types=partitions_types,
-            catalog_id=catalog_id,
-            database=database,
-            table=table,
-            table_type=table_type,
-            transaction_id=transaction_id,
             boto3_session=boto3_session,
             **func_kwargs,
         )
@@ -246,12 +206,6 @@ def _to_dataset(
     use_threads: bool | int,
     mode: str,
     partition_cols: list[str] | None,
-    partitions_types: dict[str, str] | None,
-    catalog_id: str | None,
-    database: str | None,
-    table: str | None,
-    table_type: str | None,
-    transaction_id: str | None,
     bucketing_info: typing.BucketingInfoTuple | None,
     boto3_session: boto3.Session | None,
     **func_kwargs: Any,
@@ -263,26 +217,7 @@ def _to_dataset(
             f"{mode} is a invalid mode, please use append, overwrite or overwrite_partitions."
         )
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
-        if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-            transaction_id = cast(str, transaction_id)
-            del_objects: list[dict[str, Any]] = lakeformation._get_table_objects(
-                catalog_id=catalog_id,
-                database=database,
-                table=table,
-                transaction_id=transaction_id,
-                boto3_session=boto3_session,
-            )
-            if del_objects:
-                lakeformation._update_table_objects(
-                    catalog_id=catalog_id,
-                    database=database,
-                    table=table,
-                    transaction_id=transaction_id,
-                    del_objects=del_objects,
-                    boto3_session=boto3_session,
-                )
-        else:
-            delete_objects(path=path_root, use_threads=use_threads, boto3_session=boto3_session)
+        delete_objects(path=path_root, use_threads=use_threads, boto3_session=boto3_session)
 
     # Writing
     partitions_values: dict[str, list[str]] = {}
@@ -295,15 +230,9 @@ def _to_dataset(
             path_root=path_root,
             use_threads=use_threads,
             mode=mode,
-            catalog_id=catalog_id,
-            database=database,
-            table=table,
-            table_type=table_type,
-            transaction_id=transaction_id,
             bucketing_info=bucketing_info,
             filename_prefix=filename_prefix,
             partition_cols=partition_cols,
-            partitions_types=partitions_types,
             boto3_session=boto3_session,
             index=index,
             **func_kwargs,
@@ -333,23 +262,5 @@ def _to_dataset(
         )
     _logger.debug("Wrote %s paths", len(paths))
     _logger.debug("Created partitions_values: %s", partitions_values)
-    if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-        list_add_objects: list[list[dict[str, Any]]] = lakeformation._build_table_objects(
-            paths, partitions_values, use_threads=use_threads, boto3_session=boto3_session
-        )
-        try:
-            if list_add_objects:
-                for add_objects in list_add_objects:
-                    lakeformation._update_table_objects(
-                        catalog_id=catalog_id,
-                        database=database,
-                        table=table,
-                        transaction_id=transaction_id,  # type: ignore[arg-type]
-                        add_objects=add_objects,
-                        boto3_session=boto3_session,
-                    )
-        except Exception as ex:
-            _logger.error(ex)
-            raise
 
     return paths, partitions_values

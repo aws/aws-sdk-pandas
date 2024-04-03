@@ -1,4 +1,5 @@
 """Ray and Modin registered methods (PRIVATE)."""
+
 from awswrangler._data_types import pyarrow_types_from_pandas
 from awswrangler._distributed import MemoryFormatEnum, engine, memory_format
 from awswrangler._executor import _get_executor
@@ -17,7 +18,6 @@ from awswrangler.distributed.ray.s3._read_orc import _read_orc_metadata_file_dis
 from awswrangler.distributed.ray.s3._read_parquet import _read_parquet_metadata_file_distributed
 from awswrangler.dynamodb._read import _read_scan
 from awswrangler.dynamodb._write import _put_df, _put_items
-from awswrangler.lakeformation._read import _get_work_unit_results
 from awswrangler.s3._copy import _copy_objects
 from awswrangler.s3._delete import _delete_objects
 from awswrangler.s3._describe import _describe_object
@@ -37,7 +37,6 @@ from awswrangler.timestream._write import _write_batch, _write_df
 def register_ray() -> None:
     """Register dispatched Ray and Modin (on Ray) methods."""
     for func in [
-        _get_work_unit_results,
         _copy_objects,
         _describe_object,
         _delete_objects,

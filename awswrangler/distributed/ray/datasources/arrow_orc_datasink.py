@@ -1,4 +1,5 @@
 """Ray PandasTextDatasink Module."""
+
 from __future__ import annotations
 
 import io
@@ -7,7 +8,7 @@ from typing import Any
 
 import pyarrow as pa
 from ray.data.block import BlockAccessor
-from ray.data.datasource.block_path_provider import BlockWritePathProvider
+from ray.data.datasource.filename_provider import FilenameProvider
 
 from awswrangler._arrow import _df_to_table
 from awswrangler.distributed.ray.datasources.file_datasink import _BlockFileDatasink
@@ -22,7 +23,7 @@ class ArrowORCDatasink(_BlockFileDatasink):
         self,
         path: str,
         *,
-        block_path_provider: BlockWritePathProvider | None = None,
+        filename_provider: FilenameProvider | None = None,
         dataset_uuid: str | None = None,
         open_s3_object_args: dict[str, Any] | None = None,
         pandas_kwargs: dict[str, Any] | None = None,
@@ -35,7 +36,7 @@ class ArrowORCDatasink(_BlockFileDatasink):
         super().__init__(
             path,
             file_format="orc",
-            block_path_provider=block_path_provider,
+            filename_provider=filename_provider,
             dataset_uuid=dataset_uuid,
             open_s3_object_args=open_s3_object_args,
             pandas_kwargs=pandas_kwargs,

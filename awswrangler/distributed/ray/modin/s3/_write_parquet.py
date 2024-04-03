@@ -1,4 +1,5 @@
 """Modin on Ray S3 write parquet module (PRIVATE)."""
+
 from __future__ import annotations
 
 import logging
@@ -7,10 +8,9 @@ from typing import TYPE_CHECKING, Any, cast
 
 import modin.pandas as pd
 import pyarrow as pa
-from ray.data.datasource.block_path_provider import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray.datasources import ArrowParquetDatasink, UserProvidedKeyBlockWritePathProvider
+from awswrangler.distributed.ray.datasources import ArrowParquetDatasink
 from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
 from awswrangler.typing import ArrowEncryptionConfiguration
 
@@ -39,9 +39,6 @@ def _to_parquet_distributed(
     bucketing: bool = False,
     encryption_configuration: ArrowEncryptionConfiguration | None = None,
 ) -> list[str]:
-    if bucketing:
-        # Add bucket id to the prefix
-        path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}{compression_ext}.parquet"
     # Create Ray Dataset
     ds = _ray_dataset_from_df(df)
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
@@ -64,21 +61,20 @@ def _to_parquet_distributed(
             raise exceptions.InvalidArgumentCombination(
                 "Cannot write indexed file when `max_rows_by_file` is specified"
             )
-
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
+
+        if path and not path.endswith("/"):
+            path = f"{path}/"
+
     datasink = ArrowParquetDatasink(
         path=cast(str, path or path_root),
         dataset_uuid=filename_prefix,
-        # If user has provided a single key, use that instead of generating a path per block
-        # The dataset will be repartitioned into a single block
-        block_path_provider=UserProvidedKeyBlockWritePathProvider()
-        if path and not path.endswith("/") and not max_rows_by_file
-        else DefaultBlockWritePathProvider(),
         index=index,
         dtype=dtype,
         compression=compression,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         schema=schema,
+        bucket_id=df.name if bucketing else None,
     )
     ds.write_datasink(datasink)
     return datasink.get_write_paths()

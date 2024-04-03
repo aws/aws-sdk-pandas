@@ -7,7 +7,7 @@ pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture()
-def data(cleanrooms_s3_bucket_name: str, cleanrooms_glue_database_name: str) -> None:
+def data(bucket: str, cleanrooms_glue_database_name: str) -> None:
     df_purchases = pd.DataFrame(
         {
             "purchase_id": list(range(100, 109)),
@@ -17,7 +17,7 @@ def data(cleanrooms_s3_bucket_name: str, cleanrooms_glue_database_name: str) -> 
     )
     wr.s3.to_parquet(
         df_purchases,
-        f"s3://{cleanrooms_s3_bucket_name}/purchases/",
+        f"s3://{bucket}/purchases/",
         dataset=True,
         database=cleanrooms_glue_database_name,
         table="purchases",
@@ -32,7 +32,7 @@ def data(cleanrooms_s3_bucket_name: str, cleanrooms_glue_database_name: str) -> 
     )
     wr.s3.to_parquet(
         df_users,
-        f"s3://{cleanrooms_s3_bucket_name}/users/",
+        f"s3://{bucket}/users/",
         dataset=True,
         database=cleanrooms_glue_database_name,
         table="users",
@@ -47,7 +47,7 @@ def data(cleanrooms_s3_bucket_name: str, cleanrooms_glue_database_name: str) -> 
     )
     wr.s3.to_parquet(
         df_custom,
-        f"s3://{cleanrooms_s3_bucket_name}/custom/",
+        f"s3://{bucket}/custom/",
         dataset=True,
         database=cleanrooms_glue_database_name,
         table="custom",
@@ -59,7 +59,7 @@ def test_read_sql_query(
     data: None,
     cleanrooms_membership_id: str,
     cleanrooms_analysis_template_arn: str,
-    cleanrooms_s3_bucket_name: str,
+    bucket: str,
 ):
     sql = """SELECT city, AVG(p.sale_value)
     FROM users u
@@ -70,7 +70,7 @@ def test_read_sql_query(
     df_chunked = wr.cleanrooms.read_sql_query(
         sql=sql,
         membership_id=cleanrooms_membership_id,
-        output_bucket=cleanrooms_s3_bucket_name,
+        output_bucket=bucket,
         output_prefix="results",
         chunksize=chunksize,
         keep_files=False,
@@ -86,7 +86,7 @@ def test_read_sql_query(
     df = wr.cleanrooms.read_sql_query(
         sql=sql,
         membership_id=cleanrooms_membership_id,
-        output_bucket=cleanrooms_s3_bucket_name,
+        output_bucket=bucket,
         output_prefix="results",
         keep_files=False,
     )
@@ -96,7 +96,7 @@ def test_read_sql_query(
         analysis_template_arn=cleanrooms_analysis_template_arn,
         params={"param1": "C"},
         membership_id=cleanrooms_membership_id,
-        output_bucket=cleanrooms_s3_bucket_name,
+        output_bucket=bucket,
         output_prefix="results",
         keep_files=False,
     )

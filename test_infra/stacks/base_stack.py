@@ -4,7 +4,6 @@ from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
-from aws_cdk import aws_lakeformation as lf
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_ssm as ssm
@@ -81,22 +80,19 @@ class BaseStack(Stack):  # type: ignore
             ],
             versioned=True,
         )
-        lf.CfnResource(
+        self.bucket_access_point = s3.CfnAccessPoint(
             self,
-            id="bucket-lf-registration",
-            resource_arn=self.bucket.bucket_arn,
-            use_service_linked_role=True,
-        )
-        inline_lf_policies = {
-            "GetDataAccess": iam.PolicyDocument(
-                statements=[
-                    iam.PolicyStatement(
-                        actions=["lakeformation:GetDataAccess"],
-                        resources=["*"],
-                    ),
-                ]
+            id="aws-sdk-pandas-access-point",
+            bucket=self.bucket.bucket_name,
+            bucket_account_id=self.account,
+            public_access_block_configuration=s3.CfnAccessPoint.PublicAccessBlockConfigurationProperty(
+                block_public_acls=True,
+                block_public_policy=True,
+                ignore_public_acls=True,
+                restrict_public_buckets=True,
             ),
-        }
+        )
+
         glue_data_quality_role = iam.Role(
             self,
             "aws-sdk-pandas-glue-data-quality-role",
@@ -106,7 +102,6 @@ class BaseStack(Stack):  # type: ignore
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
                 iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
             ],
-            inline_policies=inline_lf_policies,
         )
         emr_serverless_exec_role = iam.Role(
             self,
@@ -117,7 +112,6 @@ class BaseStack(Stack):  # type: ignore
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
                 iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
             ],
-            inline_policies=inline_lf_policies,
         )
         athena_spark_exec_role = iam.Role(
             self,
@@ -129,7 +123,6 @@ class BaseStack(Stack):  # type: ignore
                 iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonAthenaFullAccess"),
             ],
-            inline_policies=inline_lf_policies,
         )
         glue_db = glue.Database(
             self,
@@ -194,11 +187,22 @@ class BaseStack(Stack):  # type: ignore
             "BucketName",
             value=self.bucket.bucket_name,
         )
+        CfnOutput(
+            self,
+            "BucketAccessPointArn",
+            value=self.bucket_access_point.attr_arn,
+        )
         ssm.StringParameter(
             self,
             "SSM BucketName",
             parameter_name="/sdk-pandas/base/BucketName",
             string_value=self.bucket.bucket_name,
+        )
+        ssm.StringParameter(
+            self,
+            "SSM Bucket Access Point ARN",
+            parameter_name="/sdk-pandas/base/BucketAccessPointArn",
+            string_value=self.bucket_access_point.attr_arn,
         )
         CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
         CfnOutput(self, "GlueDataQualityRole", value=glue_data_quality_role.role_arn)

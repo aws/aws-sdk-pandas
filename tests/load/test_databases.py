@@ -133,30 +133,3 @@ def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_dat
     assert timer.elapsed_time < benchmark_time
 
     assert df.shape == df_out.shape
-
-
-@pytest.mark.parametrize("benchmark_time", [80])
-def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glue_database: str, request) -> None:
-    df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2017/", dataset=True)
-
-    wr.s3.to_parquet(
-        df,
-        path,
-        index=False,
-        dataset=True,
-        table=glue_table,
-        database=glue_database,
-        partition_cols=["passenger_count", "payment_type"],
-        glue_table_settings={
-            "table_type": "GOVERNED",
-        },
-    )
-
-    with ExecutionTimer(request) as timer:
-        df_out = wr.lakeformation.read_sql_table(
-            table=glue_table,
-            database=glue_database,
-        )
-    assert timer.elapsed_time < benchmark_time
-
-    assert df.shape == df_out.shape

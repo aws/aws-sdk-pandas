@@ -35,6 +35,11 @@ def bucket(cloudformation_outputs):
 
 
 @pytest.fixture(scope="session")
+def bucket_access_point(cloudformation_outputs):
+    return cloudformation_outputs["BucketAccessPointArn"]
+
+
+@pytest.fixture(scope="session")
 def glue_database(cloudformation_outputs):
     return cloudformation_outputs["GlueDatabaseName"]
 
@@ -308,6 +313,11 @@ def path3(bucket):
 
 
 @pytest.fixture(scope="function")
+def access_point_path_path(bucket_access_point):
+    yield from path_generator(bucket_access_point)
+
+
+@pytest.fixture(scope="function")
 def redshift_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
@@ -490,11 +500,6 @@ def cleanrooms_analysis_template_arn(cloudformation_outputs):
 @pytest.fixture(scope="session")
 def cleanrooms_glue_database_name(cloudformation_outputs):
     return cloudformation_outputs["CleanRoomsGlueDatabaseName"]
-
-
-@pytest.fixture(scope="session")
-def cleanrooms_s3_bucket_name(cloudformation_outputs):
-    return cloudformation_outputs["CleanRoomsS3BucketName"]
 
 
 @pytest.fixture(scope="function")

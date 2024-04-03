@@ -308,6 +308,7 @@ def _split_map(s: str) -> list[str]:
 
 def athena2pyarrow(dtype: str) -> pa.DataType:  # noqa: PLR0911,PLR0912
     """Athena to PyArrow data types conversion."""
+    dtype = dtype.strip()
     if dtype.startswith(("array", "struct", "map")):
         orig_dtype: str = dtype
     dtype = dtype.lower().replace(" ", "")
@@ -375,7 +376,7 @@ def athena2pandas(dtype: str, dtype_backend: str | None = None) -> str:  # noqa:
         return "decimal" if dtype_backend != "pyarrow" else "double[pyarrow]"
     if dtype in ("binary", "varbinary"):
         return "bytes" if dtype_backend != "pyarrow" else "binary[pyarrow]"
-    if dtype in ("array", "row", "map"):
+    if any(dtype.startswith(t) for t in ["array", "row", "map", "struct"]):
         return "object"
     if dtype == "geometry":
         return "string"

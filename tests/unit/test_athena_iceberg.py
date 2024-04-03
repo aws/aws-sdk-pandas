@@ -68,6 +68,7 @@ def test_athena_to_iceberg(
 def test_athena_to_iceberg_append(
     path: str,
     path2: str,
+    path3: str,
     glue_database: str,
     glue_table: str,
     partition_cols: list[str] | None,
@@ -102,6 +103,7 @@ def test_athena_to_iceberg_append(
         partition_cols=partition_cols,
         keep_files=False,
         mode="append",
+        s3_output=path3,
     )
 
     df_actual = wr.athena.read_sql_query(
@@ -815,3 +817,170 @@ def test_athena_delete_from_iceberg_empty_df_error(
             temp_path=path2,
             keep_files=False,
         )
+
+
+def test_athena_iceberg_use_partition_function(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "name": ["a", "b", "c"],
+            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+        }
+    )
+
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=["day(ts)"],
+        keep_files=False,
+    )
+
+    df2 = pd.DataFrame(
+        {
+            "id": [4, 5],
+            "name": ["d", "e"],
+            "ts": [ts("2020-01-03 12:30:00.0"), ts("2020-01-03 16:45:00.0")],
+        }
+    )
+
+    wr.athena.to_iceberg(
+        df=df2,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=["day(ts)"],
+        keep_files=False,
+    )
+
+    df_out = wr.athena.read_sql_table(
+        table=glue_table,
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert len(df_out) == len(df) + len(df2)
+    assert len(df_out.columns) == len(df.columns)
+
+
+def test_to_iceberg_uppercase_columns(
+    path: str,
+    path2: str,
+    path3: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "ID": [1, 2, 3, 4, 5],
+            "TS": [
+                ts("2020-01-01 00:00:00.0"),
+                ts("2020-01-02 00:00:01.0"),
+                ts("2020-01-03 00:00:00.0"),
+                ts("2020-01-03 12:30:00.0"),
+                ts("2020-01-03 16:45:00.0"),
+            ],
+        }
+    )
+    df["ID"] = df["ID"].astype("Int64")  # Cast as nullable int64 type
+
+    split_index = 4
+
+    wr.athena.to_iceberg(
+        df=df.iloc[:split_index],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+
+    wr.athena.to_iceberg(
+        df=df.iloc[split_index:],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        s3_output=path3,
+        keep_files=False,
+        mode="append",
+        schema_evolution=True,
+    )
+
+    df_output = wr.athena.read_sql_query(
+        sql=f'SELECT ID, TS FROM "{glue_table}" ORDER BY ID',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert_pandas_equals(df, df_output)
+
+
+def test_to_iceberg_fill_missing_columns_with_complex_types(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    df_with_col = pd.DataFrame(
+        {
+            "partition": [1, 1, 2, 2],
+            "column2": ["A", "B", "C", "D"],
+            "map_col": [{"s": "d"}, {"s": "h"}, {"i": "l"}, {}],
+            "struct_col": [
+                {"a": "val1", "b": {"c": "val21"}},
+                {"a": "val1", "b": {"c": None}},
+                {"a": "val1", "b": None},
+                {},
+            ],
+        }
+    )
+    df_missing_col = pd.DataFrame(
+        {
+            "partition": [2, 2],
+            "column2": ["Z", "X"],
+        }
+    )
+
+    glue_dtypes = {
+        "partition": "int",
+        "column2": "string",
+        "map_col": "map<string, string>",
+        "struct_col": "struct<a: string, b: struct<c: string>>",
+    }
+
+    wr.athena.to_iceberg(
+        df=df_with_col,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+        dtype=glue_dtypes,
+        mode="overwrite_partitions",
+        partition_cols=["partition"],
+    )
+
+    wr.athena.to_iceberg(
+        df=df_missing_col,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+        dtype=glue_dtypes,
+        mode="overwrite_partitions",
+        partition_cols=["partition"],
+        schema_evolution=True,
+        fill_missing_columns_in_df=True,
+    )

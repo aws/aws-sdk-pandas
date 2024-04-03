@@ -5,6 +5,7 @@ This module is pulled from Ray's [ParquetDatasource]
 and customized to ensure compatibility with AWS SDK for pandas behavior. Changes from the original implementation,
 are documented in the comments and marked with (AWS SDK for pandas) prefix.
 """
+
 from __future__ import annotations
 
 import logging
@@ -96,7 +97,7 @@ PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS = 1024
 # raw pyarrow file fragment causes S3 network calls.
 class _SerializedFragment:
     def __init__(self, frag: "ParquetFileFragment"):
-        self._data = cloudpickle.dumps(  # type: ignore[attr-defined,no-untyped-call]
+        self._data = cloudpickle.dumps(  # type: ignore[no-untyped-call]
             (frag.format, frag.path, frag.filesystem, frag.partition_expression)
         )
 

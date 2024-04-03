@@ -236,6 +236,7 @@ def test_gremlin_bulk_load(
         iam_role=neptune_load_iam_role_arn,
         use_threads=use_threads,
         keep_files=keep_files,
+        queue_request="TRUE",
     )
     res_df = wr.neptune.execute_gremlin(client, f"g.V().hasLabel('{label}').valueMap().with(WithOptions.tokens)")
 
@@ -295,6 +296,7 @@ def test_gremlin_bulk_load_from_files(
         client=client,
         path=path,
         iam_role=neptune_load_iam_role_arn,
+        queue_request="TRUE",
         parser_configuration=parser_config,
     )
     res_df = wr.neptune.execute_gremlin(client, f"g.V().hasLabel('{label}').valueMap().with(WithOptions.tokens)")

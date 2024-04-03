@@ -1,9 +1,8 @@
-from aws_cdk import CfnOutput, Duration, Stack
+from aws_cdk import CfnOutput, Stack
 from aws_cdk import aws_cleanrooms as cleanrooms
 from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_s3 as s3
-from aws_cdk import aws_ssm as ssm
 from constructs import Construct
 
 
@@ -12,6 +11,7 @@ class CleanRoomsStack(Stack):  # type: ignore
         self,
         scope: Construct,
         construct_id: str,
+        bucket: s3.Bucket,
         **kwargs: str,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -59,31 +59,11 @@ class CleanRoomsStack(Stack):  # type: ignore
             ],
         )
 
-        self.bucket = s3.Bucket(
-            self,
-            "Bucket",
-            block_public_access=s3.BlockPublicAccess(
-                block_public_acls=True,
-                block_public_policy=True,
-                ignore_public_acls=True,
-                restrict_public_buckets=True,
-            ),
-            lifecycle_rules=[
-                s3.LifecycleRule(
-                    id="CleaningUp",
-                    enabled=True,
-                    expiration=Duration.days(1),
-                    abort_incomplete_multipart_upload_after=Duration.days(1),
-                ),
-            ],
-            versioned=True,
-        )
-
         self.database = glue.Database(
             self,
             id="Glue Database",
             database_name="aws_sdk_pandas_cleanrooms",
-            location_uri=f"s3://{self.bucket.bucket_name}",
+            location_uri=f"s3://{bucket.bucket_name}",
         )
 
         self.users_table = glue.Table(
@@ -95,7 +75,7 @@ class CleanRoomsStack(Stack):  # type: ignore
                 glue.Column(name="user_id", type=glue.Type(input_string="int", is_primitive=True)),
                 glue.Column(name="city", type=glue.Type(input_string="string", is_primitive=True)),
             ],
-            bucket=self.bucket,
+            bucket=bucket,
             s3_prefix="users",
             data_format=glue.DataFormat(
                 input_format=glue.InputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"),
@@ -116,7 +96,7 @@ class CleanRoomsStack(Stack):  # type: ignore
                 glue.Column(name="user_id", type=glue.Type(input_string="int", is_primitive=True)),
                 glue.Column(name="sale_value", type=glue.Type(input_string="float", is_primitive=True)),
             ],
-            bucket=self.bucket,
+            bucket=bucket,
             s3_prefix="purchases",
             data_format=glue.DataFormat(
                 input_format=glue.InputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"),
@@ -136,7 +116,7 @@ class CleanRoomsStack(Stack):  # type: ignore
                 glue.Column(name="a", type=glue.Type(input_string="int", is_primitive=True)),
                 glue.Column(name="b", type=glue.Type(input_string="string", is_primitive=True)),
             ],
-            bucket=self.bucket,
+            bucket=bucket,
             s3_prefix="custom",
             data_format=glue.DataFormat(
                 input_format=glue.InputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"),
@@ -304,11 +284,3 @@ class CleanRoomsStack(Stack):  # type: ignore
         CfnOutput(self, "CleanRoomsMembershipId", value=self.membership.attr_membership_identifier)
         CfnOutput(self, "CleanRoomsAnalysisTemplateArn", value=self.analysis_template.attr_arn)
         CfnOutput(self, "CleanRoomsGlueDatabaseName", value=self.database.database_name)
-        CfnOutput(self, "CleanRoomsS3BucketName", value=self.bucket.bucket_name)
-
-        ssm.StringParameter(
-            self,
-            "SSM BucketName",
-            parameter_name="/sdk-pandas/cleanrooms/BucketName",
-            string_value=self.bucket.bucket_name,
-        )

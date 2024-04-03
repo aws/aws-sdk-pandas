@@ -1,4 +1,5 @@
 """Ray PandasTextDatasink Module."""
+
 from __future__ import annotations
 
 import io
@@ -7,7 +8,7 @@ from typing import Any, Callable
 
 import pandas as pd
 from ray.data.block import BlockAccessor
-from ray.data.datasource.block_path_provider import BlockWritePathProvider
+from ray.data.datasource.filename_provider import FilenameProvider
 
 from awswrangler.distributed.ray.datasources.file_datasink import _BlockFileDatasink
 
@@ -23,7 +24,7 @@ class _PandasTextDatasink(_BlockFileDatasink):
         file_format: str,
         write_text_func: Callable[..., None] | None,
         *,
-        block_path_provider: BlockWritePathProvider | None = None,
+        filename_provider: FilenameProvider | None = None,
         dataset_uuid: str | None = None,
         open_s3_object_args: dict[str, Any] | None = None,
         pandas_kwargs: dict[str, Any] | None = None,
@@ -32,7 +33,7 @@ class _PandasTextDatasink(_BlockFileDatasink):
         super().__init__(
             path,
             file_format=file_format,
-            block_path_provider=block_path_provider,
+            filename_provider=filename_provider,
             dataset_uuid=dataset_uuid,
             open_s3_object_args=open_s3_object_args,
             pandas_kwargs=pandas_kwargs,
@@ -62,7 +63,7 @@ class PandasCSVDatasink(_PandasTextDatasink):
         self,
         path: str,
         *,
-        block_path_provider: BlockWritePathProvider | None = None,
+        filename_provider: FilenameProvider | None = None,
         dataset_uuid: str | None = None,
         open_s3_object_args: dict[str, Any] | None = None,
         pandas_kwargs: dict[str, Any] | None = None,
@@ -72,7 +73,7 @@ class PandasCSVDatasink(_PandasTextDatasink):
             path,
             "csv",
             pd.DataFrame.to_csv,
-            block_path_provider=block_path_provider,
+            filename_provider=filename_provider,
             dataset_uuid=dataset_uuid,
             open_s3_object_args=open_s3_object_args,
             pandas_kwargs=pandas_kwargs,
@@ -87,7 +88,7 @@ class PandasJSONDatasink(_PandasTextDatasink):
         self,
         path: str,
         *,
-        block_path_provider: BlockWritePathProvider | None = None,
+        filename_provider: FilenameProvider | None = None,
         dataset_uuid: str | None = None,
         open_s3_object_args: dict[str, Any] | None = None,
         pandas_kwargs: dict[str, Any] | None = None,
@@ -97,7 +98,7 @@ class PandasJSONDatasink(_PandasTextDatasink):
             path,
             "json",
             pd.DataFrame.to_json,
-            block_path_provider=block_path_provider,
+            filename_provider=filename_provider,
             dataset_uuid=dataset_uuid,
             open_s3_object_args=open_s3_object_args,
             pandas_kwargs=pandas_kwargs,

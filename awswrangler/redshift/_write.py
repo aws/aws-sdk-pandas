@@ -1,4 +1,5 @@
 """Amazon Redshift Write Module (PRIVATE)."""
+
 from __future__ import annotations
 
 import logging
@@ -122,7 +123,7 @@ def to_sql(
         Dictionary of columns names and Redshift types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'VARCHAR(10)', 'col2 name': 'FLOAT'})
-        diststyle : str
+    diststyle : str
         Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"].
         https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
     distkey : str, optional

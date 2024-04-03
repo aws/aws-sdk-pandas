@@ -1,4 +1,5 @@
 """Amazon S3 Read Core Module (PRIVATE)."""
+
 from __future__ import annotations
 
 import logging

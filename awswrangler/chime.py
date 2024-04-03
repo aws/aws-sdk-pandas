@@ -1,6 +1,5 @@
 """Chime Message/Notification module."""
 
-
 from __future__ import annotations
 
 import json

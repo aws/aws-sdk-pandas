@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import typing
 import uuid
 from typing import Any, Dict, Literal, TypedDict, cast
@@ -95,10 +96,20 @@ def _determine_differences(
     dtype: dict[str, str] | None,
     catalog_id: str | None,
 ) -> tuple[_SchemaChanges, list[str]]:
+    if partition_cols:
+        # Remove columns using partition transform function,
+        # as they won't be found in the DataFrame or the Glue catalog.
+        # Examples include day(column_name) and truncate(10, column_name).
+        pattern = r"[A-Za-z0-9_]+\(.+\)"
+        partition_cols = [col for col in partition_cols if re.match(pattern, col) is None]
+
     frame_columns_types, frame_partitions_types = _data_types.athena_types_from_pandas_partitioned(
         df=df, index=index, partition_cols=partition_cols, dtype=dtype
     )
     frame_columns_types.update(frame_partitions_types)
+
+    # lowercase DataFrame columns, as all the column names from Athena will be lowercased
+    frame_columns_types = {k.lower(): v for k, v in frame_columns_types.items()}
 
     catalog_column_types = typing.cast(
         Dict[str, str],
@@ -233,6 +244,7 @@ def to_iceberg(
     merge_cols: list[str] | None = None,
     keep_files: bool = True,
     data_source: str | None = None,
+    s3_output: str | None = None,
     workgroup: str = "primary",
     mode: Literal["append", "overwrite", "overwrite_partitions"] = "append",
     encryption: str | None = None,
@@ -280,6 +292,8 @@ def to_iceberg(
         Whether staging files produced by Athena are retained. 'True' by default.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    s3_output : str, optional
+        Amazon S3 path used for query execution.
     workgroup : str
         Athena workgroup. Primary by default.
     mode: str
@@ -478,7 +492,11 @@ def to_iceberg(
                     VALUES ({', '.join([f'source."{x}"' for x in df.columns])})
             """
         else:
-            sql_statement = f'INSERT INTO "{database}"."{table}" SELECT * FROM "{database}"."{temp_table}"'
+            sql_statement = f"""
+            INSERT INTO "{database}"."{table}"
+            SELECT {', '.join([f'"{x}"' for x in df.columns])}
+              FROM "{database}"."{temp_table}"
+            """
 
         query_execution_id: str = _start_query_execution(
             sql=sql_statement,
@@ -486,6 +504,7 @@ def to_iceberg(
             wg_config=wg_config,
             database=database,
             data_source=data_source,
+            s3_output=s3_output,
             encryption=encryption,
             kms_key=kms_key,
             boto3_session=boto3_session,

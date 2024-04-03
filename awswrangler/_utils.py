@@ -29,6 +29,7 @@ from typing import (
 import boto3
 import botocore.credentials
 import numpy as np
+import numpy.core.numeric as _nx
 import pyarrow as pa
 from botocore.config import Config
 from packaging import version
@@ -51,7 +52,6 @@ if TYPE_CHECKING:
     from mypy_boto3_emr_serverless import EMRServerlessClient
     from mypy_boto3_glue import GlueClient
     from mypy_boto3_kms.client import KMSClient
-    from mypy_boto3_lakeformation.client import LakeFormationClient
     from mypy_boto3_logs.client import CloudWatchLogsClient
     from mypy_boto3_opensearch.client import OpenSearchServiceClient
     from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
@@ -75,7 +75,6 @@ if TYPE_CHECKING:
         "emr-serverless",
         "glue",
         "kms",
-        "lakeformation",
         "logs",
         "opensearch",
         "opensearchserverless",
@@ -268,8 +267,6 @@ def _get_endpoint_url(service_name: str) -> str | None:
         endpoint_url = _config.config.kms_endpoint_url
     elif service_name == "emr" and _config.config.emr_endpoint_url is not None:
         endpoint_url = _config.config.emr_endpoint_url
-    elif service_name == "lakeformation" and _config.config.lakeformation_endpoint_url is not None:
-        endpoint_url = _config.config.lakeformation_endpoint_url
     elif service_name == "dynamodb" and _config.config.dynamodb_endpoint_url is not None:
         endpoint_url = _config.config.dynamodb_endpoint_url
     elif service_name == "secretsmanager" and _config.config.secretsmanager_endpoint_url is not None:
@@ -288,8 +285,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "AthenaClient":
-    ...
+) -> "AthenaClient": ...
 
 
 @overload
@@ -298,18 +294,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "CleanRoomsServiceClient":
-    ...
-
-
-@overload
-def client(
-    service_name: 'Literal["lakeformation"]',
-    session: boto3.Session | None = None,
-    botocore_config: Config | None = None,
-    verify: str | bool | None = None,
-) -> "LakeFormationClient":
-    ...
+) -> "CleanRoomsServiceClient": ...
 
 
 @overload
@@ -318,8 +303,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "CloudWatchLogsClient":
-    ...
+) -> "CloudWatchLogsClient": ...
 
 
 @overload
@@ -328,8 +312,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "DynamoDBClient":
-    ...
+) -> "DynamoDBClient": ...
 
 
 @overload
@@ -338,8 +321,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "EC2Client":
-    ...
+) -> "EC2Client": ...
 
 
 @overload
@@ -348,8 +330,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "EMRClient":
-    ...
+) -> "EMRClient": ...
 
 
 @overload
@@ -358,8 +339,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "EMRServerlessClient":
-    ...
+) -> "EMRServerlessClient": ...
 
 
 @overload
@@ -368,8 +348,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "GlueClient":
-    ...
+) -> "GlueClient": ...
 
 
 @overload
@@ -378,8 +357,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "KMSClient":
-    ...
+) -> "KMSClient": ...
 
 
 @overload
@@ -388,8 +366,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "OpenSearchServiceClient":
-    ...
+) -> "OpenSearchServiceClient": ...
 
 
 @overload
@@ -398,8 +375,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "OpenSearchServiceServerlessClient":
-    ...
+) -> "OpenSearchServiceServerlessClient": ...
 
 
 @overload
@@ -408,8 +384,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "QuickSightClient":
-    ...
+) -> "QuickSightClient": ...
 
 
 @overload
@@ -418,8 +393,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "RDSDataServiceClient":
-    ...
+) -> "RDSDataServiceClient": ...
 
 
 @overload
@@ -428,8 +402,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "RedshiftClient":
-    ...
+) -> "RedshiftClient": ...
 
 
 @overload
@@ -438,8 +411,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "RedshiftDataAPIServiceClient":
-    ...
+) -> "RedshiftDataAPIServiceClient": ...
 
 
 @overload
@@ -448,8 +420,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "S3Client":
-    ...
+) -> "S3Client": ...
 
 
 @overload
@@ -458,8 +429,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "SecretsManagerClient":
-    ...
+) -> "SecretsManagerClient": ...
 
 
 @overload
@@ -468,8 +438,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "STSClient":
-    ...
+) -> "STSClient": ...
 
 
 @overload
@@ -478,8 +447,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "TimestreamQueryClient":
-    ...
+) -> "TimestreamQueryClient": ...
 
 
 @overload
@@ -488,8 +456,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "TimestreamWriteClient":
-    ...
+) -> "TimestreamWriteClient": ...
 
 
 @overload
@@ -498,8 +465,7 @@ def client(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "BaseClient":
-    ...
+) -> "BaseClient": ...
 
 
 @apply_configs
@@ -526,8 +492,7 @@ def resource(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "DynamoDBServiceResource":
-    ...
+) -> "DynamoDBServiceResource": ...
 
 
 @overload
@@ -536,8 +501,7 @@ def resource(
     session: boto3.Session | None = None,
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
-) -> "S3ServiceResource":
-    ...
+) -> "S3ServiceResource": ...
 
 
 @apply_configs
@@ -889,7 +853,18 @@ def check_schema_changes(columns_types: dict[str, str], table_input: dict[str, A
 @engine.dispatch_on_engine
 def split_pandas_frame(df: pd.DataFrame, splits: int) -> list[pd.DataFrame]:
     """Split a DataFrame into n chunks."""
-    return [sub_df for sub_df in np.array_split(df, splits) if not sub_df.empty]  # type: ignore[attr-defined]
+    # Logic obtained from np.array_split definition
+    total = len(df)
+    each_section, extras = divmod(total, splits)
+    section_sizes = [0] + extras * [each_section + 1] + (splits - extras) * [each_section]
+    div_points = _nx.array(section_sizes, dtype=_nx.intp).cumsum()  # type: ignore[attr-defined]
+
+    sub_dfs = []
+    for i in range(splits):
+        sub_df = df.iloc[div_points[i] : div_points[i + 1]]
+        if not sub_df.empty:
+            sub_dfs.append(sub_df)
+    return sub_dfs
 
 
 @engine.dispatch_on_engine

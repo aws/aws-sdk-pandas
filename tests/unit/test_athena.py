@@ -576,8 +576,19 @@ def test_athena_time_zone(glue_database):
     assert df["value"][0].year == datetime.datetime.utcnow().year
 
 
-@pytest.mark.xfail(raises=NotImplementedError, reason="Unable to create pandas categorical from pyarrow table")
-def test_category(path, glue_table, glue_database):
+@pytest.mark.parametrize(
+    "ctas_approach",
+    [
+        pytest.param(False),
+        pytest.param(
+            True,
+            marks=pytest.mark.xfail(
+                raises=NotImplementedError, reason="Unable to create pandas categorical from pyarrow table"
+            ),
+        ),
+    ],
+)
+def test_category(path: str, glue_table: str, glue_database: str, ctas_approach: bool) -> None:
     df = get_df_category()
     wr.s3.to_parquet(
         df=df,
@@ -588,37 +599,42 @@ def test_category(path, glue_table, glue_database):
         mode="overwrite",
         partition_cols=["par0", "par1"],
     )
-    df2 = wr.s3.read_parquet(
+
+    df2 = wr.athena.read_sql_query(
+        f"SELECT * FROM {glue_table}", database=glue_database, categories=list(df.columns), ctas_approach=ctas_approach
+    )
+    ensure_data_types_category(df2)
+
+
+@pytest.mark.parametrize(
+    "ctas_approach",
+    [
+        pytest.param(False),
+        pytest.param(
+            True,
+            marks=pytest.mark.xfail(
+                raises=NotImplementedError, reason="Unable to create pandas categorical from pyarrow table"
+            ),
+        ),
+    ],
+)
+def test_category_chunked(path: str, glue_table: str, glue_database: str, ctas_approach: bool) -> None:
+    df = get_df_category()
+    wr.s3.to_parquet(
+        df=df,
         path=path,
         dataset=True,
-        pyarrow_additional_kwargs={
-            "categories": [c for c in df.columns if c not in ["par0", "par1"]],
-            "strings_to_categorical": True,
-        },
+        database=glue_database,
+        table=glue_table,
+        mode="overwrite",
+        partition_cols=["par0", "par1"],
     )
-    ensure_data_types_category(df2)
-    df2 = wr.athena.read_sql_query(f"SELECT * FROM {glue_table}", database=glue_database, categories=list(df.columns))
-    ensure_data_types_category(df2)
-    df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database, categories=list(df.columns))
-    ensure_data_types_category(df2)
-    df2 = wr.athena.read_sql_query(
-        f"SELECT * FROM {glue_table}", database=glue_database, categories=list(df.columns), ctas_approach=False
-    )
-    ensure_data_types_category(df2)
+
     dfs = wr.athena.read_sql_query(
         f"SELECT * FROM {glue_table}",
         database=glue_database,
         categories=list(df.columns),
-        ctas_approach=False,
-        chunksize=1,
-    )
-    for df2 in dfs:
-        ensure_data_types_category(df2)
-    dfs = wr.athena.read_sql_query(
-        f"SELECT * FROM {glue_table}",
-        database=glue_database,
-        categories=list(df.columns),
-        ctas_approach=True,
+        ctas_approach=ctas_approach,
         chunksize=1,
     )
     for df2 in dfs:
@@ -1410,10 +1426,10 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
     assert query == create_view
 
 
-def test_get_query_execution(workgroup0, workgroup1):
-    query_execution_ids = wr.athena.list_query_executions(workgroup=workgroup0) + wr.athena.list_query_executions(
-        workgroup=workgroup1
-    )
+def test_get_query_execution(workgroup0: str, workgroup1: str):
+    query_execution_ids = wr.athena.list_query_executions(
+        workgroup=workgroup0, max_results=10
+    ) + wr.athena.list_query_executions(workgroup=workgroup1, max_results=10)
     assert query_execution_ids
     query_execution_detail = wr.athena.get_query_execution(query_execution_id=query_execution_ids[0])
     query_executions_df = wr.athena.get_query_executions(query_execution_ids)
@@ -1434,7 +1450,7 @@ def test_list_query_executions_max_results(workgroup0: str, max_results: int):
     for _ in range(max_results + 1):
         wr.athena.start_query_execution(sql="SELECT random(10)", workgroup=workgroup0, wait=False)
 
-    query_execution_ids = wr.athena.list_query_executions(workgroup=workgroup0)
+    query_execution_ids = wr.athena.list_query_executions(workgroup=workgroup0, max_results=max_results + 1)
     assert len(query_execution_ids) > max_results
 
     query_execution_ids_max_results = wr.athena.list_query_executions(workgroup=workgroup0, max_results=max_results)
