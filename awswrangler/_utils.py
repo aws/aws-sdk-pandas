@@ -62,6 +62,7 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client, S3ServiceResource
     from mypy_boto3_secretsmanager import SecretsManagerClient
     from mypy_boto3_sts.client import STSClient
+    from mypy_boto3_timestream_influxdb.client import TimestreamInfluxDBClient
     from mypy_boto3_timestream_query.client import TimestreamQueryClient
     from mypy_boto3_timestream_write.client import TimestreamWriteClient
     from typing_extensions import Literal
@@ -85,6 +86,7 @@ if TYPE_CHECKING:
         "s3",
         "secretsmanager",
         "sts",
+        "timestream-influxdb",
         "timestream-query",
         "timestream-write",
     ]
@@ -456,6 +458,15 @@ def client(
     botocore_config: Config | None = None,
     verify: str | bool | None = None,
 ) -> "TimestreamWriteClient": ...
+
+
+@overload
+def client(
+    service_name: 'Literal["timestream-influxdb"]',
+    session: boto3.Session | None = None,
+    botocore_config: Config | None = None,
+    verify: str | bool | None = None,
+) -> "TimestreamInfluxDBClient": ...
 
 
 @overload
