@@ -493,7 +493,7 @@ def to_iceberg(
             """
         else:
             sql_statement = f"""
-            INSERT INTO "{database}"."{table}"
+            INSERT INTO "{database}"."{table}" ({', '.join([f'"{x}"' for x in df.columns])})
             SELECT {', '.join([f'"{x}"' for x in df.columns])}
               FROM "{database}"."{temp_table}"
             """

@@ -650,6 +650,58 @@ def test_athena_to_iceberg_merge_into(path: str, path2: str, glue_database: str,
     assert_pandas_equals(df_expected, df_out)
 
 
+def test_athena_to_iceberg_cols_order(path: str, path2: str, glue_database: str, glue_table: str) -> None:
+    kwargs = {
+        "database": glue_database,
+        "table": glue_table,
+        "table_location": path,
+        "temp_path": path2,
+        "partition_cols": ["partition"],
+        "schema_evolution": True,
+        "keep_files": False,
+    }
+
+    df = pd.DataFrame(
+        {
+            "partition": [1, 1, 2, 2],
+            "column1": ["X", "Y", "Z", "Z"],
+            "column2": ["A", "B", "C", "D"],
+        }
+    )
+    wr.athena.to_iceberg(df=df, mode="overwrite_partitions", **kwargs)
+
+    # Adding a column
+    df_new_col_last = pd.DataFrame(
+        {
+            "partition": [2, 2],
+            "column1": ["Z", "Z"],
+            "column2": ["C", "D"],
+            "new_column": [True, False],
+        }
+    )
+    wr.athena.to_iceberg(df=df_new_col_last, mode="overwrite_partitions", **kwargs)
+
+    # Switching the order of columns
+    df_new_col_not_last = pd.DataFrame(
+        {
+            "partition": [2, 2],
+            "column1": ["Z", "Z"],
+            "new_column": [True, False],
+            "column2": ["C", "D"],
+        }
+    )
+    wr.athena.to_iceberg(df=df_new_col_not_last, mode="overwrite_partitions", **kwargs)
+
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}"',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+    assert len(df) == len(df_out)
+    assert len(df.columns) + 1 == len(df_out.columns)
+
+
 def test_athena_to_iceberg_empty_df_error(
     path: str,
     path2: str,
