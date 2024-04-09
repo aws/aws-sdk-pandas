@@ -193,16 +193,6 @@ the *Python library path* field.
 
 `Official Glue Python Shell Reference <https://docs.aws.amazon.com/glue/latest/dg/add-job-python.html#create-python-extra-library>`_
 
-AWS Glue for Ray Jobs
-----------------------
-
-Go to your Glue for Ray job and create a new *Job parameters* key/value:
-
-* Key: ``--pip-install``
-* Value: ``awswrangler[modin]``
-
-`Official Glue for Ray Reference <https://docs.aws.amazon.com/glue/latest/dg/author-job-ray-python-libraries.html>`_
-
 AWS Glue PySpark Jobs
 ---------------------
 
