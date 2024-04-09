@@ -2012,6 +2012,30 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-mypy", "pytest-ruff (>=0.2.1)", "zipp (>=3.17)"]
 
 [[package]]
+name = "influxdb3-python"
+version = "0.3.6"
+description = "Community Python client for InfluxDB 3.0"
+optional = true
+python-versions = ">=3.7"
+files = [
+    {file = "influxdb3-python-0.3.6.tar.gz", hash = "sha256:b79ab41d5dbf2348832ea7a3b5ae354cefb4630e7f44b49704b234cd6d58699b"},
+    {file = "influxdb3_python-0.3.6-py3-none-any.whl", hash = "sha256:ca9837e2c6f77207e4042cd23da19e9ed01aa88d5120e4e6ea45ec9abe7772c8"},
+]
+
+[package.dependencies]
+certifi = ">=14.05.14"
+pyarrow = ">=8.0.0"
+python-dateutil = ">=2.5.3"
+reactivex = ">=4.0.4"
+setuptools = ">=21.0.0"
+urllib3 = ">=1.26.0"
+
+[package.extras]
+dataframe = ["pandas", "polars"]
+pandas = ["pandas"]
+polars = ["polars"]
+
+[[package]]
 name = "iniconfig"
 version = "2.0.0"
 description = "brain-dead simple config-ini parsing"
@@ -5059,6 +5083,20 @@ lxml = ["lxml (>=4.3.0,<5.0.0)"]
 networkx = ["networkx (>=2.0.0,<3.0.0)"]
 
 [[package]]
+name = "reactivex"
+version = "4.0.4"
+description = "ReactiveX (Rx) for Python"
+optional = true
+python-versions = ">=3.7,<4.0"
+files = [
+    {file = "reactivex-4.0.4-py3-none-any.whl", hash = "sha256:0004796c420bd9e68aad8e65627d85a8e13f293de76656165dffbcb3a0e3fb6a"},
+    {file = "reactivex-4.0.4.tar.gz", hash = "sha256:e912e6591022ab9176df8348a653fe8c8fa7a301f26f9931c9d8c78a650e04e8"},
+]
+
+[package.dependencies]
+typing-extensions = ">=4.1.1,<5.0.0"
+
+[[package]]
 name = "redshift-connector"
 version = "2.1.0"
 description = "Redshift interface library"
@@ -6313,6 +6351,7 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 deltalake = ["deltalake"]
 geopandas = ["geopandas", "geopandas"]
 gremlin = ["aiohttp", "async-timeout", "gremlinpython", "requests"]
+influxdb = ["influxdb3-python"]
 modin = ["modin", "modin"]
 mysql = ["pymysql"]
 opencypher = ["requests"]
@@ -6329,4 +6368,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "8acedff103cc4d2bba8dac7e317f20b45971a045c6b0283b238e51e661208ca7"
+content-hash = "230e8fc6946497a4cde158afbc74da44d8c5b86b3bc6a228d78d6446471e839e"
