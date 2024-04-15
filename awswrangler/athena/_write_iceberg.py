@@ -477,8 +477,7 @@ def to_iceberg(
                 kms_key=kms_key,
                 boto3_session=boto3_session,
             )
-            wait_query(query_execution_id=delete_query_execution_id,
-                       boto3_session=boto3_session)
+            wait_query(query_execution_id=delete_query_execution_id, boto3_session=boto3_session)
 
         # Create temporary external table, write the results
         s3.to_parquet(
