@@ -899,6 +899,10 @@ def list_to_arrow_table(
         names = []
         if mapping:
             names = list(mapping[0].keys())
+            for row in mapping:
+                for k in row.keys():
+                    if k not in names:
+                        names.append(k)
         for n in names:
             v = [row[n] if n in row else None for row in mapping]
             arrays.append(v)
