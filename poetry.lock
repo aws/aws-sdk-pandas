@@ -35,20 +35,21 @@ test = ["duckdb", "pandas", "pyarrow (>=8.0.0)", "pytest"]
 
 [[package]]
 name = "adbc-driver-postgresql"
-version = "0.10.0"
+version = "0.11.0"
 description = "A libpq-based ADBC driver for working with PostgreSQL."
 optional = true
-python-versions = ">=3.9"
+python-versions = ">=3.8"
 files = [
-    {file = "adbc_driver_postgresql-0.10.0-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:727fc6852bd504deda6a03c6b77aa1a788ba9485012f043fd9b647476f9c0501"},
-    {file = "adbc_driver_postgresql-0.10.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:9cc41c581c1c13899ff92c196ce23bc8287cb069524271d60bedeabb824a89b2"},
-    {file = "adbc_driver_postgresql-0.10.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6bcd69ce87186bd827c9f9f459af0523d5cf14a135ea28baf313d5a9c8749fd8"},
-    {file = "adbc_driver_postgresql-0.10.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:28baf681f539fbaa9f6b192a69025b5b4f218c5172c8fc8e27fd3a4570aeda71"},
-    {file = "adbc_driver_postgresql-0.10.0-py3-none-win_amd64.whl", hash = "sha256:1bea75ced7d0bfa0672ebfc0fd051246d728a3dc77b5d2f8cdd9d4980541b904"},
+    {file = "adbc_driver_postgresql-0.11.0-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:2b647623cb81e3820369ef73ad6cf2ff75cf243664a6762fb262626404bcbc46"},
+    {file = "adbc_driver_postgresql-0.11.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:e6dfaf56092f21282781ee389aefee66c4e02066258c1ebdae1b826eea61098f"},
+    {file = "adbc_driver_postgresql-0.11.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:628876dbdcea3e22b43d13f3a0221de1634882307168f67e0f65dd18f9a1c901"},
+    {file = "adbc_driver_postgresql-0.11.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2ea34271dd0e5e2816c97ecb2fa2fc7f796d89dd33fb7bf9750b57545f5724ba"},
+    {file = "adbc_driver_postgresql-0.11.0-py3-none-win_amd64.whl", hash = "sha256:e469332c22b7f8ab4f6af141fa0264fb999ab051b867c125e6db3caf1c488a3b"},
 ]
 
 [package.dependencies]
 adbc-driver-manager = "*"
+importlib-resources = ">=1.3"
 
 [package.extras]
 dbapi = ["pandas", "pyarrow (>=8.0.0)"]
@@ -6375,4 +6376,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "923143281a61b40878fdc2232598514536c5b21ec175b4d4d04f17a6ec80ece8"
+content-hash = "7c68a076b8e79413d3ffc84638d51ae4371d5d2a1c014c2ecdaf90abae153c5d"
