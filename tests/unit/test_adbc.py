@@ -58,6 +58,9 @@ def test_to_sql_simple(adbc_con: dbapi.Connection, table: str) -> None:
 
 def test_read_write_equality(adbc_con: dbapi.Connection, table: str) -> None:
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["c1"] = df["c1"].astype("string")
+
     wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="replace")
 
     df_out = wr.adbc.read_sql_table(table=table, con=adbc_con, schema="public")
