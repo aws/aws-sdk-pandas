@@ -2,585 +2,585 @@
 AWS Lambda Managed Layers
 ==========================
 
-Version 3.7.2
+Version 3.7.3
 ^^^^^^^^^^^^^^
 
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
 | AWS Region     | Python | Arch  | Layer Arn                                                                         |
 +================+========+=======+===================================================================================+
-| af-south-1     | 3.10   | x86_64| arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python310:14            |
+| af-south-1     | 3.10   | x86_64| arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python310:15            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| af-south-1     | 3.10   | arm64 | arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14      |
+| af-south-1     | 3.10   | arm64 | arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| af-south-1     | 3.11   | x86_64| arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python311:11            |
+| af-south-1     | 3.11   | x86_64| arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python311:12            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| af-south-1     | 3.11   | arm64 | arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11      |
+| af-south-1     | 3.11   | arm64 | arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| af-south-1     | 3.12   | x86_64| arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python312:7             |
+| af-south-1     | 3.12   | x86_64| arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python312:8             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| af-south-1     | 3.12   | arm64 | arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7       |
+| af-south-1     | 3.12   | arm64 | arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| af-south-1     | 3.8    | x86_64| arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python38:19             |
+| af-south-1     | 3.8    | x86_64| arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python38:20             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| af-south-1     | 3.8    | arm64 | arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:19       |
+| af-south-1     | 3.8    | arm64 | arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:20       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| af-south-1     | 3.9    | x86_64| arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python39:19             |
+| af-south-1     | 3.9    | x86_64| arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python39:20             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| af-south-1     | 3.9    | arm64 | arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:19       |
+| af-south-1     | 3.9    | arm64 | arn:aws:lambda:af-south-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:20       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.10   | x86_64| arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python310:14        |
+| ap-northeast-1 | 3.10   | x86_64| arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python310:15        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.10   | arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14  |
+| ap-northeast-1 | 3.10   | arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.11   | x86_64| arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python311:11        |
+| ap-northeast-1 | 3.11   | x86_64| arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python311:12        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.11   | arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11  |
+| ap-northeast-1 | 3.11   | arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.12   | x86_64| arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python312:7         |
+| ap-northeast-1 | 3.12   | x86_64| arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python312:8         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.12   | arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7   |
+| ap-northeast-1 | 3.12   | arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.8    | x86_64| arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python38:19         |
+| ap-northeast-1 | 3.8    | x86_64| arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python38:20         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.8    | arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:19   |
+| ap-northeast-1 | 3.8    | arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:20   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.9    | x86_64| arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python39:19         |
+| ap-northeast-1 | 3.9    | x86_64| arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python39:20         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.9    | arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:19   |
+| ap-northeast-1 | 3.9    | arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:20   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.10   | x86_64| arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python310:14        |
+| ap-northeast-2 | 3.10   | x86_64| arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python310:15        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.10   | arm64 | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python310-Arm64:14  |
+| ap-northeast-2 | 3.10   | arm64 | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python310-Arm64:15  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.11   | x86_64| arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python311:11        |
+| ap-northeast-2 | 3.11   | x86_64| arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python311:12        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.11   | arm64 | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python311-Arm64:11  |
+| ap-northeast-2 | 3.11   | arm64 | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python311-Arm64:12  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.12   | x86_64| arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python312:7         |
+| ap-northeast-2 | 3.12   | x86_64| arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python312:8         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.12   | arm64 | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python312-Arm64:7   |
+| ap-northeast-2 | 3.12   | arm64 | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python312-Arm64:8   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.8    | x86_64| arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python38:21         |
+| ap-northeast-2 | 3.8    | x86_64| arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python38:22         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.8    | arm64 | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python38-Arm64:15   |
+| ap-northeast-2 | 3.8    | arm64 | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python38-Arm64:16   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.9    | x86_64| arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python39:21         |
+| ap-northeast-2 | 3.9    | x86_64| arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python39:22         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.9    | arm64 | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python39-Arm64:15   |
+| ap-northeast-2 | 3.9    | arm64 | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSSDKPandas-Python39-Arm64:16   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.10   | x86_64| arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python310:14        |
+| ap-northeast-3 | 3.10   | x86_64| arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python310:15        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.10   | arm64 | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python310-Arm64:14  |
+| ap-northeast-3 | 3.10   | arm64 | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python310-Arm64:15  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.11   | x86_64| arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python311:11        |
+| ap-northeast-3 | 3.11   | x86_64| arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python311:12        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.11   | arm64 | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python311-Arm64:11  |
+| ap-northeast-3 | 3.11   | arm64 | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python311-Arm64:12  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.12   | x86_64| arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python312:7         |
+| ap-northeast-3 | 3.12   | x86_64| arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python312:8         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.12   | arm64 | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python312-Arm64:7   |
+| ap-northeast-3 | 3.12   | arm64 | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python312-Arm64:8   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.8    | x86_64| arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python38:21         |
+| ap-northeast-3 | 3.8    | x86_64| arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python38:22         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.8    | arm64 | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python38-Arm64:15   |
+| ap-northeast-3 | 3.8    | arm64 | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python38-Arm64:16   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.9    | x86_64| arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python39:21         |
+| ap-northeast-3 | 3.9    | x86_64| arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python39:22         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.9    | arm64 | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python39-Arm64:15   |
+| ap-northeast-3 | 3.9    | arm64 | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSSDKPandas-Python39-Arm64:16   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.10   | x86_64| arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python310:14            |
+| ap-south-1     | 3.10   | x86_64| arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python310:15            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.10   | arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14      |
+| ap-south-1     | 3.10   | arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.11   | x86_64| arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python311:11            |
+| ap-south-1     | 3.11   | x86_64| arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python311:12            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.11   | arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11      |
+| ap-south-1     | 3.11   | arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.12   | x86_64| arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python312:7             |
+| ap-south-1     | 3.12   | x86_64| arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python312:8             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.12   | arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7       |
+| ap-south-1     | 3.12   | arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.8    | x86_64| arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python38:19             |
+| ap-south-1     | 3.8    | x86_64| arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python38:20             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.8    | arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:19       |
+| ap-south-1     | 3.8    | arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:20       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.9    | x86_64| arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python39:19             |
+| ap-south-1     | 3.9    | x86_64| arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python39:20             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.9    | arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:19       |
+| ap-south-1     | 3.9    | arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:20       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.10   | x86_64| arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python310:14        |
+| ap-southeast-1 | 3.10   | x86_64| arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python310:15        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.10   | arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14  |
+| ap-southeast-1 | 3.10   | arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.11   | x86_64| arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python311:11        |
+| ap-southeast-1 | 3.11   | x86_64| arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python311:12        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.11   | arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11  |
+| ap-southeast-1 | 3.11   | arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.12   | x86_64| arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python312:7         |
+| ap-southeast-1 | 3.12   | x86_64| arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python312:8         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.12   | arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7   |
+| ap-southeast-1 | 3.12   | arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.8    | x86_64| arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python38:19         |
+| ap-southeast-1 | 3.8    | x86_64| arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python38:20         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.8    | arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:19   |
+| ap-southeast-1 | 3.8    | arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:20   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.9    | x86_64| arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python39:19         |
+| ap-southeast-1 | 3.9    | x86_64| arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python39:20         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.9    | arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:19   |
+| ap-southeast-1 | 3.9    | arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:20   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.10   | x86_64| arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python310:14        |
+| ap-southeast-2 | 3.10   | x86_64| arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python310:15        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.10   | arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python310-Arm64:14  |
+| ap-southeast-2 | 3.10   | arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python310-Arm64:15  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.11   | x86_64| arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python311:11        |
+| ap-southeast-2 | 3.11   | x86_64| arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python311:12        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.11   | arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python311-Arm64:11  |
+| ap-southeast-2 | 3.11   | arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python311-Arm64:12  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.12   | x86_64| arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python312:7         |
+| ap-southeast-2 | 3.12   | x86_64| arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python312:8         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.12   | arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python312-Arm64:7   |
+| ap-southeast-2 | 3.12   | arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python312-Arm64:8   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.8    | x86_64| arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python38:19         |
+| ap-southeast-2 | 3.8    | x86_64| arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python38:20         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.8    | arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python38-Arm64:19   |
+| ap-southeast-2 | 3.8    | arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python38-Arm64:20   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.9    | x86_64| arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python39:19         |
+| ap-southeast-2 | 3.9    | x86_64| arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python39:20         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.9    | arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python39-Arm64:19   |
+| ap-southeast-2 | 3.9    | arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python39-Arm64:20   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.10   | x86_64| arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python310:14          |
+| ca-central-1   | 3.10   | x86_64| arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python310:15          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.10   | arm64 | arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14    |
+| ca-central-1   | 3.10   | arm64 | arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15    |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.11   | x86_64| arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python311:11          |
+| ca-central-1   | 3.11   | x86_64| arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python311:12          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.11   | arm64 | arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11    |
+| ca-central-1   | 3.11   | arm64 | arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12    |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.12   | x86_64| arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python312:7           |
+| ca-central-1   | 3.12   | x86_64| arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python312:8           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.12   | arm64 | arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7     |
+| ca-central-1   | 3.12   | arm64 | arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.8    | x86_64| arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python38:21           |
+| ca-central-1   | 3.8    | x86_64| arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python38:22           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.8    | arm64 | arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:15     |
+| ca-central-1   | 3.8    | arm64 | arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:16     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.9    | x86_64| arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python39:21           |
+| ca-central-1   | 3.9    | x86_64| arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python39:22           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.9    | arm64 | arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:15     |
+| ca-central-1   | 3.9    | arm64 | arn:aws:lambda:ca-central-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:16     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.10   | x86_64| arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python310:14          |
+| eu-central-1   | 3.10   | x86_64| arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python310:15          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.10   | arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14    |
+| eu-central-1   | 3.10   | arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15    |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.11   | x86_64| arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python311:11          |
+| eu-central-1   | 3.11   | x86_64| arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python311:12          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.11   | arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11    |
+| eu-central-1   | 3.11   | arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12    |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.12   | x86_64| arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python312:7           |
+| eu-central-1   | 3.12   | x86_64| arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python312:8           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.12   | arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7     |
+| eu-central-1   | 3.12   | arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.8    | x86_64| arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python38:19           |
+| eu-central-1   | 3.8    | x86_64| arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python38:20           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.8    | arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:19     |
+| eu-central-1   | 3.8    | arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:20     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.9    | x86_64| arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python39:19           |
+| eu-central-1   | 3.9    | x86_64| arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python39:20           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.9    | arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:19     |
+| eu-central-1   | 3.9    | arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:20     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.10   | x86_64| arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python310:14            |
+| eu-north-1     | 3.10   | x86_64| arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python310:15            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.10   | arm64 | arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14      |
+| eu-north-1     | 3.10   | arm64 | arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.11   | x86_64| arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python311:11            |
+| eu-north-1     | 3.11   | x86_64| arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python311:12            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.11   | arm64 | arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11      |
+| eu-north-1     | 3.11   | arm64 | arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.12   | x86_64| arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python312:7             |
+| eu-north-1     | 3.12   | x86_64| arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python312:8             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.12   | arm64 | arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7       |
+| eu-north-1     | 3.12   | arm64 | arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.8    | x86_64| arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python38:21             |
+| eu-north-1     | 3.8    | x86_64| arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python38:22             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.8    | arm64 | arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:15       |
+| eu-north-1     | 3.8    | arm64 | arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:16       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.9    | x86_64| arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python39:21             |
+| eu-north-1     | 3.9    | x86_64| arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python39:22             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.9    | arm64 | arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:15       |
+| eu-north-1     | 3.9    | arm64 | arn:aws:lambda:eu-north-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:16       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.10   | x86_64| arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python310:14             |
+| eu-west-1      | 3.10   | x86_64| arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python310:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.10   | arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14       |
+| eu-west-1      | 3.10   | arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.11   | x86_64| arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python311:11             |
+| eu-west-1      | 3.11   | x86_64| arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python311:12             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.11   | arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11       |
+| eu-west-1      | 3.11   | arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.12   | x86_64| arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python312:7              |
+| eu-west-1      | 3.12   | x86_64| arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python312:8              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.12   | arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7        |
+| eu-west-1      | 3.12   | arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.8    | x86_64| arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python38:19              |
+| eu-west-1      | 3.8    | x86_64| arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python38:20              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.8    | arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:20        |
+| eu-west-1      | 3.8    | arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:21        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.9    | x86_64| arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python39:19              |
+| eu-west-1      | 3.9    | x86_64| arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python39:20              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.9    | arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:19        |
+| eu-west-1      | 3.9    | arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:20        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.10   | x86_64| arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python310:14             |
+| eu-west-2      | 3.10   | x86_64| arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python310:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.10   | arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python310-Arm64:14       |
+| eu-west-2      | 3.10   | arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python310-Arm64:15       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.11   | x86_64| arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python311:11             |
+| eu-west-2      | 3.11   | x86_64| arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python311:12             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.11   | arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python311-Arm64:11       |
+| eu-west-2      | 3.11   | arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python311-Arm64:12       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.12   | x86_64| arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python312:7              |
+| eu-west-2      | 3.12   | x86_64| arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python312:8              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.12   | arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python312-Arm64:7        |
+| eu-west-2      | 3.12   | arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python312-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.8    | x86_64| arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python38:19              |
+| eu-west-2      | 3.8    | x86_64| arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python38:20              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.8    | arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python38-Arm64:19        |
+| eu-west-2      | 3.8    | arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python38-Arm64:20        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.9    | x86_64| arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python39:19              |
+| eu-west-2      | 3.9    | x86_64| arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python39:20              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.9    | arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python39-Arm64:19        |
+| eu-west-2      | 3.9    | arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python39-Arm64:20        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.10   | x86_64| arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python310:14             |
+| eu-west-3      | 3.10   | x86_64| arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python310:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.10   | arm64 | arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python310-Arm64:14       |
+| eu-west-3      | 3.10   | arm64 | arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python310-Arm64:15       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.11   | x86_64| arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python311:11             |
+| eu-west-3      | 3.11   | x86_64| arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python311:12             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.11   | arm64 | arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python311-Arm64:11       |
+| eu-west-3      | 3.11   | arm64 | arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python311-Arm64:12       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.12   | x86_64| arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python312:7              |
+| eu-west-3      | 3.12   | x86_64| arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python312:8              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.12   | arm64 | arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python312-Arm64:7        |
+| eu-west-3      | 3.12   | arm64 | arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python312-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.8    | x86_64| arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python38:21              |
+| eu-west-3      | 3.8    | x86_64| arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python38:22              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.8    | arm64 | arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python38-Arm64:15        |
+| eu-west-3      | 3.8    | arm64 | arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python38-Arm64:16        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.9    | x86_64| arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python39:21              |
+| eu-west-3      | 3.9    | x86_64| arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python39:22              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.9    | arm64 | arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python39-Arm64:15        |
+| eu-west-3      | 3.9    | arm64 | arn:aws:lambda:eu-west-3:336392948345:layer:AWSSDKPandas-Python39-Arm64:16        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.10   | x86_64| arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python310:14             |
+| sa-east-1      | 3.10   | x86_64| arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python310:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.10   | arm64 | arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14       |
+| sa-east-1      | 3.10   | arm64 | arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.11   | x86_64| arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python311:11             |
+| sa-east-1      | 3.11   | x86_64| arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python311:12             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.11   | arm64 | arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11       |
+| sa-east-1      | 3.11   | arm64 | arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.12   | x86_64| arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python312:7              |
+| sa-east-1      | 3.12   | x86_64| arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python312:8              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.12   | arm64 | arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7        |
+| sa-east-1      | 3.12   | arm64 | arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.8    | x86_64| arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python38:21              |
+| sa-east-1      | 3.8    | x86_64| arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python38:22              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.8    | arm64 | arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:15        |
+| sa-east-1      | 3.8    | arm64 | arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:16        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.9    | x86_64| arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python39:21              |
+| sa-east-1      | 3.9    | x86_64| arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python39:22              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.9    | arm64 | arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:15        |
+| sa-east-1      | 3.9    | arm64 | arn:aws:lambda:sa-east-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:16        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.10   | x86_64| arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python310:14             |
+| us-east-1      | 3.10   | x86_64| arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python310:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.10   | arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14       |
+| us-east-1      | 3.10   | arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.11   | x86_64| arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311:11             |
+| us-east-1      | 3.11   | x86_64| arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311:12             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.11   | arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11       |
+| us-east-1      | 3.11   | arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.12   | x86_64| arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312:7              |
+| us-east-1      | 3.12   | x86_64| arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312:8              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.12   | arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7        |
+| us-east-1      | 3.12   | arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.8    | x86_64| arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python38:19              |
+| us-east-1      | 3.8    | x86_64| arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python38:20              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.8    | arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:19        |
+| us-east-1      | 3.8    | arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:20        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.9    | x86_64| arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python39:19              |
+| us-east-1      | 3.9    | x86_64| arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python39:20              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.9    | arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:19        |
+| us-east-1      | 3.9    | arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:20        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.10   | x86_64| arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python310:14             |
+| us-east-2      | 3.10   | x86_64| arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python310:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.10   | arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python310-Arm64:14       |
+| us-east-2      | 3.10   | arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python310-Arm64:15       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.11   | x86_64| arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python311:11             |
+| us-east-2      | 3.11   | x86_64| arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python311:12             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.11   | arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python311-Arm64:11       |
+| us-east-2      | 3.11   | arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python311-Arm64:12       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.12   | x86_64| arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python312:7              |
+| us-east-2      | 3.12   | x86_64| arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python312:8              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.12   | arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python312-Arm64:7        |
+| us-east-2      | 3.12   | arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python312-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.8    | x86_64| arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python38:19              |
+| us-east-2      | 3.8    | x86_64| arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python38:20              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.8    | arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python38-Arm64:19        |
+| us-east-2      | 3.8    | arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python38-Arm64:20        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.9    | x86_64| arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python39:19              |
+| us-east-2      | 3.9    | x86_64| arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python39:20              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.9    | arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python39-Arm64:19        |
+| us-east-2      | 3.9    | arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python39-Arm64:20        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.10   | x86_64| arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python310:14             |
+| us-west-1      | 3.10   | x86_64| arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python310:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.10   | arm64 | arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:14       |
+| us-west-1      | 3.10   | arm64 | arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python310-Arm64:15       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.11   | x86_64| arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python311:11             |
+| us-west-1      | 3.11   | x86_64| arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python311:12             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.11   | arm64 | arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:11       |
+| us-west-1      | 3.11   | arm64 | arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:12       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.12   | x86_64| arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python312:7              |
+| us-west-1      | 3.12   | x86_64| arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python312:8              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.12   | arm64 | arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:7        |
+| us-west-1      | 3.12   | arm64 | arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python312-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.8    | x86_64| arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python38:22              |
+| us-west-1      | 3.8    | x86_64| arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python38:23              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.8    | arm64 | arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:15        |
+| us-west-1      | 3.8    | arm64 | arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python38-Arm64:16        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.9    | x86_64| arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python39:21              |
+| us-west-1      | 3.9    | x86_64| arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python39:22              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.9    | arm64 | arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:15        |
+| us-west-1      | 3.9    | arm64 | arn:aws:lambda:us-west-1:336392948345:layer:AWSSDKPandas-Python39-Arm64:16        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.10   | x86_64| arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python310:14             |
+| us-west-2      | 3.10   | x86_64| arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python310:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.10   | arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python310-Arm64:14       |
+| us-west-2      | 3.10   | arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python310-Arm64:15       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.11   | x86_64| arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python311:11             |
+| us-west-2      | 3.11   | x86_64| arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python311:12             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.11   | arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python311-Arm64:11       |
+| us-west-2      | 3.11   | arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python311-Arm64:12       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.12   | x86_64| arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python312:7              |
+| us-west-2      | 3.12   | x86_64| arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python312:8              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.12   | arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python312-Arm64:7        |
+| us-west-2      | 3.12   | arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python312-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.8    | x86_64| arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python38:20              |
+| us-west-2      | 3.8    | x86_64| arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python38:21              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.8    | arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python38-Arm64:19        |
+| us-west-2      | 3.8    | arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python38-Arm64:20        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.9    | x86_64| arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python39:19              |
+| us-west-2      | 3.9    | x86_64| arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python39:20              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.9    | arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python39-Arm64:19        |
+| us-west-2      | 3.9    | arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSSDKPandas-Python39-Arm64:20        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-east-1      | 3.10   | x86_64| arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python310:14             |
+| ap-east-1      | 3.10   | x86_64| arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python310:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-east-1      | 3.10   | arm64 | arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python310-Arm64:10       |
+| ap-east-1      | 3.10   | arm64 | arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python310-Arm64:11       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-east-1      | 3.11   | x86_64| arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python311:13             |
+| ap-east-1      | 3.11   | x86_64| arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python311:14             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-east-1      | 3.11   | arm64 | arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python311-Arm64:10       |
+| ap-east-1      | 3.11   | arm64 | arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python311-Arm64:11       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-east-1      | 3.12   | x86_64| arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python312:7              |
+| ap-east-1      | 3.12   | x86_64| arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python312:8              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-east-1      | 3.12   | arm64 | arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python312-Arm64:7        |
+| ap-east-1      | 3.12   | arm64 | arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python312-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-east-1      | 3.8    | x86_64| arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python38:14              |
+| ap-east-1      | 3.8    | x86_64| arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python38:15              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-east-1      | 3.8    | arm64 | arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python38-Arm64:10        |
+| ap-east-1      | 3.8    | arm64 | arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python38-Arm64:11        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-east-1      | 3.9    | x86_64| arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python39:14              |
+| ap-east-1      | 3.9    | x86_64| arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python39:15              |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-east-1      | 3.9    | arm64 | arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python39-Arm64:10        |
+| ap-east-1      | 3.9    | arm64 | arn:aws:lambda:ap-east-1:839552336658:layer:AWSSDKPandas-Python39-Arm64:11        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-2     | 3.10   | x86_64| arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python310:17            |
+| ap-south-2     | 3.10   | x86_64| arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python310:18            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-2     | 3.10   | arm64 | arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python310-Arm64:7       |
+| ap-south-2     | 3.10   | arm64 | arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python310-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-2     | 3.11   | x86_64| arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python311:12            |
+| ap-south-2     | 3.11   | x86_64| arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python311:13            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-2     | 3.11   | arm64 | arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python311-Arm64:7       |
+| ap-south-2     | 3.11   | arm64 | arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python311-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-2     | 3.12   | x86_64| arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python312:7             |
+| ap-south-2     | 3.12   | x86_64| arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python312:8             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-2     | 3.12   | arm64 | arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python312-Arm64:7       |
+| ap-south-2     | 3.12   | arm64 | arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python312-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-2     | 3.8    | x86_64| arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python38:17             |
+| ap-south-2     | 3.8    | x86_64| arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python38:18             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-2     | 3.8    | arm64 | arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python38-Arm64:7        |
+| ap-south-2     | 3.8    | arm64 | arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python38-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-2     | 3.9    | x86_64| arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python39:17             |
+| ap-south-2     | 3.9    | x86_64| arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python39:18             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-2     | 3.9    | arm64 | arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python39-Arm64:7        |
+| ap-south-2     | 3.9    | arm64 | arn:aws:lambda:ap-south-2:246107603503:layer:AWSSDKPandas-Python39-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-3 | 3.10   | x86_64| arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python310:14        |
+| ap-southeast-3 | 3.10   | x86_64| arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python310:15        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-3 | 3.10   | arm64 | arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python310-Arm64:10  |
+| ap-southeast-3 | 3.10   | arm64 | arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python310-Arm64:11  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-3 | 3.11   | x86_64| arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python311:13        |
+| ap-southeast-3 | 3.11   | x86_64| arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python311:14        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-3 | 3.11   | arm64 | arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python311-Arm64:10  |
+| ap-southeast-3 | 3.11   | arm64 | arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python311-Arm64:11  |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-3 | 3.12   | x86_64| arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python312:7         |
+| ap-southeast-3 | 3.12   | x86_64| arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python312:8         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-3 | 3.12   | arm64 | arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python312-Arm64:7   |
+| ap-southeast-3 | 3.12   | arm64 | arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python312-Arm64:8   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-3 | 3.8    | x86_64| arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python38:14         |
+| ap-southeast-3 | 3.8    | x86_64| arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python38:15         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-3 | 3.8    | arm64 | arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python38-Arm64:10   |
+| ap-southeast-3 | 3.8    | arm64 | arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python38-Arm64:11   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-3 | 3.9    | x86_64| arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python39:14         |
+| ap-southeast-3 | 3.9    | x86_64| arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python39:15         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-3 | 3.9    | arm64 | arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python39-Arm64:10   |
+| ap-southeast-3 | 3.9    | arm64 | arn:aws:lambda:ap-southeast-3:258944054355:layer:AWSSDKPandas-Python39-Arm64:11   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-4 | 3.10   | x86_64| arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python310:13        |
+| ap-southeast-4 | 3.10   | x86_64| arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python310:14        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-4 | 3.10   | arm64 | arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python310-Arm64:7   |
+| ap-southeast-4 | 3.10   | arm64 | arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python310-Arm64:8   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-4 | 3.11   | x86_64| arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python311:12        |
+| ap-southeast-4 | 3.11   | x86_64| arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python311:13        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-4 | 3.11   | arm64 | arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python311-Arm64:7   |
+| ap-southeast-4 | 3.11   | arm64 | arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python311-Arm64:8   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-4 | 3.12   | x86_64| arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python312:7         |
+| ap-southeast-4 | 3.12   | x86_64| arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python312:8         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-4 | 3.12   | arm64 | arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python312-Arm64:7   |
+| ap-southeast-4 | 3.12   | arm64 | arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python312-Arm64:8   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-4 | 3.8    | x86_64| arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python38:13         |
+| ap-southeast-4 | 3.8    | x86_64| arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python38:14         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-4 | 3.8    | arm64 | arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python38-Arm64:7    |
+| ap-southeast-4 | 3.8    | arm64 | arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python38-Arm64:8    |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-4 | 3.9    | x86_64| arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python39:13         |
+| ap-southeast-4 | 3.9    | x86_64| arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python39:14         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-4 | 3.9    | arm64 | arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python39-Arm64:7    |
+| ap-southeast-4 | 3.9    | arm64 | arn:aws:lambda:ap-southeast-4:945386623051:layer:AWSSDKPandas-Python39-Arm64:8    |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-2   | 3.10   | x86_64| arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python310:13          |
+| eu-central-2   | 3.10   | x86_64| arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python310:14          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-2   | 3.10   | arm64 | arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python310-Arm64:7     |
+| eu-central-2   | 3.10   | arm64 | arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python310-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-2   | 3.11   | x86_64| arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python311:12          |
+| eu-central-2   | 3.11   | x86_64| arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python311:13          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-2   | 3.11   | arm64 | arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python311-Arm64:7     |
+| eu-central-2   | 3.11   | arm64 | arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python311-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-2   | 3.12   | x86_64| arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python312:7           |
+| eu-central-2   | 3.12   | x86_64| arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python312:8           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-2   | 3.12   | arm64 | arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python312-Arm64:7     |
+| eu-central-2   | 3.12   | arm64 | arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python312-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-2   | 3.8    | x86_64| arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python38:13           |
+| eu-central-2   | 3.8    | x86_64| arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python38:14           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-2   | 3.8    | arm64 | arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python38-Arm64:7      |
+| eu-central-2   | 3.8    | arm64 | arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python38-Arm64:8      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-2   | 3.9    | x86_64| arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python39:13           |
+| eu-central-2   | 3.9    | x86_64| arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python39:14           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-2   | 3.9    | arm64 | arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python39-Arm64:7      |
+| eu-central-2   | 3.9    | arm64 | arn:aws:lambda:eu-central-2:956415814219:layer:AWSSDKPandas-Python39-Arm64:8      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-1     | 3.10   | x86_64| arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python310:14            |
+| eu-south-1     | 3.10   | x86_64| arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python310:15            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-1     | 3.10   | arm64 | arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python310-Arm64:10      |
+| eu-south-1     | 3.10   | arm64 | arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python310-Arm64:11      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-1     | 3.11   | x86_64| arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python311:13            |
+| eu-south-1     | 3.11   | x86_64| arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python311:14            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-1     | 3.11   | arm64 | arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python311-Arm64:10      |
+| eu-south-1     | 3.11   | arm64 | arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python311-Arm64:11      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-1     | 3.12   | x86_64| arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python312:7             |
+| eu-south-1     | 3.12   | x86_64| arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python312:8             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-1     | 3.12   | arm64 | arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python312-Arm64:7       |
+| eu-south-1     | 3.12   | arm64 | arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python312-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-1     | 3.8    | x86_64| arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python38:14             |
+| eu-south-1     | 3.8    | x86_64| arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python38:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-1     | 3.8    | arm64 | arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python38-Arm64:10       |
+| eu-south-1     | 3.8    | arm64 | arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python38-Arm64:11       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-1     | 3.9    | x86_64| arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python39:14             |
+| eu-south-1     | 3.9    | x86_64| arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python39:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-1     | 3.9    | arm64 | arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python39-Arm64:10       |
+| eu-south-1     | 3.9    | arm64 | arn:aws:lambda:eu-south-1:774444163449:layer:AWSSDKPandas-Python39-Arm64:11       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-2     | 3.10   | x86_64| arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python310:13            |
+| eu-south-2     | 3.10   | x86_64| arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python310:14            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-2     | 3.10   | arm64 | arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python310-Arm64:7       |
+| eu-south-2     | 3.10   | arm64 | arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python310-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-2     | 3.11   | x86_64| arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python311:12            |
+| eu-south-2     | 3.11   | x86_64| arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python311:13            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-2     | 3.11   | arm64 | arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python311-Arm64:7       |
+| eu-south-2     | 3.11   | arm64 | arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python311-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-2     | 3.12   | x86_64| arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python312:7             |
+| eu-south-2     | 3.12   | x86_64| arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python312:8             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-2     | 3.12   | arm64 | arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python312-Arm64:7       |
+| eu-south-2     | 3.12   | arm64 | arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python312-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-2     | 3.8    | x86_64| arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python38:13             |
+| eu-south-2     | 3.8    | x86_64| arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python38:14             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-2     | 3.8    | arm64 | arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python38-Arm64:7        |
+| eu-south-2     | 3.8    | arm64 | arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python38-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-2     | 3.9    | x86_64| arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python39:13             |
+| eu-south-2     | 3.9    | x86_64| arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python39:14             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-south-2     | 3.9    | arm64 | arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python39-Arm64:7        |
+| eu-south-2     | 3.9    | arm64 | arn:aws:lambda:eu-south-2:982086096842:layer:AWSSDKPandas-Python39-Arm64:8        |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| il-central-1   | 3.10   | x86_64| arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python310:11          |
+| il-central-1   | 3.10   | x86_64| arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python310:12          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| il-central-1   | 3.10   | arm64 | arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python310-Arm64:7     |
+| il-central-1   | 3.10   | arm64 | arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python310-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| il-central-1   | 3.11   | x86_64| arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python311:11          |
+| il-central-1   | 3.11   | x86_64| arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python311:12          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| il-central-1   | 3.11   | arm64 | arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python311-Arm64:7     |
+| il-central-1   | 3.11   | arm64 | arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python311-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| il-central-1   | 3.12   | x86_64| arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python312:7           |
+| il-central-1   | 3.12   | x86_64| arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python312:8           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| il-central-1   | 3.12   | arm64 | arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python312-Arm64:7     |
+| il-central-1   | 3.12   | arm64 | arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python312-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| il-central-1   | 3.8    | x86_64| arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python38:11           |
+| il-central-1   | 3.8    | x86_64| arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python38:12           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| il-central-1   | 3.8    | arm64 | arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python38-Arm64:7      |
+| il-central-1   | 3.8    | arm64 | arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python38-Arm64:8      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| il-central-1   | 3.9    | x86_64| arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python39:11           |
+| il-central-1   | 3.9    | x86_64| arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python39:12           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| il-central-1   | 3.9    | arm64 | arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python39-Arm64:7      |
+| il-central-1   | 3.9    | arm64 | arn:aws:lambda:il-central-1:263840725265:layer:AWSSDKPandas-Python39-Arm64:8      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-central-1   | 3.10   | x86_64| arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python310:13          |
+| me-central-1   | 3.10   | x86_64| arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python310:14          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-central-1   | 3.10   | arm64 | arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python310-Arm64:7     |
+| me-central-1   | 3.10   | arm64 | arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python310-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-central-1   | 3.11   | x86_64| arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python311:11          |
+| me-central-1   | 3.11   | x86_64| arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python311:12          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-central-1   | 3.11   | arm64 | arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python311-Arm64:7     |
+| me-central-1   | 3.11   | arm64 | arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python311-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-central-1   | 3.12   | x86_64| arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python312:7           |
+| me-central-1   | 3.12   | x86_64| arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python312:8           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-central-1   | 3.12   | arm64 | arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python312-Arm64:7     |
+| me-central-1   | 3.12   | arm64 | arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python312-Arm64:8     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-central-1   | 3.8    | x86_64| arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python38:13           |
+| me-central-1   | 3.8    | x86_64| arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python38:14           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-central-1   | 3.8    | arm64 | arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python38-Arm64:7      |
+| me-central-1   | 3.8    | arm64 | arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python38-Arm64:8      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-central-1   | 3.9    | x86_64| arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python39:13           |
+| me-central-1   | 3.9    | x86_64| arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python39:14           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-central-1   | 3.9    | arm64 | arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python39-Arm64:7      |
+| me-central-1   | 3.9    | arm64 | arn:aws:lambda:me-central-1:593833071574:layer:AWSSDKPandas-Python39-Arm64:8      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-south-1     | 3.10   | x86_64| arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python310:14            |
+| me-south-1     | 3.10   | x86_64| arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python310:15            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-south-1     | 3.10   | arm64 | arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python310-Arm64:10      |
+| me-south-1     | 3.10   | arm64 | arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python310-Arm64:11      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-south-1     | 3.11   | x86_64| arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python311:13            |
+| me-south-1     | 3.11   | x86_64| arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python311:14            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-south-1     | 3.11   | arm64 | arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python311-Arm64:10      |
+| me-south-1     | 3.11   | arm64 | arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python311-Arm64:11      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-south-1     | 3.12   | x86_64| arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python312:7             |
+| me-south-1     | 3.12   | x86_64| arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python312:8             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-south-1     | 3.12   | arm64 | arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python312-Arm64:7       |
+| me-south-1     | 3.12   | arm64 | arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python312-Arm64:8       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-south-1     | 3.8    | x86_64| arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python38:14             |
+| me-south-1     | 3.8    | x86_64| arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python38:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-south-1     | 3.8    | arm64 | arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python38-Arm64:10       |
+| me-south-1     | 3.8    | arm64 | arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python38-Arm64:11       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-south-1     | 3.9    | x86_64| arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python39:14             |
+| me-south-1     | 3.9    | x86_64| arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python39:15             |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| me-south-1     | 3.9    | arm64 | arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python39-Arm64:10       |
+| me-south-1     | 3.9    | arm64 | arn:aws:lambda:me-south-1:938046470361:layer:AWSSDKPandas-Python39-Arm64:11       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| cn-north-1     | 3.10   | x86_64| arn:aws-cn:lambda:cn-north-1:406640652441:layer:AWSSDKPandas-Python310:11         |
+| cn-north-1     | 3.10   | x86_64| arn:aws-cn:lambda:cn-north-1:406640652441:layer:AWSSDKPandas-Python310:12         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| cn-north-1     | 3.11   | x86_64| arn:aws-cn:lambda:cn-north-1:406640652441:layer:AWSSDKPandas-Python311:9          |
+| cn-north-1     | 3.11   | x86_64| arn:aws-cn:lambda:cn-north-1:406640652441:layer:AWSSDKPandas-Python311:10         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| cn-north-1     | 3.8    | x86_64| arn:aws-cn:lambda:cn-north-1:406640652441:layer:AWSSDKPandas-Python38:12          |
+| cn-north-1     | 3.8    | x86_64| arn:aws-cn:lambda:cn-north-1:406640652441:layer:AWSSDKPandas-Python38:13          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| cn-north-1     | 3.9    | x86_64| arn:aws-cn:lambda:cn-north-1:406640652441:layer:AWSSDKPandas-Python39:11          |
+| cn-north-1     | 3.9    | x86_64| arn:aws-cn:lambda:cn-north-1:406640652441:layer:AWSSDKPandas-Python39:12          |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| cn-northwest-1 | 3.10   | x86_64| arn:aws-cn:lambda:cn-northwest-1:406640652441:layer:AWSSDKPandas-Python310:10     |
+| cn-northwest-1 | 3.10   | x86_64| arn:aws-cn:lambda:cn-northwest-1:406640652441:layer:AWSSDKPandas-Python310:11     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| cn-northwest-1 | 3.11   | x86_64| arn:aws-cn:lambda:cn-northwest-1:406640652441:layer:AWSSDKPandas-Python311:9      |
+| cn-northwest-1 | 3.11   | x86_64| arn:aws-cn:lambda:cn-northwest-1:406640652441:layer:AWSSDKPandas-Python311:10     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| cn-northwest-1 | 3.8    | x86_64| arn:aws-cn:lambda:cn-northwest-1:406640652441:layer:AWSSDKPandas-Python38:10      |
+| cn-northwest-1 | 3.8    | x86_64| arn:aws-cn:lambda:cn-northwest-1:406640652441:layer:AWSSDKPandas-Python38:11      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| cn-northwest-1 | 3.9    | x86_64| arn:aws-cn:lambda:cn-northwest-1:406640652441:layer:AWSSDKPandas-Python39:10      |
+| cn-northwest-1 | 3.9    | x86_64| arn:aws-cn:lambda:cn-northwest-1:406640652441:layer:AWSSDKPandas-Python39:11      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
