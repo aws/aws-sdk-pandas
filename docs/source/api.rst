@@ -9,6 +9,7 @@ API Reference
 * `MySQL`_
 * `Microsoft SQL Server`_
 * `Oracle`_
+* `ArrowDBC`_
 * `Data API Redshift`_
 * `Data API RDS`_
 * `AWS Glue Data Quality`_
@@ -211,6 +212,19 @@ Oracle
 ____________________
 
 .. currentmodule:: awswrangler.oracle
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    read_sql_query
+    read_sql_table
+    to_sql
+
+ArrowDBC
+____________________
+
+.. currentmodule:: awswrangler.adbc
 
 .. autosummary::
     :toctree: stubs
