@@ -68,7 +68,7 @@ def connect(
 
     Returns
     -------
-    dbapi.Connection
+    adbc_driver_manager.dbapi.Connection
         Connection object.
     """
     attrs: _db_utils.ConnectionAttributes = _db_utils.get_connection_attributes(
@@ -96,7 +96,6 @@ def read_sql_query(
     sql: str,
     con: "dbapi.Connection",
     index_col: str | list[str] | None = None,
-    params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
     dtype: dict[str, pa.DataType] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     **pandas_kwargs: Any,
@@ -112,11 +111,6 @@ def read_sql_query(
         ArrowDBC connection object.
     index_col: str, list[str], optional
         Column(s) to set as index(MultiIndex).
-    params: list, tuple or dict, optional
-        List of parameters to pass to execute method.
-        The syntax used to pass parameters is database driver dependent.
-        Check your database driver documentation for which of the five syntax styles,
-        described in PEP 249's paramstyle, is supported.
     dtype: Dict[str, pyarrow.DataType], optional
         Specifying the datatype for columns.
     dtype_backend: str, optional
@@ -141,7 +135,6 @@ def read_sql_query(
         sql,
         con,
         index_col=index_col,
-        params=params,
         dtype=dtype,
         dtype_backend=dtype_backend,
         **pandas_kwargs,

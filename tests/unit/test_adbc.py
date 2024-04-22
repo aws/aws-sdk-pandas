@@ -67,12 +67,3 @@ def test_read_write_equality(adbc_con: dbapi.Connection, table: str, dtype_backe
 
     df_out = wr.adbc.read_sql_table(table=table, con=adbc_con, schema="public", dtype_backend=dtype_backend)
     assert_pandas_equals(df, df_out)
-
-
-def test_read_with_params(adbc_con: dbapi.Connection, table: str) -> None:
-    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
-
-    wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="replace")
-
-    df_out = wr.adbc.read_sql_query(sql=f"SELECT * FROM public.{table} WHERE c0 = 1", con=adbc_con)
-    assert len(df_out) == 1
