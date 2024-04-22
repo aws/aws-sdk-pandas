@@ -46,7 +46,7 @@ def pyarrow2athena(  # noqa: PLR0911,PLR0912
         return "timestamp"
     if pa.types.is_date(dtype):
         return "date"
-    if pa.types.is_binary(dtype):
+    if pa.types.is_binary(dtype) or pa.types.is_fixed_size_binary(dtype):
         return "binary"
     if pa.types.is_dictionary(dtype):
         return pyarrow2athena(dtype=dtype.value_type, ignore_null=ignore_null)
