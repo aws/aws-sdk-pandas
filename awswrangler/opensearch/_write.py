@@ -6,7 +6,7 @@ from __future__ import annotations
 import ast
 import json
 import logging
-from typing import Any, Generator, Iterable, Mapping
+from typing import Any, Generator, Iterable, Mapping, cast
 
 import boto3
 import numpy as np
@@ -48,7 +48,7 @@ def _actions_generator(
         if id_keys:
             _id = "-".join([str(document[id_key]) for id_key in id_keys])
         else:
-            _id = document.get("_id")
+            _id = cast(str, document.get("_id"))
         bulk_chunk_documents.append(
             {
                 "_index": index,
