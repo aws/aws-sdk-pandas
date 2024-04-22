@@ -383,11 +383,6 @@ def to_iceberg(
         glue_table_settings if glue_table_settings else {},
     )
 
-    if mode == "overwrite":
-        catalog.delete_table_if_exists(
-            database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session
-        )
-
     try:
         # Create Iceberg table if it doesn't exist
         if not catalog.does_table_exist(
@@ -469,6 +464,20 @@ def to_iceberg(
                 s3_additional_kwargs=s3_additional_kwargs,
                 catalog_id=catalog_id,
             )
+        # if mode == "overwrite", delete whole data from table (but not table itself)
+        elif mode == "overwrite":
+            delete_sql_statement = f"DELETE FROM {table}"
+            delete_query_execution_id: str = _start_query_execution(
+                sql=delete_sql_statement,
+                workgroup=workgroup,
+                wg_config=wg_config,
+                database=database,
+                data_source=data_source,
+                encryption=encryption,
+                kms_key=kms_key,
+                boto3_session=boto3_session,
+            )
+            wait_query(query_execution_id=delete_query_execution_id, boto3_session=boto3_session)
 
         # Create temporary external table, write the results
         s3.to_parquet(
