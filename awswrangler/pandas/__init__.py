@@ -19,6 +19,8 @@ if TYPE_CHECKING or memory_format.get() == MemoryFormatEnum.PANDAS:
         notna,
         read_csv,
         read_excel,
+        read_sql,
+        read_sql_table,
         to_datetime,
     )
 elif memory_format.get() == MemoryFormatEnum.MODIN:
@@ -35,6 +37,8 @@ elif memory_format.get() == MemoryFormatEnum.MODIN:
         notna,
         read_csv,
         read_excel,
+        read_sql,
+        read_sql_table,
         to_datetime,
     )
 else:
@@ -53,4 +57,6 @@ __all__ = [
     "read_csv",
     "read_excel",
     "to_datetime",
+    "read_sql",
+    "read_sql_table",
 ]

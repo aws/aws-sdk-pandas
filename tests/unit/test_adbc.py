@@ -2,6 +2,7 @@ import logging
 from typing import Iterator
 
 import adbc_driver_manager.dbapi as dbapi
+import pyarrow as pa
 import pytest
 
 import awswrangler as wr
@@ -56,12 +57,22 @@ def test_to_sql_simple(adbc_con: dbapi.Connection, table: str) -> None:
     wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="replace", index=True)
 
 
-def test_read_write_equality(adbc_con: dbapi.Connection, table: str) -> None:
+@pytest.mark.parametrize("dtype_backend", ["numpy_nullable", "pyarrow"])
+def test_read_write_equality(adbc_con: dbapi.Connection, table: str, dtype_backend: str) -> None:
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
-    df["c0"] = df["c0"].astype("Int64")
-    df["c1"] = df["c1"].astype("string")
+    df["c0"] = df["c0"].astype("Int64" if dtype_backend == "numpy_nullable" else pd.ArrowDtype(pa.int64()))
+    df["c1"] = df["c1"].astype("string" if dtype_backend == "numpy_nullable" else pd.ArrowDtype(pa.string()))
 
     wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="replace")
 
-    df_out = wr.adbc.read_sql_table(table=table, con=adbc_con, schema="public")
+    df_out = wr.adbc.read_sql_table(table=table, con=adbc_con, schema="public", dtype_backend=dtype_backend)
     assert_pandas_equals(df, df_out)
+
+
+def test_read_with_params(adbc_con: dbapi.Connection, table: str) -> None:
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
+
+    wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="replace")
+
+    df_out = wr.adbc.read_sql_query(sql=f"SELECT * FROM public.{table} WHERE c0 = 1", con=adbc_con)
+    assert len(df_out) == 1

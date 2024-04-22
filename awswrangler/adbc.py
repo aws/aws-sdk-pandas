@@ -1,4 +1,3 @@
-# mypy: disable-error-code=name-defined
 """Amazon ADBC Module."""
 
 from __future__ import annotations
@@ -89,7 +88,7 @@ def connect(
     if timeout:
         connection_arguments["connect_timeout"] = timeout
 
-    return pg_dbapi.connect(uri=f"postgresql:///{attrs.database}?{urlencode(connection_arguments)}")
+    return pg_dbapi.connect(uri=f"postgresql:///{attrs.database}?{urlencode(connection_arguments)}")  # type: ignore[no-any-return]
 
 
 @_utils.check_optional_dependency(pg_dbapi, "pg_abapi")
@@ -98,11 +97,44 @@ def read_sql_query(
     con: "dbapi.Connection",
     index_col: str | list[str] | None = None,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
-    chunksize: int | None = None,
     dtype: dict[str, pa.DataType] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     **pandas_kwargs: Any,
 ) -> pd.DataFrame:
+    """
+    Read SQL query into a DataFrame.
+
+    Parameters
+    ----------
+    sql: str
+        SQL query.
+    con: adbc_driver_postgresql.dbapi.Connection
+        ArrowDBC connection object.
+    index_col: str, list[str], optional
+        Column(s) to set as index(MultiIndex).
+    params: list, tuple or dict, optional
+        List of parameters to pass to execute method.
+        The syntax used to pass parameters is database driver dependent.
+        Check your database driver documentation for which of the five syntax styles,
+        described in PEP 249's paramstyle, is supported.
+    dtype: Dict[str, pyarrow.DataType], optional
+        Specifying the datatype for columns.
+    dtype_backend: str, optional
+        Specifies which datatype backend to use, e.g. "numpy_nullable", "pyarrow".
+
+    Returns
+    -------
+    DataFrame
+        Result as Pandas DataFrame.
+
+    Examples
+    --------
+    Reading from PostgreSQL using a Glue Catalog Connections
+
+    >>> import awswrangler as wr
+    >>> with wr.adbc.connect(connection="MY_GLUE_CONNECTION") as con:
+    >>>     df = wr.adbc.read_sql_query(sql="SELECT * FROM my_table", con=con)
+    """
     _validate_connection(con=con)
 
     return pd.read_sql(
@@ -110,7 +142,6 @@ def read_sql_query(
         con,
         index_col=index_col,
         params=params,
-        chunksize=chunksize,
         dtype=dtype,
         dtype_backend=dtype_backend,
         **pandas_kwargs,
@@ -124,10 +155,41 @@ def read_sql_table(
     schema: str | None = None,
     index_col: str | list[str] | None = None,
     columns: list[str] | None = None,
-    chunksize: int | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     **pandas_kwargs: Any,
 ) -> pd.DataFrame:
+    """
+    Return a DataFrame corresponding the table.
+
+    Parameters
+    ----------
+    table: str
+        Table name.
+    con: adbc_driver_postgresql.dbapi.Connection
+        ArrowDBC connection object.
+    schema: str, optional
+        Name of SQL schema in database to query (if database flavor supports this).
+        Uses default schema if None (default).
+    index_col: str, list[str], optional
+        Column(s) to set as index(MultiIndex).
+    columns: list[str], optional
+        Column names to select from the table.
+    dtype_backend: str, optional
+        Specifies which datatype backend to use, e.g. "numpy_nullable", "pyarrow".
+
+    Returns
+    -------
+    DataFrame
+        Result as Pandas DataFrame.
+
+    Examples
+    --------
+    Reading from PostgreSQL using a Glue Catalog Connections
+
+    >>> import awswrangler as wr
+    >>> with wr.adbc.connect(connection="MY_GLUE_CONNECTION") as con:
+    >>>     df = wr.adbc.read_sql_table(table="my_table", con=con)
+    """
     _validate_connection(con=con)
 
     return pd.read_sql_table(
@@ -136,7 +198,6 @@ def read_sql_table(
         schema=schema,
         index_col=index_col,
         columns=columns,
-        chunksize=chunksize,
         dtype_backend=dtype_backend,
         **pandas_kwargs,
     )
@@ -147,11 +208,43 @@ def to_sql(
     df: pd.DataFrame,
     con: "dbapi.Connection",
     table: str,
-    schema: str | None = False,
+    schema: str | None = None,
     if_exists: Literal["fail", "replace", "append"] = "fail",
     index: bool = False,
     **pandas_kwargs: Any,
 ) -> None:
+    """
+    Write records stored in a DataFrame into PostgreSQL.
+
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
+    con: adbc_driver_postgresql.dbapi.Connection
+        ArrowDBC connection object.
+    table: str
+        Table name
+    schema: str, optional
+        Name of SQL schema in database to write to (if database flavor supports this).
+        Uses default schema if None (default).
+    if_exists: str, optional
+        How to behave if the table already exists.
+        * fail: Raise a ValueError.
+        * replace: Drop the table before inserting new values.
+        * append: Insert new values to the existing table.
+    index: bool, optional
+        Write DataFrame index as a column.
+
+    Examples
+    --------
+    Writing to PostgreSQL using a Glue Catalog Connections
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> df = pd.DataFrame({"col": [1, 2, 3]})
+    >>> with wr.adbc.connect(connection="MY_GLUE_CONNECTION") as con:
+    >>>     wr.adbc.to_sql(df=df, con=con, table="my_table")
+    """
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
