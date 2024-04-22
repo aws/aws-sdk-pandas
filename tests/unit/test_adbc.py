@@ -67,3 +67,39 @@ def test_read_write_equality(adbc_con: dbapi.Connection, table: str, dtype_backe
 
     df_out = wr.adbc.read_sql_table(table=table, con=adbc_con, schema="public", dtype_backend=dtype_backend)
     assert_pandas_equals(df, df_out)
+
+
+def test_to_sql_empty_frame_error(adbc_con: dbapi.Connection, table: str) -> None:
+    df = pd.DataFrame()
+    with pytest.raises(wr.exceptions.EmptyDataFrame):
+        wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="replace")
+
+
+def test_to_sql_table_exists_error(adbc_con: dbapi.Connection, table: str) -> None:
+    df = pd.DataFrame({"c0": [1, 2, 3]})
+    wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public")
+
+    with pytest.raises(ValueError):
+        wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="fail")
+
+
+def test_to_sql_replace_table(adbc_con: dbapi.Connection, table: str) -> None:
+    df = pd.DataFrame({"c0": [1, 2, 3]})
+    wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public")
+
+    df2 = pd.DataFrame({"c0": [4]})
+    wr.adbc.to_sql(df=df2, con=adbc_con, table=table, schema="public", if_exists="replace")
+
+    df_out = wr.adbc.read_sql_table(table=table, con=adbc_con, schema="public")
+    assert df_out.shape == (1, 1)
+
+
+def test_to_sql_append_table(adbc_con: dbapi.Connection, table: str) -> None:
+    df = pd.DataFrame({"c0": [1, 2, 3]})
+    wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public")
+
+    df2 = pd.DataFrame({"c0": [4]})
+    wr.adbc.to_sql(df=df2, con=adbc_con, table=table, schema="public", if_exists="append")
+
+    df_out = wr.adbc.read_sql_table(table=table, con=adbc_con, schema="public")
+    assert df_out.shape == (4, 1)
