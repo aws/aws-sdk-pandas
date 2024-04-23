@@ -2,32 +2,39 @@
 
 [[package]]
 name = "adbc-driver-manager"
-version = "0.9.0"
+version = "0.11.0"
 description = "A generic entrypoint for ADBC drivers."
 optional = true
-python-versions = ">=3.9"
+python-versions = ">=3.8"
 files = [
-    {file = "adbc_driver_manager-0.9.0-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:9c7ee38855d4b4ebd6c83f14ab1b44bb8dc47173cb26f165a3d7b3a7a5dc39b6"},
-    {file = "adbc_driver_manager-0.9.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:e67781edb19f1b76d06a1aa099987a801b5e4298842acac1b0f123934ac7e180"},
-    {file = "adbc_driver_manager-0.9.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:58921cc1c82e1583f5faa5f65d6bc5e18a0428dd837db2a039cfa90f6c411cdf"},
-    {file = "adbc_driver_manager-0.9.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7adca37f8e4a0bb164c3c43b603013f85df30a75bbdf3329c15fa4ae463736c0"},
-    {file = "adbc_driver_manager-0.9.0-cp310-cp310-win_amd64.whl", hash = "sha256:ec4e49ae23fb4b8f8938d78bcca262722fdf78799b114928fda80bba8dada541"},
-    {file = "adbc_driver_manager-0.9.0-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:638e5bdbb86abc1745679ed350266394d1478d53628a3f06d69a7778a280201d"},
-    {file = "adbc_driver_manager-0.9.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:33380cebfe909e78ad7a47faf0d204541e8640ac479ebe3e2dc4e152bc68dc51"},
-    {file = "adbc_driver_manager-0.9.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:95f29b7fa75ddebe34406a28f23df0ffe2ff861bd4d1a2c916ca46946e344d5b"},
-    {file = "adbc_driver_manager-0.9.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4f38e098b0d02d03e6c1c612167ad2e589141f6ee6c513ef1321edac90bf66f2"},
-    {file = "adbc_driver_manager-0.9.0-cp311-cp311-win_amd64.whl", hash = "sha256:dcdc7fbe1bb91be61a53cf6693ed70d2018e66cc520eaa4e57f1b425260a4ff4"},
-    {file = "adbc_driver_manager-0.9.0-cp312-cp312-macosx_10_15_x86_64.whl", hash = "sha256:31e508b908f3b5c9183beb3b3528ff936f7429b82271346718d2be06103093ba"},
-    {file = "adbc_driver_manager-0.9.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:7b2d6137025dc2aaa1a03777c25107d98f5d904c9edf18d6ed743c89bf89a0a4"},
-    {file = "adbc_driver_manager-0.9.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1f2de9536954881f0b6b7211742b54d4ce02c8b86b011de840a96948cdde4668"},
-    {file = "adbc_driver_manager-0.9.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:70b4cecbf4196fe06e6f8d6bcaddbff56f8e8dfd95b3443c2640de7d9c19d2f0"},
-    {file = "adbc_driver_manager-0.9.0-cp312-cp312-win_amd64.whl", hash = "sha256:7c3e589f70830887523607aa93dcb01a822dbdb63d55cc8fed54f5da53174e4b"},
-    {file = "adbc_driver_manager-0.9.0-cp39-cp39-macosx_10_15_x86_64.whl", hash = "sha256:52e96957f08723b28b37b52084c6fb9d61251144cfab30645563c5f60db5b6a1"},
-    {file = "adbc_driver_manager-0.9.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:9fd41d26d60f2189543d32b1484f99d89285da345c6552ce85e820402fe2ca9e"},
-    {file = "adbc_driver_manager-0.9.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2feb0290058b553b454b9bf145cc262cc29c4f18f076058a219ceeb95f5f505a"},
-    {file = "adbc_driver_manager-0.9.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3ab7cd84d2dc5574eae03d0e8f713b3eb75c929cb01fae80bf877ee06cc3ef86"},
-    {file = "adbc_driver_manager-0.9.0-cp39-cp39-win_amd64.whl", hash = "sha256:5fe5d9ee9eb382da378d727052a685b6196c587df75964f29d8bd0b46e1fd63e"},
+    {file = "adbc_driver_manager-0.11.0-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:719dc68c39f4b4ceb7ab6608aeddf58321d0d75fe6059d07d879a319aa250c24"},
+    {file = "adbc_driver_manager-0.11.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:b07c695350b52df8a23ecef9de4b5c4a7571eaa62e036ad0a49d8ff839e091b8"},
+    {file = "adbc_driver_manager-0.11.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0df66ae1888f3a0a5edfba69396c8e57b35ef8e2794db5b7669ab63e7039803a"},
+    {file = "adbc_driver_manager-0.11.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:13fbe76890f6405fa2554f20a5c08ee27bb66047a25ffb31b8ae04b4c6559bf3"},
+    {file = "adbc_driver_manager-0.11.0-cp310-cp310-win_amd64.whl", hash = "sha256:54c0c6f61c7a6eb359621eeb9a4a43d42a1521e8de55dfd127f84413be990c00"},
+    {file = "adbc_driver_manager-0.11.0-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:350baa2618e425b95c0a91d4994c97a5f595f5f6deffbb16be9871beac23cb06"},
+    {file = "adbc_driver_manager-0.11.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:cd54c6eebca86f6bf577db54e37ba0e6b2f8eceb903b284fb72a746510fa4295"},
+    {file = "adbc_driver_manager-0.11.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7a2df402e80f18d51642e428a029d41eea6e59ccfb8f15918f5b03bcd78f0623"},
+    {file = "adbc_driver_manager-0.11.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6e1582eb4532ba9c5c0e13c7dec610026dc6dc83c050cee9b33209d68f08b05e"},
+    {file = "adbc_driver_manager-0.11.0-cp311-cp311-win_amd64.whl", hash = "sha256:8a141c1720c8163bfabdb27e7268e7013805f8aabf2e6897cf04e92fbd8e81fa"},
+    {file = "adbc_driver_manager-0.11.0-cp312-cp312-macosx_10_15_x86_64.whl", hash = "sha256:69ffc5b95b8245ff8871d7fd0baaffac46d898446e428a4d6b4be73e0f50ca09"},
+    {file = "adbc_driver_manager-0.11.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:1b6cad3a7aa3c0a8caa1e5912e47ed9d4a9cbf7708258ad2a4b2d1cdfe5406cf"},
+    {file = "adbc_driver_manager-0.11.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cfe03c6a37aa09c56b702d83760c11c4c691fef38e2818657b705d3d105326fd"},
+    {file = "adbc_driver_manager-0.11.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9f21f9f718ad9ed3e91d17f276232db9d4f7b3e99c57ddd29e79df64993e0b17"},
+    {file = "adbc_driver_manager-0.11.0-cp312-cp312-win_amd64.whl", hash = "sha256:51f2ae6a1dc6fdc56ef19594fdff326eed73c1aa9be33cf0699804c9029bd480"},
+    {file = "adbc_driver_manager-0.11.0-cp38-cp38-macosx_10_15_x86_64.whl", hash = "sha256:599c81094a12d5138ed2acf99bf67e071a894279f4d585911e23f6ec752d875b"},
+    {file = "adbc_driver_manager-0.11.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:e35fbe6f4edaf2faf260818746da036289c5675a1ca2043d04bb95b9e2e03978"},
+    {file = "adbc_driver_manager-0.11.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6909a3d2539c1f9cb4c2376f9623c87e4d7c6b70aad2e1e7cefd49c63d117c4e"},
+    {file = "adbc_driver_manager-0.11.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:05ddabed57061e88dba2d89ef145ef01b0bda1fe8eb46927e4f7c729ecdbcb72"},
+    {file = "adbc_driver_manager-0.11.0-cp39-cp39-macosx_10_15_x86_64.whl", hash = "sha256:704359cece880982a9649650aefec8187dfc340872f84c15a450dba6bca478ce"},
+    {file = "adbc_driver_manager-0.11.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:bf0433fd64f27263399da53c05bc968b60acffc9eb7c274b5790a7e3615d8af3"},
+    {file = "adbc_driver_manager-0.11.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d752ae712b35f5cd03f17b64384739bdb922b7d677e2fdb85dd874c03db19ac6"},
+    {file = "adbc_driver_manager-0.11.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:982c7aa58cfeadb0d477bdbb02624f4d597d029e989e4222908f5919688e053e"},
+    {file = "adbc_driver_manager-0.11.0-cp39-cp39-win_amd64.whl", hash = "sha256:b9a47089782b53faac8819b33ac975ac6a2e935248724bb44a7d9ea3db8810b0"},
 ]
+
+[package.dependencies]
+typing-extensions = "*"
 
 [package.extras]
 dbapi = ["pandas", "pyarrow (>=8.0.0)"]
@@ -6376,4 +6383,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "7c68a076b8e79413d3ffc84638d51ae4371d5d2a1c014c2ecdaf90abae153c5d"
+content-hash = "c398a4cda3edbe16a2cbb3399ef9ad1c7f2235eba0c1e2893a4ec2807b2ef4e6"
