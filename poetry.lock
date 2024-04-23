@@ -6364,6 +6364,7 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy (>=0.9.1)", "pytest-ruff"]
 
 [extras]
+adbc = ["adbc-driver-postgresql"]
 deltalake = ["deltalake"]
 geopandas = ["geopandas", "geopandas"]
 gremlin = ["aiohttp", "async-timeout", "gremlinpython", "requests"]
@@ -6373,7 +6374,7 @@ opencypher = ["requests"]
 openpyxl = ["openpyxl"]
 opensearch = ["jsonpath-ng", "opensearch-py", "requests-aws4auth"]
 oracle = ["oracledb"]
-postgres = ["adbc-driver-postgresql", "pg8000"]
+postgres = ["pg8000"]
 progressbar = ["progressbar2"]
 ray = ["ray"]
 redshift = ["redshift-connector"]
@@ -6383,4 +6384,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "c398a4cda3edbe16a2cbb3399ef9ad1c7f2235eba0c1e2893a4ec2807b2ef4e6"
+content-hash = "4705e3cadb19979ee0c3ae4afd60c314fd6307550a86ee535d06e789df2663e7"
