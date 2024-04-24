@@ -2,7 +2,6 @@ import logging
 from typing import Iterator
 
 import adbc_driver_manager.dbapi as dbapi
-import pyarrow as pa
 import pytest
 
 import awswrangler as wr
