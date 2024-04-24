@@ -2795,13 +2795,13 @@ unidist = ["unidist[mpi] (>=0.2.1,<=0.4.1)"]
 
 [[package]]
 name = "modin"
-version = "0.29.0"
+version = "0.27.0"
 description = "Modin: Make your pandas code run faster by changing one line of code."
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "modin-0.29.0-py3-none-any.whl", hash = "sha256:0b4e9ca4948e6fc93bcca942aec1db58d4224fac77e5f6daf3870b05bcbb8181"},
-    {file = "modin-0.29.0.tar.gz", hash = "sha256:d40394e48eceff9103a2fc7ad736d37a917b9312fc1e660c92d102bd398dc6f9"},
+    {file = "modin-0.27.0-py3-none-any.whl", hash = "sha256:0df67163817fa477f0de6a069f5a20af35f71c1a857cdbb235f8dd42b526fe47"},
+    {file = "modin-0.27.0.tar.gz", hash = "sha256:7d661f238ceb2cd546961cd8e5048f5c3d115747246667fad538280300121995"},
 ]
 
 [package.dependencies]
@@ -2812,10 +2812,10 @@ pandas = ">=2.2,<2.3"
 psutil = ">=5.8.0"
 
 [package.extras]
-all = ["dask (>=2.22.0)", "distributed (>=2.22.0)", "modin-spreadsheet (>=0.1.0)", "pyarrow (>=7.0.0)", "ray[default] (>=2.1.0,!=2.5.0)"]
+all = ["dask (>=2.22.0)", "distributed (>=2.22.0)", "modin-spreadsheet (>=0.1.0)", "pyarrow (>=7.0.0)", "ray[default] (>=1.13.0,!=2.5.0)"]
 dask = ["dask (>=2.22.0)", "distributed (>=2.22.0)"]
 mpi = ["unidist[mpi] (>=0.2.1)"]
-ray = ["pyarrow (>=7.0.0)", "ray[default] (>=2.1.0,!=2.5.0)"]
+ray = ["pyarrow (>=7.0.0)", "ray[default] (>=1.13.0,!=2.5.0)"]
 spreadsheet = ["modin-spreadsheet (>=0.1.0)"]
 
 [[package]]
@@ -6384,4 +6384,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "4705e3cadb19979ee0c3ae4afd60c314fd6307550a86ee535d06e789df2663e7"
+content-hash = "d208c0e2b6fbb7e76e47f7806000b85fd74a121758d5c7a0255a17e96f0813f7"
