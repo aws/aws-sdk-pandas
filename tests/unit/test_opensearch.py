@@ -452,7 +452,7 @@ def test_index_json_local(client):
     try:
         with open(file_path, "w") as filehandle:
             for doc in inspections_documents:
-                filehandle.write("%s\n" % json.dumps(doc))
+                filehandle.write(f"{json.dumps(doc)}\n")
         response = wr.opensearch.index_json(client, index=index, path=file_path)
         assert response.get("success", 0) == 6
     finally:
@@ -465,7 +465,7 @@ def test_index_json_s3(client, path):
     try:
         with open(file_path, "w") as filehandle:
             for doc in inspections_documents:
-                filehandle.write("%s\n" % json.dumps(doc))
+                filehandle.write(f"{json.dumps(doc)}\n")
         s3 = boto3.client("s3")
         path = f"{path}opensearch/inspections.json"
         bucket, key = wr._utils.parse_path(path)
