@@ -649,6 +649,8 @@ def create_ctas_table(
     wait: bool = False,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     execution_params: list[str] | None = None,
+    params: dict[str, Any] | list[str] | None = None,
+    paramstyle: Literal["qmark", "named"] = "named",
     boto3_session: boto3.Session | None = None,
 ) -> dict[str, str | _QueryMetadata]:
     """Create a new table populated with the results of a SELECT query.
@@ -701,6 +703,17 @@ def create_ctas_table(
         Whether to wait for the query to finish and return a dictionary with the Query metadata.
     athena_query_wait_polling_delay: float, default: 0.25 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
+    execution_params: List[str], optional [DEPRECATED]
+        A list of values for the parameters that are used in the SQL query.
+        This parameter is on a deprecation path.
+        Use ``params`` and `paramstyle`` instead.
+    params: Dict[str, Any] | List[str], optional
+        Dictionary or list of parameters to pass to execute method.
+        The syntax used to pass parameters depends on the configuration of ``paramstyle``.
+    paramstyle: str, optional
+        The syntax style to use for the parameters.
+        Supported values are ``named`` and ``qmark``.
+        The default is ``named``.
     boto3_session: boto3.Session, optional
         Boto3 Session. The default boto3 session is used if boto3_session is None.
 
@@ -751,6 +764,20 @@ def create_ctas_table(
 
     if ctas_database is None:
         raise exceptions.InvalidArgumentCombination("Either ctas_database or database must be defined.")
+
+    # Substitute execution_params with params
+    if execution_params:
+        if params:
+            raise exceptions.InvalidArgumentCombination("`execution_params` and `params` are mutually exclusive.")
+
+        params = execution_params
+        paramstyle = "qmark"
+        raise DeprecationWarning(
+            '`execution_params` is being deprecated. Use `params` and `paramstyle="qmark"` instead.'
+        )
+
+    # Substitute query parameters if applicable
+    sql, execution_params = _apply_formatter(sql, params, paramstyle)
 
     fully_qualified_name = f'"{ctas_database}"."{ctas_table}"'
 
