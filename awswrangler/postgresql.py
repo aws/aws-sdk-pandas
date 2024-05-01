@@ -502,6 +502,7 @@ def to_sql(
     chunksize: int = 200,
     upsert_conflict_columns: list[str] | None = None,
     insert_conflict_columns: list[str] | None = None,
+    commit_transaction: bool = True,
 ) -> None:
     """Write records stored in a DataFrame into PostgreSQL.
 
@@ -542,6 +543,8 @@ def to_sql(
     insert_conflict_columns: List[str], optional
         This parameter is only supported if `mode` is set top `append`. In this case conflicts for the given columns are
         checked for evaluating the insert 'ON CONFLICT DO NOTHING'.
+    commit_transaction: bool
+        Whether to commit the transaction. True by default.
 
     Returns
     -------
@@ -606,7 +609,8 @@ def to_sql(
                 sql: str = f"INSERT INTO {_identifier(schema)}.{_identifier(table)} {insertion_columns} VALUES {placeholders}{upsert_str}"
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
-            con.commit()
+            if commit_transaction:
+                con.commit()
     except Exception as ex:
         con.rollback()
         _logger.error(ex)
