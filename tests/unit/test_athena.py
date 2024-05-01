@@ -222,6 +222,94 @@ def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_c
     ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
 
 
+def test_athena_create_ctas_with_named_params(path, glue_table, glue_database, glue_ctas_database):
+    wr.s3.to_parquet(
+        df=get_df_list(),
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+    )
+
+    wr.athena.create_ctas_table(
+        sql=f"SELECT * FROM {glue_table} WHERE par1 = :par1",
+        database=glue_database,
+        ctas_database=glue_ctas_database,
+        params={"par1": "b"},
+        paramstyle="named",
+        wait=True,
+    )
+
+
+def test_athena_create_ctas_with_qmark_params(path, glue_table, glue_database, glue_ctas_database):
+    wr.s3.to_parquet(
+        df=get_df_list(),
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+    )
+
+    wr.athena.create_ctas_table(
+        sql=f"SELECT * FROM {glue_table} WHERE par1 = ?",
+        database=glue_database,
+        ctas_database=glue_ctas_database,
+        params=["b"],
+        paramstyle="qmark",
+        wait=True,
+    )
+
+
+def test_athena_create_ctas_with_execution_params_deprecation_warning(
+    path, glue_table, glue_database, glue_ctas_database
+):
+    wr.s3.to_parquet(
+        df=get_df_list(),
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+    )
+
+    with pytest.raises(DeprecationWarning):
+        wr.athena.create_ctas_table(
+            sql=f"SELECT * FROM {glue_table} WHERE par1 = ?",
+            database=glue_database,
+            ctas_database=glue_ctas_database,
+            execution_params=["b"],
+            wait=True,
+        )
+
+
+def test_athena_create_ctas_with_params_and_execution_params_error(path, glue_table, glue_database, glue_ctas_database):
+    wr.s3.to_parquet(
+        df=get_df_list(),
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+    )
+
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.create_ctas_table(
+            sql=f"SELECT * FROM {glue_table} WHERE par1 = ?",
+            database=glue_database,
+            ctas_database=glue_ctas_database,
+            execution_params=["b"],
+            params=["b"],
+            paramstyle="qmark",
+            wait=True,
+        )
+
+
 def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):
     wr.s3.to_parquet(
         df=get_df(),
