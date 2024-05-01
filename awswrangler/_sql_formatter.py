@@ -40,7 +40,7 @@ class _Engine(ABC):
 
     def format_timestamp(self, value: datetime.datetime) -> str:
         if value.tzinfo is not None:
-            raise TypeError(f"Supports only timezone aware datatype, got {value}.")
+            raise TypeError(f"Supports only timezone naive datatype, got {value}.")
 
         return f"TIMESTAMP '{value.isoformat(sep=' ', timespec='milliseconds')}'"
 
@@ -132,7 +132,7 @@ class _PartiQLEngine(_Engine):
 
     def format_timestamp(self, value: datetime.datetime) -> str:
         if value.tzinfo is not None:
-            raise TypeError(f"Supports only timezone aware datatype, got {value}.")
+            raise TypeError(f"Supports only timezone naive datatype, got {value}.")
 
         return f"'{value.isoformat()}'"
 
