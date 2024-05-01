@@ -337,7 +337,8 @@ def _resolve_query_without_cache_ctas(
         wait=True,
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         boto3_session=boto3_session,
-        execution_params=execution_params,
+        params=execution_params,
+        paramstyle="qmark",
     )
     fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
     ctas_query_metadata = cast(_QueryMetadata, ctas_query_info["ctas_query_metadata"])
