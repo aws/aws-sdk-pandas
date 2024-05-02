@@ -483,6 +483,7 @@ def to_iceberg(
         s3.to_parquet(
             df=df,
             path=temp_path or wg_config.s3_output,
+            index=index,
             dataset=True,
             database=database,
             table=temp_table,
