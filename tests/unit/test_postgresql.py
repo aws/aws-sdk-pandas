@@ -12,7 +12,7 @@ from pg8000.dbapi import ProgrammingError
 import awswrangler as wr
 import awswrangler.pandas as pd
 
-from .._utils import ensure_data_types, get_df, pandas_equals
+from .._utils import ensure_data_types, get_df, is_ray_modin, pandas_equals
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -52,6 +52,11 @@ def test_to_sql_simple(postgresql_table, postgresql_con):
     wr.postgresql.to_sql(df, postgresql_con, postgresql_table, "public", "overwrite", True)
 
 
+@pytest.mark.xfail(
+    raises=pg8000.dbapi.ProgrammingError,
+    condition=is_ray_modin,
+    reason="modin version >=0.27.0 changed how smallint is converted to a Python value",
+)
 def test_sql_types(postgresql_table, postgresql_con):
     table = postgresql_table
     df = get_df()
