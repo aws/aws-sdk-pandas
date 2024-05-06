@@ -575,7 +575,7 @@ def test_athena_read_json(glue_database):
     assert len(df.index) == 1
     assert len(df.columns) == 3
     assert df["some_str"].iloc[0] == '"HELLO ATHENA"'
-    assert df["some_int"].iloc[0] == '12345'
+    assert df["some_int"].iloc[0] == "12345"
     assert df["some_map"].iloc[0] == '{"a":1,"b":2}'
 
 
