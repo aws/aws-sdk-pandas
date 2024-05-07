@@ -560,6 +560,47 @@ def test_athena_read_list(glue_database):
     assert df["col0"].iloc[0] == "[1, 2, 3]"
 
 
+def test_athena_read_json(glue_database):
+    sql = """
+        WITH dataset AS (
+        SELECT
+            CAST('HELLO ATHENA' AS JSON) AS some_str,
+            CAST(12345 AS JSON) AS some_int,
+            CAST(MAP(ARRAY['a', 'b'], ARRAY[1,2]) AS JSON) AS some_map
+        )
+        SELECT * FROM dataset
+    """
+    df = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=False)
+    assert len(df) == 1
+    assert len(df.index) == 1
+    assert len(df.columns) == 3
+    assert df["some_str"].iloc[0] == '"HELLO ATHENA"'
+    assert df["some_int"].iloc[0] == "12345"
+    assert df["some_map"].iloc[0] == '{"a":1,"b":2}'
+
+
+def test_athena_read_json_extract(glue_database):
+    sql = """
+        WITH dataset AS (
+          SELECT '{"name": "Susan Smith",
+                   "org": "engineering",
+                   "projects": [{"name":"project1", "completed":false},
+                   {"name":"project2", "completed":true}]}'
+            AS myblob
+        )
+        SELECT
+          json_extract(myblob, '$.name') AS name,
+          json_extract(myblob, '$.projects') AS projects
+        FROM dataset
+    """
+    df = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=False)
+    assert len(df) == 1
+    assert len(df.index) == 1
+    assert len(df.columns) == 2
+    assert df["name"].iloc[0] == '"Susan Smith"'
+    assert df["projects"].iloc[0] == '[{"name":"project1","completed":false},{"name":"project2","completed":true}]'
+
+
 def test_sanitize_dataframe_column_names():
     with pytest.warns(UserWarning, match=r"Duplicate*"):
         test_df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
