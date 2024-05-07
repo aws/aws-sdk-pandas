@@ -376,7 +376,7 @@ def athena2pandas(dtype: str, dtype_backend: str | None = None) -> str:  # noqa:
         return "decimal" if dtype_backend != "pyarrow" else "double[pyarrow]"
     if dtype in ("binary", "varbinary"):
         return "bytes" if dtype_backend != "pyarrow" else "binary[pyarrow]"
-    if any(dtype.startswith(t) for t in ["array", "row", "map", "struct"]):
+    if any(dtype.startswith(t) for t in ["array", "row", "map", "struct", "json"]):
         return "object"
     if dtype == "geometry":
         return "string"
