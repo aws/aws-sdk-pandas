@@ -24,6 +24,11 @@ class GlueTableSettings(TypedDict):
     Columns names and the related comments
     (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     """
+    columns_parameters: NotRequired[dict[str, dict[str, str]]]
+    """
+    Columns names and the related parameters
+    (e.g. {'col0': {'par0': 'Param 1', 'par1': 'Param 2'}}).
+    """
     regular_partitions: NotRequired[bool]
     """
     Create regular partitions (Non projected partitions) on Glue Catalog.

@@ -24,6 +24,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
             description="c0",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
             columns_comments={"c0": "0"},
+            columns_parameters={"c0": {"foo": "bar"}},
         ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
@@ -37,9 +38,12 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
     assert wr.catalog.get_table_description(glue_database, glue_table) == "c0"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c0"] == "0"
+    col_comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(col_comments) == len(df.columns)
+    assert col_comments["c0"] == "0"
+    col_parameters = wr.catalog.get_columns_parameters(glue_database, glue_table)
+    assert len(col_parameters) == len(df.columns)
+    assert col_parameters["c0"] == {"foo": "bar"}
 
     # Round 2 - Overwrite
     df = pd.DataFrame({"c1": [None, 1, None]}, dtype="Int16")
