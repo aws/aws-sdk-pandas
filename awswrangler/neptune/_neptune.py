@@ -138,15 +138,16 @@ def to_property_graph(
     an InvalidArgumentValue exception will be thrown.
 
     If you would like to save data using `single` cardinality then you can postfix (single) to the column header and
-    set use_header_cardinality=True (default).  e.g. A column named `name(single)` will save the `name` property
-    as single cardinality. You can disable this by setting by setting `use_header_cardinality=False`.
+    set ``use_header_cardinality=True`` (default).
+    e.g. A column named `name(single)` will save the `name` property as single cardinality.
+    You can disable this by setting ``use_header_cardinality=False``.
 
     Parameters
     ----------
     client: NeptuneClient
         instance of the neptune client to use
     df: pandas.DataFrame
-        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
     batch_size: int
         The number of rows to save at a time. Default 50
     use_header_cardinality: bool
@@ -218,20 +219,25 @@ def to_rdf_graph(
 
     Parameters
     ----------
-    client (NeptuneClient) :
-        instance of the neptune client to use
-    df (pandas.DataFrame) :
-        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    batch_size (int) :
-        The number of rows in the DataFrame (i.e. triples) to write into Amazon Neptune in one query. Defaults to 50
-    subject_column (str, optional) :
-        The column name in the DataFrame for the subject.  Defaults to 's'
-    predicate_column (str, optional) :
-        The column name in the DataFrame for the predicate.  Defaults to 'p'
-    object_column (str, optional) :
-        The column name in the DataFrame for the object.  Defaults to 'o'
-    graph_column (str, optional) :
-        The column name in the DataFrame for the graph if sending across quads.  Defaults to 'g'
+    client: NeptuneClient
+        Instance of the neptune client to use.
+    df: pandas.DataFrame
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_.
+    batch_size: int
+        The number of rows in the DataFrame (i.e. triples) to write into Amazon Neptune in one query.
+        Defaults to 50.
+    subject_column: str, optional
+        The column name in the DataFrame for the subject.
+        Defaults to 's'.
+    predicate_column: str, optional
+        The column name in the DataFrame for the predicate.
+        Defaults to 'p'.
+    object_column: str, optional
+        The column name in the DataFrame for the object.
+        Defaults to 'o'.
+    graph_column: str, optional
+        The column name in the DataFrame for the graph if sending across quads.
+        Defaults to 'g'.
 
     Returns
     -------
