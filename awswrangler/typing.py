@@ -27,7 +27,7 @@ class GlueTableSettings(TypedDict):
     columns_parameters: NotRequired[dict[str, dict[str, str]]]
     """
     Columns names and the related parameters
-    (e.g. {'col0': {'par0': 'Param 1', 'par1': 'Param 2'}}).
+    (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
     """
     regular_partitions: NotRequired[bool]
     """

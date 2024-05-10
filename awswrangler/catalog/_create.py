@@ -777,7 +777,7 @@ def create_parquet_table(
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     columns_parameters: Dict[str, Dict[str, str]], optional
-        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 1', 'par1': 'Param 2'}}).
+        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
     mode: str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
@@ -938,7 +938,7 @@ def create_orc_table(
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     columns_parameters: Dict[str, Dict[str, str]], optional
-        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 1', 'par1': 'Param 2'}}).
+        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
     mode: str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
@@ -1106,7 +1106,7 @@ def create_csv_table(
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     columns_parameters: Dict[str, Dict[str, str]], optional
-        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 1', 'par1': 'Param 2'}}).
+        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
     mode : str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
@@ -1291,7 +1291,7 @@ def create_json_table(
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     columns_parameters: Dict[str, Dict[str, str]], optional
-        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 1', 'par1': 'Param 2'}}).
+        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
     mode : str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
