@@ -69,6 +69,7 @@ def _create_table(
     index: bool,
     dtype: dict[str, str] | None,
     varchar_lengths: dict[str, int] | None,
+    primary_keys: list[str] | None = None,
 ) -> None:
     if mode == "overwrite":
         _drop_table(cursor=cursor, schema=schema, table=table)
@@ -83,6 +84,8 @@ def _create_table(
         converter_func=_data_types.pyarrow2postgresql,
     )
     cols_str: str = "".join([f"{_identifier(k)} {v},\n" for k, v in postgresql_types.items()])[:-2]
+    if primary_keys:
+        cols_str += f",\nprimary key ({', '.join([_identifier(k) for k in primary_keys])})"
     sql = f"CREATE TABLE IF NOT EXISTS {_identifier(schema)}.{_identifier(table)} (\n{cols_str})"
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
@@ -586,6 +589,7 @@ def to_sql(
                 index=index,
                 dtype=dtype,
                 varchar_lengths=varchar_lengths,
+                primary_keys=upsert_conflict_columns
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
