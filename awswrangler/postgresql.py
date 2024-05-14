@@ -42,10 +42,19 @@ def _validate_connection(con: "pg8000.Connection") -> None:
         )
 
 
-def _drop_table(cursor: "pg8000.Cursor", schema: str | None, table: str) -> None:
+def _drop_table(cursor: "pg8000.Cursor", schema: str | None, table: str, cascade: bool) -> None:
     schema_str = f"{_identifier(schema)}." if schema else ""
-    sql = f"DROP TABLE IF EXISTS {schema_str}{_identifier(table)}"
+    cascade_str = "CASCADE" if cascade else "RESTRICT"
+    sql = f"DROP TABLE IF EXISTS {schema_str}{_identifier(table)} {cascade_str}"
     _logger.debug("Drop table query:\n%s", sql)
+    cursor.execute(sql)
+
+
+def _truncate_table(cursor: "pg8000.Cursor", schema: str | None, table: str, cascade: bool) -> None:
+    schema_str = f"{_identifier(schema)}." if schema else ""
+    cascade_str = "CASCADE" if cascade else "RESTRICT"
+    sql = f"TRUNCATE TABLE {schema_str}{_identifier(table)} {cascade_str}"
+    _logger.debug("Truncate table query:\n%s", sql)
     cursor.execute(sql)
 
 
@@ -66,12 +75,21 @@ def _create_table(
     table: str,
     schema: str,
     mode: str,
+    overwrite_method: _ToSqlOverwriteModeLiteral,
     index: bool,
     dtype: dict[str, str] | None,
     varchar_lengths: dict[str, int] | None,
 ) -> None:
     if mode == "overwrite":
-        _drop_table(cursor=cursor, schema=schema, table=table)
+        if overwrite_method in ["drop", "cascade"]:
+            _drop_table(cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "cascade"))
+        elif overwrite_method in ["truncate", "truncate cascade"]:
+            if _does_table_exist(cursor=cursor, schema=schema, table=table):
+                _truncate_table(
+                    cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "truncate cascade")
+                )
+        else:
+            raise exceptions.InvalidArgumentValue(f"Invalid overwrite_method: {overwrite_method}")
     elif _does_table_exist(cursor=cursor, schema=schema, table=table):
         return
     postgresql_types: dict[str, str] = _data_types.database_types_from_pandas(
@@ -485,6 +503,7 @@ def read_sql_table(
 
 
 _ToSqlModeLiteral = Literal["append", "overwrite", "upsert"]
+_ToSqlOverwriteModeLiteral = Literal["drop", "cascade", "truncate", "truncate cascade"]
 
 
 @_utils.check_optional_dependency(pg8000, "pg8000")
@@ -495,6 +514,7 @@ def to_sql(
     table: str,
     schema: str,
     mode: _ToSqlModeLiteral = "append",
+    overwrite_method: _ToSqlOverwriteModeLiteral = "drop",
     index: bool = False,
     dtype: dict[str, str] | None = None,
     varchar_lengths: dict[str, int] | None = None,
@@ -522,6 +542,13 @@ def to_sql(
             overwrite: Drops table and recreates.
             upsert: Perform an upsert which checks for conflicts on columns given by `upsert_conflict_columns` and
             sets the new values on conflicts. Note that `upsert_conflict_columns` is required for this mode.
+    overwrite_method : str
+        Drop, cascade, truncate, or truncate cascade. Only applicable in overwrite mode.
+
+        "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
+        "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
+        "truncate" - ``TRUNCATE ... RESTRICT`` - truncates the table. Fails if any of the tables have foreign-key references from tables that are not listed in the command.
+        "truncate cascade" - ``TRUNCATE ... CASCADE`` - truncates the table, and all tables that have foreign-key references to any of the named tables.
     index : bool
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
@@ -583,6 +610,7 @@ def to_sql(
                 table=table,
                 schema=schema,
                 mode=mode,
+                overwrite_method=overwrite_method,
                 index=index,
                 dtype=dtype,
                 varchar_lengths=varchar_lengths,
