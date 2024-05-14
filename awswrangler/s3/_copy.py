@@ -201,27 +201,27 @@ def copy_objects(
     Note
     ----
     In case of `use_threads=True` the number of threads
-    that will be spawned will be gotten from os.cpu_count().
+    that will be spawned will be gotten from `os.cpu_count()`.
 
     Parameters
     ----------
-    paths : List[str]
-        List of S3 objects paths (e.g. [s3://bucket/dir0/key0, s3://bucket/dir0/key1]).
-    source_path : str,
+    paths: List[str]
+        List of S3 objects paths (e.g. ``["s3://bucket/dir0/key0", "s3://bucket/dir0/key1"]``).
+    source_path: str
         S3 Path for the source directory.
-    target_path : str,
+    target_path: str
         S3 Path for the target directory.
-    replace_filenames : Dict[str, str], optional
-        e.g. {"old_name.csv": "new_name.csv", "old_name2.csv": "new_name2.csv"}
-    use_threads : bool, int
+    replace_filenames: Dict[str, str], optional
+        e.g. ``{"old_name.csv": "new_name.csv", "old_name2.csv": "new_name2.csv"}``
+    use_threads: bool, int
         True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
+        If enabled ``os.cpu_count()`` will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
+    boto3_session: boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
+        e.g. ``s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}``
 
     Returns
     -------
