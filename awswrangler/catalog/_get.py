@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Iterator, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, Mapping, cast
 
 import boto3
 import botocore.exceptions
@@ -885,6 +885,49 @@ def get_columns_comments(
         for p in response["Table"]["PartitionKeys"]:
             comments[p["Name"]] = p.get("Comment")
     return comments
+
+
+@apply_configs
+def get_columns_parameters(
+    database: str,
+    table: str,
+    catalog_id: str | None = None,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Mapping[str, str] | None]:
+    """Get all columns parameters.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, Optional[Dict[str, str]]]
+        Columns parameters.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> pars = wr.catalog.get_columns_parameters(database="...", table="...")
+
+    """
+    client_glue = _utils.client("glue", session=boto3_session)
+    response = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
+    parameters = {}
+    for c in response["Table"]["StorageDescriptor"]["Columns"]:
+        parameters[c["Name"]] = c.get("Parameters")
+    if "PartitionKeys" in response["Table"]:
+        for p in response["Table"]["PartitionKeys"]:
+            parameters[p["Name"]] = p.get("Parameters")
+    return parameters
 
 
 @apply_configs

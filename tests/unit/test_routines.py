@@ -24,6 +24,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
             description="c0",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
             columns_comments={"c0": "0"},
+            columns_parameters={"c0": {"foo": "bar"}},
         ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
@@ -37,9 +38,12 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
     assert wr.catalog.get_table_description(glue_database, glue_table) == "c0"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c0"] == "0"
+    col_comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(col_comments) == len(df.columns)
+    assert col_comments["c0"] == "0"
+    col_parameters = wr.catalog.get_columns_parameters(glue_database, glue_table)
+    assert len(col_parameters) == len(df.columns)
+    assert col_parameters["c0"] == {"foo": "bar"}
 
     # Round 2 - Overwrite
     df = pd.DataFrame({"c1": [None, 1, None]}, dtype="Int16")
@@ -53,6 +57,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
             description="c1",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
             columns_comments={"c1": "1"},
+            columns_parameters={"c1": {"baz": "qux"}},
         ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
@@ -65,9 +70,12 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
     assert wr.catalog.get_table_description(glue_database, glue_table) == "c1"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1"
+    col_comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(col_comments) == len(df.columns)
+    assert col_comments["c1"] == "1"
+    col_parameters = wr.catalog.get_columns_parameters(glue_database, glue_table)
+    assert len(col_parameters) == len(df.columns)
+    assert col_parameters["c1"] == {"baz": "qux"}
 
     # Round 3 - Append
     df = pd.DataFrame({"c1": [None, 2, None]}, dtype="Int8")
@@ -82,6 +90,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
             description="c1",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
             columns_comments={"c1": "1"},
+            columns_parameters={"c1": {"baz": "qux"}},
         ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
@@ -95,9 +104,12 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
     assert wr.catalog.get_table_description(glue_database, glue_table) == "c1"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1"
+    col_comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(col_comments) == len(df.columns)
+    assert col_comments["c1"] == "1"
+    col_parameters = wr.catalog.get_columns_parameters(glue_database, glue_table)
+    assert len(col_parameters) == len(df.columns)
+    assert col_parameters["c1"] == {"baz": "qux"}
 
     # Round 4 - Append + New Column
     df = pd.DataFrame({"c2": ["a", None, "b"], "c1": [None, None, None]})
@@ -111,6 +123,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
             description="c1+c2",
             parameters={"num_cols": "2", "num_rows": "9"},
             columns_comments={"c1": "1", "c2": "2"},
+            columns_parameters={"c1": {"baz": "qux"}, "c2": {"fred": "thud"}},
         ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
@@ -124,10 +137,14 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
     assert parameters["num_cols"] == "2"
     assert parameters["num_rows"] == "9"
     assert wr.catalog.get_table_description(glue_database, glue_table) == "c1+c2"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1"
-    assert comments["c2"] == "2"
+    col_comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(col_comments) == len(df.columns)
+    assert col_comments["c1"] == "1"
+    assert col_comments["c2"] == "2"
+    col_parameters = wr.catalog.get_columns_parameters(glue_database, glue_table)
+    assert len(col_parameters) == len(df.columns)
+    assert col_parameters["c1"] == {"baz": "qux"}
+    assert col_parameters["c2"] == {"fred": "thud"}
 
     # Round 5 - Append + New Column + Wrong Types
     df = pd.DataFrame({"c2": [1], "c3": [True], "c1": ["1"]})
@@ -142,6 +159,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
             description="c1+c2+c3",
             parameters={"num_cols": "3", "num_rows": "10"},
             columns_comments={"c1": "1!", "c2": "2!", "c3": "3"},
+            columns_parameters={"c1": {"waldo": "plugh"}, "c2": {"corge": "grault"}, "c3": {"garply": "foobar"}},
         ),
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
@@ -155,11 +173,16 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
     assert parameters["num_cols"] == "3"
     assert parameters["num_rows"] == "10"
     assert wr.catalog.get_table_description(glue_database, glue_table) == "c1+c2+c3"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1!"
-    assert comments["c2"] == "2!"
-    assert comments["c3"] == "3"
+    col_comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(col_comments) == len(df.columns)
+    assert col_comments["c1"] == "1!"
+    assert col_comments["c2"] == "2!"
+    assert col_comments["c3"] == "3"
+    col_parameters = wr.catalog.get_columns_parameters(glue_database, glue_table)
+    assert len(col_parameters) == len(df.columns)
+    assert col_parameters["c1"] == {"waldo": "plugh"}
+    assert col_parameters["c2"] == {"corge": "grault"}
+    assert col_parameters["c3"] == {"garply": "foobar"}
 
 
 @pytest.mark.parametrize("use_threads", [True, False])

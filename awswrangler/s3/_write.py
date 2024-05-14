@@ -70,6 +70,7 @@ def _validate_args(
     description: str | None,
     parameters: dict[str, str] | None,
     columns_comments: dict[str, str] | None,
+    columns_parameters: dict[str, dict[str, str]] | None,
     execution_engine: Enum,
 ) -> None:
     if df.empty is True:
@@ -87,11 +88,11 @@ def _validate_args(
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use bucketing_info.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
-        if any(arg is not None for arg in (table, description, parameters, columns_comments)):
+        if any(arg is not None for arg in (table, description, parameters, columns_comments, columns_parameters)):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass dataset=True to be able to use any one of these "
                 "arguments: database, table, description, parameters, "
-                "columns_comments."
+                "columns_comments, columns_parameters."
             )
     elif (database is None) != (table is None):
         raise exceptions.InvalidArgumentCombination(
@@ -214,6 +215,7 @@ class _S3WriteStrategy(ABC):
         description: str | None,
         parameters: dict[str, str] | None,
         columns_comments: dict[str, str] | None,
+        columns_parameters: dict[str, dict[str, str]] | None,
         mode: str,
         catalog_versioning: bool,
         athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
@@ -262,6 +264,7 @@ class _S3WriteStrategy(ABC):
         description: str | None,
         parameters: dict[str, str] | None,
         columns_comments: dict[str, str] | None,
+        columns_parameters: dict[str, dict[str, str]] | None,
         regular_partitions: bool,
         table_type: str | None,
         dtype: dict[str, str] | None,
@@ -361,6 +364,7 @@ class _S3WriteStrategy(ABC):
                     "description": description,
                     "parameters": parameters,
                     "columns_comments": columns_comments,
+                    "columns_parameters": columns_parameters,
                     "boto3_session": boto3_session,
                     "mode": mode,
                     "catalog_versioning": catalog_versioning,
