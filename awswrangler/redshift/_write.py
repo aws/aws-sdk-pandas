@@ -111,11 +111,12 @@ def to_sql(
     overwrite_method : str
         Drop, cascade, truncate, or delete. Only applicable in overwrite mode.
 
-        "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
-        "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
-        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current
-        transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
-        "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
+        - "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
+        - "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
+        - "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current transaction &
+          starts a new one, hence the overwrite happens in two transactions and is not atomic.
+        - "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
+
     index : bool
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
