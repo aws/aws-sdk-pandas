@@ -25,7 +25,9 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _update_if_necessary(dic: dict[str, str], key: str, value: str | None, mode: str) -> str:
+def _update_if_necessary(
+    dic: dict[str, str | dict[str, str]], key: str, value: str | dict[str, str] | None, mode: str
+) -> str:
     if value is not None:
         if key not in dic or dic[key] != value:
             dic[key] = value
@@ -46,6 +48,7 @@ def _create_table(  # noqa: PLR0912,PLR0915
     table_exist: bool,
     partitions_types: dict[str, str] | None,
     columns_comments: dict[str, str] | None,
+    columns_parameters: dict[str, dict[str, str]] | None,
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
     catalog_id: str | None,
 ) -> None:
@@ -129,6 +132,19 @@ def _create_table(  # noqa: PLR0912,PLR0915
             name = par["Name"]
             if name in columns_comments:
                 mode = _update_if_necessary(dic=par, key="Comment", value=columns_comments[name], mode=mode)
+
+    # Column parameters
+    columns_parameters = columns_parameters if columns_parameters else {}
+    columns_parameters = {sanitize_column_name(k): v for k, v in columns_parameters.items()}
+    if columns_parameters:
+        for col in table_input["StorageDescriptor"]["Columns"]:
+            name: str = col["Name"]  # type: ignore[no-redef]
+            if name in columns_parameters:
+                mode = _update_if_necessary(dic=col, key="Parameters", value=columns_parameters[name], mode=mode)
+        for par in table_input["PartitionKeys"]:
+            name = par["Name"]
+            if name in columns_parameters:
+                mode = _update_if_necessary(dic=par, key="Parameters", value=columns_parameters[name], mode=mode)
 
     _logger.debug("table_input: %s", table_input)
 
@@ -275,6 +291,7 @@ def _create_parquet_table(
     description: str | None,
     parameters: dict[str, str] | None,
     columns_comments: dict[str, str] | None,
+    columns_parameters: dict[str, dict[str, str]] | None,
     mode: str,
     catalog_versioning: bool,
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
@@ -311,6 +328,7 @@ def _create_parquet_table(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         mode=mode,
         catalog_versioning=catalog_versioning,
         boto3_session=boto3_session,
@@ -335,6 +353,7 @@ def _create_orc_table(
     description: str | None,
     parameters: dict[str, str] | None,
     columns_comments: dict[str, str] | None,
+    columns_parameters: dict[str, dict[str, str]] | None,
     mode: str,
     catalog_versioning: bool,
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None,
@@ -371,6 +390,7 @@ def _create_orc_table(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         mode=mode,
         catalog_versioning=catalog_versioning,
         boto3_session=boto3_session,
@@ -394,6 +414,7 @@ def _create_csv_table(
     compression: str | None,
     parameters: dict[str, str] | None,
     columns_comments: dict[str, str] | None,
+    columns_parameters: dict[str, dict[str, str]] | None,
     mode: str,
     catalog_versioning: bool,
     schema_evolution: bool,
@@ -444,6 +465,7 @@ def _create_csv_table(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         mode=mode,
         catalog_versioning=catalog_versioning,
         boto3_session=boto3_session,
@@ -467,6 +489,7 @@ def _create_json_table(
     compression: str | None,
     parameters: dict[str, str] | None,
     columns_comments: dict[str, str] | None,
+    columns_parameters: dict[str, dict[str, str]] | None,
     mode: str,
     catalog_versioning: bool,
     schema_evolution: bool,
@@ -512,6 +535,7 @@ def _create_json_table(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         mode=mode,
         catalog_versioning=catalog_versioning,
         boto3_session=boto3_session,
@@ -713,6 +737,7 @@ def create_parquet_table(
     description: str | None = None,
     parameters: dict[str, str] | None = None,
     columns_comments: dict[str, str] | None = None,
+    columns_parameters: dict[str, dict[str, str]] | None = None,
     mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
@@ -751,6 +776,8 @@ def create_parquet_table(
         Key/value pairs to tag the table.
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
+    columns_parameters: Dict[str, Dict[str, str]], optional
+        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
     mode: str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
@@ -848,6 +875,7 @@ def create_parquet_table(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         mode=mode,
         catalog_versioning=catalog_versioning,
         athena_partition_projection_settings=athena_partition_projection_settings,
@@ -870,6 +898,7 @@ def create_orc_table(
     description: str | None = None,
     parameters: dict[str, str] | None = None,
     columns_comments: dict[str, str] | None = None,
+    columns_parameters: dict[str, dict[str, str]] | None = None,
     mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
@@ -908,6 +937,8 @@ def create_orc_table(
         Key/value pairs to tag the table.
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
+    columns_parameters: Dict[str, Dict[str, str]], optional
+        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
     mode: str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
@@ -1005,6 +1036,7 @@ def create_orc_table(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         mode=mode,
         catalog_versioning=catalog_versioning,
         athena_partition_projection_settings=athena_partition_projection_settings,
@@ -1026,6 +1058,7 @@ def create_csv_table(
     description: str | None = None,
     parameters: dict[str, str] | None = None,
     columns_comments: dict[str, str] | None = None,
+    columns_parameters: dict[str, dict[str, str]] | None = None,
     mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
@@ -1072,6 +1105,8 @@ def create_csv_table(
         Key/value pairs to tag the table.
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
+    columns_parameters: Dict[str, Dict[str, str]], optional
+        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
     mode : str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
@@ -1188,6 +1223,7 @@ def create_csv_table(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         mode=mode,
         catalog_versioning=catalog_versioning,
         schema_evolution=schema_evolution,
@@ -1214,6 +1250,7 @@ def create_json_table(
     description: str | None = None,
     parameters: dict[str, str] | None = None,
     columns_comments: dict[str, str] | None = None,
+    columns_parameters: dict[str, dict[str, str]] | None = None,
     mode: Literal["overwrite", "append"] = "overwrite",
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
@@ -1253,6 +1290,8 @@ def create_json_table(
         Key/value pairs to tag the table.
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
+    columns_parameters: Dict[str, Dict[str, str]], optional
+        Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
     mode : str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
@@ -1361,6 +1400,7 @@ def create_json_table(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         mode=mode,
         catalog_versioning=catalog_versioning,
         schema_evolution=schema_evolution,

@@ -42,10 +42,19 @@ def _validate_connection(con: "pg8000.Connection") -> None:
         )
 
 
-def _drop_table(cursor: "pg8000.Cursor", schema: str | None, table: str) -> None:
+def _drop_table(cursor: "pg8000.Cursor", schema: str | None, table: str, cascade: bool) -> None:
     schema_str = f"{_identifier(schema)}." if schema else ""
-    sql = f"DROP TABLE IF EXISTS {schema_str}{_identifier(table)}"
+    cascade_str = "CASCADE" if cascade else "RESTRICT"
+    sql = f"DROP TABLE IF EXISTS {schema_str}{_identifier(table)} {cascade_str}"
     _logger.debug("Drop table query:\n%s", sql)
+    cursor.execute(sql)
+
+
+def _truncate_table(cursor: "pg8000.Cursor", schema: str | None, table: str, cascade: bool) -> None:
+    schema_str = f"{_identifier(schema)}." if schema else ""
+    cascade_str = "CASCADE" if cascade else "RESTRICT"
+    sql = f"TRUNCATE TABLE {schema_str}{_identifier(table)} {cascade_str}"
+    _logger.debug("Truncate table query:\n%s", sql)
     cursor.execute(sql)
 
 
@@ -66,13 +75,22 @@ def _create_table(
     table: str,
     schema: str,
     mode: str,
+    overwrite_method: _ToSqlOverwriteModeLiteral,
     index: bool,
     dtype: dict[str, str] | None,
     varchar_lengths: dict[str, int] | None,
     unique_keys: list[str] | None = None,
 ) -> None:
     if mode == "overwrite":
-        _drop_table(cursor=cursor, schema=schema, table=table)
+        if overwrite_method in ["drop", "cascade"]:
+            _drop_table(cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "cascade"))
+        elif overwrite_method in ["truncate", "truncate cascade"]:
+            if _does_table_exist(cursor=cursor, schema=schema, table=table):
+                _truncate_table(
+                    cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "truncate cascade")
+                )
+        else:
+            raise exceptions.InvalidArgumentValue(f"Invalid overwrite_method: {overwrite_method}")
     elif _does_table_exist(cursor=cursor, schema=schema, table=table):
         return
     postgresql_types: dict[str, str] = _data_types.database_types_from_pandas(
@@ -488,6 +506,7 @@ def read_sql_table(
 
 
 _ToSqlModeLiteral = Literal["append", "overwrite", "upsert"]
+_ToSqlOverwriteModeLiteral = Literal["drop", "cascade", "truncate", "truncate cascade"]
 
 
 @_utils.check_optional_dependency(pg8000, "pg8000")
@@ -498,6 +517,7 @@ def to_sql(
     table: str,
     schema: str,
     mode: _ToSqlModeLiteral = "append",
+    overwrite_method: _ToSqlOverwriteModeLiteral = "drop",
     index: bool = False,
     dtype: dict[str, str] | None = None,
     varchar_lengths: dict[str, int] | None = None,
@@ -511,31 +531,44 @@ def to_sql(
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    con : pg8000.Connection
-        Use pg8000.connect() to use credentials directly or wr.postgresql.connect() to fetch it from the Glue Catalog.
-    table : str
+    df: pandas.DataFrame
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
+    con: pg8000.Connection
+        Use ``pg8000.connect()`` to use credentials directly or ``wr.postgresql.connect()`` to fetch it from the Glue Catalog.
+    table: str
         Table name
-    schema : str
+    schema: str
         Schema name
-    mode : str
+    mode: str
         Append, overwrite or upsert.
-            append: Inserts new records into table.
-            overwrite: Drops table and recreates.
-            upsert: Perform an upsert which checks for conflicts on columns given by `upsert_conflict_columns` and
-            sets the new values on conflicts. Note that `upsert_conflict_columns` is required for this mode.
-    index : bool
+
+        - append: Inserts new records into table.
+        - overwrite: Drops table and recreates.
+        - upsert: Perform an upsert which checks for conflicts on columns given by ``upsert_conflict_columns`` and
+          sets the new values on conflicts. Note that ``upsert_conflict_columns`` is required for this mode.
+
+    overwrite_method: str
+        Drop, cascade, truncate, or truncate cascade. Only applicable in overwrite mode.
+
+        - "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
+        - "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
+        - "truncate" - ``TRUNCATE ... RESTRICT`` - truncates the table.
+          Fails if any of the tables have foreign-key references from tables that are not listed in the command.
+        - "truncate cascade" - ``TRUNCATE ... CASCADE`` - truncates the table, and all tables that have
+          foreign-key references to any of the named tables.
+
+    index: bool
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
     dtype: Dict[str, str], optional
         Dictionary of columns names and PostgreSQL types to be casted.
         Useful when you have columns with undetermined or mixed data types.
-        (e.g. {'col name': 'TEXT', 'col2 name': 'FLOAT'})
-    varchar_lengths : Dict[str, int], optional
-        Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
+        (e.g. ``{'col name': 'TEXT', 'col2 name': 'FLOAT'}``)
+    varchar_lengths: Dict[str, int], optional
+        Dict of VARCHAR length by columns. (e.g. ``{"col1": 10, "col5": 200}``).
     use_column_names: bool
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
+
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
     chunksize: int
@@ -559,14 +592,13 @@ def to_sql(
     Writing to PostgreSQL using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.postgresql.connect("MY_GLUE_CONNECTION")
-    >>> wr.postgresql.to_sql(
-    ...     df=df,
-    ...     table="my_table",
-    ...     schema="public",
-    ...     con=con
-    ... )
-    >>> con.close()
+    >>> with wr.postgresql.connect("MY_GLUE_CONNECTION") as con:
+    ...     wr.postgresql.to_sql(
+    ...         df=df,
+    ...         table="my_table",
+    ...         schema="public",
+    ...         con=con
+    ...     )
 
     """
     if df.empty is True:
@@ -586,6 +618,7 @@ def to_sql(
                 table=table,
                 schema=schema,
                 mode=mode,
+                overwrite_method=overwrite_method,
                 index=index,
                 dtype=dtype,
                 varchar_lengths=varchar_lengths,

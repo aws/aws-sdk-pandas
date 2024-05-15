@@ -49,7 +49,51 @@ def test_read_sql_query_simple(databases_parameters):
 
 def test_to_sql_simple(postgresql_table, postgresql_con):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
-    wr.postgresql.to_sql(df, postgresql_con, postgresql_table, "public", "overwrite", True)
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        table=postgresql_table,
+        schema="public",
+        mode="overwrite",
+        index=True,
+    )
+
+
+@pytest.mark.parametrize("overwrite_method", ["drop", "cascade", "truncate", "truncate cascade"])
+def test_to_sql_overwrite(postgresql_table, postgresql_con, overwrite_method):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        table=postgresql_table,
+        schema="public",
+        mode="overwrite",
+        overwrite_method=overwrite_method,
+    )
+    df = pd.DataFrame({"c0": [4, 5, 6], "c1": ["xoo", "yoo", "zoo"]})
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        table=postgresql_table,
+        schema="public",
+        mode="overwrite",
+        overwrite_method=overwrite_method,
+    )
+    df = wr.postgresql.read_sql_table(table=postgresql_table, schema="public", con=postgresql_con)
+    assert df.shape == (3, 2)
+
+
+def test_unknown_overwrite_method_error(postgresql_table, postgresql_con):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.postgresql.to_sql(
+            df=df,
+            con=postgresql_con,
+            table=postgresql_table,
+            schema="public",
+            mode="overwrite",
+            overwrite_method="unknown",
+        )
 
 
 def test_sql_types(postgresql_table, postgresql_con):

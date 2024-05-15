@@ -446,6 +446,7 @@ def to_csv(  # noqa: PLR0912,PLR0915
     description = glue_table_settings.get("description")
     parameters = glue_table_settings.get("parameters")
     columns_comments = glue_table_settings.get("columns_comments")
+    columns_parameters = glue_table_settings.get("columns_parameters")
     regular_partitions = glue_table_settings.get("regular_partitions", True)
 
     _validate_args(
@@ -460,6 +461,7 @@ def to_csv(  # noqa: PLR0912,PLR0915
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         execution_engine=engine.get(),
     )
 
@@ -572,6 +574,7 @@ def to_csv(  # noqa: PLR0912,PLR0915
                 "description": description,
                 "parameters": parameters,
                 "columns_comments": columns_comments,
+                "columns_parameters": columns_parameters,
                 "boto3_session": boto3_session,
                 "mode": mode,
                 "schema_evolution": schema_evolution,
@@ -895,6 +898,7 @@ def to_json(  # noqa: PLR0912,PLR0915
     description = glue_table_settings.get("description")
     parameters = glue_table_settings.get("parameters")
     columns_comments = glue_table_settings.get("columns_comments")
+    columns_parameters = glue_table_settings.get("columns_parameters")
     regular_partitions = glue_table_settings.get("regular_partitions", True)
 
     _validate_args(
@@ -909,6 +913,7 @@ def to_json(  # noqa: PLR0912,PLR0915
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         execution_engine=engine.get(),
     )
 
@@ -999,6 +1004,7 @@ def to_json(  # noqa: PLR0912,PLR0915
             "description": description,
             "parameters": parameters,
             "columns_comments": columns_comments,
+            "columns_parameters": columns_parameters,
             "boto3_session": boto3_session,
             "mode": mode,
             "catalog_versioning": catalog_versioning,
