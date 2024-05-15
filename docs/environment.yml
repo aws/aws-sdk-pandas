@@ -9,7 +9,7 @@ dependencies:
     - myst_parser
     - nbsphinx
     - nbsphinx-link
-    - sphinx
+    - sphinx==7.1.2
     - sphinx_bootstrap_theme
     - sphinx-copybutton
     - IPython
