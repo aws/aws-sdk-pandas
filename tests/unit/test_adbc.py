@@ -42,18 +42,18 @@ def test_glue_connection(connection: str) -> None:
 @pytest.mark.parametrize("secret_id", ["postgresql"])
 def test_connect_secret_manager(secret_id: str) -> None:
     with wr.adbc.connect(secret_id=f"aws-sdk-pandas/{secret_id}") as con:
-        df = wr.adbc.read_sql_query("SELECT 1", con=con)
+        df = pd.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 
 
 def test_read_sql_query_simple(adbc_con: dbapi.Connection) -> None:
-    df = wr.adbc.read_sql_query("SELECT 1", con=adbc_con)
+    df = pd.read_sql_query("SELECT 1", con=adbc_con)
     assert df.shape == (1, 1)
 
 
 def test_to_sql_simple(adbc_con: dbapi.Connection, table: str) -> None:
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
-    wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="replace", index=True)
+    df.to_sql(table, con=adbc_con, schema="public", if_exists="replace", index=True)
 
 
 @pytest.mark.parametrize("dtype_backend", ["numpy_nullable", "pyarrow"])
@@ -64,43 +64,7 @@ def test_read_write_equality(adbc_con: dbapi.Connection, table: str, dtype_backe
 
     df = df.convert_dtypes(dtype_backend=dtype_backend)
 
-    wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="replace")
+    df.to_sql(table, con=adbc_con, schema="public", if_exists="replace", index=False)
 
-    df_out = wr.adbc.read_sql_table(table=table, con=adbc_con, schema="public", dtype_backend=dtype_backend)
+    df_out = pd.read_sql_table(table_name=table, con=adbc_con, schema="public", dtype_backend=dtype_backend)
     assert_pandas_equals(df, df_out)
-
-
-def test_to_sql_empty_frame_error(adbc_con: dbapi.Connection, table: str) -> None:
-    df = pd.DataFrame()
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="replace")
-
-
-def test_to_sql_table_exists_error(adbc_con: dbapi.Connection, table: str) -> None:
-    df = pd.DataFrame({"c0": [1, 2, 3]})
-    wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public")
-
-    with pytest.raises(ValueError):
-        wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public", if_exists="fail")
-
-
-def test_to_sql_replace_table(adbc_con: dbapi.Connection, table: str) -> None:
-    df = pd.DataFrame({"c0": [1, 2, 3]})
-    wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public")
-
-    df2 = pd.DataFrame({"c0": [4]})
-    wr.adbc.to_sql(df=df2, con=adbc_con, table=table, schema="public", if_exists="replace")
-
-    df_out = wr.adbc.read_sql_table(table=table, con=adbc_con, schema="public")
-    assert df_out.shape == (1, 1)
-
-
-def test_to_sql_append_table(adbc_con: dbapi.Connection, table: str) -> None:
-    df = pd.DataFrame({"c0": [1, 2, 3]})
-    wr.adbc.to_sql(df=df, con=adbc_con, table=table, schema="public")
-
-    df2 = pd.DataFrame({"c0": [4]})
-    wr.adbc.to_sql(df=df2, con=adbc_con, table=table, schema="public", if_exists="append")
-
-    df_out = wr.adbc.read_sql_table(table=table, con=adbc_con, schema="public")
-    assert df_out.shape == (4, 1)
