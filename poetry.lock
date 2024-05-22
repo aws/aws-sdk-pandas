@@ -42,16 +42,17 @@ test = ["duckdb", "pandas", "pyarrow (>=8.0.0)", "pytest"]
 
 [[package]]
 name = "adbc-driver-postgresql"
-version = "0.11.0"
+version = "1.0.0"
 description = "A libpq-based ADBC driver for working with PostgreSQL."
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "adbc_driver_postgresql-0.11.0-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:2b647623cb81e3820369ef73ad6cf2ff75cf243664a6762fb262626404bcbc46"},
-    {file = "adbc_driver_postgresql-0.11.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:e6dfaf56092f21282781ee389aefee66c4e02066258c1ebdae1b826eea61098f"},
-    {file = "adbc_driver_postgresql-0.11.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:628876dbdcea3e22b43d13f3a0221de1634882307168f67e0f65dd18f9a1c901"},
-    {file = "adbc_driver_postgresql-0.11.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2ea34271dd0e5e2816c97ecb2fa2fc7f796d89dd33fb7bf9750b57545f5724ba"},
-    {file = "adbc_driver_postgresql-0.11.0-py3-none-win_amd64.whl", hash = "sha256:e469332c22b7f8ab4f6af141fa0264fb999ab051b867c125e6db3caf1c488a3b"},
+    {file = "adbc_driver_postgresql-1.0.0-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:1ed5648dfdb19ce85b1eeb3e358f6bc7bcd7493a2f2fd002c1d6899db1da5a83"},
+    {file = "adbc_driver_postgresql-1.0.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:7796950d9f861e800849ec5f1d5b78b3692c239b108c531dec04002baeb82ea8"},
+    {file = "adbc_driver_postgresql-1.0.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7b7dda171ee90bceaef1334ac758aaf4aa5c0592b8f25458fbf7422072cb4879"},
+    {file = "adbc_driver_postgresql-1.0.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1033b481d2ee57575ef34ede79c75322c0f641676aef2a0b0016af77e713347f"},
+    {file = "adbc_driver_postgresql-1.0.0-py3-none-win_amd64.whl", hash = "sha256:836296dd196bdbe3c577b16bd684aede7abe89d123065eba975f706625de4131"},
+    {file = "adbc_driver_postgresql-1.0.0.tar.gz", hash = "sha256:bebc1352dbeccd096849cf686a1e042425e77691223d6e71d5dce8f329458a1d"},
 ]
 
 [package.dependencies]
@@ -6514,4 +6515,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "479f7eaccfdd1c4c3d90cb483942e477dd378076728e5c2e19c6f1eee8ea3fc1"
+content-hash = "4fd4162679652bf831ff7c87ac2cd28af36aacbc978775e8e263688b5cb8d539"
