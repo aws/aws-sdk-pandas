@@ -556,6 +556,7 @@ def delete_from_iceberg_table(
     temp_path: str | None = None,
     keep_files: bool = True,
     data_source: str | None = None,
+    s3_output: str | None = None,
     workgroup: str = "primary",
     encryption: str | None = None,
     kms_key: str | None = None,
@@ -586,6 +587,8 @@ def delete_from_iceberg_table(
         Whether staging files produced by Athena are retained. ``True`` by default.
     data_source: str, optional
         The AWS KMS key ID or alias used to encrypt the data.
+    s3_output: str, optional
+        Amazon S3 path used for query execution.
     workgroup: str, optional
         Athena workgroup name.
     encryption: str, optional
@@ -674,6 +677,7 @@ def delete_from_iceberg_table(
             wg_config=wg_config,
             database=database,
             data_source=data_source,
+            s3_output=s3_output,
             encryption=encryption,
             kms_key=kms_key,
             boto3_session=boto3_session,
