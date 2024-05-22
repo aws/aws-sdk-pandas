@@ -280,6 +280,7 @@ class _S3ParquetWriteStrategy(_S3WriteStrategy):
         description: str | None = None,
         parameters: dict[str, str] | None = None,
         columns_comments: dict[str, str] | None = None,
+        columns_parameters: dict[str, dict[str, str]] | None = None,
         mode: str = "overwrite",
         catalog_versioning: bool = False,
         athena_partition_projection_settings: AthenaPartitionProjectionSettings | None = None,
@@ -299,6 +300,7 @@ class _S3ParquetWriteStrategy(_S3WriteStrategy):
             description=description,
             parameters=parameters,
             columns_comments=columns_comments,
+            columns_parameters=columns_parameters,
             mode=mode,
             catalog_versioning=catalog_versioning,
             athena_partition_projection_settings=athena_partition_projection_settings,
@@ -687,6 +689,7 @@ def to_parquet(
     description = glue_table_settings.get("description")
     parameters = glue_table_settings.get("parameters")
     columns_comments = glue_table_settings.get("columns_comments")
+    columns_parameters = glue_table_settings.get("columns_parameters")
     regular_partitions = glue_table_settings.get("regular_partitions", True)
 
     _validate_args(
@@ -701,6 +704,7 @@ def to_parquet(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         execution_engine=engine.get(),
     )
 
@@ -742,6 +746,7 @@ def to_parquet(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        columns_parameters=columns_parameters,
         table_type=table_type,
         regular_partitions=regular_partitions,
         dtype=dtype,

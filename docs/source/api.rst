@@ -97,6 +97,7 @@ AWS Glue Catalog
     drop_duplicated_columns
     extract_athena_types
     get_columns_comments
+    get_columns_parameters
     get_csv_partitions
     get_databases
     get_parquet_partitions

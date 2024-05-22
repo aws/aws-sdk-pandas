@@ -59,6 +59,7 @@ def create_prepared_statement(
 
         - ``update`` - updates statement if already exists
         - ``error`` - throws an error if table exists
+
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 

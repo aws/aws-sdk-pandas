@@ -49,7 +49,51 @@ def test_read_sql_query_simple(databases_parameters):
 
 def test_to_sql_simple(postgresql_table, postgresql_con):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
-    wr.postgresql.to_sql(df, postgresql_con, postgresql_table, "public", "overwrite", True)
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        table=postgresql_table,
+        schema="public",
+        mode="overwrite",
+        index=True,
+    )
+
+
+@pytest.mark.parametrize("overwrite_method", ["drop", "cascade", "truncate", "truncate cascade"])
+def test_to_sql_overwrite(postgresql_table, postgresql_con, overwrite_method):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        table=postgresql_table,
+        schema="public",
+        mode="overwrite",
+        overwrite_method=overwrite_method,
+    )
+    df = pd.DataFrame({"c0": [4, 5, 6], "c1": ["xoo", "yoo", "zoo"]})
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        table=postgresql_table,
+        schema="public",
+        mode="overwrite",
+        overwrite_method=overwrite_method,
+    )
+    df = wr.postgresql.read_sql_table(table=postgresql_table, schema="public", con=postgresql_con)
+    assert df.shape == (3, 2)
+
+
+def test_unknown_overwrite_method_error(postgresql_table, postgresql_con):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.postgresql.to_sql(
+            df=df,
+            con=postgresql_con,
+            table=postgresql_table,
+            schema="public",
+            mode="overwrite",
+            overwrite_method="unknown",
+        )
 
 
 @pytest.mark.xfail(
@@ -246,16 +290,6 @@ def test_dfs_are_equal_for_different_chunksizes(postgresql_table, postgresql_con
 
 
 def test_upsert(postgresql_table, postgresql_con):
-    create_table_sql = (
-        f"CREATE TABLE public.{postgresql_table} "
-        "(c0 varchar NULL PRIMARY KEY,"
-        "c1 int NULL DEFAULT 42,"
-        "c2 int NOT NULL);"
-    )
-    with postgresql_con.cursor() as cursor:
-        cursor.execute(create_table_sql)
-        postgresql_con.commit()
-
     df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
 
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
@@ -330,17 +364,6 @@ def test_upsert(postgresql_table, postgresql_con):
 
 
 def test_upsert_multiple_conflict_columns(postgresql_table, postgresql_con):
-    create_table_sql = (
-        f"CREATE TABLE public.{postgresql_table} "
-        "(c0 varchar NULL PRIMARY KEY,"
-        "c1 int NOT NULL,"
-        "c2 int NOT NULL,"
-        "UNIQUE (c1, c2));"
-    )
-    with postgresql_con.cursor() as cursor:
-        cursor.execute(create_table_sql)
-        postgresql_con.commit()
-
     df = pd.DataFrame({"c0": ["foo", "bar"], "c1": [1, 2], "c2": [3, 4]})
     upsert_conflict_columns = ["c1", "c2"]
 
@@ -398,16 +421,6 @@ def test_upsert_multiple_conflict_columns(postgresql_table, postgresql_con):
 
 
 def test_insert_ignore_duplicate_columns(postgresql_table, postgresql_con):
-    create_table_sql = (
-        f"CREATE TABLE public.{postgresql_table} "
-        "(c0 varchar NULL PRIMARY KEY,"
-        "c1 int NULL DEFAULT 42,"
-        "c2 int NOT NULL);"
-    )
-    with postgresql_con.cursor() as cursor:
-        cursor.execute(create_table_sql)
-        postgresql_con.commit()
-
     df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
 
     wr.postgresql.to_sql(
@@ -462,17 +475,6 @@ def test_insert_ignore_duplicate_columns(postgresql_table, postgresql_con):
 
 
 def test_insert_ignore_duplicate_multiple_columns(postgresql_table, postgresql_con):
-    create_table_sql = (
-        f"CREATE TABLE public.{postgresql_table} "
-        "(c0 varchar NULL PRIMARY KEY,"
-        "c1 int NOT NULL,"
-        "c2 int NOT NULL,"
-        "UNIQUE (c1, c2));"
-    )
-    with postgresql_con.cursor() as cursor:
-        cursor.execute(create_table_sql)
-        postgresql_con.commit()
-
     df = pd.DataFrame({"c0": ["foo", "bar"], "c1": [1, 2], "c2": [3, 4]})
     insert_conflict_columns = ["c1", "c2"]
 
