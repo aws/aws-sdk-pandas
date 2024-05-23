@@ -545,11 +545,11 @@ def to_sql(
             for placeholders, parameters in placeholder_parameter_pair_generator:
                 sql: str = f"INSERT INTO {table_identifier} {insertion_columns} VALUES {placeholders}"
                 if mode == "upsert":
-                    upsert_conflict_columns = [identifier(col, sql_mode="mssql") for col in upsert_conflict_columns]
-                    sql: str = (
+                    merge_on_columns = [identifier(col, sql_mode="mssql") for col in upsert_conflict_columns]
+                    sql = (
                         f"MERGE INTO {table_identifier}\nUSING (VALUES {placeholders}) AS source ({quoted_columns})\n"
                     )
-                    sql += f"ON {' AND '.join(f'{table_identifier}.{col}=source.{col}' for col in upsert_conflict_columns)}\n"
+                    sql += f"ON {' AND '.join(f'{table_identifier}.{col}=source.{col}' for col in merge_on_columns)}\n"
                     sql += (
                         f"WHEN MATCHED THEN\n UPDATE "
                         f"SET {', '.join(f'{col}=source.{col}' for col in column_names)}\n"
