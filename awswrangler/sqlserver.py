@@ -549,13 +549,13 @@ def to_sql(
                     sql: str = (
                         f"MERGE INTO {table_identifier}\nUSING (VALUES {placeholders}) AS source ({quoted_columns})\n"
                     )
-                    sql += f"ON {"\n AND ".join(f"{table_identifier}.{col}=source.{col}" for col in upsert_conflict_columns)}\n"
+                    sql += f"ON {"\n AND ".join(f"{table_identifier}.{col}=source.{col}" for col in upsert_conflict_columns)}"
                     sql += (
-                        f"WHEN MATCHED THEN\n UPDATE ",
-                        f"SET {", ".join(f"{col}=source.{col}" for col in column_names)}\n",
+                        f"\nWHEN MATCHED THEN\n UPDATE "
+                        f"SET {", ".join(f"{col}=source.{col}" for col in column_names)}",
                     )
                     sql += (
-                        f"WHEN NOT MATCHED THEN\n INSERT ",
+                        f"\nWHEN NOT MATCHED THEN\n INSERT "
                         f"({quoted_columns}) VALUES ({", ".join([f"source.{col}" for col in column_names])});",
                     )
                 _logger.debug("sql: %s", sql)
