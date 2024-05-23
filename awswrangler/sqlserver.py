@@ -545,14 +545,19 @@ def to_sql(
             for placeholders, parameters in placeholder_parameter_pair_generator:
                 sql: str = f"INSERT INTO {table_identifier} {insertion_columns} VALUES {placeholders}"
                 if mode == "upsert":
+                    upsert_conflict_columns = [identifier(col, sql_mode="mssql") for col in upsert_conflict_columns]
                     sql: str = (
                         f"MERGE INTO {table_identifier}\nUSING (VALUES {placeholders}) AS source ({quoted_columns})\n"
                     )
-                    sql += f"ON {"\n AND ".join(f"{table_identifier}.{identifier(col, sql_mode="mssql")}=source.{identifier(col, sql_mode="mssql")}" for col in upsert_conflict_columns)}\n"
+                    sql += f"ON {"\n AND ".join(f"{table_identifier}.{col}=source.{col}" for col in upsert_conflict_columns)}\n"
                     sql += (
-                        f"WHEN MATCHED THEN\n UPDATE SET {", ".join(f"{col}=source.{col}" for col in column_names)}\n"
+                        f"WHEN MATCHED THEN\n UPDATE ",
+                        f"SET {", ".join(f"{col}=source.{col}" for col in column_names)}\n",
                     )
-                    sql += f"WHEN NOT MATCHED THEN\n INSERT ({quoted_columns}) VALUES ({", ".join([f"source.{col}" for col in column_names])});"
+                    sql += (
+                        f"WHEN NOT MATCHED THEN\n INSERT ",
+                        f"({quoted_columns}) VALUES ({", ".join([f"source.{col}" for col in column_names])});",
+                    )
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
