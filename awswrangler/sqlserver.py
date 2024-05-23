@@ -546,9 +546,7 @@ def to_sql(
                 sql: str = f"INSERT INTO {table_identifier} {insertion_columns} VALUES {placeholders}"
                 if mode == "upsert":
                     merge_on_columns = [identifier(col, sql_mode="mssql") for col in upsert_conflict_columns]
-                    sql = (
-                        f"MERGE INTO {table_identifier}\nUSING (VALUES {placeholders}) AS source ({quoted_columns})\n"
-                    )
+                    sql = f"MERGE INTO {table_identifier}\nUSING (VALUES {placeholders}) AS source ({quoted_columns})\n"
                     sql += f"ON {' AND '.join(f'{table_identifier}.{col}=source.{col}' for col in merge_on_columns)}\n"
                     sql += (
                         f"WHEN MATCHED THEN\n UPDATE "
