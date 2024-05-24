@@ -436,11 +436,12 @@ def to_sql(
     con: "pyodbc.Connection",
     table: str,
     schema: str,
-    mode: Literal["append", "overwrite"] = "append",
+    mode: Literal["append", "overwrite", "upsert"] = "append",
     index: bool = False,
     dtype: dict[str, str] | None = None,
     varchar_lengths: dict[str, int] | None = None,
     use_column_names: bool = False,
+    upsert_conflict_columns: list[str] | None = None,
     chunksize: int = 200,
     fast_executemany: bool = False,
 ) -> None:
@@ -457,7 +458,12 @@ def to_sql(
     schema : str
         Schema name
     mode : str
-        Append or overwrite.
+        Append, overwrite or upsert.
+
+        - append: Inserts new records into table.
+        - overwrite: Drops table and recreates.
+        - upsert: Perform an upsert which checks for conflicts on columns given by ``upsert_conflict_columns`` and sets the new values on conflicts. Note that column names of the Dataframe will be used for this operation, as if ``use_column_names`` was set to True.
+
     index : bool
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
@@ -471,6 +477,8 @@ def to_sql(
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
+    uspert_conflict_columns: List[str], optional
+        List of columns to be used as conflict columns in the upsert operation.
     chunksize: int
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
     fast_executemany: bool
@@ -506,6 +514,8 @@ def to_sql(
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     _validate_connection(con=con)
+    if mode == "upsert" and not upsert_conflict_columns:
+        raise exceptions.InvalidArgumentValue("<upsert_conflict_columns> need to be set when using upsert mode.")
     try:
         with con.cursor() as cursor:
             if fast_executemany:
@@ -524,15 +534,28 @@ def to_sql(
                 df.reset_index(level=df.index.names, inplace=True)
             column_placeholders: str = ", ".join(["?"] * len(df.columns))
             table_identifier = _get_table_identifier(schema, table)
+            column_names = [identifier(col, sql_mode="mssql") for col in df.columns]
+            quoted_columns = ", ".join(column_names)
             insertion_columns = ""
             if use_column_names:
-                quoted_columns = ", ".join(f"{identifier(col, sql_mode='mssql')}" for col in df.columns)
                 insertion_columns = f"({quoted_columns})"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
             for placeholders, parameters in placeholder_parameter_pair_generator:
                 sql: str = f"INSERT INTO {table_identifier} {insertion_columns} VALUES {placeholders}"
+                if mode == "upsert" and upsert_conflict_columns:
+                    merge_on_columns = [identifier(col, sql_mode="mssql") for col in upsert_conflict_columns]
+                    sql = f"MERGE INTO {table_identifier}\nUSING (VALUES {placeholders}) AS source ({quoted_columns})\n"
+                    sql += f"ON {' AND '.join(f'{table_identifier}.{col}=source.{col}' for col in merge_on_columns)}\n"
+                    sql += (
+                        f"WHEN MATCHED THEN\n UPDATE "
+                        f"SET {', '.join(f'{col}=source.{col}' for col in column_names)}\n"
+                    )
+                    sql += (
+                        f"WHEN NOT MATCHED THEN\n INSERT "
+                        f"({quoted_columns}) VALUES ({', '.join([f'source.{col}' for col in column_names])});"
+                    )
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
