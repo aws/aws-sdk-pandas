@@ -260,3 +260,74 @@ def test_dfs_are_equal_for_different_chunksizes(sqlserver_table, sqlserver_con, 
     df["c1"] = df["c1"].astype("string")
 
     assert df.equals(df2)
+
+
+def test_upsert(sqlserver_table, sqlserver_con):
+    df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.sqlserver.to_sql(
+            df=df,
+            con=sqlserver_con,
+            schema="dbo",
+            table=sqlserver_table,
+            mode="upsert",
+            upsert_conflict_columns=None,
+            use_column_names=True,
+        )
+
+    wr.sqlserver.to_sql(
+        df=df,
+        con=sqlserver_con,
+        schema="dbo",
+        table=sqlserver_table,
+        mode="upsert",
+        upsert_conflict_columns=["c0"],
+    )
+    wr.sqlserver.to_sql(
+        df=df,
+        con=sqlserver_con,
+        schema="dbo",
+        table=sqlserver_table,
+        mode="upsert",
+        upsert_conflict_columns=["c0"],
+    )
+    df2 = wr.sqlserver.read_sql_table(con=sqlserver_con, schema="dbo", table=sqlserver_table)
+    assert bool(len(df2) == 2)
+
+    wr.sqlserver.to_sql(
+        df=df,
+        con=sqlserver_con,
+        schema="dbo",
+        table=sqlserver_table,
+        mode="upsert",
+        upsert_conflict_columns=["c0"],
+    )
+    df3 = pd.DataFrame({"c0": ["baz", "bar"], "c2": [3, 2]})
+    wr.sqlserver.to_sql(
+        df=df3,
+        con=sqlserver_con,
+        schema="dbo",
+        table=sqlserver_table,
+        mode="upsert",
+        upsert_conflict_columns=["c0"],
+        use_column_names=True,
+    )
+    df4 = wr.sqlserver.read_sql_table(con=sqlserver_con, schema="dbo", table=sqlserver_table)
+    assert bool(len(df4) == 3)
+
+    df5 = pd.DataFrame({"c0": ["foo", "bar"], "c2": [4, 5]})
+    wr.sqlserver.to_sql(
+        df=df5,
+        con=sqlserver_con,
+        schema="dbo",
+        table=sqlserver_table,
+        mode="upsert",
+        upsert_conflict_columns=["c0"],
+        use_column_names=True,
+    )
+
+    df6 = wr.sqlserver.read_sql_table(con=sqlserver_con, schema="dbo", table=sqlserver_table)
+    assert bool(len(df6) == 3)
+    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1)
+    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
