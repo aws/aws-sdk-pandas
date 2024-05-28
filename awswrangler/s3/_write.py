@@ -239,7 +239,7 @@ class _S3WriteStrategy(ABC):
     ) -> None:
         pass
 
-    def write(  # noqa: PLR0912,PLR0913
+    def write(  # noqa: PLR0913
         self,
         df: pd.DataFrame,
         path: str | None,
