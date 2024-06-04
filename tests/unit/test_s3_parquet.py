@@ -57,6 +57,11 @@ def test_read_parquet_metadata_nulls(path):
     assert columns_types.get("c2") == "string"
 
 
+def test_read_parquet_metadata_nonexistent_file(path):
+    with pytest.raises(wr.exceptions.NoFilesFound):
+        wr.s3.read_parquet_metadata(path + "non-existent-file.parquet")
+
+
 @pytest.mark.parametrize(
     "partition_cols",
     [
