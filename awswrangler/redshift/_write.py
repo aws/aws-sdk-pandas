@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, get_args
 
 import boto3
 
@@ -15,7 +15,13 @@ from awswrangler._config import apply_configs
 from ._connect import _validate_connection
 from ._utils import _create_table, _make_s3_auth_string, _upsert
 
-redshift_connector = _utils.import_optional_dependency("redshift_connector")
+if TYPE_CHECKING:
+    try:
+        import redshift_connector
+    except ImportError:
+        pass
+else:
+    redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -23,6 +29,7 @@ _ToSqlModeLiteral = Literal["append", "overwrite", "upsert"]
 _ToSqlOverwriteModeLiteral = Literal["drop", "cascade", "truncate", "delete"]
 _ToSqlDistStyleLiteral = Literal["AUTO", "EVEN", "ALL", "KEY"]
 _ToSqlSortStyleLiteral = Literal["COMPOUND", "INTERLEAVED"]
+_CopyFromFilesDataFormatLiteral = Literal["parquet", "orc", "csv"]
 
 
 def _copy(
@@ -30,6 +37,7 @@ def _copy(
     path: str,
     table: str,
     serialize_to_json: bool,
+    data_format: _CopyFromFilesDataFormatLiteral = "parquet",
     iam_role: str | None = None,
     aws_access_key_id: str | None = None,
     aws_secret_access_key: str | None = None,
@@ -45,6 +53,11 @@ def _copy(
     else:
         table_name = f'"{schema}"."{table}"'
 
+    if data_format not in ["parquet", "orc"] and serialize_to_json:
+        raise exceptions.InvalidArgumentCombination(
+            "You can only use SERIALIZETOJSON with data_format='parquet' or 'orc'."
+        )
+
     auth_str: str = _make_s3_auth_string(
         iam_role=iam_role,
         aws_access_key_id=aws_access_key_id,
@@ -54,7 +67,7 @@ def _copy(
     )
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
     column_names_str: str = f"({','.join(column_names)})" if column_names else ""
-    sql = f"COPY {table_name} {column_names_str}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+    sql = f"COPY {table_name} {column_names_str}\nFROM '{path}' {auth_str}\nFORMAT AS {data_format.upper()}{ser_json_str}"
 
     if manifest:
         sql += "\nMANIFEST"
@@ -247,6 +260,8 @@ def copy_from_files(  # noqa: PLR0913
     aws_access_key_id: str | None = None,
     aws_secret_access_key: str | None = None,
     aws_session_token: str | None = None,
+    data_format: _CopyFromFilesDataFormatLiteral = "parquet",
+    redshift_column_types: dict[str, str] | None = None,
     parquet_infer_sampling: float = 1.0,
     mode: _ToSqlModeLiteral = "append",
     overwrite_method: _ToSqlOverwriteModeLiteral = "drop",
@@ -394,6 +409,11 @@ def copy_from_files(  # noqa: PLR0913
 
     """
     _logger.debug("Copying objects from S3 path: %s", path)
+
+    data_format = data_format.lower()
+    if data_format not in get_args(_CopyFromFilesDataFormatLiteral):
+        raise exceptions.InvalidArgumentValue(f"The specified data_format {data_format} is not supported.")
+
     autocommit_temp: bool = con.autocommit
     con.autocommit = False
     try:
@@ -401,6 +421,7 @@ def copy_from_files(  # noqa: PLR0913
             created_table, created_schema = _create_table(
                 df=None,
                 path=path,
+                data_format=data_format,
                 parquet_infer_sampling=parquet_infer_sampling,
                 path_suffix=path_suffix,
                 path_ignore_suffix=path_ignore_suffix,
@@ -410,6 +431,7 @@ def copy_from_files(  # noqa: PLR0913
                 schema=schema,
                 mode=mode,
                 overwrite_method=overwrite_method,
+                redshift_column_types=redshift_column_types,
                 diststyle=diststyle,
                 sortstyle=sortstyle,
                 distkey=distkey,
@@ -431,6 +453,7 @@ def copy_from_files(  # noqa: PLR0913
                 table=created_table,
                 schema=created_schema,
                 iam_role=iam_role,
+                data_format=data_format,
                 aws_access_key_id=aws_access_key_id,
                 aws_secret_access_key=aws_secret_access_key,
                 aws_session_token=aws_session_token,
