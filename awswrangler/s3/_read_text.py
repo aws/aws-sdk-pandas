@@ -236,7 +236,7 @@ def read_csv(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/3.7.3/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.8.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
     ray_args: typing.RaySettings, optional
@@ -398,7 +398,7 @@ def read_fwf(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/3.7.3/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.8.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
     ray_args: typing.RaySettings, optional
@@ -567,7 +567,7 @@ def read_json(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/3.7.3/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.8.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
     ray_args: typing.RaySettings, optional
