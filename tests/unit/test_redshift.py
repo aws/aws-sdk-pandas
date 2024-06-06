@@ -887,7 +887,11 @@ def test_table_name(redshift_con: redshift_connector.Connection) -> None:
 
 @pytest.mark.parametrize("data_format", ["parquet", "orc", "csv"])
 def test_copy_from_files(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any], data_format: str
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: dict[str, Any],
+    data_format: str,
 ) -> None:
     from awswrangler import _utils
 
@@ -963,7 +967,7 @@ def test_copy_from_files_geometry_column(
         redshift_column_types={
             "id": "BIGINT",
             "geometry": "GEOMETRY",
-        }
+        },
     )
 
     df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=redshift_con)

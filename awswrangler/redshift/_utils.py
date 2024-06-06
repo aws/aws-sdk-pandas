@@ -267,7 +267,7 @@ def _redshift_types_from_path(
     return redshift_types
 
 
-def _create_table(  # noqa: PLR0912,PLR0915
+def _create_table(  # noqa: PLR0912,PLR0913,PLR0915
     df: pd.DataFrame | None,
     path: str | list[str] | None,
     con: "redshift_connector.Connection",
@@ -277,7 +277,6 @@ def _create_table(  # noqa: PLR0912,PLR0915
     mode: str,
     overwrite_method: str,
     index: bool,
-    redshift_column_types: dict[str, str] | None,
     dtype: dict[str, str] | None,
     diststyle: str,
     sortstyle: str,
@@ -287,6 +286,7 @@ def _create_table(  # noqa: PLR0912,PLR0915
     varchar_lengths_default: int,
     varchar_lengths: dict[str, int] | None,
     data_format: Literal["parquet", "orc", "csv"] = "parquet",
+    redshift_column_types: dict[str, str] | None = None,
     parquet_infer_sampling: float = 1.0,
     path_suffix: str | None = None,
     path_ignore_suffix: str | list[str] | None = None,
@@ -361,7 +361,7 @@ def _create_table(  # noqa: PLR0912,PLR0915
         if data_format in ["parquet", "orc"]:
             redshift_types = _redshift_types_from_path(
                 path=path,
-                data_format=data_format,
+                data_format=data_format,  # type: ignore[arg-type]
                 varchar_lengths_default=varchar_lengths_default,
                 varchar_lengths=varchar_lengths,
                 parquet_infer_sampling=parquet_infer_sampling,
@@ -373,7 +373,9 @@ def _create_table(  # noqa: PLR0912,PLR0915
             )
         else:
             if redshift_column_types is None:
-                raise ValueError("redshift_column_types is None. It must be specified for files formats other than Parquet or ORC.")
+                raise ValueError(
+                    "redshift_column_types is None. It must be specified for files formats other than Parquet or ORC."
+                )
             redshift_types = redshift_column_types
     else:
         raise ValueError("df and path are None. You MUST pass at least one.")

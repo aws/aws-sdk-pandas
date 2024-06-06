@@ -33,7 +33,7 @@ _CopyFromFilesDataFormatLiteral = Literal["parquet", "orc", "csv"]
 
 
 def _copy(
-    cursor: "redshift_connector.Cursor",  # type: ignore[name-defined]
+    cursor: "redshift_connector.Cursor",
     path: str,
     table: str,
     serialize_to_json: bool,
@@ -67,7 +67,9 @@ def _copy(
     )
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
     column_names_str: str = f"({','.join(column_names)})" if column_names else ""
-    sql = f"COPY {table_name} {column_names_str}\nFROM '{path}' {auth_str}\nFORMAT AS {data_format.upper()}{ser_json_str}"
+    sql = (
+        f"COPY {table_name} {column_names_str}\nFROM '{path}' {auth_str}\nFORMAT AS {data_format.upper()}{ser_json_str}"
+    )
 
     if manifest:
         sql += "\nMANIFEST"
@@ -81,7 +83,7 @@ def _copy(
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: "redshift_connector.Connection",  # type: ignore[name-defined]
+    con: "redshift_connector.Connection",
     table: str,
     schema: str,
     mode: _ToSqlModeLiteral = "append",
@@ -253,7 +255,7 @@ def to_sql(
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def copy_from_files(  # noqa: PLR0913
     path: str,
-    con: "redshift_connector.Connection",  # type: ignore[name-defined]
+    con: "redshift_connector.Connection",
     table: str,
     schema: str,
     iam_role: str | None = None,
@@ -418,7 +420,7 @@ def copy_from_files(  # noqa: PLR0913
     """
     _logger.debug("Copying objects from S3 path: %s", path)
 
-    data_format = data_format.lower()
+    data_format = data_format.lower()  # type: ignore[assignment]
     if data_format not in get_args(_CopyFromFilesDataFormatLiteral):
         raise exceptions.InvalidArgumentValue(f"The specified data_format {data_format} is not supported.")
 
@@ -498,7 +500,7 @@ def copy_from_files(  # noqa: PLR0913
 def copy(  # noqa: PLR0913
     df: pd.DataFrame,
     path: str,
-    con: "redshift_connector.Connection",  # type: ignore[name-defined]
+    con: "redshift_connector.Connection",
     table: str,
     schema: str,
     iam_role: str | None = None,
