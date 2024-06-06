@@ -902,7 +902,7 @@ def test_copy_from_files(
     elif data_format == "orc":
         wr.s3.to_orc(df, f"{path}test.orc")
     else:
-        wr.s3.to_csv(df, f"{path}test.csv")
+        wr.s3.to_csv(df, f"{path}test.csv", index=False, header=False)
         column_types = {
             "id": "BIGINT",
             "string": "VARCHAR(256)",
@@ -943,6 +943,29 @@ def test_copy_from_files_extra_params(
         iam_role=databases_parameters["redshift"]["role"],
         sql_copy_extra_params=["STATUPDATE ON"],
     )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=redshift_con)
+    assert df2["counter"].iloc[0] == 3
+
+
+def test_copy_from_files_geometry_column(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
+) -> None:
+    df = pd.DataFrame({"id": [1, 2, 3], "geometry": ["POINT(1 1)", "POINT(2 2)", "POINT(3 3)"]})
+    wr.s3.to_csv(df, f"{path}test-geometry.csv", index=False, header=False)
+
+    wr.redshift.copy_from_files(
+        path=path,
+        con=redshift_con,
+        table=redshift_table,
+        schema="public",
+        iam_role=databases_parameters["redshift"]["role"],
+        data_format="csv",
+        redshift_column_types={
+            "id": "BIGINT",
+            "geometry": "GEOMETRY",
+        }
+    )
+
     df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=redshift_con)
     assert df2["counter"].iloc[0] == 3
 
