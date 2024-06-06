@@ -265,6 +265,10 @@ class _TableMetadataReader(ABC):
             ignore_empty=ignore_empty,
             s3_additional_kwargs=s3_additional_kwargs,
         )
+
+        if len(paths) < 1:
+            raise exceptions.NoFilesFound(f"No files Found: {path}.")
+
         version_ids = _check_version_id(paths=paths, version_id=version_id)
 
         # Files
