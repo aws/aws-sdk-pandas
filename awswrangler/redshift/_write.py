@@ -285,7 +285,7 @@ def copy_from_files(  # noqa: PLR0913
     precombine_key: str | None = None,
     column_names: list[str] | None = None,
 ) -> None:
-    """Load Parquet files from S3 to a Table on Amazon Redshift (Through COPY command).
+    """Load files from S3 to a Table on Amazon Redshift (Through COPY command).
 
     https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html
 
@@ -293,7 +293,7 @@ def copy_from_files(  # noqa: PLR0913
     ----
     If the table does not exist yet,
     it will be automatically created for you
-    using the Parquet metadata to
+    using the Parquet/ORC metadata to
     infer the columns data types.
 
     Note
@@ -320,6 +320,15 @@ def copy_from_files(  # noqa: PLR0913
         The secret key for your AWS account.
     aws_session_token : str, optional
         The session key for your AWS account. This is only needed when you are using temporary credentials.
+    data_format: str, optional
+        Data format to be loaded.
+        Supported values are Parquet, ORC, and CSV.
+        Default is Parquet.
+    redshift_column_types: dict, optional
+        Dictionary with keys as column names and values as Redshift column types.
+        Only used when ``data_format`` is CSV.
+
+        e.g. ```{'col1': 'BIGINT', 'col2': 'VARCHAR(256)'}```
     parquet_infer_sampling : float
         Random sample ratio of files that will have the metadata inspected.
         Must be `0.0 < sampling <= 1.0`.
@@ -397,15 +406,14 @@ def copy_from_files(  # noqa: PLR0913
     Examples
     --------
     >>> import awswrangler as wr
-    >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
-    >>> wr.redshift.copy_from_files(
-    ...     path="s3://bucket/my_parquet_files/",
-    ...     con=con,
-    ...     table="my_table",
-    ...     schema="public",
-    ...     iam_role="arn:aws:iam::XXX:role/XXX"
-    ... )
-    >>> con.close()
+    >>> with wr.redshift.connect("MY_GLUE_CONNECTION") as con:
+    ...     wr.redshift.copy_from_files(
+    ...         path="s3://bucket/my_parquet_files/",
+    ...         con=con,
+    ...         table="my_table",
+    ...         schema="public",
+    ...         iam_role="arn:aws:iam::XXX:role/XXX"
+    ...     )
 
     """
     _logger.debug("Copying objects from S3 path: %s", path)
