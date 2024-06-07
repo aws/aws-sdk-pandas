@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from typing import TYPE_CHECKING, Literal
 
 import boto3
 import botocore
@@ -13,7 +14,13 @@ import pandas as pd
 
 from awswrangler import _data_types, _sql_utils, _utils, exceptions, s3
 
-redshift_connector = _utils.import_optional_dependency("redshift_connector")
+if TYPE_CHECKING:
+    try:
+        import redshift_connector
+    except ImportError:
+        pass
+else:
+    redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -217,6 +224,7 @@ def _validate_parameters(
 
 def _redshift_types_from_path(
     path: str | list[str],
+    data_format: Literal["parquet", "orc"],
     varchar_lengths_default: int,
     varchar_lengths: dict[str, int] | None,
     parquet_infer_sampling: float,
@@ -229,16 +237,27 @@ def _redshift_types_from_path(
     """Extract Redshift data types from a Pandas DataFrame."""
     _varchar_lengths: dict[str, int] = {} if varchar_lengths is None else varchar_lengths
     _logger.debug("Scanning parquet schemas in S3 path: %s", path)
-    athena_types, _ = s3.read_parquet_metadata(
-        path=path,
-        sampling=parquet_infer_sampling,
-        path_suffix=path_suffix,
-        path_ignore_suffix=path_ignore_suffix,
-        dataset=False,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
+    if data_format == "orc":
+        athena_types, _ = s3.read_orc_metadata(
+            path=path,
+            path_suffix=path_suffix,
+            path_ignore_suffix=path_ignore_suffix,
+            dataset=False,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
+    else:
+        athena_types, _ = s3.read_parquet_metadata(
+            path=path,
+            sampling=parquet_infer_sampling,
+            path_suffix=path_suffix,
+            path_ignore_suffix=path_ignore_suffix,
+            dataset=False,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
     _logger.debug("Parquet metadata types: %s", athena_types)
     redshift_types: dict[str, str] = {}
     for col_name, col_type in athena_types.items():
@@ -248,7 +267,7 @@ def _redshift_types_from_path(
     return redshift_types
 
 
-def _create_table(  # noqa: PLR0912,PLR0915
+def _create_table(  # noqa: PLR0912,PLR0913,PLR0915
     df: pd.DataFrame | None,
     path: str | list[str] | None,
     con: "redshift_connector.Connection",
@@ -266,6 +285,8 @@ def _create_table(  # noqa: PLR0912,PLR0915
     primary_keys: list[str] | None,
     varchar_lengths_default: int,
     varchar_lengths: dict[str, int] | None,
+    data_format: Literal["parquet", "orc", "csv"] = "parquet",
+    redshift_column_types: dict[str, str] | None = None,
     parquet_infer_sampling: float = 1.0,
     path_suffix: str | None = None,
     path_ignore_suffix: str | list[str] | None = None,
@@ -336,19 +357,28 @@ def _create_table(  # noqa: PLR0912,PLR0915
                 path=path,
                 boto3_session=boto3_session,
             )
-        redshift_types = _redshift_types_from_path(
-            path=path,
-            varchar_lengths_default=varchar_lengths_default,
-            varchar_lengths=varchar_lengths,
-            parquet_infer_sampling=parquet_infer_sampling,
-            path_suffix=path_suffix,
-            path_ignore_suffix=path_ignore_suffix,
-            use_threads=use_threads,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-        )
+
+        if data_format in ["parquet", "orc"]:
+            redshift_types = _redshift_types_from_path(
+                path=path,
+                data_format=data_format,  # type: ignore[arg-type]
+                varchar_lengths_default=varchar_lengths_default,
+                varchar_lengths=varchar_lengths,
+                parquet_infer_sampling=parquet_infer_sampling,
+                path_suffix=path_suffix,
+                path_ignore_suffix=path_ignore_suffix,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
+        else:
+            if redshift_column_types is None:
+                raise ValueError(
+                    "redshift_column_types is None. It must be specified for files formats other than Parquet or ORC."
+                )
+            redshift_types = redshift_column_types
     else:
-        raise ValueError("df and path are None.You MUST pass at least one.")
+        raise ValueError("df and path are None. You MUST pass at least one.")
     _validate_parameters(
         redshift_types=redshift_types,
         diststyle=diststyle,
