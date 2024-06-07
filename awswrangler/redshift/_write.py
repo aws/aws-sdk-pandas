@@ -295,8 +295,11 @@ def copy_from_files(  # noqa: PLR0913
     ----
     If the table does not exist yet,
     it will be automatically created for you
-    using the Parquet/ORC metadata to
+    using the Parquet/ORC/CSV metadata to
     infer the columns data types.
+    If the data is in the CSV format,
+    the Redshift column types need to be
+    specified manually using ``redshift_column_types``.
 
     Note
     ----
