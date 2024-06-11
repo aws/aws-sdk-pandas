@@ -79,7 +79,7 @@ def test_read_deltalake_versioned(
     assert df2.equals(df)
 
     df["c2"] = [True, False, True]
-    wr.s3.to_deltalake(path=path, df=df, mode="overwrite", overwrite_schema=True, **lock_settings)
+    wr.s3.to_deltalake(path=path, df=df, mode="overwrite", schema_mode="overwrite", **lock_settings)
 
     df3 = wr.s3.read_deltalake(path=path, version=0, pyarrow_additional_kwargs=pyarrow_additional_kwargs)
     assert df3.equals(df.drop("c2", axis=1))
