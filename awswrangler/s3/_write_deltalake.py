@@ -54,7 +54,7 @@ def to_deltalake(
     mode: Literal["error", "append", "overwrite", "ignore"] = "append",
     dtype: dict[str, str] | None = None,
     partition_cols: list[str] | None = None,
-    overwrite_schema: bool = False,
+    schema_mode: Literal["overwrite"] | None = None,
     lock_dynamodb_table: str | None = None,
     s3_allow_unsafe_rename: bool = False,
     boto3_session: boto3.Session | None = None,
@@ -81,8 +81,8 @@ def to_deltalake(
         (e.g. ``{'col name':'bigint', 'col2 name': 'int'})``
     partition_cols: list[str], optional
         List of columns to partition the table by. Only required when creating a new table.
-    overwrite_schema: bool
-        If True, allows updating the schema of the table.
+    schema_mode: str, optional
+        If set to "overwrite", allows replacing the schema of the table. Set to "merge" to merge with existing schema.
     lock_dynamodb_table: str | None
         DynamoDB table to use as a locking provider.
         A locking mechanism is needed to prevent unsafe concurrent writes to a delta lake directory when writing to S3.
@@ -130,6 +130,6 @@ def to_deltalake(
         data=table,
         partition_by=partition_cols,
         mode=mode,
-        overwrite_schema=overwrite_schema,
+        schema_mode=schema_mode,
         storage_options=storage_options,
     )
