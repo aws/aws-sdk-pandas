@@ -871,11 +871,13 @@ def test_athena_delete_from_iceberg_empty_df_error(
         )
 
 
+@pytest.mark.parametrize("mode", ["append", "overwrite", "overwrite_partitions"])
 def test_athena_iceberg_use_partition_function(
     path: str,
     path2: str,
     glue_database: str,
     glue_table: str,
+    mode: str,
 ) -> None:
     df = pd.DataFrame(
         {
@@ -911,6 +913,7 @@ def test_athena_iceberg_use_partition_function(
         temp_path=path2,
         partition_cols=["day(ts)"],
         keep_files=False,
+        mode=mode,
     )
 
     df_out = wr.athena.read_sql_table(
@@ -920,7 +923,11 @@ def test_athena_iceberg_use_partition_function(
         unload_approach=False,
     )
 
-    assert len(df_out) == len(df) + len(df2)
+    if mode == "append":
+        assert len(df_out) == len(df) + len(df2)
+    else:
+        assert len(df_out) == len(df2)
+
     assert len(df_out.columns) == len(df.columns)
 
 

@@ -6,7 +6,7 @@ import logging
 import re
 import typing
 import uuid
-from typing import Any, Dict, Literal, TypedDict, cast
+from typing import Any, Dict, Literal, NamedTuple, TypedDict, cast
 
 import boto3
 import pandas as pd
@@ -88,6 +88,40 @@ class _SchemaChanges(TypedDict):
     missing_columns: dict[str, str]
 
 
+class _TransformFunction(NamedTuple):
+    name: str
+    args: list[str]
+
+
+_TRANSFORM_FUNCTION_PATTERN = re.compile(r"([A-Za-z0-9_]+)\((.+)\)")
+
+
+def _extract_transform_function(text: str) -> _TransformFunction | None:
+    # Extract transform function and its arguments.
+    # Examples include day(column_name) and truncate(10, column_name).
+    match = re.match(_TRANSFORM_FUNCTION_PATTERN, text)
+
+    if match is None:
+        return None
+
+    return _TransformFunction(name=match.group(1), args=match.group(2).split(","))
+
+
+def _extract_used_columns(cols: list[str]) -> list[str]:
+    used_columns = []
+
+    for col in cols:
+        transform_function = _extract_transform_function(col)
+        if transform_function is None:
+            used_columns.append(col)
+        else:
+            for arg in transform_function.args:
+                if re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", arg):
+                    used_columns.append(arg)
+
+    return used_columns
+
+
 def _determine_differences(
     df: pd.DataFrame,
     database: str,
@@ -101,9 +135,7 @@ def _determine_differences(
     if partition_cols:
         # Remove columns using partition transform function,
         # as they won't be found in the DataFrame or the Glue catalog.
-        # Examples include day(column_name) and truncate(10, column_name).
-        pattern = r"[A-Za-z0-9_]+\(.+\)"
-        partition_cols = [col for col in partition_cols if re.match(pattern, col) is None]
+        partition_cols = [col for col in partition_cols if _extract_transform_function(col) is None]
 
     frame_columns_types, frame_partitions_types = _data_types.athena_types_from_pandas_partitioned(
         df=df, index=index, partition_cols=partition_cols, dtype=dtype
@@ -647,7 +679,22 @@ def delete_from_iceberg_table(
     if not catalog.does_table_exist(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id):
         raise exceptions.InvalidTable(f"Table {table} does not exist in database {database}.")
 
-    df = df[merge_cols].drop_duplicates(ignore_index=True)
+    relevant_columns = _extract_used_columns(merge_cols)
+    df = df[relevant_columns].drop_duplicates(ignore_index=True)
+
+    def process_col(col: str, table: str) -> str:
+        transform = _extract_transform_function(col)
+        if transform is None:
+            return f'"{table}"."{col}"'
+
+        return (
+            transform.name
+            + "("
+            + ",".join(
+                [f'"{table}"."{arg}"' if re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", arg) else arg for arg in transform.args]
+            )
+            + ")"
+        )
 
     try:
         # Create temporary external table, write the results
@@ -666,7 +713,7 @@ def delete_from_iceberg_table(
         sql_statement = f"""
             MERGE INTO "{database}"."{table}" target
             USING "{database}"."{temp_table}" source
-            ON {' AND '.join([f'target."{x}" = source."{x}"' for x in merge_cols])}
+            ON {' AND '.join([f'{process_col(x, "target")} = {process_col(x, "source")}' for x in merge_cols])}
             WHEN MATCHED THEN
                 DELETE
         """
