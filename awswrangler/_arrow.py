@@ -75,7 +75,7 @@ def _apply_timezone(df: pd.DataFrame, metadata: dict[str, Any]) -> pd.DataFrame:
             if timezone_str:
                 timezone: datetime.tzinfo = pa.lib.string_to_tzinfo(timezone_str)
                 _logger.debug("applying timezone (%s) on column %s", timezone, col_name)
-                if hasattr(df[col_name].dtype, "tz") is False:
+                if hasattr(df[col_name].dt, "tz") is False:
                     df[col_name] = df[col_name].dt.tz_localize(tz="UTC")
                 if timezone is not None and timezone != pytz.UTC and hasattr(df[col_name].dt, "tz_convert"):
                     df[col_name] = df[col_name].dt.tz_convert(tz=timezone)
