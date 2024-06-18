@@ -921,7 +921,7 @@ def get_columns_parameters(
     """
     client_glue = _utils.client("glue", session=boto3_session)
     response = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
-    parameters = {}
+    parameters: dict[str, Mapping[str, str] | None] = {}
     for c in response["Table"]["StorageDescriptor"]["Columns"]:
         parameters[c["Name"]] = c.get("Parameters")
     if "PartitionKeys" in response["Table"]:
