@@ -238,14 +238,16 @@ def test_wait_object_not_exists(path: str, benchmark_time: int, request: pytest.
 
 @pytest.mark.parametrize("size", [(5000, 5000), (1, 5000), (5000, 1), (1, 1)])
 def test_wide_df(size: tuple[int, int], path: str) -> None:
-    df = pd.DataFrame(np.random.randint(0, 100, size=size))
+    rand_gen = np.random.Generator()
+
+    df = pd.DataFrame(rand_gen.integers(0, 100, size=size))
     df.columns = df.columns.map(str)
 
     num_cols = size[0]
-    df["int"] = np.random.choice(["1", "2", None], num_cols)
-    df["decimal"] = np.random.choice(["1.0", "2.0", None], num_cols)
-    df["date"] = np.random.choice(["2020-01-01", "2020-01-02", None], num_cols)
-    df["par0"] = np.random.choice(["A", "B"], num_cols)
+    df["int"] = rand_gen.choice(["1", "2", None], num_cols)
+    df["decimal"] = rand_gen.choice(["1.0", "2.0", None], num_cols)
+    df["date"] = rand_gen.choice(["2020-01-01", "2020-01-02", None], num_cols)
+    df["par0"] = rand_gen.choice(["A", "B"], num_cols)
 
     partitions_shape = np.array(unwrap_partitions(df)).shape
     assert partitions_shape[1] == min(math.ceil(len(df.columns) / cfg.MinPartitionSize.get()), cfg.NPartitions.get())
