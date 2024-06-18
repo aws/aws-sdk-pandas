@@ -507,8 +507,8 @@ def to_iceberg(
         sql_statement: str
         if merge_cols:
             if merge_condition == "update":
-                match_condition = "WHEN MATCHED THEN"
-                f"UPDATE SET {', '.join([f'"{x}" = source."{x}"' for x in df.columns])}"
+                match_condition = f"""WHEN MATCHED THEN
+                    UPDATE SET {', '.join([f'"{x}" = source."{x}"' for x in df.columns])}"""
             else:
                 match_condition = ""
             sql_statement = f"""
