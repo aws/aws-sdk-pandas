@@ -679,7 +679,7 @@ def test_athena_to_iceberg_merge_into_ignore(path: str, path2: str, glue_databas
         temp_path=path2,
         keep_files=False,
         merge_cols=["title", "year"],
-        merge_condition='ignore'
+        merge_condition="ignore",
     )
 
     # Expected output
