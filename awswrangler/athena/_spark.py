@@ -94,7 +94,7 @@ def create_spark_session(
     default_executor_dpu_size: int = 1,
     additional_configs: dict[str, Any] | None = None,
     spark_properties: dict[str, Any] | None = None,
-    notebook_version: str = 'Athena notebook version 1',
+    notebook_version: str = "Athena notebook version 1",
     idle_timeout: int = 15,
     boto3_session: boto3.Session | None = None,
 ) -> str:
@@ -118,7 +118,7 @@ def create_spark_session(
         Contains SparkProperties in the form of key-value pairs.Specifies custom jar files and Spark properties
         for use cases like cluster encryption, table formats, and general Spark tuning.
     notebook_version: str
-        The notebook version. This value is supplied automatically for notebook sessions in the Athena console and is not required for programmatic session access. 
+        The notebook version. This value is supplied automatically for notebook sessions in the Athena console and is not required for programmatic session access.
         The only valid notebook version is Athena notebook version 1. If you specify a value for NotebookVersion, you must also specify a value for NotebookId
     idle_timeout : int, optional
          The idle timeout in minutes for the session. The default is 15.
@@ -171,7 +171,7 @@ def run_spark_calculation(
     default_executor_dpu_size: int = 1,
     additional_configs: dict[str, Any] | None = None,
     spark_properties: dict[str, Any] | None = None,
-    notebook_version: str = 'Athena notebook version 1',
+    notebook_version: str = "Athena notebook version 1",
     idle_timeout: int = 15,
     boto3_session: boto3.Session | None = None,
 ) -> dict[str, Any]:
@@ -199,7 +199,7 @@ def run_spark_calculation(
         Contains SparkProperties in the form of key-value pairs.Specifies custom jar files and Spark properties
         for use cases like cluster encryption, table formats, and general Spark tuning.
     notebook_version: str
-        The notebook version. This value is supplied automatically for notebook sessions in the Athena console and is not required for programmatic session access. 
+        The notebook version. This value is supplied automatically for notebook sessions in the Athena console and is not required for programmatic session access.
         The only valid notebook version is Athena notebook version 1. If you specify a value for NotebookVersion, you must also specify a value for NotebookId
     idle_timeout : int, optional
         The idle timeout in minutes for the session. The default is 15.
