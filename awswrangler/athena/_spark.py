@@ -94,7 +94,7 @@ def create_spark_session(
     default_executor_dpu_size: int = 1,
     additional_configs: dict[str, Any] | None = None,
     spark_properties: dict[str, Any] | None = None,
-    notebook_version: str = "Athena notebook version 1",
+    notebook_version: str | None = None,
     idle_timeout: int = 15,
     boto3_session: boto3.Session | None = None,
 ) -> str:
@@ -117,11 +117,11 @@ def create_spark_session(
     spark_properties: Dict[str, Any], optional
         Contains SparkProperties in the form of key-value pairs.Specifies custom jar files and Spark properties
         for use cases like cluster encryption, table formats, and general Spark tuning.
-    notebook_version: str
+    notebook_version: str, optional
         The notebook version. This value is supplied automatically for notebook sessions in the Athena console and is not required for programmatic session access.
         The only valid notebook version is Athena notebook version 1. If you specify a value for NotebookVersion, you must also specify a value for NotebookId
     idle_timeout : int, optional
-         The idle timeout in minutes for the session. The default is 15.
+        The idle timeout in minutes for the session. The default is 15.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -146,11 +146,13 @@ def create_spark_session(
         engine_configuration["AdditionalConfigs"] = additional_configs
     if spark_properties:
         engine_configuration["SparkProperties"] = spark_properties
+    kwargs: Any = {"SessionIdleTimeoutInMinutes": idle_timeout}
+    if notebook_version:
+        kwargs["NotebookVersion"] = notebook_version
     response = client_athena.start_session(
         WorkGroup=workgroup,
         EngineConfiguration=engine_configuration,
-        SessionIdleTimeoutInMinutes=idle_timeout,
-        NotebookVersion=notebook_version,
+        **kwargs,
     )
     _logger.info("Session info:\n%s", response)
     session_id: str = response["SessionId"]
