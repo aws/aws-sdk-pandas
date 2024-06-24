@@ -645,13 +645,16 @@ def test_timezone_raw_values(path):
     df["c3"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(-timedelta(seconds=14400))))
     df["c4"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(hours=-8))))
     wr.s3.to_parquet(partition_cols=["par"], df=df, path=path, dataset=True, sanitize_columns=False)
+
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=False, pyarrow_additional_kwargs={"ignore_metadata": True})
+
     # Use pandas to read because of Modin "Internal Error: Internal and external indices on axis 1 do not match."
     import pandas
-
     df3 = pandas.read_parquet(path)
+
     df2["par"] = df2["par"].astype("string")
     df3["par"] = df3["par"].astype("string")
+
     assert_pandas_equals(df2, df3)
 
 
