@@ -213,6 +213,7 @@ def _validate_args(
     mode: Literal["append", "overwrite", "overwrite_partitions"],
     partition_cols: list[str] | None,
     merge_cols: list[str] | None,
+    merge_condition: Literal["update", "ignore"],
 ) -> None:
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
@@ -232,6 +233,11 @@ def _validate_args(
                 "When mode is 'overwrite_partitions' merge_cols must not be specified."
             )
 
+    if merge_cols and merge_condition not in ["update", "ignore"]:
+        raise exceptions.InvalidArgumentValue(
+            f"Invalid merge_condition: {merge_condition}. Valid values: ['update', 'ignore']"
+        )
+
 
 @apply_configs
 @_utils.validate_distributed_kwargs(
@@ -246,6 +252,7 @@ def to_iceberg(
     table_location: str | None = None,
     partition_cols: list[str] | None = None,
     merge_cols: list[str] | None = None,
+    merge_condition: Literal["update", "ignore"] = "update",
     keep_files: bool = True,
     data_source: str | None = None,
     s3_output: str | None = None,
@@ -292,6 +299,8 @@ def to_iceberg(
         List of column names that will be used for conditional inserts and updates.
 
         https://docs.aws.amazon.com/athena/latest/ug/merge-into-statement.html
+    merge_condition: str, optional
+        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore'].
     keep_files : bool
         Whether staging files produced by Athena are retained. 'True' by default.
     data_source : str, optional
@@ -376,6 +385,7 @@ def to_iceberg(
         mode=mode,
         partition_cols=partition_cols,
         merge_cols=merge_cols,
+        merge_condition=merge_condition,
     )
 
     glue_table_settings = cast(
@@ -497,12 +507,16 @@ def to_iceberg(
         # Insert or merge into Iceberg table
         sql_statement: str
         if merge_cols:
+            if merge_condition == "update":
+                match_condition = f"""WHEN MATCHED THEN
+                    UPDATE SET {', '.join([f'"{x}" = source."{x}"' for x in df.columns])}"""
+            else:
+                match_condition = ""
             sql_statement = f"""
                 MERGE INTO "{database}"."{table}" target
                 USING "{database}"."{temp_table}" source
                 ON {' AND '.join([f'target."{x}" = source."{x}"' for x in merge_cols])}
-                WHEN MATCHED THEN
-                    UPDATE SET {', '.join([f'"{x}" = source."{x}"' for x in df.columns])}
+                {match_condition}
                 WHEN NOT MATCHED THEN
                     INSERT ({', '.join([f'"{x}"' for x in df.columns])})
                     VALUES ({', '.join([f'source."{x}"' for x in df.columns])})
