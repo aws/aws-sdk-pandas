@@ -650,6 +650,53 @@ def test_athena_to_iceberg_merge_into(path: str, path2: str, glue_database: str,
     assert_pandas_equals(df_expected, df_out)
 
 
+def test_athena_to_iceberg_merge_into_nulls(path: str, path2: str, glue_database: str, glue_table: str) -> None:
+    df = pd.DataFrame({'col1':  ['a', 'a', np.nan], 'col2':  [1.1, np.nan, 2.2], 'action': ['insert', 'insert', 'insert']})
+    df['col1'] = df['col1'].astype('string')
+    df['col2'] = df['col2'].astype('float64')
+    df['action'] = df['action'].astype('string')
+
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+
+    # Perform MERGE INTO
+    df2 = pd.DataFrame({'col1':  ['a', 'a', np.nan, 'b'], 'col2':  [1.1, np.nan, 2.2, 3.3], 'action': ['update', 'update', 'update', 'insert']})
+    df2['col1'] = df2['col1'].astype('string')
+    df2['col2'] = df2['col2'].astype('float64')
+    df2['action'] = df2['action'].astype('string')
+
+    wr.athena.to_iceberg(
+        df=df2,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+        merge_cols=['col1', 'col2'],
+    )
+
+    # Expected output
+    df_expected = pd.DataFrame({'col1':  ['a', 'a', np.nan, 'b'], 'col2':  [1.1, np.nan, 2.2, 3.3], 'action': ['update', 'update', 'update', 'insert']})
+    df_expected['col1'] = df_expected['col1'].astype('string')
+    df_expected['col2'] = df_expected['col2'].astype('float64')
+    df_expected['action'] = df_expected['action'].astype('string')
+
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}"',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert_pandas_equals(df_expected.sort_values(df_expected.columns), df_out.sort_values(df_out.columns))
+
+
 def test_athena_to_iceberg_merge_into_ignore(path: str, path2: str, glue_database: str, glue_table: str) -> None:
     df = pd.DataFrame({"title": ["Dune", "Fargo"], "year": ["1984", "1996"], "gross": [35_000_000, 60_000_000]})
     df["title"] = df["title"].astype("string")
