@@ -650,6 +650,7 @@ def test_timezone_raw_values(path):
 
     # Use pandas to read because of Modin "Internal Error: Internal and external indices on axis 1 do not match."
     import pandas
+
     df3 = pandas.read_parquet(path)
 
     df2["par"] = df2["par"].astype("string")
