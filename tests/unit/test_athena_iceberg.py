@@ -712,7 +712,10 @@ def test_athena_to_iceberg_merge_into_nulls(path: str, path2: str, glue_database
         unload_approach=False,
     )
 
-    assert_pandas_equals(df_expected.sort_values(df_expected.columns), df_out.sort_values(df_out.columns))
+    assert_pandas_equals(
+        df_out.sort_values(df_out.columns.to_list()).reset_index(drop=True),
+        df_expected.sort_values(df_expected.columns.to_list()).reset_index(drop=True),
+    )
 
 
 def test_athena_to_iceberg_merge_into_ignore(path: str, path2: str, glue_database: str, glue_table: str) -> None:
