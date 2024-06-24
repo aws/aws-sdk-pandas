@@ -97,7 +97,9 @@ def create_prepared_statement(
 
 
 @apply_configs
-def list_prepared_statements(workgroup: str = "primary", boto3_session: boto3.Session | None = None) -> list[str]:
+def list_prepared_statements(
+    workgroup: str = "primary", boto3_session: boto3.Session | None = None
+) -> list[dict[str, Any]]:
     """
     List the prepared statements in the specified workgroup.
 
