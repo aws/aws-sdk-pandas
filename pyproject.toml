@@ -79,7 +79,7 @@ modin = [
     { version = "0.23.1post0", markers = "python_version < \"3.9\"", optional = true },
     { version = "^0.26.0", markers = "python_version >= \"3.9\"", optional = true }
 ]
-ray = { version = "^2.20.0", extras = ["default", "data"], optional = true }
+ray = { version = "^2.30.0", extras = ["default", "data"], optional = true }
 
 [tool.poetry.extras]
 redshift = ["redshift-connector"]

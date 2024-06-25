@@ -205,6 +205,12 @@ def test_json(path):
     assert df1.equals(wr.s3.read_json(path=[path0, path1], use_threads=True))
 
 
+@pytest.mark.modin_index
+@pytest.mark.xfail(
+    raises=AssertionError,
+    reason="https://github.com/ray-project/ray/issues/37771",
+    condition=is_ray_modin,
+)
 def test_json_lines(path):
     df0 = pd.DataFrame({"id": [1, 2, 3]})
     path0 = f"{path}test_json0.json"
