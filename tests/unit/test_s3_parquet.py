@@ -410,6 +410,12 @@ def test_index_recovery_simple_str(path, use_threads):
     assert_pandas_equals(df, df2)
 
 
+@pytest.mark.modin_index
+@pytest.mark.xfail(
+    raises=AssertionError,
+    reason="https://github.com/ray-project/ray/issues/37771",
+    condition=is_ray_modin,
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_partitioned_str(path, use_threads):
     df = pd.DataFrame(
@@ -530,6 +536,11 @@ def test_index_schema_validation(path, glue_database, glue_table, index):
 
 
 @pytest.mark.modin_index
+@pytest.mark.xfail(
+    raises=AssertionError,
+    reason="https://github.com/ray-project/ray/issues/37771",
+    condition=is_ray_modin,
+)
 @pytest.mark.parametrize("index", [["c0"], ["c0", "c1"]])
 @pytest.mark.parametrize("partition_cols", [["c0"], ["c0", "c1"]])
 def test_index_partition(path, glue_database, glue_table, index, partition_cols):
@@ -679,6 +690,12 @@ def test_validate_columns(path, partition_cols) -> None:
         wr.s3.read_parquet(path, columns=["a", "b", "c"], dataset=True, validate_schema=True)
 
 
+@pytest.mark.modin_index
+@pytest.mark.xfail(
+    raises=AssertionError,
+    reason="https://github.com/ray-project/ray/issues/37771",
+    condition=is_ray_modin,
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_empty_column(path, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
