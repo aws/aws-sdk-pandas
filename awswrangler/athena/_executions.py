@@ -104,7 +104,7 @@ def start_query_execution(
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
-    athena_query_wait_polling_delay: float, default: 0.25 seconds
+    athena_query_wait_polling_delay: float, default: 1.0 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
@@ -211,7 +211,7 @@ def wait_query(
         Athena query execution ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    athena_query_wait_polling_delay: float, default: 0.25 seconds
+    athena_query_wait_polling_delay: float, default: 1.0 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns

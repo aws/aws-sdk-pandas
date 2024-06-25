@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Mapping, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, cast
 
 import boto3
 import botocore.exceptions
@@ -893,7 +893,7 @@ def get_columns_parameters(
     table: str,
     catalog_id: str | None = None,
     boto3_session: boto3.Session | None = None,
-) -> dict[str, Mapping[str, str] | None]:
+) -> dict[str, dict[str, str] | None]:
     """Get all columns parameters.
 
     Parameters
