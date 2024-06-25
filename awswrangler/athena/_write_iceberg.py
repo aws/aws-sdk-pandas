@@ -515,7 +515,9 @@ def to_iceberg(
             sql_statement = f"""
                 MERGE INTO "{database}"."{table}" target
                 USING "{database}"."{temp_table}" source
-                ON {' AND '.join([f'target."{x}" = source."{x}"' for x in merge_cols])}
+                ON {' AND '.join([
+                    f'(target."{x}" = source."{x}" OR (target."{x}" IS NULL AND source."{x}" IS NULL))'
+                    for x in merge_cols])}
                 {match_condition}
                 WHEN NOT MATCHED THEN
                     INSERT ({', '.join([f'"{x}"' for x in df.columns])})
