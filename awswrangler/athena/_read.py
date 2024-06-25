@@ -705,7 +705,7 @@ def get_query_results(
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
-    athena_query_wait_polling_delay: float, default: 0.25 seconds
+    athena_query_wait_polling_delay: float, default: 1.0 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns
@@ -960,7 +960,7 @@ def read_sql_query(
         If reading cached data fails for any reason, execution falls back to the usual query run path.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
-    athena_query_wait_polling_delay: float, default: 0.25 seconds
+    athena_query_wait_polling_delay: float, default: 1.0 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
     params: Dict[str, any] | List[str], optional
         Parameters that will be used for constructing the SQL query.
@@ -1426,7 +1426,7 @@ def unload(
 
         - ``named``
         - ``qmark``
-    athena_query_wait_polling_delay: float, default: 0.25 seconds
+    athena_query_wait_polling_delay: float, default: 1.0 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns

@@ -507,7 +507,7 @@ def repair_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
-    athena_query_wait_polling_delay: float, default: 0.25 seconds
+    athena_query_wait_polling_delay: float, default: 1.0 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
@@ -583,7 +583,7 @@ def describe_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
-    athena_query_wait_polling_delay: float, default: 0.25 seconds
+    athena_query_wait_polling_delay: float, default: 1.0 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
     s3_additional_kwargs : dict[str, Any], optional
         Forwarded to botocore requests.
@@ -701,7 +701,7 @@ def create_ctas_table(
         Recommended for memory restricted environments.
     wait : bool, default False
         Whether to wait for the query to finish and return a dictionary with the Query metadata.
-    athena_query_wait_polling_delay: float, default: 0.25 seconds
+    athena_query_wait_polling_delay: float, default: 1.0 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
     execution_params: List[str], optional [DEPRECATED]
         A list of values for the parameters that are used in the SQL query.
@@ -913,7 +913,7 @@ def show_create_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
-    athena_query_wait_polling_delay: float, default: 0.25 seconds
+    athena_query_wait_polling_delay: float, default: 1.0 seconds
         Interval in seconds for how often the function will check if the Athena query has completed.
     s3_additional_kwargs: dict[str, Any]
         Forwarded to botocore requests.
