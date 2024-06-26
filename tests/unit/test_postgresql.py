@@ -12,7 +12,7 @@ from pg8000.dbapi import ProgrammingError
 import awswrangler as wr
 import awswrangler.pandas as pd
 
-from .._utils import ensure_data_types, get_df, pandas_equals
+from .._utils import ensure_data_types, get_df, is_ray_modin, pandas_equals
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -96,6 +96,7 @@ def test_unknown_overwrite_method_error(postgresql_table, postgresql_con):
         )
 
 
+@pytest.mark.xfail(is_ray_modin, raises=ProgrammingError, reason="Broken export of values in Modin")
 def test_sql_types(postgresql_table, postgresql_con):
     table = postgresql_table
     df = get_df()
