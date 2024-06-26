@@ -19,7 +19,7 @@ def _read_text(
     s3_additional_kwargs: dict[str, str] | None,
     dataset: bool,
     ignore_index: bool,
-    parallelism: int,
+    override_num_blocks: int,
     version_ids: dict[str, str] | None,
     pandas_kwargs: dict[str, Any],
 ) -> pd.DataFrame | Iterator[pd.DataFrame]: ...

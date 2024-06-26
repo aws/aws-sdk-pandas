@@ -26,7 +26,7 @@ def _read_orc_distributed(
     schema: pa.schema | None,
     columns: list[str] | None,
     use_threads: bool | int,
-    parallelism: int,
+    override_num_blocks: int,
     version_ids: dict[str, str] | None,
     s3_client: "S3Client" | None,
     s3_additional_kwargs: dict[str, Any] | None,
@@ -43,7 +43,7 @@ def _read_orc_distributed(
     )
     ray_dataset = read_datasource(
         datasource,
-        parallelism=parallelism,
+        override_num_blocks=override_num_blocks,
     )
     to_pandas_kwargs = _data_types.pyarrow2pandas_defaults(
         use_threads=use_threads,

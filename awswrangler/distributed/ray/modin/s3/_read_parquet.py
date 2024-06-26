@@ -34,7 +34,7 @@ def _read_parquet_distributed(
     columns: list[str] | None,
     coerce_int96_timestamp_unit: str | None,
     use_threads: bool | int,
-    parallelism: int,
+    override_num_blocks: int,
     version_ids: dict[str, str] | None,
     s3_client: "S3Client" | None,
     s3_additional_kwargs: dict[str, Any] | None,
@@ -60,7 +60,7 @@ def _read_parquet_distributed(
                 "dataset_kwargs": dataset_kwargs,
             },
         ),
-        parallelism=parallelism,
+        override_num_blocks=override_num_blocks,
     )
     return _to_modin(
         dataset=dataset,

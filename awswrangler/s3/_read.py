@@ -29,6 +29,7 @@ from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
 from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._list import _path2list, _prefix_cleanup
+from awswrangler.typing import RaySettings
 
 if TYPE_CHECKING:
     from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
@@ -377,3 +378,20 @@ def _get_paths_for_glue_table(
                 )
 
     return paths, path_root, res
+
+
+def _get_num_output_blocks(
+    ray_args: RaySettings | None = None,
+) -> int:
+    ray_args = ray_args or {}
+    parallelism = ray_args.get("parallelism", -1)
+    override_num_blocks = ray_args.get("override_num_blocks")
+    if parallelism != -1:
+        pass
+        _logger.warning(
+            "The argument ``parallelism`` is deprecated and will be removed in the next major release. "
+            "Please specify ``override_num_blocks`` instead."
+        )
+    elif override_num_blocks is not None:
+        parallelism = override_num_blocks
+    return parallelism
