@@ -369,7 +369,7 @@ def athena2pandas(dtype: str, dtype_backend: str | None = None) -> str:  # noqa:
     if (dtype == "string") or dtype.startswith("char") or dtype.startswith("varchar"):
         return "string" if dtype_backend != "pyarrow" else "string[pyarrow]"
     if dtype in ("timestamp", "timestamp with time zone"):
-        return "datetime64" if dtype_backend != "pyarrow" else "date64[pyarrow]"
+        return "datetime64" if dtype_backend != "pyarrow" else "timestamp[ns][pyarrow]"
     if dtype == "date":
         return "date" if dtype_backend != "pyarrow" else "date32[pyarrow]"
     if dtype.startswith("decimal"):
