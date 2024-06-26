@@ -105,7 +105,7 @@ def test_athena_csv_dtype_backend(
         df["string_nullable"] = df["string_nullable"].astype("string[pyarrow]")
 
     if ctas_approach or unload_approach:
-        df2["string_nullable"].replace("", pa.NA, inplace=True)
+        df2["string_nullable"] = df2["string_nullable"].replace("", pa.NA)
 
     assert_pandas_equals(df, df2)
 
