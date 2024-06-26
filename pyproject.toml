@@ -77,7 +77,7 @@ geopandas = [
 # Distributed
 modin = [
     { version = "0.23.1post0", markers = "python_version < \"3.9\"", optional = true },
-    { version = "^0.28.1", markers = "python_version >= \"3.9\"", optional = true }
+    { version = "^0.31.0", markers = "python_version >= \"3.9\"", optional = true }
 ]
 ray = { version = "^2.30.0", extras = ["default", "data"], optional = true }
 
