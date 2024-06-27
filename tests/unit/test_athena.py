@@ -969,8 +969,8 @@ def test_athena_nan_inf(glue_database, ctas_approach, data_source):
     assert df.shape == (1, 4)
     assert df.dtypes.to_list() == ["float64", "float64", "float64", "float64"]
     assert np.isnan(df.nan.iloc[0])
-    assert df.inf.iloc[0] == np.PINF
-    assert df.inf_n.iloc[0] == np.NINF
+    assert df.inf.iloc[0] == np.inf
+    assert df.inf_n.iloc[0] == -np.inf
     assert df.regular.iloc[0] == 1.2
 
 

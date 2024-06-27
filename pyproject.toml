@@ -36,8 +36,8 @@ pandas = [
     { version = ">=1.2.0,<3.0.0", markers = "python_version >= \"3.9\"" },
 ]
 numpy = [
-    {version = "^1.18", markers = "python_version < \"3.12\""},
-    {version = "^1.26", markers = "python_version >= \"3.12\""}
+    { version = ">=1.18,<2.0", markers = "python_version < \"3.9\"" },
+    { version = ">=1.26,<3.0", markers = "python_version >= \"3.9\"" }
 ]
 pyarrow = ">=8.0.0"
 typing-extensions = "^4.4.0"
@@ -77,7 +77,7 @@ geopandas = [
 # Distributed
 modin = [
     { version = "0.23.1post0", markers = "python_version < \"3.9\"", optional = true },
-    { version = "^0.26.0", markers = "python_version >= \"3.9\"", optional = true }
+    { version = "^0.31.0", markers = "python_version >= \"3.9\"", optional = true }
 ]
 ray = { version = "^2.30.0", extras = ["default", "data"], optional = true }
 
@@ -158,7 +158,7 @@ line-length = 120
 target-version = "py38"
 
 [tool.ruff.lint]
-select = ["D", "E", "F", "I", "PL", "RUF100", "W", "FA", "UP", "PYI036"]
+select = ["D", "E", "F", "I", "PL", "RUF100", "W", "FA", "UP", "PYI036", "NPY"]
 ignore = ["E501", "PLR2004", "UP037"]
 fixable = ["ALL"]
 
