@@ -28,6 +28,7 @@ from awswrangler.s3._read import (
     _apply_partition_filter,
     _check_version_id,
     _extract_partitions_dtypes_from_table_details,
+    _get_num_output_blocks,
     _get_path_ignore_suffix,
     _get_path_root,
     _get_paths_for_glue_table,
@@ -137,7 +138,7 @@ def _read_orc(
     schema: pa.schema | None,
     columns: list[str] | None,
     use_threads: bool | int,
-    parallelism: int,
+    override_num_blocks: int,
     version_ids: dict[str, str] | None,
     s3_client: "S3Client" | None,
     s3_additional_kwargs: dict[str, Any] | None,
@@ -283,8 +284,6 @@ def read_orc(
     >>> df = wr.s3.read_orc(path, dataset=True, partition_filter=my_filter)
 
     """
-    ray_args = ray_args if ray_args else {}
-
     s3_client = _utils.client(service_name="s3", session=boto3_session)
     paths: list[str] = _path2list(
         path=path,
@@ -330,7 +329,7 @@ def read_orc(
         schema=schema,
         columns=columns,
         use_threads=use_threads,
-        parallelism=ray_args.get("parallelism", -1),
+        override_num_blocks=_get_num_output_blocks(ray_args),
         s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         arrow_kwargs=arrow_kwargs,

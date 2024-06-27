@@ -138,7 +138,7 @@ def _read_text_distributed(
     s3_additional_kwargs: dict[str, str] | None,
     dataset: bool,
     ignore_index: bool,
-    parallelism: int,
+    override_num_blocks: int,
     version_ids: dict[str, str] | None,
     pandas_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
@@ -172,6 +172,6 @@ def _read_text_distributed(
             meta_provider=FastFileMetadataProvider(),
             **configuration,
         ),
-        parallelism=parallelism,
+        override_num_blocks=override_num_blocks,
     )
     return _to_modin(dataset=ray_dataset, ignore_index=ignore_index)
