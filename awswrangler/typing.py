@@ -231,6 +231,13 @@ class RaySettings(TypedDict):
     Parallelism may be limited by the number of files of the dataset.
     Auto-detect by default.
     """
+    override_num_blocks: NotRequired[int]
+    """
+    Override the number of output blocks from all read tasks.
+    By default, the number of output blocks is dynamically decided based on
+    input data size and available resources. You shouldn't manually set this
+    value in most cases.
+    """
 
 
 class RayReadParquetSettings(RaySettings):

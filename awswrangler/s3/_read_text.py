@@ -19,6 +19,7 @@ from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
     _check_version_id,
+    _get_num_output_blocks,
     _get_path_ignore_suffix,
     _get_path_root,
     _union,
@@ -52,7 +53,7 @@ def _read_text(
     s3_additional_kwargs: dict[str, str] | None,
     dataset: bool,
     ignore_index: bool,
-    parallelism: int,
+    override_num_blocks: int,
     version_ids: dict[str, str] | None,
     pandas_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
@@ -131,7 +132,6 @@ def _read_text_format(
             **args,
         )
 
-    ray_args = ray_args if ray_args else {}
     return _read_text(
         read_format,
         paths=paths,
@@ -141,7 +141,7 @@ def _read_text_format(
         s3_additional_kwargs=s3_additional_kwargs,
         dataset=dataset,
         ignore_index=ignore_index,
-        parallelism=ray_args.get("parallelism", -1),
+        override_num_blocks=_get_num_output_blocks(ray_args),
         version_ids=version_ids,
         pandas_kwargs=pandas_kwargs,
     )

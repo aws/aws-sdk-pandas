@@ -4,7 +4,7 @@ import awswrangler as wr
 
 df = wr.s3.read_parquet(
     path=f"s3://{os.environ['data-gen-bucket']}/parquet/medium/partitioned/",
-    ray_args={"parallelism": 1000},
+    ray_args={"override_num_blocks": 1000},
 )
 
 wr.s3.to_parquet(
