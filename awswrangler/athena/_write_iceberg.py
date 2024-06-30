@@ -239,6 +239,25 @@ def _validate_args(
         )
 
 
+def _create_partitioned_dataframes(df: pd.DataFrame, partition_cols: list[str], chunk_size: int):
+    """Split the DataFrame into multiple DataFrames each containing at most chunk_size unique combinations of partition columns."""
+    def chunk_list(list_to_chunk: list[any], chunk_size: int):
+        """Split a list into chunks of chunk_size elements."""
+        return [list_to_chunk[i:i + chunk_size] for i in range(0, len(list_to_chunk), chunk_size)]
+
+    # Get all unique combinations of the partition columns
+    unique_combinations = df[partition_cols].drop_duplicates()
+    # Split the unique combinations into chunks of chunk_size
+    chunks = chunk_list(unique_combinations.values.tolist(), chunk_size)
+    partitioned_dfs = []
+    for chunk in chunks:
+        chunk_df = pd.DataFrame(chunk, columns=partition_cols)
+        # Merge the original DataFrame with the chunk to get the corresponding rows
+        partitioned_df = df.merge(chunk_df, on=partition_cols)
+        partitioned_dfs.append(partitioned_df)
+    return partitioned_dfs
+
+
 @apply_configs
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
@@ -474,7 +493,7 @@ def to_iceberg(
                 s3_additional_kwargs=s3_additional_kwargs,
                 catalog_id=catalog_id,
             )
-        # if mode == "overwrite", delete whole data from table (but not table itself)
+        # if mode == "overwrite", delete whole data from table (but not table itself to keep transactions history)
         elif mode == "overwrite":
             delete_sql_statement = f"DELETE FROM {table}"
             delete_query_execution_id: str = _start_query_execution(
@@ -489,59 +508,61 @@ def to_iceberg(
             )
             wait_query(query_execution_id=delete_query_execution_id, boto3_session=boto3_session)
 
-        # Create temporary external table, write the results
-        s3.to_parquet(
-            df=df,
-            path=temp_path or wg_config.s3_output,
-            index=index,
-            dataset=True,
-            database=database,
-            table=temp_table,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            dtype=dtype,
-            catalog_id=catalog_id,
-            glue_table_settings=glue_table_settings,
-        )
 
-        # Insert or merge into Iceberg table
-        sql_statement: str
-        if merge_cols:
-            if merge_condition == "update":
-                match_condition = f"""WHEN MATCHED THEN
-                    UPDATE SET {', '.join([f'"{x}" = source."{x}"' for x in df.columns])}"""
+        # When you try to ingest a dataframe containing more than 100 partition value combinations, Athena fails with error "ICEBERG_TOO_MANY_OPEN_PARTITIONS"
+        # https://repost.aws/questions/QUlMgUNkMpSVicSeEfR85WNQ/error-when-creating-iceberg-tables-with-hidden-partitions-using-athena-too-many-open-writers
+        # In order to mitigate this error, we chunk the DataFrame and ingest each chunk sequentially
+        partitioned_dfs = _create_partitioned_dataframes(df, partition_cols, chunk_size=100)
+        _logger.debug(f"Created {len(partitioned_dfs)} dataframe chunk to avoid ICEBERG_TOO_MANY_OPEN_PARTITIONS Athena error")
+        for df_chunk in partitioned_dfs:
+            # Create temporary external table, write the results for this chunk
+            # Overwrite mode because we want to delete data from previous chunk
+            s3.to_parquet(
+                df=df_chunk,
+                path=temp_path or wg_config.s3_output,
+                dataset=True,
+                mode="overwrite",
+                database=database,
+                table=temp_table,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+                dtype=dtype,
+                catalog_id=catalog_id,
+                glue_table_settings=glue_table_settings,
+            )
+
+            # Insert or merge into Iceberg table
+            sql_statement: str
+            if merge_cols:
+                sql_statement = f"""
+                    MERGE INTO "{database}"."{table}" target
+                    USING "{database}"."{temp_table}" source
+                    ON {' AND '.join([f'target."{x}" = source."{x}"' for x in merge_cols])}
+                    WHEN MATCHED THEN
+                        UPDATE SET {', '.join([f'"{x}" = source."{x}"' for x in df.columns])}
+                    WHEN NOT MATCHED THEN
+                        INSERT ({', '.join([f'"{x}"' for x in df.columns])})
+                        VALUES ({', '.join([f'source."{x}"' for x in df.columns])})
+                """
             else:
-                match_condition = ""
-            sql_statement = f"""
-                MERGE INTO "{database}"."{table}" target
-                USING "{database}"."{temp_table}" source
-                ON {' AND '.join([
-                    f'(target."{x}" = source."{x}" OR (target."{x}" IS NULL AND source."{x}" IS NULL))'
-                    for x in merge_cols])}
-                {match_condition}
-                WHEN NOT MATCHED THEN
-                    INSERT ({', '.join([f'"{x}"' for x in df.columns])})
-                    VALUES ({', '.join([f'source."{x}"' for x in df.columns])})
-            """
-        else:
-            sql_statement = f"""
-            INSERT INTO "{database}"."{table}" ({', '.join([f'"{x}"' for x in df.columns])})
-            SELECT {', '.join([f'"{x}"' for x in df.columns])}
-              FROM "{database}"."{temp_table}"
-            """
+                sql_statement = f"""
+                INSERT INTO "{database}"."{table}" ({', '.join([f'"{x}"' for x in df.columns])})
+                SELECT {', '.join([f'"{x}"' for x in df.columns])}
+                  FROM "{database}"."{temp_table}"
+                """
 
-        query_execution_id: str = _start_query_execution(
-            sql=sql_statement,
-            workgroup=workgroup,
-            wg_config=wg_config,
-            database=database,
-            data_source=data_source,
-            s3_output=s3_output,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=boto3_session,
-        )
-        wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
+            query_execution_id: str = _start_query_execution(
+                sql=sql_statement,
+                workgroup=workgroup,
+                wg_config=wg_config,
+                database=database,
+                data_source=data_source,
+                s3_output=s3_output,
+                encryption=encryption,
+                kms_key=kms_key,
+                boto3_session=boto3_session,
+            )
+            wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
 
     except Exception as ex:
         _logger.error(ex)
