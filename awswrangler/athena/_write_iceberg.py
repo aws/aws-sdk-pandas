@@ -241,9 +241,10 @@ def _validate_args(
 
 def _create_partitioned_dataframes(df: pd.DataFrame, partition_cols: list[str], chunk_size: int):
     """Split the DataFrame into multiple DataFrames each containing at most chunk_size unique combinations of partition columns."""
+
     def chunk_list(list_to_chunk: list[any], chunk_size: int):
         """Split a list into chunks of chunk_size elements."""
-        return [list_to_chunk[i:i + chunk_size] for i in range(0, len(list_to_chunk), chunk_size)]
+        return [list_to_chunk[i : i + chunk_size] for i in range(0, len(list_to_chunk), chunk_size)]
 
     # Get all unique combinations of the partition columns
     unique_combinations = df[partition_cols].drop_duplicates()
@@ -508,12 +509,13 @@ def to_iceberg(
             )
             wait_query(query_execution_id=delete_query_execution_id, boto3_session=boto3_session)
 
-
         # When you try to ingest a dataframe containing more than 100 partition value combinations, Athena fails with error "ICEBERG_TOO_MANY_OPEN_PARTITIONS"
         # https://repost.aws/questions/QUlMgUNkMpSVicSeEfR85WNQ/error-when-creating-iceberg-tables-with-hidden-partitions-using-athena-too-many-open-writers
         # In order to mitigate this error, we chunk the DataFrame and ingest each chunk sequentially
         partitioned_dfs = _create_partitioned_dataframes(df, partition_cols, chunk_size=100)
-        _logger.debug(f"Created {len(partitioned_dfs)} dataframe chunk to avoid ICEBERG_TOO_MANY_OPEN_PARTITIONS Athena error")
+        _logger.debug(
+            f"Created {len(partitioned_dfs)} dataframe chunk to avoid ICEBERG_TOO_MANY_OPEN_PARTITIONS Athena error"
+        )
         for df_chunk in partitioned_dfs:
             # Create temporary external table, write the results for this chunk
             # Overwrite mode because we want to delete data from previous chunk
