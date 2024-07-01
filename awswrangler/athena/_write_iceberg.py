@@ -239,10 +239,14 @@ def _validate_args(
         )
 
 
-def _create_partitioned_dataframes(df: pd.DataFrame, partition_cols: list[str], chunk_size: int):
+def _create_partitioned_dataframes(
+    df: pd.DataFrame, partition_cols: list[str] | None, chunk_size: int
+) -> list[pd.DataFrame]:
     """Split the DataFrame into multiple DataFrames each containing at most chunk_size unique combinations of partition columns."""
+    if not partition_cols:
+        return [df]
 
-    def chunk_list(list_to_chunk: list[any], chunk_size: int):
+    def chunk_list(list_to_chunk: list[Any], chunk_size: int) -> list[list[Any]]:
         """Split a list into chunks of chunk_size elements."""
         return [list_to_chunk[i : i + chunk_size] for i in range(0, len(list_to_chunk), chunk_size)]
 
