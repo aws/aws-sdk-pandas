@@ -635,10 +635,10 @@ def flatten_nested_df(
     df = df.reset_index()
 
     # search for list and map
-    s = (df.applymap(type) == list).all()
+    s = (df.applymap(type) == list).all()  # noqa: E721
     list_columns = s[s].index.tolist()
 
-    s = (df.applymap(type) == dict).all()
+    s = (df.applymap(type) == dict).all()  # noqa: E721
     dict_columns = s[s].index.tolist()
 
     if len(list_columns) > 0 or len(dict_columns) > 0:
@@ -660,10 +660,10 @@ def flatten_nested_df(
             new_columns.append(col)
 
         # check if there are still dict o list fields to flatten
-        s = (df[new_columns].applymap(type) == list).all()
+        s = (df[new_columns].applymap(type) == list).all()  # noqa: E721
         list_columns = s[s].index.tolist()
 
-        s = (df[new_columns].applymap(type) == dict).all()
+        s = (df[new_columns].applymap(type) == dict).all()  # noqa: E721
         dict_columns = s[s].index.tolist()
         if recursive and (len(list_columns) > 0 or len(dict_columns) > 0):
             df = flatten_nested_df(df, include_prefix=include_prefix, separator=separator, recursive=recursive)

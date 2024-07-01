@@ -21,13 +21,13 @@ def test_athena_geospatial(path, glue_table, glue_database):
 
     assert type(df) == geopandas.GeoDataFrame
 
-    assert type(df["value"]) == pd.Series
-    assert type(df["point"]) == geopandas.GeoSeries
-    assert type(df["line"]) == geopandas.GeoSeries
-    assert type(df["polygon"]) == geopandas.GeoSeries
-    assert type(df["polygon_empty"]) == geopandas.GeoSeries
+    assert isinstance(df["value"], pd.Series)
+    assert isinstance(df["point"], geopandas.GeoSeries)
+    assert isinstance(df["line"], geopandas.GeoSeries)
+    assert isinstance(df["polygon"], geopandas.GeoSeries)
+    assert isinstance(df["polygon_empty"], geopandas.GeoSeries)
 
-    assert type(df["point"][0]) == shapely.geometry.point.Point
-    assert type(df["line"][0]) == shapely.geometry.linestring.LineString
-    assert type(df["polygon"][0]) == shapely.geometry.polygon.Polygon
-    assert type(df["polygon_empty"][0]) == shapely.geometry.polygon.Polygon
+    assert isinstance(df["point"][0], shapely.geometry.point.Point)
+    assert isinstance(df["line"][0], shapely.geometry.linestring.LineString)
+    assert isinstance(df["polygon"][0], shapely.geometry.polygon.Polygon)
+    assert isinstance(df["polygon_empty"][0], shapely.geometry.polygon.Polygon)
