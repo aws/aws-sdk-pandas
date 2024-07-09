@@ -856,7 +856,7 @@ def split_pandas_frame(df: pd.DataFrame, splits: int) -> list[pd.DataFrame]:
     total = len(df)
     each_section, extras = divmod(total, splits)
     section_sizes = [0] + extras * [each_section + 1] + (splits - extras) * [each_section]
-    div_points = _nx.array(section_sizes, dtype=_nx.intp).cumsum()
+    div_points = _nx.array(section_sizes, dtype=_nx.intp).cumsum()  # type: ignore[attr-defined]
 
     sub_dfs = []
     for i in range(splits):
