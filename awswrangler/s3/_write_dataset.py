@@ -28,7 +28,7 @@ def _get_bucketing_series(df: pd.DataFrame, bucketing_info: typing.BucketingInfo
             axis="columns",
         )
     )
-    return bucket_number_series.astype(pd.CategoricalDtype(range(bucketing_info[1])))
+    return bucket_number_series.astype(np.array([pd.CategoricalDtype(range(bucketing_info[1]))]))
 
 
 def _simulate_overflow(value: int, bits: int = 31, signed: bool = False) -> int:
