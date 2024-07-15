@@ -705,6 +705,17 @@ def test_athena_time_zone(glue_database):
     assert df["value"][0].year == datetime.datetime.utcnow().year
 
 
+@pytest.mark.parametrize("dtype_backend", ["numpy_nullable", "pyarrow"])
+def test_athena_time_type(glue_database: str, dtype_backend: str) -> None:
+    df = wr.athena.read_sql_query(
+        "SELECT time '13:24:11' as col", glue_database, ctas_approach=False, dtype_backend=dtype_backend
+    )
+    if dtype_backend == "pyarrow":
+        assert df["col"].iloc[0] == datetime.time(13, 24, 11)
+    else:
+        assert df["col"].iloc[0] == "13:24:11"
+
+
 @pytest.mark.parametrize(
     "ctas_approach",
     [
