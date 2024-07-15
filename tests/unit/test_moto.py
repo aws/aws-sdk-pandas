@@ -613,13 +613,13 @@ def mock_data_api_connector(connector, has_result_set=True):
     data = [[col["stringValue"] for col in record] for record in statement_response["Records"]]
     response_dataframe = pd.DataFrame(data, columns=column_names)
 
-    if type(connector) == wr.data_api.redshift.RedshiftDataApi:
+    if isinstance(connector, wr.data_api.redshift.RedshiftDataApi):
         connector.client.execute_statement = mock.MagicMock(return_value={"Id": request_id})
         connector.client.describe_statement = mock.MagicMock(
             return_value={"Status": "FINISHED", "HasResultSet": has_result_set}
         )
         connector.client.get_statement_result = mock.MagicMock(return_value=statement_response)
-    elif type(connector) == wr.data_api.rds.RdsDataApi:
+    elif isinstance(connector, wr.data_api.rds.RdsDataApi):
         records = statement_response["Records"]
         metadata = statement_response["ColumnMetadata"]
         del statement_response["Records"]
