@@ -372,6 +372,10 @@ def athena2pandas(dtype: str, dtype_backend: str | None = None) -> str:  # noqa:
         return "datetime64" if dtype_backend != "pyarrow" else "timestamp[ns][pyarrow]"
     if dtype == "date":
         return "date" if dtype_backend != "pyarrow" else "date32[pyarrow]"
+    if dtype == "time":
+        # Pandas does not have a type for time of day, so we are returning a string.
+        # However, if the backend is pyarrow, we can return time32[ms]
+        return "string" if dtype_backend != "pyarrow" else "time32[ms][pyarrow]"
     if dtype.startswith("decimal"):
         return "decimal" if dtype_backend != "pyarrow" else "double[pyarrow]"
     if dtype in ("binary", "varbinary"):

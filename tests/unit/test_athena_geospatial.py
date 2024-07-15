@@ -19,7 +19,7 @@ def test_athena_geospatial(path, glue_table, glue_database):
         ctas_approach=False,
     )
 
-    assert type(df) == geopandas.GeoDataFrame
+    assert isinstance(df, geopandas.GeoDataFrame)
 
     assert isinstance(df["value"], pd.Series)
     assert isinstance(df["point"], geopandas.GeoSeries)
