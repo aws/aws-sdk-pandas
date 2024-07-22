@@ -239,7 +239,7 @@ def _validate_args(
         )
 
 
-def _merge_iceberg(
+def _build_iceberg_sql_merge_statement(
     df: pd.DataFrame,
     database: str,
     table: str,
@@ -247,17 +247,9 @@ def _merge_iceberg(
     merge_cols: list[str] | None = None,
     merge_condition: Literal["update", "ignore"] = "update",
     merge_match_nulls: bool = False,
-    kms_key: str | None = None,
-    boto3_session: boto3.Session | None = None,
-    s3_output: str | None = None,
-    workgroup: str = "primary",
-    encryption: str | None = None,
-    data_source: str | None = None,
-) -> None:
+) -> str:
     """
-    Merge iceberg.
-
-    Merge data from source_table and write it to an Athena iceberg table.
+    Create sql statement to merge data from source table to destination table.
 
     Parameters
     ----------
@@ -279,27 +271,12 @@ def _merge_iceberg(
         The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore'].
     merge_match_nulls: bool, optional
         Instruct whether to have nulls in the merge condition match other nulls
-    kms_key : str, optional
-        For SSE-KMS, this is the KMS key ARN or ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_output : str, optional
-        Amazon S3 path used for query execution.
-    workgroup : str
-        Athena workgroup. Primary by default.
-    encryption : str, optional
-        Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
-    data_source : str, optional
-        Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
 
     Returns
     -------
-    None
+    str: SQL statement to perform the merge operation
 
     """
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
-
-    sql_statement: str
     if merge_cols:
         if merge_condition == "update":
             match_condition = f"""WHEN MATCHED THEN
@@ -312,7 +289,7 @@ def _merge_iceberg(
         else:
             merge_conditions = [f'(target."{x}" = source."{x}")' for x in merge_cols]
 
-        sql_statement = f"""
+        return f"""
             MERGE INTO "{database}"."{table}" target
             USING "{database}"."{source_table}" source
             ON {' AND '.join(merge_conditions)}
@@ -321,25 +298,32 @@ def _merge_iceberg(
                 INSERT ({', '.join([f'"{x}"' for x in df.columns])})
                 VALUES ({', '.join([f'source."{x}"' for x in df.columns])})
         """
-    else:
-        sql_statement = f"""
+    return f"""
         INSERT INTO "{database}"."{table}" ({', '.join([f'"{x}"' for x in df.columns])})
         SELECT {', '.join([f'"{x}"' for x in df.columns])}
           FROM "{database}"."{source_table}"
         """
 
-    query_execution_id: str = _start_query_execution(
-        sql=sql_statement,
-        workgroup=workgroup,
-        wg_config=wg_config,
-        database=database,
-        data_source=data_source,
-        s3_output=s3_output,
-        encryption=encryption,
-        kms_key=kms_key,
-        boto3_session=boto3_session,
-    )
-    wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
+
+def _create_partitioned_dataframes(
+    df: pd.DataFrame,
+    partition_cols: list[str] | None,
+) -> list[pd.DataFrame]:
+    """Split the DataFrame into multiple DataFrames each containing at most chunk_size unique combinations of partition columns."""
+    if not partition_cols:
+        return [df]
+
+    # Get all unique combinations of the partition columns
+    unique_combinations = df[partition_cols].drop_duplicates()
+    # Split the unique combinations into chunks of chunk_size
+    chunks = _utils.chunkify(unique_combinations.values.tolist(), max_length=100)
+    partitioned_dfs = []
+    for chunk in chunks:
+        chunk_df = pd.DataFrame(chunk, columns=partition_cols)
+        # Merge the original DataFrame with the chunk to get the corresponding rows
+        partitioned_df = df.merge(chunk_df, on=partition_cols)
+        partitioned_dfs.append(partitioned_df)
+    return partitioned_dfs
 
 
 @apply_configs
@@ -580,7 +564,7 @@ def to_iceberg(
                 s3_additional_kwargs=s3_additional_kwargs,
                 catalog_id=catalog_id,
             )
-        # if mode == "overwrite", delete whole data from table (but not table itself)
+        # if mode == "overwrite", delete whole data from table (but not table itself to keep transactions history)
         elif mode == "overwrite":
             delete_sql_statement = f"DELETE FROM {table}"
             delete_query_execution_id: str = _start_query_execution(
@@ -595,40 +579,53 @@ def to_iceberg(
             )
             wait_query(query_execution_id=delete_query_execution_id, boto3_session=boto3_session)
 
-        # Create temporary external table, write the results
-        s3.to_parquet(
-            df=df,
-            path=temp_path or wg_config.s3_output,
-            index=index,
-            dataset=True,
-            database=database,
-            table=temp_table,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            dtype=dtype,
-            catalog_id=catalog_id,
-            glue_table_settings=glue_table_settings,
+        # When you try to ingest a dataframe containing more than 100 partition value combinations, Athena fails with error "ICEBERG_TOO_MANY_OPEN_PARTITIONS"
+        # https://repost.aws/questions/QUlMgUNkMpSVicSeEfR85WNQ/error-when-creating-iceberg-tables-with-hidden-partitions-using-athena-too-many-open-writers
+        # In order to mitigate this error, we chunk the DataFrame and ingest each chunk sequentially
+        partitioned_dfs = _create_partitioned_dataframes(df, partition_cols)
+        _logger.debug(
+            f"Created {len(partitioned_dfs)} dataframe chunk to avoid ICEBERG_TOO_MANY_OPEN_PARTITIONS Athena error"
         )
-
-        _merge_iceberg(
-            df=df,
-            database=database,
-            table=table,
-            source_table=temp_table,
-            merge_cols=merge_cols,
-            merge_condition=merge_condition,
-            merge_match_nulls=merge_match_nulls,
-            kms_key=kms_key,
-            boto3_session=boto3_session,
-            s3_output=s3_output,
-            workgroup=workgroup,
-            encryption=encryption,
-            data_source=data_source,
-        )
-
+        for df_chunk in partitioned_dfs:
+            # Create temporary external table, write the results for this chunk
+            # Overwrite mode because we want to delete data from previous chunk
+            s3.to_parquet(
+                df=df_chunk,
+                mode="overwrite",
+                path=temp_path or wg_config.s3_output,
+                index=index,
+                dataset=True,
+                database=database,
+                table=temp_table,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+                dtype=dtype,
+                catalog_id=catalog_id,
+                glue_table_settings=glue_table_settings,
+            )
+            merge_sql_statement = _build_iceberg_sql_merge_statement(
+                df=df_chunk,
+                database=database,
+                table=table,
+                source_table=temp_table,
+                merge_cols=merge_cols,
+                merge_condition=merge_condition,
+                merge_match_nulls=merge_match_nulls,
+            )
+            query_execution_id: str = _start_query_execution(
+                sql=merge_sql_statement,
+                workgroup=workgroup,
+                wg_config=wg_config,
+                database=database,
+                data_source=data_source,
+                s3_output=s3_output,
+                encryption=encryption,
+                kms_key=kms_key,
+                boto3_session=boto3_session,
+            )
+            wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
     except Exception as ex:
         _logger.error(ex)
-
         raise
     finally:
         catalog.delete_table_if_exists(
