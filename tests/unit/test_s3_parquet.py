@@ -976,6 +976,9 @@ def test_write_to_parquet_with_client_encryption_config(
     )
     if chunked:
         df_out = pd.concat(list(df_out), ignore_index=True)
+    else:
+        df_out = df_out.sort_values("c0").reset_index(drop=True)
+
     assert_pandas_equals(df, df_out)
 
 
