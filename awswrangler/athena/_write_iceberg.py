@@ -319,7 +319,9 @@ def _create_partitioned_dataframes(
     chunks = _utils.chunkify(unique_combinations.values.tolist(), max_length=100)
     partitioned_dfs = []
     for chunk in chunks:
-        chunk_df = pd.DataFrame(chunk, columns=partition_cols)
+        chunk_df = pd.DataFrame(chunk, columns=partition_cols).astype(
+            dtype={partition_col_name: df.dtypes[partition_col_name] for partition_col_name in partition_cols}
+        )
         # Merge the original DataFrame with the chunk to get the corresponding rows
         partitioned_df = df.merge(chunk_df, on=partition_cols)
         partitioned_dfs.append(partitioned_df)

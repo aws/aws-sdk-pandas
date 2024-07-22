@@ -21,7 +21,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 pytestmark = pytest.mark.distributed
 
 
-@pytest.mark.parametrize("partition_cols", [None, ["name"], ["name", "day(ts)"]])
+@pytest.mark.parametrize("partition_cols", [None, ["name"], ["name", "ts"]])
 @pytest.mark.parametrize(
     "additional_table_properties",
     [None, {"write_target_data_file_size_bytes": 536870912, "optimize_rewrite_delete_file_threshold": 10}],
@@ -856,7 +856,7 @@ def test_athena_to_iceberg_no_table_location_error(
         )
 
 
-@pytest.mark.parametrize("partition_cols", [None, ["name"], ["name", "day(ts)"]])
+@pytest.mark.parametrize("partition_cols", [None, ["name"], ["name", "ts"]])
 def test_athena_delete_from_iceberg_table(
     path: str,
     path2: str,
@@ -1014,7 +1014,7 @@ def test_athena_iceberg_use_partition_function(
         table=glue_table,
         table_location=path,
         temp_path=path2,
-        partition_cols=["day(ts)"],
+        partition_cols=["ts"],
         keep_files=False,
     )
 
@@ -1032,7 +1032,7 @@ def test_athena_iceberg_use_partition_function(
         table=glue_table,
         table_location=path,
         temp_path=path2,
-        partition_cols=["day(ts)"],
+        partition_cols=["ts"],
         keep_files=False,
     )
 
