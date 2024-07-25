@@ -183,13 +183,28 @@ AWS Glue Python Shell Jobs
 
 .. note:: Glue Python Shell Python3.9 has version 2.15.1 of awswrangler `baked in <https://aws.amazon.com/blogs/big-data/aws-glue-python-shell-now-supports-python-3-9-with-a-flexible-pre-loaded-environment-and-support-to-install-additional-libraries/>`_. If you need a different version, follow instructions below:
 
+Using pip
+^^^^^^^^^
+
+1 - In the AWS console, open your Glue Python Shell job's *Job details* tab.
+
+2 - Scroll down and expand the *Advanced properties*.
+
+3 - In the *Job parameters* section, add `--additional-python-modules` as *Key* and `awswrangler` as *Value*.
+
+You can also specify optional dependencies or set a version in the *Value* field, e.g. `awswrangler[redshift]==3.9.0`. For details, see reference below.
+
+
+Using a Whl file
+^^^^^^^^^^^^^^^^^
+
 1 - Go to `GitHub's release page <https://github.com/aws/aws-sdk-pandas/releases>`_ and download the wheel file
 (.whl) related to the desired version. Alternatively, you can download the wheel from the `public artifacts bucket <https://aws-sdk-pandas.readthedocs.io/en/latest/install.html#public-artifacts>`_.
 
 2 - Upload the wheel file to the Amazon S3 location of your choice.
 
 3 - Go to your Glue Python Shell job and point to the S3 wheel file in
-the *Python library path* field.
+the *Python library path* field of the *Job details* tab.
 
 `Official Glue Python Shell Reference <https://docs.aws.amazon.com/glue/latest/dg/add-job-python.html#create-python-extra-library>`_
 
