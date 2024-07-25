@@ -192,7 +192,8 @@ Using pip
 
 3 - In the *Job parameters* section, add `--additional-python-modules` as *Key* and `awswrangler` as *Value*.
 
-You can also specify optional dependencies or set a version in the *Value* field, e.g. `awswrangler[redshift]==3.9.0`. For details, see reference below.
+You can also specify optional dependencies or set a version in the *Value* field, e.g. `awswrangler[redshift]==3.9.0`.
+For details, see reference below.
 
 
 Using a Whl file
