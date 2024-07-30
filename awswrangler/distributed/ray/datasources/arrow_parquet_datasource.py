@@ -425,7 +425,7 @@ class ArrowParquetDatasource(Datasource):
                     sample,
                 )
             )
-        sample_bar = ProgressBar("Parquet Files Sample", len(futures))
+        sample_bar = ProgressBar("Parquet Files Sample", len(futures), unit="file samples")
         sample_infos = sample_bar.fetch_until_complete(futures)
         sample_bar.close()  # type: ignore[no-untyped-call]
 
