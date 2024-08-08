@@ -17,6 +17,7 @@ from typing_extensions import Literal
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._executor import _BaseExecutor, _get_executor
+from awswrangler.annotations import Deprecated
 from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._describe import size_objects
 from awswrangler.s3._list import _path2list
@@ -151,6 +152,7 @@ def _select_query(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
+@Deprecated
 def select_query(
     sql: str,
     path: str | list[str],
