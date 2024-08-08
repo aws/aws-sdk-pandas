@@ -149,10 +149,10 @@ def _select_query(
     )
 
 
+@Deprecated
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
-@Deprecated
 def select_query(
     sql: str,
     path: str | list[str],
