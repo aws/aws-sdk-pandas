@@ -51,8 +51,9 @@ def _to_modin(
 
     return from_partitions(
         partitions=[
-            _block_to_df(block=block, to_pandas_kwargs=_to_pandas_kwargs)
-            for block in dataset.iter_internal_ref_bundles()
+            _block_to_df(block=block_ref, to_pandas_kwargs=_to_pandas_kwargs)
+            for ref_bundle in dataset.iter_internal_ref_bundles()
+            for block_ref in ref_bundle.block_refs
         ],
         axis=0,
         index=index,
@@ -60,7 +61,11 @@ def _to_modin(
 
 
 def _split_modin_frame(df: modin_pd.DataFrame, splits: int) -> list[ObjectRef[Any]]:
-    object_refs: list[ObjectRef[Any]] = list(_ray_dataset_from_df(df).iter_internal_ref_bundles())
+    object_refs: list[ObjectRef[Any]] = [
+        block_ref
+        for ref_bundle in _ray_dataset_from_df(df).iter_internal_ref_bundles()
+        for block_ref in ref_bundle.block_refs
+    ]
     return object_refs
 
 
