@@ -372,7 +372,6 @@ def test_athena_csv_types(path, glue_database, glue_table):
     ensure_data_types_csv(df2)
 
 
-@pytest.mark.modin_index
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("ctas_approach", [True, False])
 @pytest.mark.parametrize("line_count", [1, 2])

@@ -135,7 +135,6 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
     assert len(wr.s3.list_objects(path=path3)) == 0
 
 
-@pytest.mark.modin_index
 def test_athena_read_sql_ctas_bucketing(path, path2, glue_table, glue_table2, glue_database, glue_ctas_database):
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "bar"]})
     wr.s3.to_parquet(
@@ -1013,7 +1012,6 @@ def test_bucketing_catalog_parquet_table(path, glue_database, glue_table):
     assert table["StorageDescriptor"]["BucketColumns"] == bucket_cols
 
 
-@pytest.mark.modin_index
 @pytest.mark.parametrize("bucketing_data", [[0, 1, 2], [False, True, False], ["b", "c", "d"]])
 @pytest.mark.parametrize(
     "dtype",
@@ -1102,7 +1100,6 @@ def test_bucketing_catalog_csv_table(path, glue_database, glue_table):
     assert table["StorageDescriptor"]["BucketColumns"] == bucket_cols
 
 
-@pytest.mark.modin_index
 @pytest.mark.parametrize("bucketing_data", [[0, 1, 2], [False, True, False], ["b", "c", "d"]])
 @pytest.mark.parametrize(
     "dtype",
@@ -1168,7 +1165,6 @@ def test_bucketing_csv_dataset(path, glue_database, glue_table, bucketing_data, 
         assert all(x in bucketing_data for x in loaded_df["c0"].to_list())
 
 
-@pytest.mark.modin_index
 @pytest.mark.parametrize("bucketing_data", [[0, 1, 2, 3], [False, True, False, True], ["b", "c", "d", "e"]])
 def test_combined_bucketing_partitioning_parquet_dataset(path, glue_database, glue_table, bucketing_data):
     nb_of_buckets = 2
@@ -1296,7 +1292,6 @@ def test_combined_bucketing_partitioning_csv_dataset(path, glue_database, glue_t
         assert all(x in bucketing_data for x in loaded_df["c0"].to_list())
 
 
-@pytest.mark.modin_index
 def test_multiple_bucketing_columns_parquet_dataset(path, glue_database, glue_table):
     nb_of_buckets = 2
     df = pd.DataFrame({"c0": [0, 1, 2, 3], "c1": [4, 6, 5, 7], "c2": ["foo", "bar", "baz", "boo"]})
