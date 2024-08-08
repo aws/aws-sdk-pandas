@@ -51,7 +51,8 @@ def _to_modin(
 
     return from_partitions(
         partitions=[
-            _block_to_df(block=block, to_pandas_kwargs=_to_pandas_kwargs) for block in dataset.iter_internal_ref_bundles()
+            _block_to_df(block=block, to_pandas_kwargs=_to_pandas_kwargs)
+            for block in dataset.iter_internal_ref_bundles()
         ],
         axis=0,
         index=index,
