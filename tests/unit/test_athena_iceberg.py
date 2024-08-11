@@ -43,6 +43,7 @@ def test_athena_to_iceberg(
     )
     df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
     df["name"] = df["name"].astype("string")
+    df["ts"] = pd.to_datetime(df["ts"]).dt.floor("D")
 
     wr.athena.to_iceberg(
         df=df,
@@ -873,6 +874,7 @@ def test_athena_delete_from_iceberg_table(
     )
     df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
     df["name"] = df["name"].astype("string")
+    df["ts"] = pd.to_datetime(df["ts"]).dt.floor("D")
 
     wr.athena.to_iceberg(
         df=df,
