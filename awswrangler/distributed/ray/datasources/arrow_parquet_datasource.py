@@ -243,7 +243,6 @@ class ArrowParquetDatasource(Datasource):
                 paths,
                 **dataset_kwargs,
                 filesystem=filesystem,
-                use_legacy_dataset=False,
             )
         except OSError as e:
             _handle_read_os_error(e, paths)

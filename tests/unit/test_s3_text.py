@@ -188,7 +188,6 @@ def test_csv_dataset_header_modes(path, mode, glue_database, glue_table):
         assert df_res.equals(dfs[-1])
 
 
-@pytest.mark.modin_index
 @pytest.mark.xfail(
     raises=AssertionError,
     reason="https://github.com/ray-project/ray/issues/37771",
@@ -205,7 +204,6 @@ def test_json(path):
     assert df1.equals(wr.s3.read_json(path=[path0, path1], use_threads=True))
 
 
-@pytest.mark.modin_index
 @pytest.mark.xfail(
     raises=AssertionError,
     reason="https://github.com/ray-project/ray/issues/37771",
@@ -366,7 +364,6 @@ def test_csv_line_terminator(path, line_terminator):
     assert df.equals(df2)
 
 
-@pytest.mark.modin_index
 def test_read_json_versioned(path) -> None:
     path_file = f"{path}0.json"
     dfs = [
