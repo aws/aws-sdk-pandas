@@ -613,7 +613,6 @@ def test_schema_evolution_disabled(path, glue_table, glue_database):
     assert df2.c0.sum() == 3
 
 
-@pytest.mark.modin_index
 def test_date_cast(path, glue_table, glue_database):
     df = pd.DataFrame(
         {

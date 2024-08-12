@@ -145,7 +145,11 @@ def _to_partitions_distributed(
             )
             return paths, partitions_values
 
-        block_object_refs = _ray_dataset_from_df(df).get_internal_block_refs()
+        block_object_refs = (
+            block_ref
+            for ref_bundle in _ray_dataset_from_df(df).iter_internal_ref_bundles()
+            for block_ref in ref_bundle.block_refs
+        )
         result = ray_get(
             [write_partitions(object_ref, block_index) for block_index, object_ref in enumerate(block_object_refs)]
         )
