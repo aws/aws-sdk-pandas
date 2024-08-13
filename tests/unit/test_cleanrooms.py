@@ -3,6 +3,8 @@ import pytest
 import awswrangler as wr
 import awswrangler.pandas as pd
 
+from .._utils import is_ray_modin
+
 pytestmark = pytest.mark.distributed
 
 
@@ -55,6 +57,9 @@ def data(bucket: str, cleanrooms_glue_database_name: str) -> None:
     )
 
 
+@pytest.mark.xfail(
+    is_ray_modin, raises=AssertionError, reason="Upgrade from pyarrow 16.1 to 17 causes AssertionError in Modin"
+)
 def test_read_sql_query(
     data: None,
     cleanrooms_membership_id: str,
