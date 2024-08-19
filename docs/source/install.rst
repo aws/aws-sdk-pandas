@@ -221,7 +221,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for the above Job parameter as follows:
 
-* Value: ``pyarrow==7,pandas==1.5.3,awswrangler==3.9.0``
+* Value: ``pyarrow==7,pandas==1.5.3,awswrangler==3.9.1``
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 
