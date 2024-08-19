@@ -68,7 +68,7 @@ jsonpath-ng = { version = "^1.5.3", optional = true }
 # Other
 openpyxl = { version = "^3.0.0", optional = true }
 progressbar2 = { version = "^4.0.0", optional = true }
-deltalake = { version = ">=0.18.0,<0.19.0", optional = true }
+deltalake = { version = ">=0.18.0,<0.20.0", optional = true }
 geopandas = [
     { version = "^0.13.2", markers = "python_version < \"3.12\"", optional = true },
     { version = "^0.14.1", markers = "python_version >= \"3.12\"", optional = true }
