@@ -51,22 +51,22 @@ def create_ruleset(
 
     Parameters
     ----------
-    name : str
+    name
         Ruleset name.
-    database : str
+    database
         Glue database name.
-    table : str
+    table
         Glue table name.
-    df_rules : str, optional
+    df_rules
         Data frame with `rule_type`, `parameter`, and `expression` columns.
-    dqdl_rules : str, optional
+    dqdl_rules
         Data Quality Definition Language definition.
-    description : str
+    description
         Ruleset description.
-    client_token : str, optional
+    client_token
         Random id used for idempotency. Is automatically generated if not provided.
-    boto3_session : boto3.Session, optional
-        Boto3 Session. If none, the default boto3 session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -76,28 +76,28 @@ def create_ruleset(
     >>> df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     >>> wr.s3.to_parquet(df, path, dataset=True, database="database", table="table")
     >>> wr.data_quality.create_ruleset(
-    >>>     name="ruleset",
-    >>>     database="database",
-    >>>     table="table",
-    >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
-    >>>)
+    ...     name="ruleset",
+    ...     database="database",
+    ...     table="table",
+    ...     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    ... )
 
     >>> import awswrangler as wr
     >>> import pandas as pd
     >>>
     >>> df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     >>> df_rules = pd.DataFrame({
-    >>>        "rule_type": ["RowCount", "IsComplete", "Uniqueness"],
-    >>>        "parameter": [None, '"c0"', '"c0"'],
-    >>>        "expression": ["between 1 and 6", None, "> 0.95"],
-    >>> })
+    ...        "rule_type": ["RowCount", "IsComplete", "Uniqueness"],
+    ...        "parameter": [None, '"c0"', '"c0"'],
+    ...        "expression": ["between 1 and 6", None, "> 0.95"],
+    ... })
     >>> wr.s3.to_parquet(df, path, dataset=True, database="database", table="table")
     >>> wr.data_quality.create_ruleset(
-    >>>     name="ruleset",
-    >>>     database="database",
-    >>>     table="table",
-    >>>     df_rules=df_rules,
-    >>>)
+    ...     name="ruleset",
+    ...     database="database",
+    ...     table="table",
+    ...     df_rules=df_rules,
+    >>> )
     """
     if (df_rules is not None and dqdl_rules) or (df_rules is None and not dqdl_rules):
         raise exceptions.InvalidArgumentCombination("You must pass either ruleset `df_rules` or `dqdl_rules`.")
@@ -133,33 +133,33 @@ def update_ruleset(
 
     Parameters
     ----------
-    name : str
+    name
         Ruleset name.
-    mode : str
+    mode
         overwrite (default) or upsert.
-    df_rules : str, optional
+    df_rules
         Data frame with `rule_type`, `parameter`, and `expression` columns.
-    dqdl_rules : str, optional
+    dqdl_rules
         Data Quality Definition Language definition.
-    description : str
+    description
         Ruleset description.
-    boto3_session : boto3.Session, optional
-        Boto3 Session. If none, the default boto3 session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
     Overwrite rules in the existing ruleset.
     >>> wr.data_quality.update_ruleset(
-    >>>     name="ruleset",
-    >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
-    >>>)
+    ...     name="ruleset",
+    ...     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    ... )
 
     Update or insert rules in the existing ruleset.
     >>> wr.data_quality.update_ruleset(
-    >>>     name="ruleset",
-    >>>     mode="insert",
-    >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
-    >>>)
+    ...     name="ruleset",
+    ...     mode="insert",
+    ...     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    ... )
     """
     if (df_rules is not None and dqdl_rules) or (df_rules is None and not dqdl_rules):
         raise exceptions.InvalidArgumentCombination("You must pass either ruleset `df_rules` or `dqdl_rules`.")
@@ -207,46 +207,45 @@ def create_recommendation_ruleset(
 
     Parameters
     ----------
-    database : str
+    database
         Glue database name.
-    table : str
+    table
         Glue table name.
-    iam_role_arn : str
+    iam_role_arn
         IAM Role ARN.
-    name : str, optional
+    name
         Ruleset name.
-    catalog_id : str, optional
+    catalog_id
         Glue Catalog id.
-    connection_name : str, optional
+    connection_name
         Glue connection name.
-    additional_options : dict, optional
+    additional_options
         Additional options for the table. Supported keys:
-        `pushDownPredicate`: to filter on partitions without having to list and read all the files in your dataset.
-        `catalogPartitionPredicate`: to use server-side partition pruning using partition indexes in the
-        Glue Data Catalog.
-    number_of_workers: int, optional
+
+        - `pushDownPredicate`: to filter on partitions without having to list and read all the files in your dataset.
+        - `catalogPartitionPredicate`: to use server-side partition pruning using partition indexes in the
+          Glue Data Catalog.
+    number_of_workers
         The number of G.1X workers to be used in the run. The default is 5.
-    timeout: int, optional
+    timeout
         The timeout for a run in minutes. The default is 2880 (48 hours).
-    client_token : str, optional
+    client_token
         Random id used for idempotency. Is automatically generated if not provided.
-    boto3_session : boto3.Session, optional
-        Boto3 Session. If none, the default boto3 session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    pd.DataFrame
         Data frame with recommended ruleset details.
 
     Examples
     --------
     >>> import awswrangler as wr
-
     >>> df_recommended_ruleset = wr.data_quality.create_recommendation_ruleset(
-    >>>     database="database",
-    >>>     table="table",
-    >>>     iam_role_arn="arn:...",
-    >>>)
+    ...     database="database",
+    ...     table="table",
+    ...     iam_role_arn="arn:...",
+    ... )
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
 
@@ -299,39 +298,39 @@ def evaluate_ruleset(
 
     Parameters
     ----------
-    name : str or list[str]
+    name
         Ruleset name or list of names.
-    iam_role_arn : str
+    iam_role_arn
         IAM Role ARN.
-    number_of_workers: int, optional
+    number_of_workers
         The number of G.1X workers to be used in the run. The default is 5.
-    timeout: int, optional
+    timeout
         The timeout for a run in minutes. The default is 2880 (48 hours).
-    database : str, optional
+    database
         Glue database name. Database associated with the ruleset will be used if not provided.
-    table : str, optional
+    table
         Glue table name. Table associated with the ruleset will be used if not provided.
-    catalog_id : str, optional
+    catalog_id
         Glue Catalog id.
-    connection_name : str, optional
+    connection_name
         Glue connection name.
-    additional_options : dict, optional
+    additional_options
         Additional options for the table. Supported keys:
         `pushDownPredicate`: to filter on partitions without having to list and read all the files in your dataset.
         `catalogPartitionPredicate`: to use server-side partition pruning using partition indexes in the
         Glue Data Catalog.
-    additional_run_options : Dict[str, Union[str, bool]], optional
+    additional_run_options
         Additional run options. Supported keys:
-        `CloudWatchMetricsEnabled`: whether to enable CloudWatch metrics.
-        `ResultsS3Prefix`: prefix for Amazon S3 to store results.
-    client_token : str, optional
+
+        - `CloudWatchMetricsEnabled`: whether to enable CloudWatch metrics.
+        - `ResultsS3Prefix`: prefix for Amazon S3 to store results.
+    client_token
         Random id used for idempotency. Will be automatically generated if not provided.
-    boto3_session : boto3.Session, optional
-        Boto3 Session. If none, the default boto3 session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    pd.DataFrame
         Data frame with ruleset evaluation results.
 
     Examples
@@ -342,15 +341,15 @@ def evaluate_ruleset(
     >>> df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     >>> wr.s3.to_parquet(df, path, dataset=True, database="database", table="table")
     >>> wr.data_quality.create_ruleset(
-    >>>     name="ruleset",
-    >>>     database="database",
-    >>>     table="table",
-    >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
-    >>>)
+    ...     name="ruleset",
+    ...     database="database",
+    ...     table="table",
+    ...     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    ... )
     >>> df_ruleset_results = wr.data_quality.evaluate_ruleset(
-    >>>     name="ruleset",
-    >>>     iam_role_arn=glue_data_quality_role,
-    >>> )
+    ...     name="ruleset",
+    ...     iam_role_arn=glue_data_quality_role,
+    ... )
     """
     run_id: str = _start_ruleset_evaluation_run(
         ruleset_names=[name] if isinstance(name, str) else name,
