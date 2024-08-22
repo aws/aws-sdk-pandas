@@ -35,20 +35,20 @@ class RdsDataApi(_connector.DataApiConnector):
 
     Parameters
     ----------
-    resource_arn: str
+    resource_arn
         ARN for the RDS resource.
-    database: str
+    database
         Target database name.
-    secret_arn: str
+    secret_arn
         The ARN for the secret to be used for authentication.
-    sleep: float
+    sleep
         Number of seconds to sleep between connection attempts to paused clusters - defaults to 0.5.
-    backoff: float
+    backoff
         Factor by which to increase the sleep between connection attempts to paused clusters - defaults to 1.0.
-    retries: int
+    retries
         Maximum number of connection attempts to paused clusters - defaults to 10.
-    boto3_session : boto3.Session(), optional
-        The boto3 session. If `None`, the default boto3 session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
     """
 
     def __init__(
@@ -238,20 +238,20 @@ def connect(
 
     Parameters
     ----------
-    resource_arn: str
+    resource_arn
         ARN for the RDS resource.
-    database: str
+    database
         Target database name.
-    secret_arn: str
+    secret_arn
         The ARN for the secret to be used for authentication.
-    boto3_session : boto3.Session(), optional
-        The boto3 session. If `None`, the default boto3 session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
     **kwargs
         Any additional kwargs are passed to the underlying RdsDataApi class.
 
     Returns
     -------
-    A RdsDataApi connection instance that can be used with `wr.rds.data_api.read_sql_query`.
+        A RdsDataApi connection instance that can be used with `wr.rds.data_api.read_sql_query`.
     """
     return RdsDataApi(resource_arn, database, secret_arn=secret_arn, boto3_session=boto3_session, **kwargs)
 
@@ -261,16 +261,16 @@ def read_sql_query(sql: str, con: RdsDataApi, database: str | None = None) -> pd
 
     Parameters
     ----------
-    sql: str
+    sql
         SQL query to run.
-    con: RdsDataApi
+    con
         A RdsDataApi connection instance
-    database: str
+    database
         Database to run query on - defaults to the database specified by `con`.
 
     Returns
     -------
-    A Pandas DataFrame containing the query results.
+        A Pandas DataFrame containing the query results.
     """
     return con.execute(sql, database=database)
 
@@ -408,32 +408,32 @@ def to_sql(
 
     Parameters
     ----------
-    df: pandas.DataFrame
+    df
         `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
-    con: RdsDataApi
+    con
         A RdsDataApi connection instance
-    database: str
+    database
         Database to run query on - defaults to the database specified by `con`.
-    table: str
+    table
         Table name
-    mode: str
+    mode
         `append` (inserts new records into table), `overwrite` (drops table and recreates)
-    index: bool
+    index
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
-    dtype: Dict[str, str], optional
+    dtype
         Dictionary of columns names and MySQL types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. ```{'col name': 'TEXT', 'col2 name': 'FLOAT'}```)
-    varchar_lengths : Dict[str, int], optional
+    varchar_lengths
         Dict of VARCHAR length by columns. (e.g. ```{"col1": 10, "col5": 200}```).
-    use_column_names: bool
+    use_column_names
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
-    chunksize: int
+    chunksize
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
-    sql_mode: str
+    sql_mode
         "mysql" for default MySQL identifiers (backticks) or "ansi" for ANSI-compatible identifiers (double quotes).
     """
     if df.empty is True:
