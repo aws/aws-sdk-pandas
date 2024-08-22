@@ -560,23 +560,22 @@ def upsert_table_parameters(
 
     Parameters
     ----------
-    parameters : Dict[str, str]
+    parameters
         e.g. {"source": "mysql", "destination":  "datalake"}
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    catalog_versioning : bool
+    catalog_versioning
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
-    Dict[str, str]
        All parameters after the upsert.
 
     Examples
@@ -585,7 +584,8 @@ def upsert_table_parameters(
     >>> pars = wr.catalog.upsert_table_parameters(
     ...     parameters={"source": "mysql", "destination":  "datalake"},
     ...     database="...",
-    ...     table="...")
+    ...     table="...",
+    ... )
 
     """
     table_input: dict[str, str] | None = _get_table_input(
@@ -619,15 +619,15 @@ def overwrite_table_parameters(
 
     Parameters
     ----------
-    parameters : Dict[str, str]
+    parameters
         e.g. {"source": "mysql", "destination":  "datalake"}
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    catalog_versioning : bool
+    catalog_versioning
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
     boto3_session : boto3.Session(), optional
@@ -635,7 +635,6 @@ def overwrite_table_parameters(
 
     Returns
     -------
-    Dict[str, str]
        All parameters after the overwrite (The same received).
 
     Examples
@@ -678,26 +677,21 @@ def create_database(
 
     Parameters
     ----------
-    name : str
+    name
         Database name.
-    description : str, optional
+    description
         A description for the Database.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    exist_ok : bool
-        If set to True will not raise an Exception if a Database with the same already exists.
+        If ``None`` is provided, the AWS account ID is used by default.
+    exist_ok
+        If set to ``True`` will not raise an Exception if a Database with the same already exists.
         In this case the description will be updated if it is different from the current one.
-    database_input_args : dict[str, Any], optional
+    database_input_args
         Additional metadata to pass to database creation. Supported arguments listed here:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.create_database
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Examples
     --------
@@ -749,40 +743,40 @@ def create_parquet_table(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    path : str
+    path
         Amazon S3 path (e.g. s3://bucket/prefix/).
-    columns_types: Dict[str, str]
+    columns_types
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
-    table_type: str, optional
-        The type of the Glue Table. Set to EXTERNAL_TABLE if None.
-    partitions_types: Dict[str, str], optional
+    table_type
+        The type of the Glue Table. Set to ``EXTERNAL_TABLE`` if ``None``.
+    partitions_types
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    compression: str, optional
+    compression
         Compression style (``None``, ``snappy``, ``gzip``, etc).
-    description: str, optional
+    description
         Table description
-    parameters: Dict[str, str], optional
+    parameters
         Key/value pairs to tag the table.
-    columns_comments: Dict[str, str], optional
+    columns_comments
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    columns_parameters: Dict[str, Dict[str, str]], optional
+    columns_parameters
         Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
-    mode: str
+    mode
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
-    catalog_versioning : bool
+    catalog_versioning
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
-    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+    athena_partition_projection_settings
         Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
@@ -832,13 +826,8 @@ def create_parquet_table(
                a typical `.../column=value/...` pattern.
                https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
                (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Examples
     --------
@@ -910,40 +899,40 @@ def create_orc_table(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    path : str
+    path
         Amazon S3 path (e.g. s3://bucket/prefix/).
-    columns_types: Dict[str, str]
+    columns_types
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
-    table_type: str, optional
+    table_type
         The type of the Glue Table. Set to EXTERNAL_TABLE if None.
-    partitions_types: Dict[str, str], optional
+    partitions_types
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    compression: str, optional
+    compression
         Compression style (``None``, ``snappy``, ``gzip``, etc).
-    description: str, optional
+    description
         Table description
-    parameters: Dict[str, str], optional
+    parameters
         Key/value pairs to tag the table.
-    columns_comments: Dict[str, str], optional
+    columns_comments
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    columns_parameters: Dict[str, Dict[str, str]], optional
+    columns_parameters
         Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
-    mode: str
+    mode
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
-    catalog_versioning : bool
+    catalog_versioning
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
-    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+    athena_partition_projection_settings
         Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
@@ -993,13 +982,8 @@ def create_orc_table(
                a typical `.../column=value/...` pattern.
                https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
                (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Examples
     --------
@@ -1081,53 +1065,53 @@ def create_csv_table(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    path : str
+    path
         Amazon S3 path (e.g. s3://bucket/prefix/).
-    columns_types: Dict[str, str]
+    columns_types
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
-    table_type: str, optional
+    table_type
         The type of the Glue Table. Set to EXTERNAL_TABLE if None.
-    partitions_types: Dict[str, str], optional
+    partitions_types
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    compression : str, optional
+    compression
         Compression style (``None``, ``gzip``, etc).
-    description : str, optional
+    description
         Table description
-    parameters : Dict[str, str], optional
+    parameters
         Key/value pairs to tag the table.
-    columns_comments: Dict[str, str], optional
+    columns_comments
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    columns_parameters: Dict[str, Dict[str, str]], optional
+    columns_parameters
         Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
-    mode : str
+    mode
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
-    catalog_versioning : bool
+    catalog_versioning
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
-    schema_evolution : bool
+    schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.9.1/tutorials/014%20-%20Schema%20Evolution.html
-    sep : str
+    sep
         String of length 1. Field delimiter for the output file.
-    skip_header_line_count : Optional[int]
+    skip_header_line_count
         Number of Lines to skip regarding to the header.
-    serde_library : Optional[str]
+    serde_library
         Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
         as a string.
         If no library is provided the default is `org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe`.
-    serde_parameters : Optional[str]
+    serde_parameters
         Dictionary of initialization parameters for the SerDe.
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
-    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+    athena_partition_projection_settings
         Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
@@ -1177,16 +1161,11 @@ def create_csv_table(
                a typical `.../column=value/...` pattern.
                https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
                (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    catalog_id : str, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-
-    Returns
-    -------
-    None
-        None.
+        If ``None`` is provided, the AWS account ID is used by default.
 
     Examples
     --------
@@ -1266,49 +1245,49 @@ def create_json_table(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    path : str
+    path
         Amazon S3 path (e.g. s3://bucket/prefix/).
-    columns_types: Dict[str, str]
+    columns_types
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
-    table_type: str, optional
+    table_type
         The type of the Glue Table. Set to EXTERNAL_TABLE if None.
-    partitions_types: Dict[str, str], optional
+    partitions_types
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    compression : str, optional
+    compression
         Compression style (``None``, ``gzip``, etc).
-    description : str, optional
+    description
         Table description
-    parameters : Dict[str, str], optional
+    parameters
         Key/value pairs to tag the table.
-    columns_comments: Dict[str, str], optional
+    columns_comments
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    columns_parameters: Dict[str, Dict[str, str]], optional
+    columns_parameters
         Columns names and the related parameters (e.g. {'col0': {'par0': 'Param 0', 'par1': 'Param 1'}}).
-    mode : str
+    mode
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
-    catalog_versioning : bool
+    catalog_versioning
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
-    schema_evolution : bool
+    schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.9.1/tutorials/014%20-%20Schema%20Evolution.html
-    serde_library : Optional[str]
+    serde_library
         Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
         as a string.
         If no library is provided the default is `org.openx.data.jsonserde.JsonSerDe`.
-    serde_parameters : Optional[str]
+    serde_parameters
         Dictionary of initialization parameters for the SerDe.
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
-    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+    athena_partition_projection_settings
         Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
@@ -1358,16 +1337,11 @@ def create_json_table(
                a typical `.../column=value/...` pattern.
                https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
                (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    catalog_id : str, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-
-    Returns
-    -------
-    None
-        None.
+        If ``None`` is provided, the AWS account ID is used by default.
 
     Examples
     --------

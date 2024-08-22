@@ -62,44 +62,39 @@ def add_csv_partitions(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    partitions_values: Dict[str, List[str]]
+    partitions_values
         Dictionary with keys as S3 path locations and values as a list of partitions values as str
         (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    compression: str, optional
+    compression
         Compression style (``None``, ``gzip``, etc).
-    sep : str
+    sep
         String of length 1. Field delimiter for the output file.
-    serde_library: str, optional
+    serde_library
         Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
         as a string.
         If no library is provided the default is `org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe`.
-    serde_parameters: str, optional
+    serde_parameters
         Dictionary of initialization parameters for the SerDe.
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    columns_types: Optional[Dict[str, str]]
+    boto3_session
+        The default boto3 session will be used if boto3_session receive None.
+    columns_types
         Only required for Hive compability.
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
         P.S. Only materialized columns please, not partition columns.
-    partitions_parameters: Optional[Dict[str, str]]
+    partitions_parameters
         Dictionary with key-value pairs defining partition parameters.
-
-    Returns
-    -------
-    None
-        None.
 
     Examples
     --------
@@ -151,42 +146,37 @@ def add_json_partitions(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    partitions_values: Dict[str, List[str]]
+    partitions_values
         Dictionary with keys as S3 path locations and values as a list of partitions values as str
         (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    compression: str, optional
+    compression
         Compression style (``None``, ``gzip``, etc).
-    serde_library: str, optional
+    serde_library
         Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
         as a string.
         If no library is provided the default is `org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe`.
-    serde_parameters: str, optional
+    serde_parameters
         Dictionary of initialization parameters for the SerDe.
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    columns_types: Optional[Dict[str, str]]
+    columns_types
         Only required for Hive compability.
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
         P.S. Only materialized columns please, not partition columns.
-    partitions_parameters: Optional[Dict[str, str]]
+    partitions_parameters
         Dictionary with key-value pairs defining partition parameters.
-
-    Returns
-    -------
-    None
-        None.
 
     Examples
     --------
@@ -235,35 +225,30 @@ def add_parquet_partitions(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    partitions_values: Dict[str, List[str]]
+    partitions_values
         Dictionary with keys as S3 path locations and values as a list of partitions values as str
         (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    compression: str, optional
+    compression
         Compression style (``None``, ``snappy``, ``gzip``, etc).
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    columns_types: Optional[Dict[str, str]]
+    columns_types
         Only required for Hive compability.
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
         P.S. Only materialized columns please, not partition columns.
-    partitions_parameters: Optional[Dict[str, str]]
+    partitions_parameters
         Dictionary with key-value pairs defining partition parameters.
-
-    Returns
-    -------
-    None
-        None.
 
     Examples
     --------
@@ -313,35 +298,30 @@ def add_orc_partitions(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    partitions_values: Dict[str, List[str]]
+    partitions_values
         Dictionary with keys as S3 path locations and values as a list of partitions values as str
         (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    compression: str, optional
+    compression
         Compression style (``None``, ``snappy``, ``zlib``, etc).
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    columns_types: Optional[Dict[str, str]]
+    columns_types
         Only required for Hive compability.
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
         P.S. Only materialized columns please, not partition columns.
-    partitions_parameters: Optional[Dict[str, str]]
+    partitions_parameters
         Dictionary with key-value pairs defining partition parameters.
-
-    Returns
-    -------
-    None
-        None.
 
     Examples
     --------
@@ -389,26 +369,21 @@ def add_column(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    column_name : str
+    column_name
         Column name
-    column_type : str
+    column_type
         Column type.
-    column_comment : str
+    column_comment
         Column Comment
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    catalog_id : str, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-
-    Returns
-    -------
-    None
-        None
 
     Examples
     --------

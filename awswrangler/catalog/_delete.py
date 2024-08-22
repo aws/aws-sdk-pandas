@@ -22,18 +22,13 @@ def delete_database(name: str, catalog_id: str | None = None, boto3_session: bot
 
     Parameters
     ----------
-    name : str
+    name
         Database name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Examples
     --------
@@ -57,20 +52,19 @@ def delete_table_if_exists(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    bool
-        True if deleted, otherwise False.
+        ``True`` if deleted, otherwise ``False``.
 
     Examples
     --------
@@ -101,23 +95,18 @@ def delete_partitions(
 
     Parameters
     ----------
-    table : str
+    table
         Table name.
-    database : str
+    database
         Table name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    partitions_values : List[List[str]]
+    partitions_values
         List of lists of partitions values as strings.
         (e.g. [['2020', '10', '25'], ['2020', '11', '16'], ['2020', '12', '19']]).
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Examples
     --------
@@ -149,19 +138,18 @@ def delete_all_partitions(
 
     Parameters
     ----------
-    table : str
+    table
         Table name.
-    database : str
+    database
         Table name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    List[List[str]]
         Partitions values.
 
     Examples
@@ -200,22 +188,17 @@ def delete_column(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    column_name : str
+    column_name
         Column name
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    catalog_id : str, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-
-    Returns
-    -------
-    None
-        None
+        If ``None`` is provided, the AWS account ID is used by default.
 
     Examples
     --------
