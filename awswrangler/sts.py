@@ -16,12 +16,11 @@ def get_account_id(boto3_session: boto3.Session | None = None) -> str:
 
     Parameters
     ----------
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Account ID.
 
     Examples
@@ -38,12 +37,11 @@ def get_current_identity_arn(boto3_session: boto3.Session | None = None) -> str:
 
     Parameters
     ----------
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         User/role ARN.
 
     Examples
@@ -60,12 +58,11 @@ def get_current_identity_name(boto3_session: boto3.Session | None = None) -> str
 
     Parameters
     ----------
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         User/role name.
 
     Examples

@@ -141,25 +141,25 @@ def initialize_ray(
 
     Parameters
     ----------
-    address : str, optional
+    address
         Address of the Ray cluster to connect to, by default None
-    redis_password : str, optional
+    redis_password
         Password to the Redis cluster, by default None
-    ignore_reinit_error : bool
+    ignore_reinit_error
         If true, Ray suppress errors from calling ray.init() twice, by default True
-    include_dashboard : Optional[bool]
+    include_dashboard
         Boolean flag indicating whether or not to start the Ray dashboard, by default False
-    configure_logging : Optional[bool]
+    configure_logging
         Boolean flag indicating whether or not to enable logging, by default True
-    log_to_driver : bool
+    log_to_driver
         Boolean flag to enable routing of all worker logs to the driver, by default False
-    logging_level : int
+    logging_level
         Logging level, defaults to logging.INFO. Ignored unless "configure_logging" is True
-    object_store_memory : Optional[int]
+    object_store_memory
         The amount of memory (in bytes) to start the object store with, by default None
-    cpu_count : Optional[int]
+    cpu_count
         Number of CPUs to assign to each raylet, by default None
-    gpu_count : Optional[int]
+    gpu_count
         Number of GPUs to assign to each raylet, by default None
     """
     if not ray.is_initialized():

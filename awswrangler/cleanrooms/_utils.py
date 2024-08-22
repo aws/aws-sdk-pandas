@@ -26,16 +26,16 @@ def wait_query(
 
     Parameters
     ----------
-    membership_id : str
+    membership_id
         Membership ID
-    query_id : str
+    query_id
         Protected query execution ID
-    boto3_session : boto3.Session, optional
-        Boto3 Session. If None, the default boto3 session is used
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
+    ``Dict[str, Any]``
         Dictionary with the get_protected_query response.
 
     Raises

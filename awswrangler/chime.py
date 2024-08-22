@@ -16,15 +16,14 @@ def post_message(webhook: str, message: str) -> Any | None:
 
     Parameters
     ----------
-    :param webhook : webhook
-        Webhook: This contains all the authentication information to send the message
-    :param message : message
+    webhook
+        Contains all the authentication information to send the message
+    message
         The actual message which needs to be posted on Slack channel
 
     Returns
     -------
-    dict
-        Represents the response from Chime
+        The response from Chime
     """
     response = None
     chime_message = {"Content": f"Message: {message}"}

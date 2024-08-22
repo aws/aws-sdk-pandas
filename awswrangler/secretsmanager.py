@@ -19,15 +19,14 @@ def get_secret(name: str, boto3_session: boto3.Session | None = None) -> str | b
 
     Parameters
     ----------
-    name: str:
+    name
         Specifies the secret containing the version that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Union[str, bytes]
         Secret value.
 
     Examples
@@ -48,15 +47,14 @@ def get_secret_json(name: str, boto3_session: boto3.Session | None = None) -> di
 
     Parameters
     ----------
-    name: str:
+    name
         Specifies the secret containing the version that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Secret JSON value parsed as a dictionary.
 
     Examples
