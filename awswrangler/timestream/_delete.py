@@ -27,15 +27,10 @@ def delete_database(
 
     Parameters
     ----------
-    database: str
+    database
         Database name.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -67,17 +62,12 @@ def delete_table(
 
     Parameters
     ----------
-    database: str
+    database
         Database name.
-    table: str
+    table
         Table name.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------

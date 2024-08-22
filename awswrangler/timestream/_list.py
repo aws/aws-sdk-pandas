@@ -19,12 +19,11 @@ def list_databases(
 
     Parameters
     ----------
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[str]
         a list of available timestream databases.
 
     Examples
@@ -33,8 +32,7 @@ def list_databases(
 
     >>> import awswrangler as wr
     >>> wr.timestream.list_databases()
-    ... ["database1", "database2"]
-
+    ["database1", "database2"]
 
     """
     client = _utils.client(service_name="timestream-write", session=boto3_session)
@@ -54,15 +52,14 @@ def list_tables(database: str | None = None, boto3_session: boto3.Session | None
 
     Parameters
     ----------
-    database: str
+    database
         Database name. If None, all tables in Timestream will be returned. Otherwise, only the tables inside the
         given database are returned.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[str]
         A list of table names.
 
     Examples
@@ -71,13 +68,13 @@ def list_tables(database: str | None = None, boto3_session: boto3.Session | None
 
     >>> import awswrangler as wr
     >>> wr.timestream.list_tables()
-    ... ["table1", "table2"]
+    ["table1", "table2"]
 
     Listing all tables in timestream in a specific database
 
     >>> import awswrangler as wr
     >>> wr.timestream.list_tables(DatabaseName="database1")
-    ... ["table1"]
+    ["table1"]
 
     """
     client = _utils.client(service_name="timestream-write", session=boto3_session)
