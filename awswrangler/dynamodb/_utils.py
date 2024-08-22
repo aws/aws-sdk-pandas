@@ -40,14 +40,13 @@ def get_table(
 
     Parameters
     ----------
-    table_name : str
+    table_name
         Name of the Amazon DynamoDB table.
-    boto3_session : Optional[boto3.Session()]
-        Boto3 Session. If None, the default boto3 Session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    dynamodb_table : boto3.resources.dynamodb.Table
         Boto3 DynamoDB.Table object.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table
     """
@@ -124,18 +123,17 @@ def execute_statement(
 
     Parameters
     ----------
-    statement : str
+    statement
         The PartiQL statement.
-    parameters : Optional[List[Any]]
+    parameters
         The list of PartiQL parameters. These are applied to the statement in the order they are listed.
-    consistent_read: bool
+    consistent_read
         The consistency of a read operation. If `True`, then a strongly consistent read is used. False by default.
-    boto3_session : Optional[boto3.Session]
+    boto3_session
         Boto3 Session. If None, the default boto3 Session is used.
 
     Returns
     -------
-    Optional[Iterator[Dict[str, Any]]]
         An iterator of the items from the statement response, if any.
 
     Examples

@@ -26,17 +26,12 @@ def delete_items(
 
     Parameters
     ----------
-    items : List[Dict[str, Any]]
+    items
         List which contains the items that will be deleted.
-    table_name : str
+    table_name
         Name of the Amazon DynamoDB table.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
