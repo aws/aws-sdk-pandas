@@ -6,7 +6,7 @@ from __future__ import annotations
 import ast
 import json
 import logging
-from typing import Any, Generator, Iterable, Mapping, cast
+from typing import TYPE_CHECKING, Any, Generator, Iterable, Mapping, cast
 
 import boto3
 import numpy as np
@@ -17,11 +17,31 @@ from awswrangler import _utils, exceptions
 from awswrangler._utils import parse_path
 from awswrangler.opensearch._utils import _get_distribution, _get_version_major, _is_serverless
 
-progressbar = _utils.import_optional_dependency("progressbar")
-opensearchpy = _utils.import_optional_dependency("opensearchpy")
-if opensearchpy:
-    from jsonpath_ng import parse
-    from jsonpath_ng.exceptions import JsonPathParserError
+if TYPE_CHECKING:
+    try:
+        import jsonpath_ng
+    except ImportError:
+        pass
+else:
+    jsonpath_ng = _utils.import_optional_dependency("jsonpath_ng")
+
+
+if TYPE_CHECKING:
+    try:
+        import opensearchpy
+    except ImportError:
+        pass
+else:
+    opensearchpy = _utils.import_optional_dependency("opensearchpy")
+
+if TYPE_CHECKING:
+    try:
+        import progressbar
+    except ImportError:
+        pass
+else:
+    progressbar = _utils.import_optional_dependency("progressbar")
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -95,9 +115,12 @@ def _file_line_generator(path: str, is_json: bool = False) -> Generator[Any, Non
                 yield line.strip()
 
 
+@_utils.check_optional_dependency(jsonpath_ng, "jsonpath_ng")
 def _get_documents_w_json_path(documents: list[Mapping[str, Any]], json_path: str) -> list[Any]:
+    from jsonpath_ng.exceptions import JsonPathParserError
+
     try:
-        jsonpath_expression = parse(json_path)
+        jsonpath_expression = jsonpath_ng.parse(json_path)
     except JsonPathParserError as e:
         _logger.error("invalid json_path: %s", json_path)
         raise e
