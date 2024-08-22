@@ -6319,6 +6319,25 @@ lint = ["docutils-stubs", "flake8 (>=3.5.0)", "flake8-simplify", "isort", "mypy 
 test = ["cython", "filelock", "html5lib", "pytest (>=4.6)"]
 
 [[package]]
+name = "sphinx-autodoc-typehints"
+version = "2.0.1"
+description = "Type hints (PEP 484) support for the Sphinx autodoc extension"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "sphinx_autodoc_typehints-2.0.1-py3-none-any.whl", hash = "sha256:f73ae89b43a799e587e39266672c1075b2ef783aeb382d3ebed77c38a3fc0149"},
+    {file = "sphinx_autodoc_typehints-2.0.1.tar.gz", hash = "sha256:60ed1e3b2c970acc0aa6e877be42d48029a9faec7378a17838716cacd8c10b12"},
+]
+
+[package.dependencies]
+sphinx = ">=7.1.2"
+
+[package.extras]
+docs = ["furo (>=2024.1.29)"]
+numpy = ["nptyping (>=2.5)"]
+testing = ["covdefaults (>=2.3)", "coverage (>=7.4.2)", "diff-cover (>=8.0.3)", "pytest (>=8.0.1)", "pytest-cov (>=4.1)", "sphobjinv (>=2.3.1)", "typing-extensions (>=4.9)"]
+
+[[package]]
 name = "sphinx-bootstrap-theme"
 version = "0.8.1"
 description = "Sphinx Bootstrap Theme."
@@ -7157,4 +7176,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <4.0"
-content-hash = "3d83fac1ef6f365270249ca0dd6be97f8a451b4d3d73ff53955dc5a76a202b03"
+content-hash = "a8da0c96ca2afb24136fa5543b92ae76b918d7a23594f3f61de2b33d5cecd47a"
