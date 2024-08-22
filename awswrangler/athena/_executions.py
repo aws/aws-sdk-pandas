@@ -56,19 +56,19 @@ def start_query_execution(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL query.
-    database : str, optional
+    database
         AWS Glue/Athena database name.
-    s3_output : str, optional
+    s3_output
         AWS S3 path.
-    workgroup : str
+    workgroup
         Athena workgroup. Primary by default.
-    encryption : str, optional
+    encryption
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
-    kms_key : str, optional
+    kms_key
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
-    params: Dict[str, any] | List[str], optional
+    params
         Parameters that will be used for constructing the SQL query.
         Only named or question mark parameters are supported.
         The parameter style needs to be specified in the ``paramstyle`` parameter.
@@ -81,22 +81,22 @@ def start_query_execution(
         For ``paramstyle="qmark"``, this value needs to be a list of strings.
         The formatter will be applied server-side.
         The values are applied sequentially to the parameters in the query in the order in which the parameters occur.
-    paramstyle: str, optional
+    paramstyle
         Determines the style of ``params``.
         Possible values are:
 
         - ``named``
         - ``qmark``
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    client_request_token : str, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
+    client_request_token
         A unique case-sensitive string used to ensure the request to create the query is idempotent (executes only once).
         If another StartQueryExecution request is received, the same response is returned and another query is not created.
         If a parameter has changed, for example, the QueryString , an error is returned.
         If you pass the same client_request_token value with different parameters the query fails with error
         message "Idempotent parameters do not match". Use this only with ctas_approach=False and unload_approach=False
         and disabled cache.
-    athena_cache_settings: typing.AthenaCacheSettings, optional
+    athena_cache_settings
         Parameters of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
         max_remote_cache_entries, and max_local_cache_entries.
         AthenaCacheSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
@@ -104,16 +104,15 @@ def start_query_execution(
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
-    athena_query_wait_polling_delay: float, default: 1.0 seconds
+    athena_query_wait_polling_delay
         Interval in seconds for how often the function will check if the Athena query has completed.
-    data_source : str, optional
+    data_source
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
-    wait : bool, default False
+    wait
         Indicates whether to wait for the query to finish and return a dictionary with the query execution response.
 
     Returns
     -------
-    Union[str, Dict[str, Any]]
         Query execution ID if `wait` is set to `False`, dictionary with the get_query_execution response otherwise.
 
     Examples
@@ -177,15 +176,10 @@ def stop_query_execution(query_execution_id: str, boto3_session: boto3.Session |
 
     Parameters
     ----------
-    query_execution_id : str
+    query_execution_id
         Athena query execution ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Examples
     --------
@@ -207,16 +201,15 @@ def wait_query(
 
     Parameters
     ----------
-    query_execution_id : str
+    query_execution_id
         Athena query execution ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    athena_query_wait_polling_delay: float, default: 1.0 seconds
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
+    athena_query_wait_polling_delay
         Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns
     -------
-    Dict[str, Any]
         Dictionary with the get_query_execution response.
 
     Examples
@@ -247,14 +240,13 @@ def get_query_execution(query_execution_id: str, boto3_session: boto3.Session | 
 
     Parameters
     ----------
-    query_execution_id : str
+    query_execution_id
         Athena query execution ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Dictionary with the get_query_execution response.
 
     Examples

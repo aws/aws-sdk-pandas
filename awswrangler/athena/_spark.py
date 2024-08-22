@@ -103,32 +103,31 @@ def create_spark_session(
 
     Parameters
     ----------
-    workgroup : str
+    workgroup
         Athena workgroup name. Must be Spark-enabled.
-    coordinator_dpu_size : int, optional
+    coordinator_dpu_size
         The number of DPUs to use for the coordinator. A coordinator is a special executor that orchestrates
         processing work and manages other executors in a notebook session. The default is 1.
-    max_concurrent_dpus : int, optional
+    max_concurrent_dpus
         The maximum number of DPUs that can run concurrently. The default is 5.
-    default_executor_dpu_size: int, optional
+    default_executor_dpu_size
         The default number of DPUs to use for executors. The default is 1.
-    additional_configs : Dict[str, Any], optional
+    additional_configs
         Contains additional engine parameter mappings in the form of key-value pairs.
-    spark_properties: Dict[str, Any], optional
+    spark_properties
         Contains SparkProperties in the form of key-value pairs.Specifies custom jar files and Spark properties
         for use cases like cluster encryption, table formats, and general Spark tuning.
-    notebook_version: str, optional
+    notebook_version
         The notebook version. This value is supplied automatically for notebook sessions in the Athena console and is not required for programmatic session access.
         The only valid notebook version is Athena notebook version 1. If you specify a value for NotebookVersion, you must also specify a value for NotebookId
-    idle_timeout : int, optional
+    idle_timeout
         The idle timeout in minutes for the session. The default is 15.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    str
-        Session id
+        Session ID
 
     Examples
     --------
@@ -182,35 +181,34 @@ def run_spark_calculation(
 
     Parameters
     ----------
-    code : str
+    code
         A string that contains the code for the calculation.
-    workgroup : str
+    workgroup
         Athena workgroup name. Must be Spark-enabled.
-    session_id : str, optional
+    session_id
         The session id. If not passed, a session will be started.
-    coordinator_dpu_size : int, optional
+    coordinator_dpu_size
         The number of DPUs to use for the coordinator. A coordinator is a special executor that orchestrates
         processing work and manages other executors in a notebook session. The default is 1.
-    max_concurrent_dpus : int, optional
+    max_concurrent_dpus
         The maximum number of DPUs that can run concurrently. The default is 5.
-    default_executor_dpu_size: int, optional
+    default_executor_dpu_size
         The default number of DPUs to use for executors. The default is 1.
-    additional_configs : Dict[str, Any], optional
+    additional_configs
         Contains additional engine parameter mappings in the form of key-value pairs.
-    spark_properties: Dict[str, Any], optional
+    spark_properties
         Contains SparkProperties in the form of key-value pairs.Specifies custom jar files and Spark properties
         for use cases like cluster encryption, table formats, and general Spark tuning.
-    notebook_version: str, optional
+    notebook_version
         The notebook version. This value is supplied automatically for notebook sessions in the Athena console and is not required for programmatic session access.
         The only valid notebook version is Athena notebook version 1. If you specify a value for NotebookVersion, you must also specify a value for NotebookId
-    idle_timeout : int, optional
+    idle_timeout
         The idle timeout in minutes for the session. The default is 15.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Calculation response
 
     Examples

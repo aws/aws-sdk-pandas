@@ -677,40 +677,39 @@ def get_query_results(
 
     Parameters
     ----------
-    query_execution_id : str
+    query_execution_id
         SQL query's execution_id on AWS Athena.
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    categories: List[str], optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
+    categories
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunksize: Union[int, bool], optional
+    chunksize
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    pyarrow_additional_kwargs: dict[str, Any]], optional
+    pyarrow_additional_kwargs
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
-    athena_query_wait_polling_delay: float, default: 1.0 seconds
+    athena_query_wait_polling_delay
         Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns
     -------
-    Union[pd.DataFrame, Iterator[pd.DataFrame]]
         Pandas DataFrame or Generator of Pandas DataFrames if chunksize is passed.
 
     Examples
@@ -904,53 +903,53 @@ def read_sql_query(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL query.
-    database : str
+    database
         AWS Glue/Athena database name - It is only the origin database from where the query will be launched.
         You can still using and mixing several databases writing the full table name within the sql
         (e.g. `database.table`).
-    ctas_approach: bool
+    ctas_approach
         Wraps the query using a CTAS, and read the resulted parquet data on S3.
         If false, read the regular CSV on S3.
-    unload_approach: bool
+    unload_approach
         Wraps the query using UNLOAD, and read the results from S3.
         Only PARQUET format is supported.
-    ctas_parameters: typing.AthenaCTASSettings, optional
+    ctas_parameters
         Parameters of the CTAS such as database, temp_table_name, bucketing_info, and compression.
-    unload_parameters : typing.AthenaUNLOADSettings, optional
+    unload_parameters
         Parameters of the UNLOAD such as format, compression, field_delimiter, and partitioned_by.
-    categories: List[str], optional
+    categories
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
-    chunksize : Union[int, bool], optional
+    chunksize
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
-    s3_output : str, optional
+    s3_output
         Amazon S3 path.
-    workgroup : str
+    workgroup
         Athena workgroup. Primary by default.
-    encryption : str, optional
+    encryption
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
-    kms_key : str, optional
+    kms_key
         For SSE-KMS, this is the KMS key ARN or ID.
-    keep_files : bool
+    keep_files
         Whether staging files produced by Athena are retained. 'True' by default.
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    client_request_token : str, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
+    client_request_token
         A unique case-sensitive string used to ensure the request to create the query is idempotent (executes only once).
         If another StartQueryExecution request is received, the same response is returned and another query is not created.
         If a parameter has changed, for example, the QueryString , an error is returned.
         If you pass the same client_request_token value with different parameters the query fails with error
         message "Idempotent parameters do not match". Use this only with ctas_approach=False and unload_approach=False
         and disabled cache.
-    athena_cache_settings: typing.AthenaCacheSettings, optional
+    athena_cache_settings
         Parameters of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
         max_remote_cache_entries, and max_local_cache_entries.
         AthenaCacheSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
@@ -958,11 +957,11 @@ def read_sql_query(
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
-    data_source : str, optional
+    data_source
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
-    athena_query_wait_polling_delay: float, default: 1.0 seconds
+    athena_query_wait_polling_delay
         Interval in seconds for how often the function will check if the Athena query has completed.
-    params: Dict[str, any] | List[str], optional
+    params
         Parameters that will be used for constructing the SQL query.
         Only named or question mark parameters are supported.
         The parameter style needs to be specified in the ``paramstyle`` parameter.
@@ -975,29 +974,28 @@ def read_sql_query(
         For ``paramstyle="qmark"``, this value needs to be a list of strings.
         The formatter will be applied server-side.
         The values are applied sequentially to the parameters in the query in the order in which the parameters occur.
-    paramstyle: str, optional
+    paramstyle
         Determines the style of ``params``.
         Possible values are:
 
         - ``named``
         - ``qmark``
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    pyarrow_additional_kwargs: dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
-    Union[pd.DataFrame, Iterator[pd.DataFrame]]
         Pandas DataFrame or Generator of Pandas DataFrames if chunksize is passed.
 
     Examples
@@ -1249,51 +1247,51 @@ def read_sql_table(
 
     Parameters
     ----------
-    table : str
+    table
         Table name.
-    database : str
+    database
         AWS Glue/Athena database name.
-    ctas_approach: bool
+    ctas_approach
         Wraps the query using a CTAS, and read the resulted parquet data on S3.
         If false, read the regular CSV on S3.
-    unload_approach: bool
+    unload_approach
         Wraps the query using UNLOAD, and read the results from S3.
         Only PARQUET format is supported.
-    ctas_parameters: typing.AthenaCTASSettings, optional
+    ctas_parameters
         Parameters of the CTAS such as database, temp_table_name, bucketing_info, and compression.
-    unload_parameters : typing.AthenaUNLOADSettings, optional
+    unload_parameters
         Parameters of the UNLOAD such as format, compression, field_delimiter, and partitioned_by.
-    categories: List[str], optional
+    categories
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
-    chunksize : Union[int, bool], optional
+    chunksize
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
-    s3_output : str, optional
+    s3_output
         AWS S3 path.
-    workgroup : str
+    workgroup
         Athena workgroup. Primary by default.
-    encryption : str, optional
+    encryption
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
-    kms_key : str, optional
+    kms_key
         For SSE-KMS, this is the KMS key ARN or ID.
-    keep_files : bool
+    keep_files
         Should awswrangler delete or keep the staging files produced by Athena?
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    client_request_token : str, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
+    client_request_token
         A unique case-sensitive string used to ensure the request to create the query is idempotent (executes only once).
         If another StartQueryExecution request is received, the same response is returned and another query is not created.
         If a parameter has changed, for example, the QueryString , an error is returned.
         If you pass the same client_request_token value with different parameters the query fails with error
         message "Idempotent parameters do not match". Use this only with ctas_approach=False and unload_approach=False
         and disabled cache.
-    athena_cache_settings: typing.AthenaCacheSettings, optional
+    athena_cache_settings
         Parameters of the Athena cache settings such as max_cache_seconds, max_cache_query_inspections,
         max_remote_cache_entries, and max_local_cache_entries.
         AthenaCacheSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
@@ -1301,25 +1299,24 @@ def read_sql_table(
         If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
-    data_source : str, optional
+    data_source
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    pyarrow_additional_kwargs: dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
-    Union[pd.DataFrame, Iterator[pd.DataFrame]]
         Pandas DataFrame or Generator of Pandas DataFrames if chunksize is passed.
 
     Examples
@@ -1379,35 +1376,35 @@ def unload(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL query.
-    path : str, optional
+    path
         Amazon S3 path.
-    database : str
+    database
         AWS Glue/Athena database name - It is only the origin database from where the query will be launched.
         You can still using and mixing several databases writing the full table name within the sql
         (e.g. `database.table`).
-    file_format : str
+    file_format
         File format of the output. Possible values are ORC, PARQUET, AVRO, JSON, or TEXTFILE
-    compression: str, optional
+    compression
         This option is specific to the ORC and Parquet formats. For ORC, possible values are lz4, snappy, zlib, or zstd.
         For Parquet, possible values are gzip or snappy. For ORC, the default is zlib, and for Parquet,
         the default is gzip.
-    field_delimiter : str
+    field_delimiter
         A single-character field delimiter for files in CSV, TSV, and other text formats.
-    partitioned_by: list[str], optional
+    partitioned_by
         An array list of columns by which the output is partitioned.
-    workgroup : str
+    workgroup
         Athena workgroup. Primary by default.
-    encryption : str, optional
+    encryption
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
-    kms_key : str, optional
+    kms_key
         For SSE-KMS, this is the KMS key ARN or ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    data_source : str, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
+    data_source
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
-    params: Dict[str, any] | List[str], optional
+    params
         Parameters that will be used for constructing the SQL query.
         Only named or question mark parameters are supported.
         The parameter style needs to be specified in the ``paramstyle`` parameter.
@@ -1420,18 +1417,17 @@ def unload(
         For ``paramstyle="qmark"``, this value needs to be a list of strings.
         The formatter will be applied server-side.
         The values are applied sequentially to the parameters in the query in the order in which the parameters occur.
-    paramstyle: str, optional
+    paramstyle
         Determines the style of ``params``.
         Possible values are:
 
         - ``named``
         - ``qmark``
-    athena_query_wait_polling_delay: float, default: 1.0 seconds
+    athena_query_wait_polling_delay
         Interval in seconds for how often the function will check if the Athena query has completed.
 
     Returns
     -------
-    _QueryMetadata
         Query metadata including query execution id, dtypes, manifest & output location.
 
     Examples
