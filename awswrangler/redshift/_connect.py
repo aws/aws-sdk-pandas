@@ -54,62 +54,59 @@ def connect(
 
     Parameters
     ----------
-    connection : str, optional
+    connection
         Glue Catalog Connection name.
-    secret_id : str, optional
+    secret_id
         Specifies the secret containing the connection details that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
-    dbname : str, optional
+    dbname
         Optional database name to overwrite the stored one.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    ssl : bool
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    ssl
         This governs SSL encryption for TCP/IP sockets.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    timeout : int, optional
+    timeout
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    max_prepared_statements : int
+    max_prepared_statements
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    tcp_keepalive : bool
+    tcp_keepalive
         If True then use TCP keepalive. The default is True.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    **kwargs : Any
+    **kwargs
         Forwarded to redshift_connector.connect.
-        e.g. is_serverless=True, serverless_acct_id='...', serverless_work_group='...'
+        e.g. ``is_serverless=True, serverless_acct_id='...', serverless_work_group='...'``
 
     Returns
     -------
-    redshift_connector.Connection
-        redshift_connector connection.
+        ``redshift_connector`` connection.
 
     Examples
     --------
     Fetching Redshift connection from Glue Catalog
 
     >>> import awswrangler as wr
-    >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
-    >>> with con.cursor() as cursor:
-    >>>     cursor.execute("SELECT 1")
-    >>>     print(cursor.fetchall())
-    >>> con.close()
+    >>> with wr.redshift.connect("MY_GLUE_CONNECTION") as con:
+    ...     with con.cursor() as cursor:
+    ...         cursor.execute("SELECT 1")
+    ...         print(cursor.fetchall())
 
     Fetching Redshift connection from Secrets Manager
 
     >>> import awswrangler as wr
-    >>> con = wr.redshift.connect(secret_id="MY_SECRET")
-    >>> with con.cursor() as cursor:
-    >>>     cursor.execute("SELECT 1")
-    >>>     print(cursor.fetchall())
-    >>> con.close()
+    >>> with wr.redshift.connect(secret_id="MY_SECRET") as con:
+    ...     with con.cursor() as cursor:
+    ...         cursor.execute("SELECT 1")
+    ...         print(cursor.fetchall())
 
     """
     attrs: _db_utils.ConnectionAttributes = _db_utils.get_connection_attributes(
@@ -154,57 +151,55 @@ def connect_temp(
 
     Parameters
     ----------
-    cluster_identifier : str
+    cluster_identifier
         The unique identifier of a cluster.
         This parameter is case sensitive.
-    user : str, optional
+    user
         The name of a database user.
-    database : str, optional
+    database
         Database name. If None, the default Database is used.
-    duration : int, optional
+    duration
         The number of seconds until the returned temporary password expires.
         Constraint: minimum 900, maximum 3600.
         Default: 900
-    auto_create : bool
+    auto_create
         Create a database user with the name specified for the user named in user if one does not exist.
-    db_groups : List[str], optional
+    db_groups
         A list of the names of existing database groups that the user named in user will join for the current session,
         in addition to any group memberships for an existing user. If not specified, a new user is added only to PUBLIC.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    ssl : bool
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    ssl
         This governs SSL encryption for TCP/IP sockets.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    timeout : int, optional
+    timeout
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    max_prepared_statements : int
+    max_prepared_statements
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    tcp_keepalive : bool
+    tcp_keepalive
         If True then use TCP keepalive. The default is True.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    **kwargs : Any
+    **kwargs
         Forwarded to redshift_connector.connect.
         e.g. is_serverless=True, serverless_acct_id='...', serverless_work_group='...'
 
     Returns
     -------
-    redshift_connector.Connection
-        redshift_connector connection.
+        ``redshift_connector`` connection.
 
     Examples
     --------
     >>> import awswrangler as wr
-    >>> con = wr.redshift.connect_temp(cluster_identifier="my-cluster", user="test")
-    >>> with con.cursor() as cursor:
-    >>>     cursor.execute("SELECT 1")
-    >>>     print(cursor.fetchall())
-    >>> con.close()
+    >>> with wr.redshift.connect_temp(cluster_identifier="my-cluster", user="test") as con:
+    ...     with con.cursor() as cursor:
+    ...         cursor.execute("SELECT 1")
+    ...         print(cursor.fetchall())
 
     """
     client_redshift = _utils.client(service_name="redshift", session=boto3_session)
