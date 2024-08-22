@@ -98,23 +98,22 @@ def wait_objects_exist(
 
     Parameters
     ----------
-    paths : List[str]
+    paths
         List of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    delay : Union[int,float], optional
+    delay
         The amount of time in seconds to wait between attempts. Default: 5
-    max_attempts : int, optional
+    max_attempts
         The maximum number of attempts to be made. Default: 20
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
-    None
-        None.
+        None
 
     Examples
     --------
@@ -156,23 +155,22 @@ def wait_objects_not_exist(
 
     Parameters
     ----------
-    paths : List[str]
+    paths
         List of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    delay : Union[int,float], optional
+    delay
         The amount of time in seconds to wait between attempts. Default: 5
-    max_attempts : int, optional
+    max_attempts
         The maximum number of attempts to be made. Default: 20
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
-    None
-        None.
+        None
 
     Examples
     --------

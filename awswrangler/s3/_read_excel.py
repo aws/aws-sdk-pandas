@@ -41,18 +41,18 @@ def read_excel(
 
     Parameters
     ----------
-    path : str
+    path
         S3 path (e.g. ``s3://bucket/key.xlsx``).
-    version_id : str, optional
+    version_id
         Version id of the object.
-    use_threads : Union[bool, int]
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If given an int will use the given amount of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_excel(). You can NOT pass `pandas_kwargs` explicit, just add valid
@@ -62,7 +62,6 @@ def read_excel(
 
     Returns
     -------
-    pandas.DataFrame
         Pandas DataFrame.
 
     Examples

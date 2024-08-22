@@ -81,31 +81,30 @@ def describe_objects(
 
     Parameters
     ----------
-    path : Union[str, List[str]]
+    path
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    version_id: Optional[Union[str, Dict[str, str]]]
+    version_id
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    last_modified_end: datetime, optional
+    last_modified_end
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
-    Dict[str, Dict[str, Any]]
         Return a dictionary of objects returned from head_objects where the key is the object path.
         The response object can be explored here:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object
@@ -167,25 +166,24 @@ def size_objects(
 
     Parameters
     ----------
-    path : Union[str, List[str]]
+    path
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    version_id: Optional[Union[str, Dict[str, str]]]
+    version_id
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
-    Dict[str, Optional[int]]
         Dictionary where the key is the object path and the value is the object size.
 
     Examples
@@ -210,14 +208,13 @@ def get_bucket_region(bucket: str, boto3_session: boto3.Session | None = None) -
 
     Parameters
     ----------
-    bucket : str
+    bucket
         Bucket name.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
-    str
         Region code (e.g. 'us-east-1').
 
     Examples

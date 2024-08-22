@@ -102,27 +102,26 @@ def merge_datasets(
 
     Parameters
     ----------
-    source_path : str,
+    source_path
         S3 Path for the source directory.
-    target_path : str,
+    target_path
         S3 Path for the target directory.
-    mode: str, optional
+    mode
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``.
-    ignore_empty: bool
+    ignore_empty
         Ignore files with 0 bytes.
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
 
     Returns
     -------
-    List[str]
         List of new objects paths.
 
     Examples
@@ -205,27 +204,26 @@ def copy_objects(
 
     Parameters
     ----------
-    paths: List[str]
+    paths
         List of S3 objects paths (e.g. ``["s3://bucket/dir0/key0", "s3://bucket/dir0/key1"]``).
-    source_path: str
+    source_path
         S3 Path for the source directory.
-    target_path: str
+    target_path
         S3 Path for the target directory.
-    replace_filenames: Dict[str, str], optional
+    replace_filenames
         e.g. ``{"old_name.csv": "new_name.csv", "old_name2.csv": "new_name2.csv"}``
-    use_threads: bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled ``os.cpu_count()`` will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session: boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. ``s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}``
 
     Returns
     -------
-    List[str]
         List of new objects paths.
 
     Examples

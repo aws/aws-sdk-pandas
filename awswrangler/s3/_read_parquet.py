@@ -376,22 +376,22 @@ def read_parquet(
 
     Parameters
     ----------
-    path : Union[str, List[str]]
+    path
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    path_root : str, optional
+    path_root
         Root path of the dataset. If dataset=`True`, it is used as a starting point to load partition columns.
-    dataset : bool, default False
+    dataset
         If `True`, read a parquet dataset instead of individual file(s), loading all related partitions as columns.
-    path_suffix : Union[str, List[str], None]
+    path_suffix
         Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
         If None, reads all files. (default)
-    path_ignore_suffix : Union[str, List[str], None]
+    path_ignore_suffix
         Suffix or List of suffixes to be ignored.(e.g. [".csv", "_SUCCESS"]).
         If None, reads all files. (default)
-    ignore_empty : bool, default True
+    ignore_empty
         Ignore files with 0 bytes.
-    partition_filter : Callable[[Dict[str, str]], bool], optional
+    partition_filter
         Callback Function filters to apply on PARTITION columns (PUSH-DOWN filter).
         This function must receive a single argument (Dict[str, str]) where keys are partitions
         names and values are partitions values. Partitions values must be strings and the function
@@ -399,50 +399,50 @@ def read_parquet(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.9.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
-    columns : List[str], optional
+    columns
         List of columns to read from the file(s).
-    validate_schema : bool, default False
+    validate_schema
         Check that the schema is consistent across individual files.
-    coerce_int96_timestamp_unit : str, optional
+    coerce_int96_timestamp_unit
         Cast timestamps that are stored in INT96 format to a particular resolution (e.g. "ms").
         Setting to None is equivalent to "ns" and therefore INT96 timestamps are inferred as in nanoseconds.
-    schema : pyarrow.Schema, optional
+    schema
         Schema to use whem reading the file.
-    last_modified_begin : datetime, optional
+    last_modified_begin
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
-    last_modified_end : datetime, optional
+    last_modified_end
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
-    version_id: Optional[Union[str, Dict[str, str]]]
+    version_id
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunked : Union[int, bool]
+    chunked
         If passed, the data is split into an iterable of DataFrames (Memory friendly).
         If `True` an iterable of DataFrames is returned without guarantee of chunksize.
         If an `INTEGER` is passed, an iterable of DataFrames is returned with maximum rows
         equal to the received INTEGER.
-    use_threads : Union[bool, int], default True
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    ray_args: typing.RayReadParquetSettings, optional
+    ray_args
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session is used if None is received.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forward to S3 botocore requests.
-    pyarrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
-    decryption_configuration: typing.ArrowDecryptionConfiguration, optional
+    decryption_configuration
         ``pyarrow.parquet.encryption.CryptoFactory`` and ``pyarrow.parquet.encryption.KmsConnectionConfig`` objects dict
         used to create a PyArrow ``CryptoFactory.file_decryption_properties`` object to forward to PyArrow reader.
         see: https://arrow.apache.org/docs/python/parquet.html#decryption-configuration
@@ -450,7 +450,6 @@ def read_parquet(
 
     Returns
     -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
         Pandas DataFrame or a Generator in case of `chunked=True`.
 
     Examples
@@ -620,20 +619,20 @@ def read_parquet_table(
 
     Parameters
     ----------
-    table : str
+    table
         AWS Glue Catalog table name.
-    database : str
+    database
         AWS Glue Catalog database name.
-    filename_suffix : Union[str, List[str], None]
+    filename_suffix
         Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
         If None, read all files. (default)
-    filename_ignore_suffix : Union[str, List[str], None]
+    filename_ignore_suffix
         Suffix or List of suffixes for S3 keys to be ignored.(e.g. [".csv", "_SUCCESS"]).
         If None, read all files. (default)
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]]
+    partition_filter
         Callback Function filters to apply on PARTITION columns (PUSH-DOWN filter).
         This function must receive a single argument (Dict[str, str]) where keys are partitions
         names and values are partitions values. Partitions values must be strings and the function
@@ -641,46 +640,45 @@ def read_parquet_table(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.9.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
-    columns : List[str], optional
+    columns
         List of columns to read from the file(s).
-    validate_schema : bool, default False
+    validate_schema
         Check that the schema is consistent across individual files.
-    coerce_int96_timestamp_unit : str, optional
+    coerce_int96_timestamp_unit
         Cast timestamps that are stored in INT96 format to a particular resolution (e.g. "ms").
         Setting to None is equivalent to "ns" and therefore INT96 timestamps are inferred as in nanoseconds.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunked : Union[int, bool]
+    chunked
         If passed, the data is split into an iterable of DataFrames (Memory friendly).
         If `True` an iterable of DataFrames is returned without guarantee of chunksize.
         If an `INTEGER` is passed, an iterable of DataFrames is returned with maximum rows
         equal to the received INTEGER.
-    use_threads : Union[bool, int], default True
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    ray_args: typing.RayReadParquetSettings, optional
+    ray_args
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session is used if None is received.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forward to S3 botocore requests.
-    pyarrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
-    decryption_configuration: typing.ArrowDecryptionConfiguration, optional
+    decryption_configuration
         ``pyarrow.parquet.encryption.CryptoFactory`` and ``pyarrow.parquet.encryption.KmsConnectionConfig`` objects dict
         used to create a PyArrow ``CryptoFactory.file_decryption_properties`` object to forward to PyArrow reader.
         Client Decryption is not supported in distributed mode.
 
     Returns
     -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
         Pandas DataFrame or a Generator in case of `chunked=True`.
 
     Examples
@@ -784,45 +782,44 @@ def read_parquet_metadata(
 
     Parameters
     ----------
-    path : Union[str, List[str]]
+    path
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    dataset : bool, default False
+    dataset
         If `True`, read a parquet dataset instead of individual file(s), loading all related partitions as columns.
-    version_id : Union[str, Dict[str, str]], optional
+    version_id
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    path_suffix : Union[str, List[str], None]
+    path_suffix
         Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
         If None, reads all files. (default)
-    path_ignore_suffix : Union[str, List[str], None]
+    path_ignore_suffix
         Suffix or List of suffixes to be ignored.(e.g. [".csv", "_SUCCESS"]).
         If None, reads all files. (default)
-    ignore_empty : bool, default True
+    ignore_empty
         Ignore files with 0 bytes.
-    ignore_null : bool, default False
+    ignore_null
         Ignore columns with null type.
-    dtype : Dict[str, str], optional
+    dtype
         Dictionary of columns names and Athena/Glue types to cast.
         Use when you have columns with undetermined data types as partitions columns.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    sampling : float
+    sampling
         Ratio of files metadata to inspect.
         Must be `0.0 < sampling <= 1.0`.
         The higher, the more accurate.
         The lower, the faster.
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forward to S3 botocore requests.
 
     Returns
     -------
-    Tuple[Dict[str, str], Optional[Dict[str, str]]]
         columns_types: Dictionary with keys as column names and values as
         data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /
         partitions_types: Dictionary with keys as partition names

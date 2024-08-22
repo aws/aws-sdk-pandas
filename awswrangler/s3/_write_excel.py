@@ -41,20 +41,20 @@ def to_excel(
 
     Parameters
     ----------
-    df: pandas.DataFrame
+    df
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    path : str
+    path
         Amazon S3 path (e.g. s3://bucket/filename.xlsx).
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    pyarrow_additional_kwargs: dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    pandas_kwargs:
+    pandas_kwargs
         KEYWORD arguments forwarded to pandas.DataFrame.to_excel(). You can NOT pass `pandas_kwargs` explicit, just add
         valid Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.s3.to_excel(df, path, na_rep="", index=False)
@@ -62,7 +62,6 @@ def to_excel(
 
     Returns
     -------
-    str
         Written S3 path.
 
     Examples

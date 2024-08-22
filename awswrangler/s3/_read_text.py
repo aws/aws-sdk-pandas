@@ -191,45 +191,45 @@ def read_csv(
 
     Parameters
     ----------
-    path : Union[str, List[str]]
+    path
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
-    path_suffix: Union[str, List[str], None]
+    path_suffix
         Suffix or List of suffixes to be read (e.g. [".csv"]).
         If None, will try to read all files. (default)
-    path_ignore_suffix: Union[str, List[str], None]
+    path_ignore_suffix
         Suffix or List of suffixes for S3 keys to be ignored.(e.g. ["_SUCCESS"]).
         If None, will try to read all files. (default)
-    version_id: Optional[Union[str, Dict[str, str]]]
+    version_id
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    ignore_empty: bool
+    ignore_empty
         Ignore files with 0 bytes.
-    use_threads : Union[bool, int]
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    last_modified_end: datetime, optional
+    last_modified_end
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    pyarrow_additional_kwargs: dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunksize: int, optional
+    chunksize
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
-    dataset : bool
+    dataset
         If `True` read a CSV dataset instead of simple file(s) loading all the related partitions as columns.
-    partition_filter : Optional[Callable[[Dict[str, str]], bool]]
+    partition_filter
         Callback Function filters to apply on PARTITION columns (PUSH-DOWN filter).
         This function MUST receive a single argument (Dict[str, str]) where keys are partitions
         names and values are partitions values. Partitions values will be always strings extracted from S3.
@@ -237,11 +237,11 @@ def read_csv(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.9.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
-    ray_args: typing.RaySettings, optional
+    ray_args
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
-    pandas_kwargs :
+    pandas_kwargs
         KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicitly, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', na_values=['null', 'none'], skip_blank_lines=True)
@@ -249,7 +249,6 @@ def read_csv(
 
     Returns
     -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
         Pandas DataFrame or a Generator in case of `chunksize != None`.
 
     Examples
@@ -359,39 +358,39 @@ def read_fwf(
 
     Parameters
     ----------
-    path : Union[str, List[str]]
+    path
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
-    path_suffix: Union[str, List[str], None]
+    path_suffix
         Suffix or List of suffixes to be read (e.g. [".txt"]).
         If None, will try to read all files. (default)
-    path_ignore_suffix: Union[str, List[str], None]
+    path_ignore_suffix
         Suffix or List of suffixes for S3 keys to be ignored.(e.g. ["_SUCCESS"]).
         If None, will try to read all files. (default)
-    version_id: Optional[Union[str, Dict[str, str]]]
+    version_id
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    ignore_empty: bool
+    ignore_empty
         Ignore files with 0 bytes.
-    use_threads : Union[bool, int]
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    last_modified_end: datetime, optional
+    last_modified_end
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    pyarrow_additional_kwargs: dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
-    chunksize: int, optional
+    chunksize
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
-    dataset: bool
+    dataset
         If `True` read a FWF dataset instead of simple file(s) loading all the related partitions as columns.
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]]
+    partition_filter
         Callback Function filters to apply on PARTITION columns (PUSH-DOWN filter).
         This function MUST receive a single argument (Dict[str, str]) where keys are partitions
         names and values are partitions values. Partitions values will be always strings extracted from S3.
@@ -399,9 +398,9 @@ def read_fwf(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.9.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
-    ray_args: typing.RaySettings, optional
+    ray_args
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_fwf(). You can NOT pass `pandas_kwargs` explicit, just add valid
@@ -411,7 +410,6 @@ def read_fwf(
 
     Returns
     -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
         Pandas DataFrame or a Generator in case of `chunksize != None`.
 
     Examples
@@ -519,48 +517,48 @@ def read_json(
 
     Parameters
     ----------
-    path : Union[str, List[str]]
+    path
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
-    path_suffix: Union[str, List[str], None]
+    path_suffix
         Suffix or List of suffixes to be read (e.g. [".json"]).
         If None, will try to read all files. (default)
-    path_ignore_suffix: Union[str, List[str], None]
+    path_ignore_suffix
         Suffix or List of suffixes for S3 keys to be ignored.(e.g. ["_SUCCESS"]).
         If None, will try to read all files. (default)
-    version_id: Optional[Union[str, Dict[str, str]]]
+    version_id
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    ignore_empty: bool
+    ignore_empty
         Ignore files with 0 bytes.
-    orient : str
+    orient
         Same as Pandas: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
-    use_threads : Union[bool, int]
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    last_modified_end: datetime, optional
+    last_modified_end
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    pyarrow_additional_kwargs: dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunksize: int, optional
+    chunksize
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
-    dataset: bool
+    dataset
         If `True` read a JSON dataset instead of simple file(s) loading all the related partitions as columns.
         If `True`, the `lines=True` will be assumed by default.
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]]
+    partition_filter
         Callback Function filters to apply on PARTITION columns (PUSH-DOWN filter).
         This function MUST receive a single argument (Dict[str, str]) where keys are partitions
         names and values are partitions values. Partitions values will be always strings extracted from S3.
@@ -568,9 +566,9 @@ def read_json(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.9.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
-    ray_args: typing.RaySettings, optional
+    ray_args
         Parameters of the Ray Modin settings. Only used when distributed computing is used with Ray and Modin installed.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_json(). You can NOT pass `pandas_kwargs` explicit, just add valid
@@ -580,7 +578,6 @@ def read_json(
 
     Returns
     -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
         Pandas DataFrame or a Generator in case of `chunksize != None`.
 
     Examples

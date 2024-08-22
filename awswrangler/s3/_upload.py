@@ -28,22 +28,22 @@ def upload(
 
     Parameters
     ----------
-    local_file : Union[str, Any]
+    local_file
         A file-like object in binary mode or a path to local file (e.g. ``./local/path/to/key0``).
-    path : str
+    path
         S3 path (e.g. ``s3://bucket/key0``).
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    pyarrow_additional_kwargs: dict[str, Any], optional
+    boto3_session
+        The default boto3 session will be used if boto3_session receive None.
+    pyarrow_additional_kwargs
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
 
     Returns
     -------
-    None
+        None
 
     Examples
     --------
