@@ -10,6 +10,7 @@ dependencies:
     - nbsphinx
     - nbsphinx-link
     - sphinx==7.1.2
+    - sphinx-autodoc-typehints
     - sphinx_bootstrap_theme
     - sphinx-copybutton
     - IPython
