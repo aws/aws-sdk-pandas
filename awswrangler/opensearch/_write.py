@@ -177,22 +177,21 @@ def create_index(
 
     Parameters
     ----------
-    client : OpenSearch
+    client
         instance of opensearchpy.OpenSearch to use.
-    index : str
+    index
         Name of the index.
-    doc_type : str, optional
+    doc_type
         Name of the document type (for Elasticsearch versions 5.x and earlier).
-    settings : Dict[str, Any], optional
+    settings
         Index settings
         https://opensearch.org/docs/opensearch/rest-api/create-index/#index-settings
-    mappings : Dict[str, Any], optional
+    mappings
         Index mappings
         https://opensearch.org/docs/opensearch/rest-api/create-index/#mappings
 
     Returns
     -------
-    Dict[str, Any]
         OpenSearch rest api response
         https://opensearch.org/docs/opensearch/rest-api/create-index/#response.
 
@@ -247,14 +246,13 @@ def delete_index(client: "opensearchpy.OpenSearch", index: str) -> dict[str, Any
 
     Parameters
     ----------
-    client : OpenSearch
+    client
         instance of opensearchpy.OpenSearch to use.
-    index : str
+    index
         Name of the index.
 
     Returns
     -------
-    Dict[str, Any]
         OpenSearch rest api response
 
     Examples
@@ -294,32 +292,31 @@ def index_json(
 
     Parameters
     ----------
-    client : OpenSearch
+    client
         instance of opensearchpy.OpenSearch to use.
-    path : str
+    path
         s3 or local path to the JSON file which contains the documents.
-    index : str
+    index
         Name of the index.
-    doc_type : str, optional
+    doc_type
         Name of the document type (for Elasticsearch versions 5.x and earlier).
-    json_path : str, optional
+    json_path
         JsonPath expression to specify explicit path to a single name element
         in a JSON hierarchical data structure.
         Read more about `JsonPath <https://jsonpath.com>`_
-    boto3_session : boto3.Session(), optional
-        Boto3 Session to be used to access s3 if s3 path is provided.
-        The default boto3 Session will be used if boto3_session receive None.
-    use_threads : bool, int
+    boto3_session
+        Boto3 Session to be used to access S3 if **path** is provided.
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    **kwargs :
+    **kwargs
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
 
     Returns
     -------
-    Dict[str, Any]
         Response payload
         https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#response.
 
@@ -372,30 +369,29 @@ def index_csv(
 
     Parameters
     ----------
-    client : OpenSearch
+    client
         instance of opensearchpy.OpenSearch to use.
-    path : str
-        s3 or local path to the CSV file which contains the documents.
-    index : str
+    path
+        S3 or local path to the CSV file which contains the documents.
+    index
         Name of the index.
-    doc_type : str, optional
+    doc_type
         Name of the document type (for Elasticsearch versions 5.x and earlier).
-    pandas_kwargs : Dict[str, Any], optional
+    pandas_kwargs
         Dictionary of arguments forwarded to pandas.read_csv().
         e.g. pandas_kwargs={'sep': '|', 'na_values': ['null', 'none']}
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
         Note: these params values are enforced: `skip_blank_lines=True`
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    **kwargs :
+    **kwargs
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
 
     Returns
     -------
-    Dict[str, Any]
         Response payload
         https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#response.
 
@@ -448,25 +444,24 @@ def index_df(
 
     Parameters
     ----------
-    client : OpenSearch
+    client
         instance of opensearchpy.OpenSearch to use.
-    df : pd.DataFrame
-        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    index : str
+    df
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
+    index
         Name of the index.
-    doc_type : str, optional
+    doc_type
         Name of the document type (for Elasticsearch versions 5.x and earlier).
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    **kwargs :
+    **kwargs
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
 
     Returns
     -------
-    Dict[str, Any]
         Response payload
         https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#response.
 
@@ -480,7 +475,7 @@ def index_df(
     >>> wr.opensearch.index_df(
     ...     client=client,
     ...     df=pd.DataFrame([{'_id': '1'}, {'_id': '2'}, {'_id': '3'}]),
-    ...     index='sample-index1'
+    ...     index='sample-index1',
     ... )
     """
     return index_documents(
@@ -531,40 +526,40 @@ def index_documents(
 
     Parameters
     ----------
-    client : OpenSearch
+    client
         instance of opensearchpy.OpenSearch to use.
-    documents : Iterable[Mapping[str, Any]]
+    documents
         List which contains the documents that will be inserted.
-    index : str
+    index
         Name of the index.
-    doc_type : str, optional
+    doc_type
         Name of the document type (for Elasticsearch versions 5.x and earlier).
-    keys_to_write : List[str], optional
+    keys_to_write
         list of keys to index. If not provided all keys will be indexed
-    id_keys : List[str], optional
+    id_keys
         list of keys that compound document unique id. If not provided will use `_id` key if exists,
         otherwise will generate unique identifier for each document.
-    ignore_status:  Union[List[Any], Tuple[Any]], optional
+    ignore_status
         list of HTTP status codes that you want to ignore (not raising an exception)
-    bulk_size: int,
+    bulk_size
         number of docs in each _bulk request (default: 1000)
-    chunk_size : int, optional
+    chunk_size
         number of docs in one chunk sent to es (default: 500)
-    max_chunk_bytes: int, optional
+    max_chunk_bytes
         the maximum size of the request in bytes (default: 100MB)
-    max_retries : int, optional
+    max_retries
         maximum number of times a document will be retried when
         ``429`` is received, set to 0 (default) for no retries on ``429`` (default: 2)
-    initial_backoff : int, optional
+    initial_backoff
         number of seconds we should wait before the first retry.
         Any subsequent retries will be powers of ``initial_backoff*2**retry_number`` (default: 2)
-    max_backoff: int, optional
+    max_backoff
         maximum number of seconds a retry will wait (default: 600)
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    **kwargs :
+    **kwargs
         KEYWORD arguments forwarded to bulk operation
         elasticsearch >= 7.10.2 / opensearch: \
 https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#url-parameters
@@ -573,7 +568,6 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
 
     Returns
     -------
-    Dict[str, Any]
         Response payload
         https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#response.
 

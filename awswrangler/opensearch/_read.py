@@ -63,33 +63,30 @@ def search(
 
     Parameters
     ----------
-    client : OpenSearch
+    client
         instance of opensearchpy.OpenSearch to use.
-    index : str, optional
+    index
         A comma-separated list of index names to search.
         use `_all` or empty string to perform the operation on all indices.
-    search_body : Dict[str, Any], optional
+    search_body
         The search definition using the `Query DSL <https://opensearch.org/docs/opensearch/query-dsl/full-text/>`_.
-    doc_type : str, optional
+    doc_type
         Name of the document type (for Elasticsearch versions 5.x and earlier).
-    is_scroll : bool, optional
+    is_scroll
         Allows to retrieve a large numbers of results from a single search request using
         `scroll <https://opensearch.org/docs/opensearch/rest-api/scroll/>`_
         for example, for machine learning jobs.
         Because scroll search contexts consume a lot of memory, we suggest you don’t use the scroll operation
         for frequent user queries.
-    filter_path : Union[str, Collection[str]], optional
-        Use the filter_path parameter to reduce the size of the OpenSearch Service response \
-(default: ['hits.hits._id','hits.hits._source'])
-    **kwargs :
-        KEYWORD arguments forwarded to `opensearchpy.OpenSearch.search \
-<https://opensearch-py.readthedocs.io/en/latest/api.html#opensearchpy.OpenSearch.search>`_
+    filter_path
+        Use the filter_path parameter to reduce the size of the OpenSearch Service response (default: ['hits.hits._id','hits.hits._source'])
+    **kwargs
+        KEYWORD arguments forwarded to `opensearchpy.OpenSearch.search <https://opensearch-py.readthedocs.io/en/latest/api.html#opensearchpy.OpenSearch.search>`_
         and also to `opensearchpy.helpers.scan <https://opensearch-py.readthedocs.io/en/master/helpers.html#scan>`_
         if `is_scroll=True`
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Results as Pandas DataFrame
 
     Examples
@@ -97,18 +94,18 @@ def search(
     Searching an index using query DSL
 
     >>> import awswrangler as wr
-    >>> client = wr.opensearch.connect(host='DOMAIN-ENDPOINT')
+    >>> client = wr.opensearch.connect(host="DOMAIN-ENDPOINT")
     >>> df = wr.opensearch.search(
-    ...         client=client,
-    ...         index='movies',
-    ...         search_body={
-    ...           "query": {
+    ...     client=client,
+    ...     index="movies",
+    ...     search_body={
+    ...         "query": {
     ...             "match": {
-    ...               "title": "wind"
-    ...             }
-    ...           }
-    ...         }
-    ...      )
+    ...                 "title": "wind",
+    ...             },
+    ...         },
+    ...     },
+    ... )
 
 
     """
@@ -142,16 +139,15 @@ def search_by_sql(client: "opensearchpy.OpenSearch", sql_query: str, **kwargs: A
 
     Parameters
     ----------
-    client : OpenSearch
+    client
         instance of opensearchpy.OpenSearch to use.
-    sql_query : str
+    sql_query
         SQL query
-    **kwargs :
+    **kwargs
         KEYWORD arguments forwarded to request url (e.g.: filter_path, etc.)
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Results as Pandas DataFrame
 
     Examples
@@ -159,13 +155,11 @@ def search_by_sql(client: "opensearchpy.OpenSearch", sql_query: str, **kwargs: A
     Searching an index using SQL query
 
     >>> import awswrangler as wr
-    >>> client = wr.opensearch.connect(host='DOMAIN-ENDPOINT')
+    >>> client = wr.opensearch.connect(host="DOMAIN-ENDPOINT")
     >>> df = wr.opensearch.search_by_sql(
-    >>>         client=client,
-    >>>         sql_query='SELECT * FROM my-index LIMIT 50'
-    >>>      )
-
-
+    ...     client=client,
+    ...     sql_query="SELECT * FROM my-index LIMIT 50",
+    ... )
     """
     if _is_serverless(client):
         raise exceptions.NotSupported("SQL plugin is not currently available for OpenSearch Serverless.")
