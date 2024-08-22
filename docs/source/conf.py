@@ -161,6 +161,7 @@ nbsphinx_execute = "never"
 typehints_use_signature = True
 typehints_use_signature_return = True
 
+autodoc_mock_imports = ["pymysql", "pyodbc"]
 
 def setup(app):
     app.add_css_file("css/max_width.css")

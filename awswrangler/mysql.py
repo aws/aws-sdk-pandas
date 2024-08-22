@@ -1,4 +1,3 @@
-# mypy: disable-error-code=name-defined
 """Amazon MySQL Module."""
 
 from __future__ import annotations
@@ -19,7 +18,6 @@ from awswrangler._sql_utils import identifier
 if TYPE_CHECKING:
     try:
         import pymysql
-        from pymysql.connections import Connection
         from pymysql.cursors import Cursor
     except ImportError:
         pass
@@ -30,7 +28,7 @@ else:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _validate_connection(con: "Connection[Any]") -> None:
+def _validate_connection(con: "pymysql.connections.Connection[Any]") -> None:
     if not isinstance(con, pymysql.connections.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -95,7 +93,7 @@ def connect(
     write_timeout: int | None = None,
     connect_timeout: int = 10,
     cursorclass: type["Cursor"] | None = None,
-) -> "Connection[Any]":
+) -> "pymysql.connections.Connection[Any]":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
     https://pymysql.readthedocs.io
@@ -189,7 +187,7 @@ def connect(
 @overload
 def read_sql_query(
     sql: str,
-    con: "Connection[Any]",
+    con: "pymysql.connections.Connection[Any]",
     index_col: str | list[str] | None = ...,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     chunksize: None = ...,
@@ -203,7 +201,7 @@ def read_sql_query(
 @overload
 def read_sql_query(
     sql: str,
-    con: "Connection[Any]",
+    con: "pymysql.connections.Connection[Any]",
     *,
     index_col: str | list[str] | None = ...,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
@@ -218,7 +216,7 @@ def read_sql_query(
 @overload
 def read_sql_query(
     sql: str,
-    con: "Connection[Any]",
+    con: "pymysql.connections.Connection[Any]",
     *,
     index_col: str | list[str] | None = ...,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
@@ -233,7 +231,7 @@ def read_sql_query(
 @_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_query(
     sql: str,
-    con: "Connection[Any]",
+    con: "pymysql.connections.Connection[Any]",
     index_col: str | list[str] | None = None,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
     chunksize: int | None = None,
@@ -306,7 +304,7 @@ def read_sql_query(
 @overload
 def read_sql_table(
     table: str,
-    con: "Connection[Any]",
+    con: "pymysql.connections.Connection[Any]",
     schema: str | None = ...,
     index_col: str | list[str] | None = ...,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
@@ -321,7 +319,7 @@ def read_sql_table(
 @overload
 def read_sql_table(
     table: str,
-    con: "Connection[Any]",
+    con: "pymysql.connections.Connection[Any]",
     *,
     schema: str | None = ...,
     index_col: str | list[str] | None = ...,
@@ -337,7 +335,7 @@ def read_sql_table(
 @overload
 def read_sql_table(
     table: str,
-    con: "Connection[Any]",
+    con: "pymysql.connections.Connection[Any]",
     *,
     schema: str | None = ...,
     index_col: str | list[str] | None = ...,
@@ -353,7 +351,7 @@ def read_sql_table(
 @_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_table(
     table: str,
-    con: "Connection[Any]",
+    con: "pymysql.connections.Connection[Any]",
     schema: str | None = None,
     index_col: str | list[str] | None = None,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
@@ -441,7 +439,7 @@ _ToSqlModeLiteral = Literal[
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: "Connection[Any]",
+    con: "pymysql.connections.Connection[Any]",
     table: str,
     schema: str,
     mode: _ToSqlModeLiteral = "append",
@@ -457,7 +455,7 @@ def to_sql(
     Parameters
     ----------
     df
-        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
     con
         Use pymysql.connect() to use credentials directly or wr.mysql.connect() to fetch it from the Glue Catalog.
     table
@@ -465,17 +463,18 @@ def to_sql(
     schema
         Schema name
     mode
-        append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct, ignore.
-            append: Inserts new records into table.
-            overwrite: Drops table and recreates.
-            upsert_duplicate_key: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
-            defined keys, otherwise duplicate records will be inserted.
-            upsert_replace_into: Performs upsert using `REPLACE INTO` clause. Less efficient and still requires the
-            table schema to have keys or else duplicate records will be inserted
-            upsert_distinct: Inserts new records, including duplicates, then recreates the table and inserts `DISTINCT`
-            records from old table. This is the least efficient approach but handles scenarios where there are no
-            keys on table.
-            ignore: Inserts new records into table using `INSERT IGNORE` clause.
+        Supports the following modes:
+
+        - ``append``: Inserts new records into table.
+        - ``overwrite``: Drops table and recreates.
+        - ``upsert_duplicate_key``: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
+          defined keys, otherwise duplicate records will be inserted.
+        - ``upsert_replace_into``: Performs upsert using `REPLACE INTO` clause. Less efficient and still requires the
+          table schema to have keys or else duplicate records will be inserted
+        - ``upsert_distinct``: Inserts new records, including duplicates, then recreates the table and inserts `DISTINCT`
+          records from old table. This is the least efficient approach but handles scenarios where there are no
+          keys on table.
+        - ``ignore``: Inserts new records into table using `INSERT IGNORE` clause.
 
     index
         True to store the DataFrame index as a column in the table,
@@ -486,7 +485,7 @@ def to_sql(
         (e.g. {'col name': 'TEXT', 'col2 name': 'FLOAT'})
     varchar_lengths
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
-    use_column_name
+    use_column_names
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.

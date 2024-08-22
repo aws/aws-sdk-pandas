@@ -253,27 +253,27 @@ def read_sql_query(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL query.
-    con : oracledb.Connection
+    con
         Use oracledb.connect() to use credentials directly or wr.oracle.connect() to fetch it from the Glue Catalog.
-    index_col : Union[str, List[str]], optional
+    index_col
         Column(s) to set as index(MultiIndex).
-    params :  Union[List, Tuple, Dict], optional
+    params
         List of parameters to pass to execute method.
         The syntax used to pass parameters is database driver dependent.
         Check your database driver documentation for which of the five syntax styles,
         described in PEP 249’s paramstyle, is supported.
-    chunksize : int, optional
+    chunksize
         If specified, return an iterator where chunksize is the number of rows to include in each chunk.
-    dtype : Dict[str, pyarrow.DataType], optional
+    dtype
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
-    safe : bool
+    safe
         Check for overflows or other unsafe data type conversions.
-    timestamp_as_object : bool
+    timestamp_as_object
         Cast non-nanosecond timestamps (np.datetime64) to objects.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
@@ -282,7 +282,6 @@ def read_sql_query(
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Result as Pandas DataFrame(s).
 
     Examples
@@ -290,12 +289,11 @@ def read_sql_query(
     Reading from Oracle Database using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.oracle.connect(connection="MY_GLUE_CONNECTION")
-    >>> df = wr.oracle.read_sql_query(
-    ...     sql="SELECT * FROM test.my_table",
-    ...     con=con
-    ... )
-    >>> con.close()
+    >>> with wr.oracle.connect(connection="MY_GLUE_CONNECTION") as con:
+    ...     df = wr.oracle.read_sql_query(
+    ...         sql="SELECT * FROM test.my_table",
+    ...         con=con,
+    ...     )
     """
     _validate_connection(con=con)
     return _db_utils.read_sql_query(
