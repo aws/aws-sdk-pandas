@@ -93,7 +93,7 @@ def connect(
     write_timeout: int | None = None,
     connect_timeout: int = 10,
     cursorclass: type["Cursor"] | None = None,
-) -> "pymysql.connections.Connection[Any]":
+) -> "pymysql.connections.Connection":  # type: ignore[type-arg]
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
     https://pymysql.readthedocs.io
@@ -231,7 +231,7 @@ def read_sql_query(
 @_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_query(
     sql: str,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection",  # type: ignore[type-arg]
     index_col: str | list[str] | None = None,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
     chunksize: int | None = None,
@@ -351,7 +351,7 @@ def read_sql_table(
 @_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_table(
     table: str,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection",  # type: ignore[type-arg]
     schema: str | None = None,
     index_col: str | list[str] | None = None,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
@@ -439,7 +439,7 @@ _ToSqlModeLiteral = Literal[
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: "pymysql.connections.Connection[Any]",
+    con: "pymysql.connections.Connection",  # type: ignore[type-arg]
     table: str,
     schema: str,
     mode: _ToSqlModeLiteral = "append",
