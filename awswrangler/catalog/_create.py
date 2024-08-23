@@ -630,8 +630,8 @@ def overwrite_table_parameters(
     catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
@@ -643,7 +643,8 @@ def overwrite_table_parameters(
     >>> pars = wr.catalog.overwrite_table_parameters(
     ...     parameters={"source": "mysql", "destination":  "datalake"},
     ...     database="...",
-    ...     table="...")
+    ...     table="...",
+    ... )
 
     """
     table_input: dict[str, Any] | None = _get_table_input(
