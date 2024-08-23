@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Iterator,
@@ -23,9 +24,15 @@ from awswrangler import _databases as _db_utils
 from awswrangler._config import apply_configs
 from awswrangler._sql_utils import identifier
 
-__all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
+if TYPE_CHECKING:
+    try:
+        import oracledb
+    except ImportError:
+        pass
+else:
+    oracledb = _utils.import_optional_dependency("oracledb")
 
-oracledb = _utils.import_optional_dependency("oracledb")
+__all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
@@ -167,7 +174,7 @@ def connect(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> with wr.oracle.connect(connection="MY_GLUE_CONNECTION") as con"
+    >>> with wr.oracle.connect(connection="MY_GLUE_CONNECTION") as con:
     ...     with con.cursor() as cursor:
     ...         cursor.execute("SELECT 1 FROM DUAL")
     ...         print(cursor.fetchall())
@@ -190,7 +197,7 @@ def connect(
     )
     # oracledb.connect does not have a call_timeout attribute, it has to be set separatly
     oracle_connection.call_timeout = call_timeout
-    return oracle_connection
+    return oracle_connection  # type: ignore[no-any-return]
 
 
 @overload

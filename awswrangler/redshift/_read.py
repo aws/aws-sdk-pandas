@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterator, Literal
+from typing import TYPE_CHECKING, Any, Iterator, Literal
 
 import boto3
 import pyarrow as pa
@@ -17,7 +17,13 @@ from awswrangler._distributed import EngineEnum, engine
 from ._connect import _validate_connection
 from ._utils import _make_s3_auth_string
 
-redshift_connector = _utils.import_optional_dependency("redshift_connector")
+if TYPE_CHECKING:
+    try:
+        import redshift_connector
+    except ImportError:
+        pass
+else:
+    redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
