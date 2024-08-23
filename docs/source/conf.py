@@ -160,6 +160,7 @@ nbsphinx_execute = "never"
 
 typehints_use_signature = True
 typehints_use_signature_return = True
+always_use_bars_union = True
 
 autodoc_mock_imports = [
     "opensearchpy",
