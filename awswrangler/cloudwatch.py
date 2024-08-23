@@ -42,22 +42,21 @@ def start_query(
 
     Parameters
     ----------
-    query: str
+    query
         The query string.
-    log_group_names: List[str]
+    log_group_names
         The list of log group names or ARNs to be queried. You can include up to 50 log groups.
-    start_time: datetime.datetime
+    start_time
         The beginning of the time range to query.
-    end_time: datetime.datetime
+    end_time
         The end of the time range to query.
-    limit: int, optional
+    limit
         The maximum number of log events to return in the query.
-    boto3_session: boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Query ID.
 
     Examples
@@ -111,16 +110,15 @@ def wait_query(
 
     Parameters
     ----------
-    query_id : str
+    query_id
         Query ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    cloudwatch_query_wait_polling_delay: float, default: 0.2 seconds
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    cloudwatch_query_wait_polling_delay
         Interval in seconds for how often the function will check if the CloudWatch query has completed.
 
     Returns
     -------
-    Dict[str, Any]
         Query result payload.
 
     Examples
@@ -163,22 +161,21 @@ def run_query(
 
     Parameters
     ----------
-    query : str
+    query
         The query string.
-    log_group_names: List[str]
+    log_group_names
         The list of log group names or ARNs to be queried. You can include up to 50 log groups.
-    start_time : datetime.datetime
+    start_time
         The beginning of the time range to query.
-    end_time : datetime.datetime
+    end_time
         The end of the time range to query.
-    limit : int, optional
+    limit
         The maximum number of log events to return in the query.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[List[Dict[str, str]]]
         Result.
 
     Examples
@@ -216,22 +213,21 @@ def read_logs(
 
     Parameters
     ----------
-    query: str
+    query:
         The query string.
-    log_group_names: List[str]
+    log_group_names
         The list of log group names or ARNs to be queried. You can include up to 50 log groups.
-    start_time: datetime.datetime
+    start_time
         The beginning of the time range to query.
-    end_time: datetime.datetime
+    end_time
         The end of the time range to query.
-    limit: int, optional
+    limit
         The maximum number of log events to return in the query.
-    boto3_session: boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    pandas.DataFrame
         Result as a Pandas DataFrame.
 
     Examples
@@ -281,26 +277,25 @@ def describe_log_streams(
 
     Parameters
     ----------
-    log_group_name : str
+    log_group_name
         The name of the log group.
-    log_stream_name_prefix : str
+    log_stream_name_prefix
         The prefix to match log streams' name
-    order_by : str
+    order_by
         If the value is LogStreamName , the results are ordered by log stream name.
         If the value is LastEventTime , the results are ordered by the event time.
         The default value is LogStreamName .
-    descending : bool
+    descending
         If the value is True, results are returned in descending order.
         If the value is to False, results are returned in ascending order.
         The default value is False.
-    limit : int, optional
+    limit
         The maximum number of items returned. The default is up to 50 items.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    pandas.DataFrame
         Result as a Pandas DataFrame.
 
     Examples
@@ -394,24 +389,23 @@ def filter_log_events(
 
     Parameters
     ----------
-    log_group_name: str
+    log_group_name
         The name of the log group.
-    log_stream_name_prefix: str, optional
+    log_stream_name_prefix
         Filters the results to include only events from log streams that have names starting with this prefix.
-    log_stream_names: List[str], optional
+    log_stream_names
         Filters the results to only logs from the log streams in this list.
-    filter_pattern : str
+    filter_pattern
         The filter pattern to use. If not provided, all the events are matched.
-    start_time : datetime.datetime
+    start_time
         Events with a timestamp before this time are not returned.
-    end_time : datetime.datetime
+    end_time
         Events with a timestamp later than this time are not returned.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    pandas.DataFrame
         Result as a Pandas DataFrame.
 
     Examples
@@ -432,7 +426,7 @@ def filter_log_events(
     >>> df = wr.cloudwatch.filter_log_events(
     ...     log_group_name="aws_sdk_pandas_log_group",
     ...     log_stream_names=["aws_sdk_pandas_log_stream_one","aws_sdk_pandas_log_stream_two"],
-    ...     filter_pattern='REPORT',
+    ...     filter_pattern="REPORT",
     ... )
 
     """
