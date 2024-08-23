@@ -488,6 +488,9 @@ Typing
     AthenaUNLOADSettings
     AthenaCacheSettings
     AthenaPartitionProjectionSettings
+    TimestreamBatchLoadReportS3Configuration
+    ArrowDecryptionConfiguration
+    ArrowEncryptionConfiguration
     RaySettings
     RayReadParquetSettings
     _S3WriteDataReturnValue
