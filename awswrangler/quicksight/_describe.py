@@ -27,18 +27,17 @@ def describe_dashboard(
 
     Parameters
     ----------
-    name : str, optional
+    name
         Dashboard name.
-    dashboard_id : str, optional
+    dashboard_id
         Dashboard ID.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Dashboard Description.
 
     Examples
@@ -74,18 +73,17 @@ def describe_data_source(
 
     Parameters
     ----------
-    name : str, optional
+    name
         Data source name.
-    data_source_id : str, optional
+    data_source_id
         Data source ID.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Data source Description.
 
     Examples
@@ -121,18 +119,17 @@ def describe_data_source_permissions(
 
     Parameters
     ----------
-    name : str, optional
+    name
         Data source name.
-    data_source_id : str, optional
+    data_source_id
         Data source ID.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Data source Permissions Description.
 
     Examples
@@ -168,18 +165,17 @@ def describe_dataset(
 
     Parameters
     ----------
-    name : str, optional
+    name
         Dataset name.
-    dataset_id : str, optional
+    dataset_id
         Dataset ID.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Dataset Description.
 
     Examples
@@ -216,20 +212,19 @@ def describe_ingestion(
 
     Parameters
     ----------
-    ingestion_id : str
+    ingestion_id
         Ingestion ID.
-    dataset_name : str, optional
+    dataset_name
         Dataset name.
-    dataset_id : str, optional
+    dataset_id
         Dataset ID.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Ingestion Description.
 
     Examples

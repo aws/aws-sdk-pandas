@@ -42,14 +42,13 @@ def list_dashboards(account_id: str | None = None, boto3_session: boto3.Session 
 
     Parameters
     ----------
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         Dashboards.
 
     Examples
@@ -70,14 +69,13 @@ def list_datasets(account_id: str | None = None, boto3_session: boto3.Session | 
 
     Parameters
     ----------
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         Datasets summaries.
 
     Examples
@@ -97,14 +95,13 @@ def list_data_sources(
 
     Parameters
     ----------
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         Data sources summaries.
 
     Examples
@@ -122,14 +119,13 @@ def list_templates(account_id: str | None = None, boto3_session: boto3.Session |
 
     Parameters
     ----------
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         Templates summaries.
 
     Examples
@@ -152,18 +148,17 @@ def list_group_memberships(
 
     Parameters
     ----------
-    group_name : str
+    group_name
         The name of the group that you want to see a membership list of.
-    namespace : str
+    namespace
         The namespace. Currently, you should set this to default .
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         Group memberships.
 
     Examples
@@ -188,16 +183,15 @@ def list_groups(
 
     Parameters
     ----------
-    namespace : str
+    namespace
         The namespace. Currently, you should set this to default .
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         Groups.
 
     Examples
@@ -224,19 +218,18 @@ def list_iam_policy_assignments(
 
     Parameters
     ----------
-    status : str, optional
+    status
         The status of the assignments.
         'ENABLED'|'DRAFT'|'DISABLED'
-    namespace : str
+    namespace
         The namespace. Currently, you should set this to default .
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         IAM policy assignments.
 
     Examples
@@ -269,18 +262,17 @@ def list_iam_policy_assignments_for_user(
 
     Parameters
     ----------
-    user_name : str
+    user_name
         The name of the user.
-    namespace : str
+    namespace
         The namespace. Currently, you should set this to default .
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         IAM policy assignments.
 
     Examples
@@ -308,18 +300,17 @@ def list_user_groups(
 
     Parameters
     ----------
-    user_name: str:
+    user_name
         The Amazon QuickSight user name that you want to list group memberships for.
-    namespace : str
+    namespace
         The namespace. Currently, you should set this to default .
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         Groups.
 
     Examples
@@ -344,16 +335,15 @@ def list_users(
 
     Parameters
     ----------
-    namespace : str
+    namespace
         The namespace. Currently, you should set this to default.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         Groups.
 
     Examples
@@ -380,18 +370,17 @@ def list_ingestions(
 
     Parameters
     ----------
-    dataset_name : str, optional
+    dataset_name
         Dataset name.
-    dataset_id : str, optional
+    dataset_id
         The ID of the dataset used in the ingestion.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]]
         IAM policy assignments.
 
     Examples
@@ -461,16 +450,15 @@ def get_dashboard_ids(
 
     Parameters
     ----------
-    name : str
+    name
         Dashboard name.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[str]
         Dashboard IDs.
 
     Examples
@@ -488,16 +476,15 @@ def get_dashboard_id(name: str, account_id: str | None = None, boto3_session: bo
 
     Parameters
     ----------
-    name : str
+    name
         Dashboard name.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Dashboard ID.
 
     Examples
@@ -520,16 +507,15 @@ def get_dataset_ids(name: str, account_id: str | None = None, boto3_session: bot
 
     Parameters
     ----------
-    name : str
+    name
         Dataset name.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[str]
         Datasets IDs.
 
     Examples
@@ -547,16 +533,15 @@ def get_dataset_id(name: str, account_id: str | None = None, boto3_session: boto
 
     Parameters
     ----------
-    name : str
+    name
         Dataset name.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Dataset ID.
 
     Examples
@@ -581,16 +566,15 @@ def get_data_source_ids(
 
     Parameters
     ----------
-    name : str
+    name
         Data source name.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[str]
         Data source IDs.
 
     Examples
@@ -608,16 +592,15 @@ def get_data_source_id(name: str, account_id: str | None = None, boto3_session: 
 
     Parameters
     ----------
-    name : str
+    name
         Data source name.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Dataset ID.
 
     Examples
@@ -640,16 +623,15 @@ def get_template_ids(name: str, account_id: str | None = None, boto3_session: bo
 
     Parameters
     ----------
-    name : str
+    name
         Template name.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[str]
         Template IDs.
 
     Examples
@@ -667,16 +649,15 @@ def get_template_id(name: str, account_id: str | None = None, boto3_session: bot
 
     Parameters
     ----------
-    name : str
+    name
         Template name.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Template ID.
 
     Examples
@@ -701,16 +682,15 @@ def get_data_source_arns(
 
     Parameters
     ----------
-    name : str
+    name
         Data source name.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[str]
         Data source ARNs.
 
     Examples
@@ -735,16 +715,15 @@ def get_data_source_arn(name: str, account_id: str | None = None, boto3_session:
 
     Parameters
     ----------
-    name : str
+    name
         Data source name.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Data source ARN.
 
     Examples

@@ -206,43 +206,38 @@ def create_athena_data_source(
 
     Parameters
     ----------
-    name : str
+    name
         Data source name.
-    workgroup : str
+    workgroup
         Athena workgroup.
-    tags : Dict[str, str], optional
+    tags
         Key/Value collection to put on the Cluster.
         e.g. ```{"foo": "boo", "bar": "xoo"})```
-    allowed_to_use: dict["users" | "groups", list[str]], optional
+    allowed_to_use
         Dictionary containing usernames and groups that will be allowed to see and
         use the data.
         e.g. ```{"users": ["john", "Mary"], "groups": ["engineering", "customers"]}```
         Alternatively, if a list of string is passed,
         it will be interpreted as a list of usernames only.
-    allowed_to_manage: dict["users" | "groups", list[str]], optional
+    allowed_to_manage
         Dictionary containing usernames and groups that will be allowed to see, use,
         update and delete the data source.
         e.g. ```{"users": ["Mary"], "groups": ["engineering"]}```
         Alternatively, if a list of string is passed,
         it will be interpreted as a list of usernames only.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    namespace : str
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    namespace
         The namespace. Currently, you should set this to default.
-
-    Returns
-    -------
-    None
-        None.
 
     Examples
     --------
     >>> import awswrangler as wr
     >>> wr.quicksight.create_athena_data_source(
     ...     name="...",
-    ...     allowed_to_manage=["john"]
+    ...     allowed_to_manage=["john"],
     ... )
     """
     client = _utils.client(service_name="quicksight", session=boto3_session)
@@ -311,59 +306,57 @@ def create_athena_dataset(
 
     Parameters
     ----------
-    name : str
+    name
         Dataset name.
-    database : str
+    database
         Athena's database name.
-    table : str
+    table
         Athena's table name.
-    sql : str
+    sql
         Use a SQL query to define your table.
-    sql_name : str, optional
+    sql_name
         Query name.
-    data_source_name : str, optional
+    data_source_name
         QuickSight data source name.
-    data_source_arn : str, optional
+    data_source_arn
         QuickSight data source ARN.
-    import_mode : str
+    import_mode
         Indicates whether you want to import the data into SPICE.
-        'SPICE'|'DIRECT_QUERY'
-    tags : Dict[str, str], optional
+    tags
         Key/Value collection to put on the Cluster.
         e.g. {"foo": "boo", "bar": "xoo"}
-    allowed_to_use: dict["users" | "groups", list[str]], optional
+    allowed_to_use
         Dictionary containing usernames and groups that will be allowed to see and
         use the data.
         e.g. ```{"users": ["john", "Mary"], "groups": ["engineering", "customers"]}```
         Alternatively, if a list of string is passed,
         it will be interpreted as a list of usernames only.
-    allowed_to_manage: dict["users" | "groups", list[str]], optional
+    allowed_to_manage
         Dictionary containing usernames and groups that will be allowed to see, use,
         update and delete the data source.
         e.g. ```{"users": ["Mary"], "groups": ["engineering"]}```
         Alternatively, if a list of string is passed,
         it will be interpreted as a list of usernames only.
-    logical_table_alias : str
+    logical_table_alias
         A display name for the logical table.
-    rename_columns : Dict[str, str], optional
+    rename_columns
         Dictionary to map column renames. e.g. {"old_name": "new_name", "old_name2": "new_name2"}
-    cast_columns_types : Dict[str, str], optional
+    cast_columns_types
         Dictionary to map column casts. e.g. {"col_name": "STRING", "col_name2": "DECIMAL"}
         Valid types: 'STRING'|'INTEGER'|'DECIMAL'|'DATETIME'
-    tag_columns : Dict[str, List[Dict[str, Any]]], optional
+    tag_columns
         Dictionary to map column tags.
         e.g. {"col_name": [{ "ColumnGeographicRole": "CITY" }],"col_name2": [{ "ColumnDescription": { "Text": "description" }}]}
         Valid geospatial roles: 'COUNTRY'|'STATE'|'COUNTY'|'CITY'|'POSTCODE'|'LONGITUDE'|'LATITUDE'
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    namespace : str
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    namespace
         The namespace. Currently, you should set this to default.
 
     Returns
     -------
-    str
         Dataset ID.
 
     Examples
@@ -374,7 +367,7 @@ def create_athena_dataset(
     ...     database="..."
     ...     table="..."
     ...     data_source_name="..."
-    ...     allowed_to_manage=["Mary"]
+    ...     allowed_to_manage=["Mary"],
     ... )
     """
     if (data_source_name is None) and (data_source_arn is None):
@@ -464,24 +457,23 @@ def create_ingestion(
 
     Note
     ----
-    You must pass ``dataset_name`` OR ``dataset_id`` argument.
+    You must pass **dataset_name** OR **dataset_id** argument.
 
     Parameters
     ----------
-    dataset_name : str, optional
+    dataset_name
         Dataset name.
-    dataset_id : str, optional
+    dataset_id
         Dataset ID.
-    ingestion_id : str, optional
+    ingestion_id
         Ingestion ID.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Ingestion ID
 
     Examples
