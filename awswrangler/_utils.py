@@ -105,6 +105,7 @@ INSTALL_MAPPING = {
     "pyodbc": "sqlserver",
     "gremlin_python": "gremlin",
     "opensearchpy": "opensearch",
+    "jsonpath_ng": "opensearch",
     "oracledb": "oracle",
 }
 

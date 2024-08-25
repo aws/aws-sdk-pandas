@@ -243,7 +243,6 @@ class ArrowParquetDatasource(Datasource):
                 paths,
                 **dataset_kwargs,
                 filesystem=filesystem,
-                use_legacy_dataset=False,
             )
         except OSError as e:
             _handle_read_os_error(e, paths)
@@ -425,7 +424,7 @@ class ArrowParquetDatasource(Datasource):
                     sample,
                 )
             )
-        sample_bar = ProgressBar("Parquet Files Sample", len(futures))
+        sample_bar = ProgressBar(name="Parquet Files Sample", total=len(futures), unit="file samples")
         sample_infos = sample_bar.fetch_until_complete(futures)
         sample_bar.close()  # type: ignore[no-untyped-call]
 

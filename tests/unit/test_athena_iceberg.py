@@ -691,6 +691,7 @@ def test_athena_to_iceberg_merge_into_nulls(path: str, path2: str, glue_database
         temp_path=path2,
         keep_files=False,
         merge_cols=["col1", "col2"],
+        merge_match_nulls=True,
     )
 
     # Expected output
