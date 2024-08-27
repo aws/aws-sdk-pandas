@@ -30,24 +30,24 @@ class RedshiftDataApi(_connector.DataApiConnector):
 
     Parameters
     ----------
-    cluster_id: str
+    cluster_id
         Id for the target Redshift cluster - only required if `workgroup_name` not provided.
-    database: str
+    database
         Target database name.
-    workgroup_name: str
+    workgroup_name
         Name for the target serverless Redshift workgroup - only required if `cluster_id` not provided.
-    secret_arn: str
+    secret_arn
         The ARN for the secret to be used for authentication - only required if `db_user` not provided.
-    db_user: str
+    db_user
         The database user to generate temporary credentials for - only required if `secret_arn` not provided.
     sleep: float
         Number of seconds to sleep between result fetch attempts - defaults to 0.25.
-    backoff: float
+    backoff
         Factor by which to increase the sleep between result fetch attempts - defaults to 1.5.
-    retries: int
+    retries
         Maximum number of result fetch attempts - defaults to 15.
-    boto3_session : boto3.Session(), optional
-        The boto3 session. If `None`, the default boto3 session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
     """
 
     def __init__(
@@ -180,11 +180,11 @@ class RedshiftDataApiWaiter:
     ----------
     client:
         A Boto client with a `describe_statement` function, such as 'redshift-data'
-    sleep: float
+    sleep
         Number of seconds to sleep between tries.
-    backoff: float
+    backoff
         Factor by which to increase the sleep between tries.
-    retries: int
+    retries
         Maximum number of tries.
     """
 
@@ -197,7 +197,7 @@ class RedshiftDataApiWaiter:
 
         Parameters
         ----------
-        request_id:
+        request_id
             The execution id to check the status for.
 
         Returns
@@ -255,24 +255,24 @@ def connect(
 
     Parameters
     ----------
-    cluster_id: str
+    cluster_id
         Id for the target Redshift cluster - only required if `workgroup_name` not provided.
-    database: str
+    database
         Target database name.
-    workgroup_name: str
+    workgroup_name
         Name for the target serverless Redshift workgroup - only required if `cluster_id` not provided.
-    secret_arn: str
+    secret_arn
         The ARN for the secret to be used for authentication - only required if `db_user` not provided.
-    db_user: str
+    db_user
         The database user to generate temporary credentials for - only required if `secret_arn` not provided.
-    boto3_session : boto3.Session(), optional
-        The boto3 session. If `None`, the default boto3 session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
     **kwargs
         Any additional kwargs are passed to the underlying RedshiftDataApi class.
 
     Returns
     -------
-    A RedshiftDataApi connection instance that can be used with `wr.redshift.data_api.read_sql_query`.
+        A RedshiftDataApi connection instance that can be used with `wr.redshift.data_api.read_sql_query`.
     """
     return RedshiftDataApi(
         cluster_id=cluster_id,
@@ -290,15 +290,15 @@ def read_sql_query(sql: str, con: RedshiftDataApi, database: str | None = None) 
 
     Parameters
     ----------
-    sql: str
+    sql
         SQL query to run.
-    con: RedshiftDataApi
+    con
         A RedshiftDataApi connection instance
-    database: str
+    database
         Database to run query on - defaults to the database specified by `con`.
 
     Returns
     -------
-    A Pandas DataFrame containing the query results.
+        A Pandas DataFrame containing the query results.
     """
     return con.execute(sql, database=database)

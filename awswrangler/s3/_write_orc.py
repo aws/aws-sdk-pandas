@@ -359,75 +359,75 @@ def to_orc(
 
     Parameters
     ----------
-    df: pandas.DataFrame
+    df
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    path : str, optional
+    path
         S3 path (for file e.g. ``s3://bucket/prefix/filename.orc``) (for dataset e.g. ``s3://bucket/prefix``).
         Required if dataset=False or when dataset=True and creating a new dataset
-    index : bool
+    index
         True to store the DataFrame index in file, otherwise False to ignore it.
         Is not supported in conjunction with `max_rows_by_file` when running the library with Ray/Modin.
-    compression: str, optional
+    compression
         Compression style (``None``, ``snappy``, ``gzip``, ``zstd``).
-    pyarrow_additional_kwargs: dict[str, Any], optional
+    pyarrow_additional_kwargs
         Additional parameters forwarded to pyarrow.
         e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
         'allow_truncated_timestamps'=False}
-    max_rows_by_file : int
+    max_rows_by_file
         Max number of rows in each file.
         Default is None i.e. don't split the files.
         (e.g. 33554432, 268435456)
         Is not supported in conjunction with `index=True` when running the library with Ray/Modin.
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs: dict[str, Any], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
-    sanitize_columns : bool
+    sanitize_columns
         True to sanitize columns names (using `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`)
         or False to keep it as is.
         True value behaviour is enforced if `database` and `table` arguments are passed.
-    dataset : bool
+    dataset
         If True store a orc dataset instead of a ordinary file(s)
         If True, enable all follow arguments:
         partition_cols, mode, database, table, description, parameters, columns_comments, concurrent_partitioning,
         catalog_versioning, projection_params, catalog_id, schema_evolution.
-    filename_prefix: str, optional
+    filename_prefix
         If dataset=True, add a filename prefix to the output files.
-    partition_cols: List[str], optional
+    partition_cols
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
-    bucketing_info: Tuple[List[str], int], optional
+    bucketing_info
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    concurrent_partitioning: bool
+    concurrent_partitioning
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
         https://aws-sdk-pandas.readthedocs.io/en/3.9.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
-    mode: str, optional
+    mode
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
-    catalog_versioning : bool
+    catalog_versioning
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
-    schema_evolution : bool
+    schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised. True by default.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.9.1/tutorials/014%20-%20Schema%20Evolution.html
-    database : str, optional
+    database
         Glue/Athena catalog: Database name.
-    table : str, optional
+    table
         Glue/Athena catalog: Table name.
-    glue_table_settings: dict (GlueTableSettings), optional
+    glue_table_settings
         Settings for writing to the Glue table.
-    dtype : Dict[str, str], optional
+    dtype
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings, optional
+    athena_partition_projection_settings
         Parameters of the Athena Partition Projection (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html).
         AthenaPartitionProjectionSettings is a `TypedDict`, meaning the passed parameter can be instantiated either as an
         instance of AthenaPartitionProjectionSettings or as a regular Python dict.
@@ -477,17 +477,15 @@ def to_orc(
                a typical `.../column=value/...` pattern.
                https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
                (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
 
     Returns
     -------
-    wr.typing._S3WriteDataReturnValue
         Dictionary with:
-        'paths': List of all stored files paths on S3.
-        'partitions_values': Dictionary of partitions added with keys as S3 path locations
-        and values as a list of partitions values as str.
+            * 'paths': List of all stored files paths on S3.
+            * 'partitions_values': Dictionary of partitions added with keys as S3 path locations and values as a list of partitions values as str.
 
     Examples
     --------

@@ -27,22 +27,21 @@ def create_database(
 
     Parameters
     ----------
-    database: str
+    database
         Database name.
-    kms_key_id: str, optional
+    kms_key_id
         The KMS key for the database. If the KMS key is not specified,
         the database will be encrypted with a Timestream managed KMS key located in your account.
-    tags: Dict[str, str], optional
+    tags
         Key/Value dict to put on the database.
         Tags enable you to categorize databases and/or tables, for example,
         by purpose, owner, or environment.
         e.g. {"foo": "boo", "bar": "xoo"})
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         The Amazon Resource Name that uniquely identifies this database. (ARN)
 
     Examples
@@ -82,28 +81,27 @@ def create_table(
 
     Parameters
     ----------
-    database: str
+    database
         Database name.
-    table: str
+    table
         Table name.
-    memory_retention_hours: int
+    memory_retention_hours
         The duration for which data must be stored in the memory store.
-    magnetic_retention_days: int
+    magnetic_retention_days
         The duration for which data must be stored in the magnetic store.
-    tags: dict[str, str], optional
+    tags
         Key/Value dict to put on the table.
         Tags enable you to categorize databases and/or tables, for example,
         by purpose, owner, or environment.
         e.g. {"foo": "boo", "bar": "xoo"})
-    timestream_additional_kwargs: dict[str, Any], optional
+    timestream_additional_kwargs
         Forwarded to botocore requests.
         e.g. timestream_additional_kwargs={'MagneticStoreWriteProperties': {'EnableMagneticStoreWrites': True}}
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         The Amazon Resource Name that uniquely identifies this database. (ARN)
 
     Examples

@@ -96,13 +96,8 @@ class _Config:
 
         Parameters
         ----------
-        item : str, optional
+        item
             Configuration item name.
-
-        Returns
-        -------
-        None
-            None.
 
         Examples
         --------
@@ -122,7 +117,6 @@ class _Config:
 
         Returns
         -------
-        pd.DataFrame
             Configuration DataFrame.
 
         Examples

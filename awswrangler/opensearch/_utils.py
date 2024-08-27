@@ -210,35 +210,33 @@ def connect(
 
     Parameters
     ----------
-    host : str
+    host
         Amazon OpenSearch domain, for example: my-test-domain.us-east-1.es.amazonaws.com.
-    port : int
+    port
         OpenSearch Service only accepts connections over port 80 (HTTP) or 443 (HTTPS)
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    region : str, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    region
         AWS region of the Amazon OS domain. If not provided will be extracted from boto3_session.
-    username : str, optional
+    username
         Fine-grained access control username. Mandatory if OS Cluster uses Fine Grained Access Control.
-    password : str, optional
+    password
         Fine-grained access control password. Mandatory if OS Cluster uses Fine Grained Access Control.
-    service : str, optional
+    service
         Service id. Supported values are `es`, corresponding to opensearch cluster,
         and `aoss` for serverless opensearch. By default, service will be parsed from the host URI.
-    timeout : int
+    timeout
         Operation timeout. `30` by default.
-    max_retries : int
+    max_retries
         Maximum number of retries before an exception is propagated. `10` by default.
-    retry_on_timeout : bool
+    retry_on_timeout
         Should timeout trigger a retry on different node. `True` by default.
-    retry_on_status : List[int], optional
+    retry_on_status
         Set of HTTP status codes on which we should retry on a different node. Defaults to [500, 502, 503, 504].
 
     Returns
     -------
-    opensearchpy.OpenSearch
-        OpenSearch low-level client.
-        https://github.com/opensearch-project/opensearch-py/blob/main/opensearchpy/client/__init__.py
+        `OpenSearch low-level client <https://github.com/opensearch-project/opensearch-py/blob/main/opensearchpy/client/__init__.py>`_.
     """
     if not service:
         service = _get_service(host)
@@ -303,39 +301,37 @@ def create_collection(
     Creates Amazon OpenSearch Serverless collection, corresponding encryption and network
     policies, and data policy, if `data_policy` provided.
 
-    More in [Amazon OpenSearch Serverless (preview)]
-    (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html)
+    More in `Amazon OpenSearch Serverless (preview) <https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html>`_
 
     Parameters
     ----------
-    name : str
+    name
         Collection name.
-    collection_type : str
+    collection_type
         Collection type. Allowed values are `SEARCH`, and `TIMESERIES`.
-    description : str
+    description
         Collection description.
-    encryption_policy : Union[Dict[str, Any], List[Dict[str, Any]]], optional
+    encryption_policy
         Encryption policy of a form: { "Rules": [...] }
 
         If not provided, default policy using AWS-managed KMS key will be created. To use user-defined key,
         provide `kms_key_arn`.
-    kms_key_arn: str, optional
+    kms_key_arn
         Encryption key.
-    network_policy : Union[Dict[str, Any], List[Dict[str, Any]]], optional
+    network_policy
         Network policy of a form: [{ "Rules": [...] }]
 
         If not provided, default network policy allowing public access to the collection will be created.
         To create the collection in the VPC, provide `vpc_endpoints`.
-    vpc_endpoints : List[str], optional
+    vpc_endpoints
         List of VPC endpoints for access to non-public collection.
-    data_policy : Union[Dict[str, Any], List[Dict[str, Any]]], optional
+    data_policy
         Data policy of a form: [{ "Rules": [...] }]
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Collection details : Dict[str, Any]
         Collection details
     """
     if collection_type not in ["SEARCH", "TIMESERIES"]:

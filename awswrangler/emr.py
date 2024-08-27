@@ -504,162 +504,162 @@ def create_cluster(  # noqa: PLR0913
 
     Parameters
     ----------
-    subnet_id : str
+    subnet_id
         VPC subnet ID.
-    cluster_name : str
+    cluster_name
         Cluster name.
-    logging_s3_path : str, optional
+    logging_s3_path
         Logging s3 path (e.g. s3://BUCKET_NAME/DIRECTORY_NAME/).
         If None, the default is `s3://aws-logs-{AccountId}-{RegionId}/elasticmapreduce/`
-    emr_release : str
+    emr_release
         EMR release (e.g. emr-5.28.0).
-    emr_ec2_role : str
+    emr_ec2_role
         IAM role name.
-    emr_role : str
+    emr_role
         IAM role name.
-    instance_type_master : str
+    instance_type_master
         EC2 instance type.
-    instance_type_core : str
+    instance_type_core
         EC2 instance type.
-    instance_type_task : str
+    instance_type_task
         EC2 instance type.
-    instance_ebs_size_master : int
+    instance_ebs_size_master
         Size of EBS in GB.
-    instance_ebs_size_core : int
+    instance_ebs_size_core
         Size of EBS in GB.
-    instance_ebs_size_task : int
+    instance_ebs_size_task
         Size of EBS in GB.
-    instance_num_on_demand_master : int
+    instance_num_on_demand_master
         Number of on demand instances.
-    instance_num_on_demand_core : int
+    instance_num_on_demand_core
         Number of on demand instances.
-    instance_num_on_demand_task : int
+    instance_num_on_demand_task
         Number of on demand instances.
-    instance_num_spot_master : int
+    instance_num_spot_master
         Number of spot instances.
-    instance_num_spot_core : int
+    instance_num_spot_core
         Number of spot instances.
-    instance_num_spot_task : int
+    instance_num_spot_task
         Number of spot instances.
-    spot_bid_percentage_of_on_demand_master : int
+    spot_bid_percentage_of_on_demand_master
         The bid price, as a percentage of On-Demand price.
-    spot_bid_percentage_of_on_demand_core : int
+    spot_bid_percentage_of_on_demand_core
         The bid price, as a percentage of On-Demand price.
-    spot_bid_percentage_of_on_demand_task : int
+    spot_bid_percentage_of_on_demand_task
         The bid price, as a percentage of On-Demand price.
-    spot_provisioning_timeout_master : int
+    spot_provisioning_timeout_master
         The spot provisioning timeout period in minutes.
         If Spot instances are not provisioned within this time period,
         the TimeOutAction is taken. Minimum value is 5 and maximum value is 1440.
         The timeout applies only during initial provisioning,
         when the cluster is first created.
-    spot_provisioning_timeout_core : int
+    spot_provisioning_timeout_core
         The spot provisioning timeout period in minutes.
         If Spot instances are not provisioned within this time period,
         the TimeOutAction is taken. Minimum value is 5 and maximum value is 1440.
         The timeout applies only during initial provisioning,
         when the cluster is first created.
-    spot_provisioning_timeout_task : int
+    spot_provisioning_timeout_task
         The spot provisioning timeout period in minutes.
         If Spot instances are not provisioned within this time period,
         the TimeOutAction is taken. Minimum value is 5 and maximum value is 1440.
         The timeout applies only during initial provisioning,
         when the cluster is first created.
-    spot_timeout_to_on_demand_master : bool
+    spot_timeout_to_on_demand_master
         After a provisioning timeout should the cluster switch to
         on demand or shutdown?
-    spot_timeout_to_on_demand_core : bool
+    spot_timeout_to_on_demand_core
         After a provisioning timeout should the cluster switch to
         on demand or shutdown?
-    spot_timeout_to_on_demand_task : bool
+    spot_timeout_to_on_demand_task
         After a provisioning timeout should the cluster switch to
         on demand or shutdown?
-    python3 : bool
+    python3
         Python 3 Enabled?
-    spark_glue_catalog : bool
+    spark_glue_catalog
         Spark integration with Glue Catalog?
-    hive_glue_catalog : bool
+    hive_glue_catalog
         Hive integration with Glue Catalog?
-    presto_glue_catalog : bool
+    presto_glue_catalog
         Presto integration with Glue Catalog?
-    consistent_view : bool
+    consistent_view
         Consistent view allows EMR clusters to check for
         list and read-after-write consistency for
         Amazon S3 objects written by or synced with EMRFS.
         https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-plan-consistent-view.html
-    consistent_view_retry_seconds : int
+    consistent_view_retry_seconds
         Delay between the tries (seconds).
-    consistent_view_retry_count : int
+    consistent_view_retry_count
         Number of tries.
-    consistent_view_table_name : str
+    consistent_view_table_name
         Name of the DynamoDB table to store the consistent view data.
-    bootstraps_paths : List[str], optional
+    bootstraps_paths
         Bootstraps paths (e.g ["s3://BUCKET_NAME/script.sh"]).
-    debugging : bool
+    debugging
         Debugging enabled?
-    applications : List[str], optional
+    applications
         List of applications (e.g ["Hadoop", "Spark", "Ganglia", "Hive"]).
         If None, ["Spark"] will be considered.
-    visible_to_all_users : bool
+    visible_to_all_users
         True or False.
-    key_pair_name : str, optional
+    key_pair_name
         Key pair name.
-    security_group_master : str, optional
+    security_group_master
         The identifier of the Amazon EC2 security group for the master node.
-    security_groups_master_additional : str, optional
+    security_groups_master_additional
         A list of additional Amazon EC2 security group IDs for the master node.
-    security_group_slave : str, optional
+    security_group_slave
         The identifier of the Amazon EC2 security group for
         the core and task nodes.
-    security_groups_slave_additional : str, optional
+    security_groups_slave_additional
         A list of additional Amazon EC2 security group IDs for
         the core and task nodes.
-    security_group_service_access : str, optional
+    security_group_service_access
         The identifier of the Amazon EC2 security group for the Amazon EMR
         service to access clusters in VPC private subnets.
     security_configuration:str, optional
         The name of a security configuration to apply to the cluster.
-    docker : bool
+    docker
         Enable Docker Hub and ECR registries access.
-    extra_public_registries: List[str], optional
+    extra_public_registries
         Additional docker registries.
-    spark_log_level : str
+    spark_log_level
         log4j.rootCategory log level (ALL, DEBUG, INFO, WARN, ERROR, FATAL, OFF, TRACE).
-    spark_jars_path : List[str], optional
+    spark_jars_path
         spark.jars e.g. [s3://.../foo.jar, s3://.../boo.jar]
         https://spark.apache.org/docs/latest/configuration.html
-    spark_defaults : Dict[str, str], optional
+    spark_defaults
         https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#spark-defaults
-    spark_pyarrow : bool
+    spark_pyarrow
         Enable PySpark to use PyArrow behind the scenes.
         P.S. You must install pyarrow by your self via bootstrap
-    custom_classifications: List[Dict[str, Any]], optional
+    custom_classifications
         Extra classifications.
-    maximize_resource_allocation : bool
+    maximize_resource_allocation
         Configure your executors to utilize the maximum resources possible
         https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#emr-spark-maximizeresourceallocation
-    custom_ami_id : str, optional
+    custom_ami_id
         The custom AMI ID to use for the provisioned instance group
-    steps : List[Dict[str, Any]], optional
+    steps
         Steps definitions (Obs : str Use EMR.build_step() to build it)
-    keep_cluster_alive_when_no_steps : bool
+    keep_cluster_alive_when_no_steps
         Specifies whether the cluster should
         remain available after completing all steps
-    termination_protected : bool
+    termination_protected
         Specifies whether the Amazon EC2 instances in the cluster are
         protected from termination by API calls, user intervention,
         or in the event of a job-flow error.
-    auto_termination_policy: Dict[str, int], optional
+    auto_termination_policy
         Specifies the auto-termination policy that is attached to an Amazon EMR cluster
         eg. auto_termination_policy = {'IdleTimeout': 123}
         IdleTimeout specifies the amount of idle time in seconds after which the cluster automatically terminates.
         You can specify a minimum of 60 seconds and a maximum of 604800 seconds (seven days).
-    tags : Dict[str, str], optional
+    tags
         Key/Value collection to put on the Cluster.
         e.g. {"foo": "boo", "bar": "xoo"})
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    configurations: List[Dict[str, Any]], optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    configurations
         The list of configurations supplied for an EMR cluster instance group.
 
         By default, adds log4j config as follows:
@@ -667,7 +667,6 @@ def create_cluster(  # noqa: PLR0913
 
     Returns
     -------
-    str
         Cluster ID.
 
     Examples
@@ -761,14 +760,13 @@ def get_cluster_state(cluster_id: str, boto3_session: boto3.Session | None = Non
 
     Parameters
     ----------
-    cluster_id : str
+    cluster_id
         Cluster ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         State.
 
     Examples
@@ -788,15 +786,10 @@ def terminate_cluster(cluster_id: str, boto3_session: boto3.Session | None = Non
 
     Parameters
     ----------
-    cluster_id : str
+    cluster_id
         Cluster ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -814,16 +807,15 @@ def submit_steps(cluster_id: str, steps: list[dict[str, Any]], boto3_session: bo
 
     Parameters
     ----------
-    cluster_id : str
+    cluster_id
         Cluster ID.
-    steps: List[Dict[str, Any]]
+    steps
         Steps definitions (Obs: Use EMR.build_step() to build it).
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[str]
         List of step IDs.
 
     Examples
@@ -852,24 +844,23 @@ def submit_step(
 
     Parameters
     ----------
-    cluster_id : str
+    cluster_id
         Cluster ID.
-    command : str
+    command
         e.g. 'echo "Hello!"'
         e.g. for script 's3://.../script.sh arg1 arg2'
-    name : str, optional
+    name
         Step name.
-    action_on_failure : str
+    action_on_failure
         'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
-    script : bool
+    script
         True for raw command or False for script runner.
         https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-commandrunner.html
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Step ID.
 
     Examples
@@ -879,7 +870,8 @@ def submit_step(
     ...     cluster_id=cluster_id,
     ...     name="step_test",
     ...     command="s3://...script.sh arg1 arg2",
-    ...     script=True)
+    ...     script=True,
+    ... )
 
     """
     step: dict[str, Any] = build_step(
@@ -903,24 +895,23 @@ def build_step(
 
     Parameters
     ----------
-    command : str
+    command
         e.g. 'echo "Hello!"'
         e.g. for script 's3://.../script.sh arg1 arg2'
-    name : str, optional
+    name
         Step name.
-    action_on_failure : str
+    action_on_failure
         'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
-    script : bool
+    script
         False for raw command or True for script runner.
         https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-commandrunner.html
-    region: str, optional
+    region
         Region name to not get it from boto3.Session. (e.g. `us-east-1`)
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Step structure.
 
     Examples
@@ -955,16 +946,15 @@ def get_step_state(cluster_id: str, step_id: str, boto3_session: boto3.Session |
 
     Parameters
     ----------
-    cluster_id : str
+    cluster_id
         Cluster ID.
-    step_id : str
+    step_id
         Step ID.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         State.
 
     Examples
@@ -989,18 +979,17 @@ def submit_ecr_credentials_refresh(
 
     Parameters
     ----------
-    cluster_id : str
+    cluster_id
         Cluster ID.
-    path : str
+    path
         Amazon S3 path where awswrangler will stage the script ecr_credentials_refresh.py (e.g. s3://bucket/emr/)
-    action_on_failure : str
+    action_on_failure
         'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Step ID.
 
     Examples
@@ -1042,26 +1031,25 @@ def build_spark_step(
 
     Parameters
     ----------
-    path : str
+    path
         Script path. (e.g. s3://bucket/app.py)
-    args : List[str], optional
+    args
         CLI args to use with script
-    deploy_mode : str
+    deploy_mode
         "cluster" | "client"
-    docker_image : str, optional
+    docker_image
         e.g. "{ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{IMAGE_NAME}:{TAG}"
-    name : str, optional
+    name
         Step name.
-    action_on_failure : str
+    action_on_failure
         'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
-    region: str, optional
+    region
         Region name to not get it from boto3.Session. (e.g. `us-east-1`)
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Step structure.
 
     Examples
@@ -1117,29 +1105,28 @@ def submit_spark_step(
 
     Parameters
     ----------
-    cluster_id : str
+    cluster_id
         Cluster ID.
-    path : str
+    path
         Script path. (e.g. s3://bucket/app.py)
-    args : List[str], optional
+    args
         CLI args to use with script
         eg. args = ["--name", "hello-world"]
-    deploy_mode : str
+    deploy_mode
         "cluster" | "client"
-    docker_image : str, optional
+    docker_image
         e.g. "{ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{IMAGE_NAME}:{TAG}"
-    name : str, optional
+    name
         Step name.
-    action_on_failure : str
+    action_on_failure
         'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
-    region: str, optional
+    region
         Region name to not get it from boto3.Session. (e.g. `us-east-1`)
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    str
         Step ID.
 
     Examples

@@ -113,19 +113,18 @@ def get_table_types(
 
     Parameters
     ----------
-    database: str
+    database
         Database name.
-    table: str
+    table
         Table name.
-    catalog_id: str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session: boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Optional[Dict[str, str]]
         If table exists, a dictionary like {'col name': 'col data type'}. Otherwise None.
 
     Examples
@@ -150,15 +149,14 @@ def get_databases(
 
     Parameters
     ----------
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Iterator[Dict[str, Any]]
         Iterator of Databases.
 
     Examples
@@ -183,17 +181,16 @@ def databases(
 
     Parameters
     ----------
-    limit : int, optional
+    limit
         Max number of tables to be returned.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    pandas.DataFrame
         Pandas DataFrame filled by formatted table information.
 
     Examples
@@ -229,23 +226,22 @@ def get_tables(
 
     Parameters
     ----------
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    database : str, optional
+        If ``None`` is provided, the AWS account ID is used by default.
+    database
         Database name.
-    name_contains : str, optional
+    name_contains
         Select by a specific string on table name
-    name_prefix : str, optional
+    name_prefix
         Select by a specific prefix on table name
-    name_suffix : str, optional
+    name_suffix
         Select by a specific suffix on table name
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Iterator[Dict[str, Any]]
         Iterator of tables.
 
     Examples
@@ -301,27 +297,26 @@ def tables(
 
     Parameters
     ----------
-    limit : int, optional
+    limit
         Max number of tables to be returned.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    database : str, optional
+    database
         Database name.
-    search_text : str, optional
+    search_text
         Select only tables with the given string in table's properties.
-    name_contains : str, optional
+    name_contains
         Select by a specific string on table name
-    name_prefix : str, optional
+    name_prefix
         Select by a specific prefix on table name
-    name_suffix : str, optional
+    name_suffix
         Select by a specific suffix on table name
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    pandas.DataFrame
         Pandas DataFrame filled by formatted table information.
 
     Examples
@@ -384,17 +379,16 @@ def search_tables(
 
     Parameters
     ----------
-    text : str, optional
+    text
         Select only tables with the given string in table's properties.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Iterator[Dict[str, Any]]
         Iterator of tables.
 
     Examples
@@ -426,19 +420,18 @@ def table(
 
     Parameters
     ----------
-    database: str
+    database
         Database name.
-    table: str
+    table
         Table name.
-    catalog_id: str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session: boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    pandas.DataFrame
         Pandas DataFrame filled by formatted table information.
 
     Examples
@@ -482,19 +475,18 @@ def get_table_location(
 
     Parameters
     ----------
-    database: str
+    database
         Database name.
-    table: str
+    table
         Table name.
-    catalog_id: str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    boto3_session: boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    str
         Table's location.
 
     Examples
@@ -521,17 +513,16 @@ def get_connection(
 
     Parameters
     ----------
-    name : str
+    name
         Connection name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         API Response for:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.get_connection
 
@@ -575,21 +566,20 @@ def get_parquet_partitions(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    expression : str, optional
+    expression
         An expression that filters the partitions to be returned.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Dict[str, List[str]]
         partitions_values: Dictionary with keys as S3 path locations and values as a
         list of partitions values as str (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
 
@@ -645,21 +635,20 @@ def get_csv_partitions(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    expression : str, optional
+    expression
         An expression that filters the partitions to be returned.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Dict[str, List[str]]
         partitions_values: Dictionary with keys as S3 path locations and values as a
         list of partitions values as str (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
 
@@ -715,21 +704,20 @@ def get_partitions(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    expression : str, optional
+    expression
         An expression that filters the partitions to be returned.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Dict[str, List[str]]
         partitions_values: Dictionary with keys as S3 path locations and values as a
         list of partitions values as str (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
 
@@ -780,19 +768,18 @@ def get_table_parameters(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Dict[str, str]
         Dictionary of parameters.
 
     Examples
@@ -817,19 +804,18 @@ def get_table_description(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Optional[str]
         Description if exists.
 
     Examples
@@ -855,19 +841,18 @@ def get_columns_comments(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Dict[str, Optional[str]]
         Columns comments. e.g. {"col1": "foo boo bar", "col2": None}.
 
     Examples
@@ -898,19 +883,18 @@ def get_columns_parameters(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    Dict[str, Optional[Dict[str, str]]]
         Columns parameters.
 
     Examples
@@ -938,19 +922,18 @@ def get_table_versions(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    List[Dict[str, Any]
         List of table inputs:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.get_table_versions
 
@@ -978,19 +961,18 @@ def get_table_number_of_versions(
 
     Parameters
     ----------
-    database : str
+    database
         Database name.
-    table : str
+    table
         Table name.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        If ``None`` is provided, the AWS account ID is used by default.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** receive ``None``.
 
     Returns
     -------
-    int
         Total number of versions.
 
     Examples

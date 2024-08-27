@@ -41,11 +41,6 @@ class _LocalMetadataCacheManager:
         ----------
         items : List[Dict[str, Any]]
             List of query execution metadata which is returned by boto3 `batch_get_query_execution()`.
-
-        Returns
-        -------
-        None
-            None.
         """
         with self._lock:
             if self._pqueue:

@@ -29,18 +29,17 @@ def write_gremlin_df(client: "NeptuneClient", df: pd.DataFrame, mode: WriteDFTyp
 
     Parameters
     ----------
-    client : NeptuneClient
+    client
         The Neptune client to write the DataFrame
-    df : pd.DataFrame
+    df
         The DataFrame to write
-    mode : WriteDFType
+    mode
         The type of DataFrame to write
-    batch_size : int
+    batch_size
         The size of the batch to write
 
     Returns
     -------
-    bool
         True if the write operation succeeded
     """
     g = Graph().traversal()

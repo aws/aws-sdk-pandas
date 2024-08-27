@@ -42,21 +42,16 @@ def put_json(
 
     Parameters
     ----------
-    path : Union[str, Path]
+    path
         Path as str or Path object to the JSON file which contains the items.
-    table_name : str
+    table_name
         Name of the Amazon DynamoDB table.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    use_threads : Union[bool, int]
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    use_threads
         Used for Parallel Write requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-
-    Returns
-    -------
-    None
-        None.
 
     Examples
     --------
@@ -89,26 +84,21 @@ def put_csv(
 
     Parameters
     ----------
-    path : Union[str, Path]
+    path
         Path as str or Path object to the CSV file which contains the items.
-    table_name : str
+    table_name
         Name of the Amazon DynamoDB table.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    use_threads : Union[bool, int]
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    use_threads
         Used for Parallel Write requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    pandas_kwargs :
+    pandas_kwargs
         KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.dynamodb.put_csv('items.csv', 'my_table', sep='|', na_values=['null', 'none'], skip_blank_lines=True)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
-
-    Returns
-    -------
-    None
-        None.
 
     Examples
     --------
@@ -163,21 +153,16 @@ def put_df(
 
     Parameters
     ----------
-    df: pd.DataFrame
-        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    table_name: str
+    df
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
+    table_name
         Name of the Amazon DynamoDB table.
-    use_threads: Union[bool, int]
+    use_threads
         Used for Parallel Write requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session: boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -243,21 +228,16 @@ def put_items(
 
     Parameters
     ----------
-    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]]
+    items
         List which contains the items that will be inserted.
-    table_name: str
+    table_name
         Name of the Amazon DynamoDB table.
-    boto3_session: boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    use_threads: Union[bool, int]
+    use_threads
         Used for Parallel Write requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-
-    Returns
-    -------
-    None
-        None.
 
     Examples
     --------

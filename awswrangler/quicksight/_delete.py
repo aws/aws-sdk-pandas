@@ -48,22 +48,17 @@ def delete_dashboard(
 
     Parameters
     ----------
-    name : str, optional
+    name
         Dashboard name.
-    dashboard_id : str, optional
+    dashboard_id
         The ID for the dashboard.
-    version_number : int, optional
+    version_number
         The version number of the dashboard. If the version number property is provided,
         only the specified version of the dashboard is deleted.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -99,19 +94,14 @@ def delete_dataset(
 
     Parameters
     ----------
-    name : str, optional
+    name
         Dashboard name.
-    dataset_id : str, optional
+    dataset_id
         The ID for the dataset.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -145,19 +135,14 @@ def delete_data_source(
 
     Parameters
     ----------
-    name : str, optional
+    name
         Dashboard name.
-    data_source_id : str, optional
+    data_source_id
         The ID for the data source.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -192,22 +177,17 @@ def delete_template(
 
     Parameters
     ----------
-    name : str, optional
+    name
         Dashboard name.
-    template_id : str, optional
+    template_id
         The ID for the dashboard.
-    version_number : int, optional
+    version_number
         Specifies the version of the template that you want to delete.
         If you don't provide a version number, it deletes all versions of the template.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -236,17 +216,12 @@ def delete_all_dashboards(
 
     Parameters
     ----------
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    regex_filter : str, optional
+    regex_filter
         Regex regex_filter that will delete all dashboards with a match in their ``Name``
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -269,17 +244,12 @@ def delete_all_datasets(
 
     Parameters
     ----------
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    regex_filter : str, optional
+    regex_filter
         Regex regex_filter that will delete all datasets with a match in their ``Name``
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -302,17 +272,12 @@ def delete_all_data_sources(
 
     Parameters
     ----------
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    regex_filter : str, optional
+    regex_filter
         Regex regex_filter that will delete all data sources with a match in their ``Name``
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
@@ -337,17 +302,12 @@ def delete_all_templates(
 
     Parameters
     ----------
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    regex_filter : str, optional
+    regex_filter
         Regex regex_filter that will delete all templates with a match in their ``Name``
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------

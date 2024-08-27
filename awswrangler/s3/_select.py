@@ -179,59 +179,58 @@ def select_query(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL statement used to query the object.
-    path : Union[str, List[str]]
+    path
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
-    input_serialization : str,
+    input_serialization
         Format of the S3 object queried.
         Valid values: "CSV", "JSON", or "Parquet". Case sensitive.
-    input_serialization_params : Dict[str, Union[bool, str]]
+    input_serialization_params
         Dictionary describing the serialization of the S3 object.
-    compression : str, optional
+    compression
         Compression type of the S3 object.
         Valid values: None, "gzip", or "bzip2". gzip and bzip2 are only valid for CSV and JSON objects.
-    scan_range_chunk_size : int, optional
+    scan_range_chunk_size
         Chunk size used to split the S3 object into scan ranges. 1,048,576 by default.
-    path_suffix : Union[str, List[str], None]
+    path_suffix
         Suffix or List of suffixes to be read (e.g. [".csv"]).
         If None, read all files. (default)
-    path_ignore_suffix : Union[str, List[str], None]
+    path_ignore_suffix
         Suffix or List of suffixes for S3 keys to be ignored. (e.g. ["_SUCCESS"]).
         If None, read all files. (default)
-    ignore_empty : bool, default True
+    ignore_empty
         Ignore files with 0 bytes.
-    use_threads : Union[bool, int]
+    use_threads
         True (default) to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    last_modified_begin : datetime, optional
+    last_modified_begin
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
-    last_modified_end : datetime, optional
+    last_modified_end
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session is used if none is provided.
-    s3_additional_kwargs : Dict[str, Any], optional
+    boto3_session
+        The default boto3 session is used if none is provided.
+    s3_additional_kwargs
         Forwarded to botocore requests.
         Valid values: "SSECustomerAlgorithm", "SSECustomerKey", "ExpectedBucketOwner".
         e.g. s3_additional_kwargs={'SSECustomerAlgorithm': 'md5'}.
-    pyarrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
-    pandas.DataFrame
         Pandas DataFrame with results from query.
 
     Examples

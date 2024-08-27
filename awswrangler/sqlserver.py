@@ -1,4 +1,3 @@
-# mypy: disable-error-code=name-defined
 """Amazon Microsoft SQL Server Module."""
 
 from __future__ import annotations
@@ -131,21 +130,21 @@ def connect(
 
     Parameters
     ----------
-    connection: str, optional
+    connection
         Glue Catalog Connection name.
-    secret_id: str, optional
+    secret_id
         Specifies the secret containing the connection details that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
-    catalog_id: str, optional
+    catalog_id
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
-    dbname: str, optional
+    dbname
         Optional database name to overwrite the stored one.
-    odbc_driver_version: int
+    odbc_driver_version
         Major version of the OBDC Driver version that is installed and should be used.
-    boto3_session: boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    timeout: int, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    timeout
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forwarded to pyodbc.
@@ -153,17 +152,15 @@ def connect(
 
     Returns
     -------
-    pyodbc.Connection
         pyodbc connection.
 
     Examples
     --------
     >>> import awswrangler as wr
-    >>> con = wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17)
-    >>> with con.cursor() as cursor:
-    >>>     cursor.execute("SELECT 1")
-    >>>     print(cursor.fetchall())
-    >>> con.close()
+    >>> with wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17) as con:
+    ...     with con.cursor() as cursor:
+    ...         cursor.execute("SELECT 1")
+    ...         print(cursor.fetchall())
 
     """
     attrs: _db_utils.ConnectionAttributes = _db_utils.get_connection_attributes(
@@ -244,27 +241,27 @@ def read_sql_query(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL query.
-    con : pyodbc.Connection
+    con
         Use pyodbc.connect() to use credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
-    index_col : Union[str, List[str]], optional
+    index_col
         Column(s) to set as index(MultiIndex).
-    params :  Union[List, Tuple, Dict], optional
+    params
         List of parameters to pass to execute method.
         The syntax used to pass parameters is database driver dependent.
         Check your database driver documentation for which of the five syntax styles,
         described in PEP 249’s paramstyle, is supported.
-    chunksize : int, optional
+    chunksize
         If specified, return an iterator where chunksize is the number of rows to include in each chunk.
-    dtype : Dict[str, pyarrow.DataType], optional
+    dtype
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
-    safe : bool
+    safe
         Check for overflows or other unsafe data type conversions.
-    timestamp_as_object : bool
+    timestamp_as_object
         Cast non-nanosecond timestamps (np.datetime64) to objects.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
@@ -273,7 +270,6 @@ def read_sql_query(
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Result as Pandas DataFrame(s).
 
     Examples
@@ -281,12 +277,11 @@ def read_sql_query(
     Reading from Microsoft SQL Server using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17)
-    >>> df = wr.sqlserver.read_sql_query(
-    ...     sql="SELECT * FROM dbo.my_table",
-    ...     con=con
-    ... )
-    >>> con.close()
+    >>> with wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17) as con:
+    ...     df = wr.sqlserver.read_sql_query(
+    ...         sql="SELECT * FROM dbo.my_table",
+    ...         con=con,
+    ...     )
     """
     _validate_connection(con=con)
     return _db_utils.read_sql_query(
@@ -366,30 +361,30 @@ def read_sql_table(
 
     Parameters
     ----------
-    table : str
+    table
         Table name.
-    con : pyodbc.Connection
+    con
         Use pyodbc.connect() to use credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
-    schema : str, optional
+    schema
         Name of SQL schema in database to query (if database flavor supports this).
         Uses default schema if None (default).
-    index_col : Union[str, List[str]], optional
+    index_col
         Column(s) to set as index(MultiIndex).
-    params :  Union[List, Tuple, Dict], optional
+    params
         List of parameters to pass to execute method.
         The syntax used to pass parameters is database driver dependent.
         Check your database driver documentation for which of the five syntax styles,
         described in PEP 249’s paramstyle, is supported.
-    chunksize : int, optional
+    chunksize
         If specified, return an iterator where chunksize is the number of rows to include in each chunk.
-    dtype : Dict[str, pyarrow.DataType], optional
+    dtype
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
-    safe : bool
+    safe
         Check for overflows or other unsafe data type conversions.
-    timestamp_as_object : bool
+    timestamp_as_object
         Cast non-nanosecond timestamps (np.datetime64) to objects.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
@@ -398,7 +393,6 @@ def read_sql_table(
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Result as Pandas DataFrame(s).
 
     Examples
@@ -406,13 +400,12 @@ def read_sql_table(
     Reading from Microsoft SQL Server using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17)
-    >>> df = wr.sqlserver.read_sql_table(
-    ...     table="my_table",
-    ...     schema="dbo",
-    ...     con=con
-    ... )
-    >>> con.close()
+    >>> with wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17) as con:
+    ...     df = wr.sqlserver.read_sql_table(
+    ...         table="my_table",
+    ...         schema="dbo",
+    ...         con=con,
+    ...     )
     """
     table_identifier = _get_table_identifier(schema, table)
     sql: str = f"SELECT * FROM {table_identifier}"
@@ -449,39 +442,39 @@ def to_sql(
 
     Parameters
     ----------
-    df : pandas.DataFrame
+    df
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    con : pyodbc.Connection
+    con
         Use pyodbc.connect() to use credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
-    table : str
+    table
         Table name
-    schema : str
+    schema
         Schema name
-    mode : str
+    mode
         Append, overwrite or upsert.
 
         - append: Inserts new records into table.
         - overwrite: Drops table and recreates.
         - upsert: Perform an upsert which checks for conflicts on columns given by ``upsert_conflict_columns`` and sets the new values on conflicts. Note that column names of the Dataframe will be used for this operation, as if ``use_column_names`` was set to True.
 
-    index : bool
+    index
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
-    dtype: Dict[str, str], optional
+    dtype
         Dictionary of columns names and Microsoft SQL Server types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'TEXT', 'col2 name': 'FLOAT'})
-    varchar_lengths : Dict[str, int], optional
+    varchar_lengths
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
-    use_column_names: bool
+    use_column_names
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
-    uspert_conflict_columns: List[str], optional
+    uspert_conflict_columns
         List of columns to be used as conflict columns in the upsert operation.
-    chunksize: int
+    chunksize
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
-    fast_executemany: bool
+    fast_executemany
         Mode of execution which greatly reduces round trips for a DBAPI executemany() call when using
         Microsoft ODBC drivers, for limited size batches that fit in memory. `False` by default.
 
@@ -491,24 +484,18 @@ def to_sql(
         based on the target column types in the database which may lead to subtle data type conversion
         differences depending on whether fast_executemany is True or False.
 
-    Returns
-    -------
-    None
-        None.
-
     Examples
     --------
     Writing to Microsoft SQL Server using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17)
-    >>> wr.sqlserver.to_sql(
-    ...     df=df,
-    ...     table="table",
-    ...     schema="dbo",
-    ...     con=con
-    ... )
-    >>> con.close()
+    >>> with wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17) as con:
+    ...     wr.sqlserver.to_sql(
+    ...         df=df,
+    ...         table="table",
+    ...         schema="dbo",
+    ...         con=con
+    ...     )
 
     """
     if df.empty is True:

@@ -153,14 +153,13 @@ class NeptuneClient:
 
         Parameters
         ----------
-        query : str
+        query
             The query to execute
-        headers : Any, optional
+        headers
             Any additional headers that should be associated with the query. Defaults to None.
 
         Returns
         -------
-        Any
             The result of the query.
         """
         if headers is None:
@@ -184,12 +183,11 @@ class NeptuneClient:
 
         Parameters
         ----------
-        query : str
+        query
             The Gremlin query
 
         Returns
         -------
-        Dict[str, Any]
             Dictionary with the results
         """
         return self._execute_gremlin(query, headers)
@@ -199,11 +197,11 @@ class NeptuneClient:
 
         Parameters
         ----------
-            query (str): The query to execute
+            query
+                The query to execute
 
         Returns
         -------
-        bool
             The success of the Gremlin write query
         """
         res = self._execute_gremlin(query)
@@ -239,14 +237,13 @@ class NeptuneClient:
 
         Parameters
         ----------
-        query : str
+        query
             The SPARQL query to execute
-        headers : Any, optional
+        headers
             Any additional headers to include with the request. Defaults to None.
 
         Returns
         -------
-        Any
             [description]
         """
         res = self._execute_sparql(query, headers)
@@ -258,14 +255,13 @@ class NeptuneClient:
 
         Parameters
         ----------
-        query : str
+        query
             The SPARQL query to execute
-        headers : Any, optional
+        headers
             Any additional headers to include with the request. Defaults to None.
 
         Returns
         -------
-        bool
             The success of the query
         """
         self._execute_sparql(query, headers)
@@ -299,7 +295,6 @@ class NeptuneClient:
 
         Returns
         -------
-        str
             The result of the call to the status API for the Neptune cluster
         """
         url = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/status"
@@ -324,16 +319,16 @@ class NeptuneClient:
 
         Parameters
         ----------
-        s3_path: str
+        s3_path
             Amazon S3 URI that identifies a single file, multiple files, a folder, or multiple folders.
             Neptune loads every data file in any folder that is specified.
-        role_arn: str
+        role_arn
             The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
             For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
             see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
-        parallelism: str
+        parallelism
             Specifies the number of threads used by the bulk load process.
-        mode: str
+        mode
             The load job mode.
 
             In ```RESUME``` mode, the loader looks for a previous load from this source, and if it finds one, resumes that load job.
@@ -343,25 +338,24 @@ class NeptuneClient:
             You can use this mode to reload all the data from a source after dropping previously loaded data from your Neptune cluster, or to load new data available at the same source.
 
             In ```AUTO``` mode, the loader looks for a previous load job from the same source, and if it finds one, resumes that job, just as in ```RESUME``` mode.
-        format: str
+        format
             The format of the data. For more information about data formats for the Neptune Loader command,
             see `Using the Amazon Neptune Bulk Loader to Ingest Data <https://docs.aws.amazon.com/neptune/latest/userguide/load-api-reference-load.html#:~:text=The%20format%20of%20the%20data.%20For%20more%20information%20about%20data%20formats%20for%20the%20Neptune%20Loader%20command%2C%20see%20Using%20the%20Amazon%20Neptune%20Bulk%20Loader%20to%20Ingest%20Data.>`_.
-        parser_configuration: dict[str, Any], optional
+        parser_configuration
             An optional object with additional parser configuration values.
             Each of the child parameters is also optional: ``namedGraphUri``, ``baseUri`` and ``allowEmptyStrings``.
-        update_single_cardinality_properties: str
+        update_single_cardinality_properties
             An optional parameter that controls how the bulk loader
             treats a new value for single-cardinality vertex or edge properties.
-        queue_request: str
+        queue_request
             An optional flag parameter that indicates whether the load request can be queued up or not.
 
             If omitted or set to ``"FALSE"``, the load request will fail if another load job is already running.
-        dependencies: list[str], optional
+        dependencies
             An optional parameter that can make a queued load request contingent on the successful completion of one or more previous jobs in the queue.
 
         Returns
         -------
-        str
             ID of the load job
         """
         data: dict[str, Any] = {
@@ -402,12 +396,11 @@ class NeptuneClient:
 
         Parameters
         ----------
-        load_id: str
+        load_id
             ID of the load job
 
         Returns
         -------
-        dict[str, Any]
             The result of the call to the status API for the load job.
             See `Neptune Loader Get-Status Responses <https://docs.aws.amazon.com/neptune/latest/userguide/load-api-reference-status-response.html>_`
         """

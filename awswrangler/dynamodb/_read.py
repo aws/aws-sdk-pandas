@@ -58,18 +58,17 @@ def read_partiql_query(
 
     Parameters
     ----------
-    query : str
+    query
         The PartiQL statement.
-    parameters : Optional[List[Any]]
+    parameters
         The list of PartiQL parameters. These are applied to the statement in the order they are listed.
-    chunked : bool
+    chunked
         If `True` an iterable of DataFrames is returned. False by default.
-    boto3_session : Optional[boto3.Session]
-        Boto3 Session. If None, the default boto3 Session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Union[pd.DataFrame, Iterator[pd.DataFrame]]
         Result as Pandas DataFrame.
 
     Examples
@@ -102,12 +101,11 @@ def _get_invalid_kwarg(msg: str) -> str | None:
 
     Parameters
     ----------
-    msg : str
+    msg
         Botocore client error message.
 
     Returns
     -------
-    str, optional
         Detected invalid keyword argument if any, None otherwise.
     """
     for kwarg in ("ProjectionExpression", "KeyConditionExpression", "FilterExpression"):
@@ -506,50 +504,50 @@ def read_items(  # noqa: PLR0912
 
     Parameters
     ----------
-    table_name : str
+    table_name
         DynamoDB table name.
-    index_name : str, optional
+    index_name
         Name of the secondary global or local index on the table. Defaults to None.
-    partition_values : Sequence[Any], optional
+    partition_values
         Partition key values to retrieve. Defaults to None.
-    sort_values : Sequence[Any], optional
+    sort_values
         Sort key values to retrieve. Defaults to None.
-    filter_expression : Union[ConditionBase, str], optional
+    filter_expression
         Filter expression as string or combinations of boto3.dynamodb.conditions.Attr conditions. Defaults to None.
-    key_condition_expression : Union[ConditionBase, str], optional
+    key_condition_expression
         Key condition expression as string or combinations of boto3.dynamodb.conditions.Key conditions.
         Defaults to None.
-    expression_attribute_names : Mapping[str, str], optional
+    expression_attribute_names
         Mapping of placeholder and target attributes. Defaults to None.
-    expression_attribute_values : Mapping[str, Any], optional
+    expression_attribute_values
         Mapping of placeholder and target values. Defaults to None.
-    consistent : bool
+    consistent
         If True, ensure that the performed read operation is strongly consistent, otherwise eventually consistent.
         Defaults to False.
-    columns : Sequence[str], optional
+    columns
         Attributes to retain in the returned items. Defaults to None (all attributes).
-    allow_full_scan : bool
+    allow_full_scan
         If True, allow full table scan without any filtering. Defaults to False.
-    max_items_evaluated : int, optional
+    max_items_evaluated
         Limit the number of items evaluated in case of query or scan operations. Defaults to None (all matching items).
         When set, `use_threads` is enforced to False.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    as_dataframe : bool
+    as_dataframe
         If True, return items as pd.DataFrame, otherwise as list/dict. Defaults to True.
-    chunked : bool
+    chunked
         If `True` an iterable of DataFrames/lists is returned. False by default.
-    use_threads : Union[bool, int]
+    use_threads
         Used for Parallel Scan requests. True (default) to enable concurrency, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session, optional
-        Boto3 Session. Defaults to None (the default boto3 Session will be used).
-    pyarrow_additional_kwargs : Dict[str, Any], optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    pyarrow_additional_kwargs
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
@@ -564,7 +562,7 @@ def read_items(  # noqa: PLR0912
 
     Returns
     -------
-    pd.DataFrame | list[dict[str, Any]] | Iterable[pd.DataFrame] | Iterable[list[dict[str, Any]]]
+    ``pd.DataFrame | list[dict[str, Any]] | Iterable[pd.DataFrame] | Iterable[list[dict[str, Any]]]``
         A Data frame containing the retrieved items, or a dictionary of returned items.
         Alternatively, the return type can be an iterable of either type when `chunked=True`.
 

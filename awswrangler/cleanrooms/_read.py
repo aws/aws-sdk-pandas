@@ -47,19 +47,19 @@ def read_sql_query(
 
     Parameters
     ----------
-    sql : str, optional
+    sql
         SQL query
-    analysis_template_arn: str, optional
+    analysis_template_arn
         ARN of the analysis template
-    membership_id : str
+    membership_id
         Membership ID
-    output_bucket : str
+    output_bucket
         S3 output bucket name
-    output_prefix : str
+    output_prefix
         S3 output prefix
-    keep_files : bool, optional
+    keep_files
         Whether files in S3 output bucket/prefix are retained. 'True' by default
-    params : Dict[str, any], optional
+    params
         (Client-side) If used in combination with the `sql` parameter, it's the Dict of parameters used
         for constructing the SQL query. Only named parameters are supported.
         The dict must be in the form {'name': 'value'} and the SQL query must contain
@@ -67,45 +67,44 @@ def read_sql_query(
 
         (Server-side) If used in combination with the `analysis_template_arn` parameter, it's the Dict of parameters
         supplied with the analysis template. It must be a string to string dict in the form {'name': 'value'}.
-    chunksize : Union[int, bool], optional
+    chunksize
         If passed, the data is split into an iterable of DataFrames (Memory friendly).
         If `True` an iterable of DataFrames is returned without guarantee of chunksize.
         If an `INTEGER` is passed, an iterable of DataFrames is returned with maximum rows
         equal to the received INTEGER
-    use_threads : Union[bool, int], optional
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() is used as the maximum number of threads.
         If integer is provided, specified number is used
-    boto3_session : boto3.Session, optional
-        Boto3 Session. If None, the default boto3 session is used
-    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    pyarrow_additional_kwargs
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}
 
     Returns
     -------
-    Union[Iterator[pd.DataFrame], pd.DataFrame]
         Pandas DataFrame or Generator of Pandas DataFrames if chunksize is provided.
 
     Examples
     --------
     >>> import awswrangler as wr
     >>> df = wr.cleanrooms.read_sql_query(
-    >>>     sql='SELECT DISTINCT...',
-    >>>     membership_id='membership-id',
-    >>>     output_bucket='output-bucket',
-    >>>     output_prefix='output-prefix',
-    >>> )
+    ...     sql='SELECT DISTINCT...',
+    ...     membership_id='membership-id',
+    ...     output_bucket='output-bucket',
+    ...     output_prefix='output-prefix',
+    ... )
 
     >>> import awswrangler as wr
     >>> df = wr.cleanrooms.read_sql_query(
-    >>>     analysis_template_arn='arn:aws:cleanrooms:...',
-    >>>     params={'param1': 'value1'},
-    >>>     membership_id='membership-id',
-    >>>     output_bucket='output-bucket',
-    >>>     output_prefix='output-prefix',
-    >>> )
+    ...     analysis_template_arn='arn:aws:cleanrooms:...',
+    ...     params={'param1': 'value1'},
+    ...     membership_id='membership-id',
+    ...     output_bucket='output-bucket',
+    ...     output_prefix='output-prefix',
+    ... )
     """
     client_cleanrooms = _utils.client(service_name="cleanrooms", session=boto3_session)
 

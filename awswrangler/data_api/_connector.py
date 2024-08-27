@@ -26,12 +26,12 @@ class DataApiConnector(ABC):
 
         Parameters
         ----------
-        sql: str
+        sql
             SQL statement to execute.
 
         Returns
         -------
-        A Pandas DataFrame containing the execution results.
+            A Pandas DataFrame containing the execution results.
         """
         request_id: str = self._execute_statement(
             sql, database=database, transaction_id=transaction_id, parameters=parameters
@@ -49,7 +49,7 @@ class DataApiConnector(ABC):
 
         Parameters
         ----------
-        sql: str
+        sql
             SQL statement to execute.
         """
         self._batch_execute_statement(

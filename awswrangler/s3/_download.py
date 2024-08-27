@@ -29,25 +29,25 @@ def download(
 
     Parameters
     ----------
-    path : str
+    path
         S3 path (e.g. ``s3://bucket/key0``).
-    local_file : Union[str, Any]
+    local_file
         A file-like object in binary mode or a path to local file (e.g. ``./local/path/to/key0``).
-    version_id: str, optional
+    version_id
         Version id of the object.
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forward to botocore requests, only "SSECustomerAlgorithm", "SSECustomerKey" and "RequestPayer"
         arguments will be considered.
 
     Returns
     -------
-    None
+        None
 
     Examples
     --------

@@ -56,38 +56,37 @@ def read_deltalake(
 
     Parameters
     ----------
-    path: str
+    path
         The path of the DeltaTable.
-    version: Optional[int]
+    version
         The version of the DeltaTable.
-    partitions: Optional[List[Tuple[str, str, Any]]
+    partitions
         A list of partition filters, see help(DeltaTable.files_by_partitions)
         for filter syntax.
-    columns: Optional[List[str]]
+    columns
         The columns to project. This can be a list of column names to include
         (order and duplicates are preserved).
-    without_files: bool
+    without_files
         If True, load the table without tracking files (memory-friendly).
         Some append-only applications might not need to track files.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    use_threads : bool
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         When enabled, os.cpu_count() is used as the max number of threads.
-    boto3_session: Optional[boto3.Session()]
+    boto3_session
         Boto3 Session. If None, the default boto3 session is used.
-    s3_additional_kwargs: Optional[Dict[str, str]]
+    s3_additional_kwargs
         Forwarded to the Delta Table class for the storage options of the S3 backend.
-    pyarrow_additional_kwargs: Optional[Dict[str, str]]
+    pyarrow_additional_kwargs
         Forwarded to the PyArrow to_pandas method.
 
     Returns
     -------
-    df: pd.DataFrame
         DataFrame with the results.
 
     See Also

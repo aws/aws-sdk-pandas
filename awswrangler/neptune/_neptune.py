@@ -30,14 +30,13 @@ def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
 
     Parameters
     ----------
-    client: neptune.Client
+    client
         instance of the neptune client to use
-    query: str
+    query
         The gremlin traversal to execute
 
     Returns
     -------
-    pandas.DataFrame
         Results as Pandas DataFrame
 
     Examples
@@ -45,7 +44,7 @@ def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
     Run a Gremlin Query
 
     >>> import awswrangler as wr
-        >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     >>> df = wr.neptune.execute_gremlin(client, "g.V().limit(1)")
     """
     results = client.read_gremlin(query)
@@ -59,14 +58,13 @@ def execute_opencypher(client: NeptuneClient, query: str) -> pd.DataFrame:
 
     Parameters
     ----------
-    client: NeptuneClient
+    client
         instance of the neptune client to use
-    query: str
+    query
         The openCypher query to execute
 
     Returns
     -------
-    pandas.DataFrame
         Results as Pandas DataFrame
 
     Examples
@@ -88,14 +86,13 @@ def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
 
     Parameters
     ----------
-    client: NeptuneClient
+    client
         instance of the neptune client to use
-    query: str
+    query
         The SPARQL traversal to execute
 
     Returns
     -------
-    pandas.DataFrame
         Results as Pandas DataFrame
 
     Examples
@@ -144,18 +141,17 @@ def to_property_graph(
 
     Parameters
     ----------
-    client: NeptuneClient
+    client
         instance of the neptune client to use
-    df: pandas.DataFrame
+    df
         `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
-    batch_size: int
+    batch_size
         The number of rows to save at a time. Default 50
-    use_header_cardinality: bool
+    use_header_cardinality
         If True, then the header cardinality will be used to save the data. Default True
 
     Returns
     -------
-    bool
         True if records were written
 
     Examples
@@ -219,29 +215,28 @@ def to_rdf_graph(
 
     Parameters
     ----------
-    client: NeptuneClient
+    client
         Instance of the neptune client to use.
-    df: pandas.DataFrame
+    df
         `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_.
-    batch_size: int
+    batch_size
         The number of rows in the DataFrame (i.e. triples) to write into Amazon Neptune in one query.
         Defaults to 50.
-    subject_column: str, optional
+    subject_column
         The column name in the DataFrame for the subject.
         Defaults to 's'.
-    predicate_column: str, optional
+    predicate_column
         The column name in the DataFrame for the predicate.
         Defaults to 'p'.
-    object_column: str, optional
+    object_column
         The column name in the DataFrame for the object.
         Defaults to 'o'.
-    graph_column: str, optional
+    graph_column
         The column name in the DataFrame for the graph if sending across quads.
         Defaults to 'g'.
 
     Returns
     -------
-    bool
         True if records were written
 
     Examples
@@ -316,41 +311,41 @@ def bulk_load(
 
     Parameters
     ----------
-    client: NeptuneClient
+    client
         Instance of the neptune client to use
-    df: DataFrame, optional
+    df
         `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_ to write to Neptune.
-    path: str
+    path
         S3 Path that the Neptune Bulk Loader will load data from.
-    iam_role: str
+    iam_role
         The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
         For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
         see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
-    neptune_load_wait_polling_delay: float
+    neptune_load_wait_polling_delay
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
-    load_parallelism: str
+    load_parallelism
         Specifies the number of threads used by Neptune's bulk load process.
-    parser_configuration: dict[str, Any], optional
+    parser_configuration
         An optional object with additional parser configuration values.
         Each of the child parameters is also optional: ``namedGraphUri``, ``baseUri`` and ``allowEmptyStrings``.
-    update_single_cardinality_properties: str
+    update_single_cardinality_properties
         An optional parameter that controls how the bulk loader
         treats a new value for single-cardinality vertex or edge properties.
-    queue_request: str
+    queue_request
         An optional flag parameter that indicates whether the load request can be queued up or not.
 
         If omitted or set to ``"FALSE"``, the load request will fail if another load job is already running.
-    dependencies: list[str], optional
+    dependencies
         An optional parameter that can make a queued load request contingent on the successful completion of one or more previous jobs in the queue.
-    keep_files: bool
+    keep_files
         Whether to keep stage files or delete them. False by default.
-    use_threads: bool | int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session: boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs: Dict[str, str], optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. ``s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}``
 
@@ -423,31 +418,31 @@ def bulk_load_from_files(
 
     Parameters
     ----------
-    client: NeptuneClient
+    client
         Instance of the neptune client to use
-    path: str
+    path
         S3 Path that the Neptune Bulk Loader will load data from.
-    iam_role: str
+    iam_role
         The Amazon Resource Name (ARN) for an IAM role to be assumed by the Neptune DB instance for access to the S3 bucket.
         For information about creating a role that has access to Amazon S3 and then associating it with a Neptune cluster,
         see `Prerequisites: IAM Role and Amazon S3 Access <https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html>`_.
-    format: str
+    format
         The format of the data.
-    neptune_load_wait_polling_delay: float
+    neptune_load_wait_polling_delay
         Interval in seconds for how often the function will check if the Neptune bulk load has completed.
-    load_parallelism: str
+    load_parallelism
         Specifies the number of threads used by Neptune's bulk load process.
-    parser_configuration: dict[str, Any], optional
+    parser_configuration
         An optional object with additional parser configuration values.
         Each of the child parameters is also optional: ``namedGraphUri``, ``baseUri`` and ``allowEmptyStrings``.
-    update_single_cardinality_properties: str
+    update_single_cardinality_properties
         An optional parameter that controls how the bulk loader
         treats a new value for single-cardinality vertex or edge properties.
-    queue_request: str
+    queue_request
         An optional flag parameter that indicates whether the load request can be queued up or not.
 
         If omitted or set to ``"FALSE"``, the load request will fail if another load job is already running.
-    dependencies: list[str], optional
+    dependencies
         An optional parameter that can make a queued load request contingent on the successful completion of one or more previous jobs in the queue.
 
 
@@ -494,16 +489,15 @@ def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> N
 
     Parameters
     ----------
-    host: str
+    host
         The host endpoint to connect to
-    port: int
+    port
         The port endpoint to connect to
-    iam_enabled: bool, optional
+    iam_enabled
         True if IAM is enabled on the cluster. Defaults to False.
 
     Returns
     -------
-    NeptuneClient
         [description]
     """
     return NeptuneClient(host, port, iam_enabled, **kwargs)
@@ -615,20 +609,20 @@ def flatten_nested_df(
 
     Parameters
     ----------
-    df: pd.DataFrame
+    df
         The input data frame
-    include_prefix: bool, optional
+    include_prefix
         If True, then it will prefix the new column name with the original column name.
         Defaults to True.
-    separator: str, optional
+    separator
         The separator to use between field names when a dictionary is exploded.
         Defaults to "_".
-    recursive: bool, optional
+    recursive
         If True, then this will recurse the fields in the data frame. Defaults to True.
 
     Returns
     -------
-        pd.DataFrame: The flattened data frame
+        The flattened DataFrame
     """
     if separator is None:
         separator = "_"

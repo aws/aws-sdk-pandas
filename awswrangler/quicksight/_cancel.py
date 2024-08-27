@@ -28,21 +28,16 @@ def cancel_ingestion(
 
     Parameters
     ----------
-    ingestion_id : str
+    ingestion_id
         Ingestion ID.
-    dataset_name : str, optional
+    dataset_name
         Dataset name.
-    dataset_id : str, optional
+    dataset_id
         Dataset ID.
-    account_id : str, optional
+    account_id
         If None, the account ID will be inferred from your boto3 session.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
-        None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------

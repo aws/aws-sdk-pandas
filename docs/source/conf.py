@@ -42,6 +42,7 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
+    "sphinx_autodoc_typehints",
     "nbsphinx",
     "nbsphinx_link",
     "myst_parser",
@@ -156,6 +157,19 @@ html_static_path = ["_static"]
 
 nbsphinx_allow_errors = True
 nbsphinx_execute = "never"
+
+typehints_use_signature = True
+typehints_use_signature_return = True
+always_use_bars_union = True
+
+autodoc_mock_imports = [
+    "opensearchpy",
+    "oracledb",
+    "pg8000",
+    "pymysql",
+    "pyodbc",
+    "redshift_connector",
+]
 
 
 def setup(app):

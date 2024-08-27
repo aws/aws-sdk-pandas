@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterator, Literal
+from typing import TYPE_CHECKING, Any, Iterator, Literal
 
 import boto3
 import pyarrow as pa
@@ -17,7 +17,13 @@ from awswrangler._distributed import EngineEnum, engine
 from ._connect import _validate_connection
 from ._utils import _make_s3_auth_string
 
-redshift_connector = _utils.import_optional_dependency("redshift_connector")
+if TYPE_CHECKING:
+    try:
+        import redshift_connector
+    except ImportError:
+        pass
+else:
+    redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -74,37 +80,36 @@ def read_sql_query(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL query.
-    con : redshift_connector.Connection
+    con
         Use redshift_connector.connect() to use "
         "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog.
-    index_col : Union[str, List[str]], optional
+    index_col
         Column(s) to set as index(MultiIndex).
-    params :  Union[List, Tuple, Dict], optional
+    params
         List of parameters to pass to execute method.
         The syntax used to pass parameters is database driver dependent.
         Check your database driver documentation for which of the five syntax styles,
         described in PEP 249’s paramstyle, is supported.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunksize : int, optional
+    chunksize
         If specified, return an iterator where chunksize is the number of rows to include in each chunk.
-    dtype : Dict[str, pyarrow.DataType], optional
+    dtype
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
-    safe : bool
+    safe
         Check for overflows or other unsafe data type conversions.
-    timestamp_as_object : bool
+    timestamp_as_object
         Cast non-nanosecond timestamps (np.datetime64) to objects.
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Result as Pandas DataFrame(s).
 
     Examples
@@ -112,12 +117,11 @@ def read_sql_query(
     Reading from Redshift using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
-    >>> df = wr.redshift.read_sql_query(
-    ...     sql="SELECT * FROM public.my_table",
-    ...     con=con
-    ... )
-    >>> con.close()
+    >>> with wr.redshift.connect("MY_GLUE_CONNECTION") as con:
+    ...     df = wr.redshift.read_sql_query(
+    ...         sql="SELECT * FROM public.my_table",
+    ...         con=con
+    ...     )
 
     """
     _validate_connection(con=con)
@@ -156,40 +160,39 @@ def read_sql_table(
 
     Parameters
     ----------
-    table : str
+    table
         Table name.
-    con : redshift_connector.Connection
+    con
         Use redshift_connector.connect() to use "
         "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog.
-    schema : str, optional
+    schema
         Name of SQL schema in database to query (if database flavor supports this).
         Uses default schema if None (default).
-    index_col : Union[str, List[str]], optional
+    index_col
         Column(s) to set as index(MultiIndex).
-    params :  Union[List, Tuple, Dict], optional
+    params
         List of parameters to pass to execute method.
         The syntax used to pass parameters is database driver dependent.
         Check your database driver documentation for which of the five syntax styles,
         described in PEP 249's paramstyle, is supported.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunksize : int, optional
+    chunksize
         If specified, return an iterator where chunksize is the number of rows to include in each chunk.
-    dtype : Dict[str, pyarrow.DataType], optional
+    dtype
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
-    safe : bool
+    safe
         Check for overflows or other unsafe data type conversions.
-    timestamp_as_object : bool
+    timestamp_as_object
         Cast non-nanosecond timestamps (np.datetime64) to objects.
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Result as Pandas DataFrame(s).
 
     Examples
@@ -197,13 +200,12 @@ def read_sql_table(
     Reading from Redshift using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
-    >>> df = wr.redshift.read_sql_table(
-    ...     table="my_table",
-    ...     schema="public",
-    ...     con=con
-    ... )
-    >>> con.close()
+    >>> with wr.redshift.connect("MY_GLUE_CONNECTION") as con:
+    ...     df = wr.redshift.read_sql_table(
+    ...         table="my_table",
+    ...         schema="public",
+    ...         con=con
+    ...     )
 
     """
     if schema is None:
@@ -252,64 +254,59 @@ def unload_to_files(
 
     Parameters
     ----------
-    sql: str
+    sql
         SQL query.
-    path : Union[str, List[str]]
+    path
         S3 path to write stage files (e.g. s3://bucket_name/any_name/)
-    con : redshift_connector.Connection
+    con
         Use redshift_connector.connect() to use "
         "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog.
-    iam_role : str, optional
+    iam_role
         AWS IAM role with the related permissions.
-    aws_access_key_id : str, optional
+    aws_access_key_id
         The access key for your AWS account.
-    aws_secret_access_key : str, optional
+    aws_secret_access_key
         The secret key for your AWS account.
-    aws_session_token : str, optional
+    aws_session_token
         The session key for your AWS account. This is only needed when you are using temporary credentials.
-    region : str, optional
+    region
         Specifies the AWS Region where the target Amazon S3 bucket is located.
         REGION is required for UNLOAD to an Amazon S3 bucket that isn't in the
         same AWS Region as the Amazon Redshift cluster. By default, UNLOAD
         assumes that the target Amazon S3 bucket is located in the same AWS
         Region as the Amazon Redshift cluster.
-    unload_format: str, optional
+    unload_format
         Format of the unloaded S3 objects from the query.
         Valid values: "CSV", "PARQUET". Case sensitive. Defaults to PARQUET.
-    parallel: bool
+    parallel
         Whether to unload to multiple files in parallel. Defaults to True.
         By default, UNLOAD writes data in parallel to multiple files, according to the number of
         slices in the cluster. If parallel is False, UNLOAD writes to one or more data files serially,
         sorted absolutely according to the ORDER BY clause, if one is used.
-    max_file_size : float, optional
+    max_file_size
         Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
         Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
         maximum file size is 6200.0 MB.
-    kms_key_id : str, optional
+    kms_key_id
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
-    manifest : bool
+    manifest
         Unload a manifest file on S3.
-    partition_cols: List[str], optional
+    partition_cols
         Specifies the partition keys for the unload operation.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    None
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------
     >>> import awswrangler as wr
-    >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
-    >>> wr.redshift.unload_to_files(
-    ...     sql="SELECT * FROM public.mytable",
-    ...     path="s3://bucket/extracted_parquet_files/",
-    ...     con=con,
-    ...     iam_role="arn:aws:iam::XXX:role/XXX"
-    ... )
-    >>> con.close()
+    >>> with wr.redshift.connect("MY_GLUE_CONNECTION") as con:
+    ...     wr.redshift.unload_to_files(
+    ...         sql="SELECT * FROM public.mytable",
+    ...         path="s3://bucket/extracted_parquet_files/",
+    ...         con=con,
+    ...         iam_role="arn:aws:iam::XXX:role/XXX"
+    ...     )
 
 
     """
@@ -420,80 +417,78 @@ def unload(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL query.
-    path : Union[str, List[str]]
+    path
         S3 path to write stage files (e.g. s3://bucket_name/any_name/)
-    con : redshift_connector.Connection
+    con
         Use redshift_connector.connect() to use "
         "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog.
-    iam_role : str, optional
+    iam_role
         AWS IAM role with the related permissions.
-    aws_access_key_id : str, optional
+    aws_access_key_id
         The access key for your AWS account.
-    aws_secret_access_key : str, optional
+    aws_secret_access_key
         The secret key for your AWS account.
-    aws_session_token : str, optional
+    aws_session_token
         The session key for your AWS account. This is only needed when you are using temporary credentials.
-    region : str, optional
+    region
         Specifies the AWS Region where the target Amazon S3 bucket is located.
         REGION is required for UNLOAD to an Amazon S3 bucket that isn't in the
         same AWS Region as the Amazon Redshift cluster. By default, UNLOAD
         assumes that the target Amazon S3 bucket is located in the same AWS
         Region as the Amazon Redshift cluster.
-    max_file_size : float, optional
+    max_file_size
         Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
         Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
         maximum file size is 6200.0 MB.
-    kms_key_id : str, optional
+    kms_key_id
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
-    keep_files : bool
+    keep_files
         Should keep stage files?
-    parallel: bool
+    parallel
         Whether to unload to multiple files in parallel. Defaults to True.
         By default, UNLOAD writes data in parallel to multiple files, according to the number of
         slices in the cluster. If parallel is False, UNLOAD writes to one or more data files serially,
         sorted absolutely according to the ORDER BY clause, if one is used.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
 
         The dtype_backends are still experimential. The "pyarrow" backend is only supported with Pandas 2.0 or above.
-    chunked : Union[int, bool]
+    chunked
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs : Dict[str, str], optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    s3_additional_kwargs
         Forward to botocore requests.
-    pyarrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Result as Pandas DataFrame(s).
 
     Examples
     --------
     >>> import awswrangler as wr
-    >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
-    >>> df = wr.redshift.unload(
-    ...     sql="SELECT * FROM public.mytable",
-    ...     path="s3://bucket/extracted_parquet_files/",
-    ...     con=con,
-    ...     iam_role="arn:aws:iam::XXX:role/XXX"
-    ... )
-    >>> con.close()
+    >>> with wr.redshift.connect("MY_GLUE_CONNECTION") as con:
+    ...     df = wr.redshift.unload(
+    ...         sql="SELECT * FROM public.mytable",
+    ...         path="s3://bucket/extracted_parquet_files/",
+    ...         con=con,
+    ...         iam_role="arn:aws:iam::XXX:role/XXX"
+    ...     )
 
     """
     path = path if path.endswith("/") else f"{path}/"

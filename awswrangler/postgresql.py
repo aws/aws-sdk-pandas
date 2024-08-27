@@ -183,45 +183,43 @@ def connect(
 
     Parameters
     ----------
-    connection: str, optional
+    connection
         Glue Catalog Connection name.
-    secret_id: str, optional
+    secret_id
         Specifies the secret containing the connection details that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
-    catalog_id : str, optional
+    catalog_id
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
-    dbname: str, optional
+    dbname
         Optional database name to overwrite the stored one.
-    boto3_session: boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    ssl_context: bool or SSLContext, optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    ssl_context
         This governs SSL encryption for TCP/IP sockets.
         This parameter is forward to pg8000.
         https://github.com/tlocke/pg8000#functions
-    timeout: int, optional
+    timeout
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forward to pg8000.
         https://github.com/tlocke/pg8000#functions
-    tcp_keepalive: bool
-        If True then use TCP keepalive. The default is True.
-        This parameter is forward to pg8000.
+    tcp_keepalive
+        If ``True`` then use TCP keepalive. The default is ``True``.
+        This parameter is forwarded to pg8000.
         https://github.com/tlocke/pg8000#functions
 
     Returns
     -------
-    pg8000.Connection
         pg8000 connection.
 
     Examples
     --------
     >>> import awswrangler as wr
-    >>> con = wr.postgresql.connect("MY_GLUE_CONNECTION")
-    >>> with con.cursor() as cursor:
-    >>>     cursor.execute("SELECT 1")
-    >>>     print(cursor.fetchall())
-    >>> con.close()
+    >>> with wr.postgresql.connect("MY_GLUE_CONNECTION") as con:
+    ...     with con.cursor() as cursor:
+    ...         cursor.execute("SELECT 1")
+    ...         print(cursor.fetchall())
 
     """
     attrs: _db_utils.ConnectionAttributes = _db_utils.get_connection_attributes(
@@ -303,27 +301,27 @@ def read_sql_query(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL query.
-    con : pg8000.Connection
+    con
         Use pg8000.connect() to use credentials directly or wr.postgresql.connect() to fetch it from the Glue Catalog.
-    index_col : Union[str, List[str]], optional
+    index_col
         Column(s) to set as index(MultiIndex).
-    params :  Union[List, Tuple, Dict], optional
+    params
         List of parameters to pass to execute method.
         The syntax used to pass parameters is database driver dependent.
         Check your database driver documentation for which of the five syntax styles,
         described in PEP 249’s paramstyle, is supported.
-    chunksize : int, optional
+    chunksize
         If specified, return an iterator where chunksize is the number of rows to include in each chunk.
-    dtype : Dict[str, pyarrow.DataType], optional
+    dtype
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
-    safe : bool
+    safe
         Check for overflows or other unsafe data type conversions.
-    timestamp_as_object : bool
+    timestamp_as_object
         Cast non-nanosecond timestamps (np.datetime64) to objects.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
@@ -332,7 +330,6 @@ def read_sql_query(
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Result as Pandas DataFrame(s).
 
     Examples
@@ -340,12 +337,11 @@ def read_sql_query(
     Reading from PostgreSQL using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.postgresql.connect("MY_GLUE_CONNECTION")
-    >>> df = wr.postgresql.read_sql_query(
-    ...     sql="SELECT * FROM public.my_table",
-    ...     con=con
-    ... )
-    >>> con.close()
+    >>> with wr.postgresql.connect("MY_GLUE_CONNECTION") as con:
+    ...     df = wr.postgresql.read_sql_query(
+    ...         sql="SELECT * FROM public.my_table",
+    ...         con=con,
+    ...     )
 
     """
     _validate_connection(con=con)
@@ -438,30 +434,30 @@ def read_sql_table(
 
     Parameters
     ----------
-    table : str
+    table
         Table name.
-    con : pg8000.Connection
+    con
         Use pg8000.connect() to use credentials directly or wr.postgresql.connect() to fetch it from the Glue Catalog.
-    schema : str, optional
+    schema
         Name of SQL schema in database to query (if database flavor supports this).
         Uses default schema if None (default).
-    index_col : Union[str, List[str]], optional
+    index_col
         Column(s) to set as index(MultiIndex).
-    params :  Union[List, Tuple, Dict], optional
+    params
         List of parameters to pass to execute method.
         The syntax used to pass parameters is database driver dependent.
         Check your database driver documentation for which of the five syntax styles,
         described in PEP 249’s paramstyle, is supported.
-    chunksize : int, optional
+    chunksize
         If specified, return an iterator where chunksize is the number of rows to include in each chunk.
-    dtype : Dict[str, pyarrow.DataType], optional
+    dtype
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
-    safe : bool
+    safe
         Check for overflows or other unsafe data type conversions.
-    timestamp_as_object : bool
+    timestamp_as_object
         Cast non-nanosecond timestamps (np.datetime64) to objects.
-    dtype_backend: str, optional
+    dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
         “numpy_nullable” is set, pyarrow is used for all dtypes if “pyarrow” is set.
@@ -470,7 +466,6 @@ def read_sql_table(
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Result as Pandas DataFrame(s).
 
     Examples
@@ -478,13 +473,12 @@ def read_sql_table(
     Reading from PostgreSQL using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.postgresql.connect("MY_GLUE_CONNECTION")
-    >>> df = wr.postgresql.read_sql_table(
-    ...     table="my_table",
-    ...     schema="public",
-    ...     con=con
-    ... )
-    >>> con.close()
+    >>> with wr.postgresql.connect("MY_GLUE_CONNECTION") as con:
+    >>>     df = wr.postgresql.read_sql_table(
+    ...         table="my_table",
+    ...         schema="public",
+    ...         con=con,
+    ...     )
 
     """
     sql: str = (
@@ -531,15 +525,15 @@ def to_sql(
 
     Parameters
     ----------
-    df: pandas.DataFrame
+    df
         `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
-    con: pg8000.Connection
+    con
         Use ``pg8000.connect()`` to use credentials directly or ``wr.postgresql.connect()`` to fetch it from the Glue Catalog.
-    table: str
+    table
         Table name
-    schema: str
+    schema
         Schema name
-    mode: str
+    mode
         Append, overwrite or upsert.
 
         - append: Inserts new records into table.
@@ -547,7 +541,7 @@ def to_sql(
         - upsert: Perform an upsert which checks for conflicts on columns given by ``upsert_conflict_columns`` and
           sets the new values on conflicts. Note that ``upsert_conflict_columns`` is required for this mode.
 
-    overwrite_method: str
+    overwrite_method
         Drop, cascade, truncate, or truncate cascade. Only applicable in overwrite mode.
 
         - "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
@@ -557,35 +551,30 @@ def to_sql(
         - "truncate cascade" - ``TRUNCATE ... CASCADE`` - truncates the table, and all tables that have
           foreign-key references to any of the named tables.
 
-    index: bool
+    index
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
-    dtype: Dict[str, str], optional
+    dtype
         Dictionary of columns names and PostgreSQL types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. ``{'col name': 'TEXT', 'col2 name': 'FLOAT'}``)
-    varchar_lengths: Dict[str, int], optional
+    varchar_lengths
         Dict of VARCHAR length by columns. (e.g. ``{"col1": 10, "col5": 200}``).
-    use_column_names: bool
+    use_column_names
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
 
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
-    chunksize: int
+    chunksize
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
-    upsert_conflict_columns: List[str], optional
+    upsert_conflict_columns
         This parameter is only supported if `mode` is set top `upsert`. In this case conflicts for the given columns are
         checked for evaluating the upsert.
-    insert_conflict_columns: List[str], optional
+    insert_conflict_columns
         This parameter is only supported if `mode` is set top `append`. In this case conflicts for the given columns are
         checked for evaluating the insert 'ON CONFLICT DO NOTHING'.
-    commit_transaction: bool
+    commit_transaction
         Whether to commit the transaction. True by default.
-
-    Returns
-    -------
-    None
-        None.
 
     Examples
     --------

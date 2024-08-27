@@ -137,19 +137,18 @@ def query(
 
     Parameters
     ----------
-    sql: str
+    sql
         SQL query.
-    chunked: bool
+    chunked
         If True returns DataFrame iterator, and a single DataFrame otherwise. False by default.
-    pagination_config: Dict[str, Any], optional
+    pagination_config
         Pagination configuration dictionary of a form {'MaxItems': 10, 'PageSize': 10, 'StartingToken': '...'}
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Union[pd.DataFrame, Iterator[pd.DataFrame]]
-        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+        `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
 
     Examples
     --------
@@ -199,52 +198,51 @@ def unload(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL query
-    path : str
-        S3 path to write stage files (e.g. s3://bucket_name/any_name/)
-    unload_format : str, optional
+    path
+        S3 path to write stage files (e.g. ``s3://bucket_name/any_name/``)
+    unload_format
         Format of the unloaded S3 objects from the query.
         Valid values: "CSV", "PARQUET". Case sensitive. Defaults to "PARQUET"
-    compression : str, optional
+    compression
         Compression of the unloaded S3 objects from the query.
         Valid values: "GZIP", "NONE". Defaults to "GZIP"
-    partition_cols : List[str], optional
+    partition_cols
         Specifies the partition keys for the unload operation
-    encryption : str, optional
+    encryption
         Encryption of the unloaded S3 objects from the query.
         Valid values: "SSE_KMS", "SSE_S3". Defaults to "SSE_S3"
-    kms_key_id : str, optional
+    kms_key_id
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3
-    field_delimiter : str, optional
+    field_delimiter
         A single ASCII character that is used to separate fields in the output file,
         such as pipe character (|), a comma (,), or tab (/t). Only used with CSV format
-    escaped_by : str, optional
+    escaped_by
         The character that should be treated as an escape character in the data file
         written to S3 bucket. Only used with CSV format
-    chunked : Union[int, bool]
+    chunked
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
-    keep_files : bool
+    keep_files
         Should keep stage files?
-    use_threads : bool, int
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session is used if None
-    s3_additional_kwargs : Dict[str, str], optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    s3_additional_kwargs
         Forward to botocore requests.
-    pyarrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
         Result as Pandas DataFrame(s).
 
     Examples
@@ -352,36 +350,32 @@ def unload_to_files(
 
     Parameters
     ----------
-    sql : str
+    sql
         SQL query
-    path : str
+    path
         S3 path to write stage files (e.g. s3://bucket_name/any_name/)
-    unload_format : str, optional
+    unload_format
         Format of the unloaded S3 objects from the query.
         Valid values: "CSV", "PARQUET". Case sensitive. Defaults to "PARQUET"
-    compression : str, optional
+    compression
         Compression of the unloaded S3 objects from the query.
         Valid values: "GZIP", "NONE". Defaults to "GZIP"
-    partition_cols : List[str], optional
+    partition_cols
         Specifies the partition keys for the unload operation
-    encryption : str, optional
+    encryption
         Encryption of the unloaded S3 objects from the query.
         Valid values: "SSE_KMS", "SSE_S3". Defaults to "SSE_S3"
-    kms_key_id : str, optional
+    kms_key_id
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3
-    field_delimiter : str, optional
+    field_delimiter
         A single ASCII character that is used to separate fields in the output file,
         such as pipe character (|), a comma (,), or tab (/t). Only used with CSV format
-    escaped_by : str, optional
+    escaped_by
         The character that should be treated as an escape character in the data file
         written to S3 bucket. Only used with CSV format
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session is used if None
-
-    Returns
-    -------
-    None
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Examples
     --------

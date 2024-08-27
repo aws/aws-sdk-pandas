@@ -18,24 +18,23 @@ def get_ruleset(
 
     Parameters
     ----------
-    name : str or list[str]
+    name
         Ruleset name or list of names.
-    boto3_session : boto3.Session, optional
-        Boto3 Session. If none, the default boto3 session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    pd.DataFrame
         Data frame with ruleset(s) details.
 
     Examples
     --------
     Get single ruleset
     >>> import awswrangler as wr
-
     >>> df_ruleset = wr.data_quality.get_ruleset(name="my_ruleset")
 
     Get multiple rulesets. A column with the ruleset name is added to the data frame
+    >>> import awswrangler as wr
     >>> df_rulesets = wr.data_quality.get_ruleset(name=["ruleset_1", "ruleset_2"])
     """
     ruleset_names: list[str] = name if isinstance(name, list) else [name]

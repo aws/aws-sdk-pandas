@@ -191,19 +191,18 @@ def does_object_exist(
 
     Parameters
     ----------
-    path: str
+    path
         S3 path (e.g. s3://bucket/key).
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    version_id: str, optional
+    version_id
         Specific version of the object that should exist.
 
     Returns
     -------
-    bool
         True if exists, False otherwise.
 
     Examples
@@ -266,19 +265,18 @@ def list_directories(
 
     Parameters
     ----------
-    path : str
+    path
         S3 path (e.g. s3://bucket/prefix).
-    chunked: bool
+    chunked
         If True returns iterator, and a single list otherwise. False by default.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
-    Union[List[str], Iterator[List[str]]]
         List of objects paths.
 
     Examples
@@ -337,31 +335,30 @@ def list_objects(
 
     Parameters
     ----------
-    path : str
+    path
         S3 path (e.g. s3://bucket/prefix).
-    suffix: Union[str, List[str], None]
+    suffix
         Suffix or List of suffixes for filtering S3 keys.
-    ignore_suffix: Union[str, List[str], None]
+    ignore_suffix
         Suffix or List of suffixes for S3 keys to be ignored.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    last_modified_end: datetime, optional
+    last_modified_end
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
-    ignore_empty: bool
+    ignore_empty
         Ignore files with 0 bytes.
-    chunked: bool
+    chunked
         If True returns iterator, and a single list otherwise. False by default.
-    s3_additional_kwargs: dict[str, Any], optional
+    s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
-    Union[List[str], Iterator[List[str]]]
         List of objects paths.
 
     Examples
@@ -408,12 +405,11 @@ def list_buckets(boto3_session: boto3.Session | None = None) -> list[str]:
 
     Parameters
     ----------
-    boto3_session : boto3.Session(), optional
+    boto3_session
         Boto3 Session. The default boto3 session to use, default to None.
 
     Returns
     -------
-    List[str]
         List of bucket names.
 
     """

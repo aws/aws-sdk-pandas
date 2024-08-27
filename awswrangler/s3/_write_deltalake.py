@@ -67,34 +67,34 @@ def to_deltalake(
 
     Parameters
     ----------
-    df: pandas.DataFrame
+    df
         `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_
-    path: str
+    path
         S3 path for a directory where the DeltaLake table will be stored.
-    index: bool
+    index
         True to store the DataFrame index in file, otherwise False to ignore it.
-    mode: str, optional
+    mode
         ``append`` (Default), ``overwrite``, ``ignore``, ``error``
-    dtype: dict[str, str], optional
+    dtype
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. ``{'col name':'bigint', 'col2 name': 'int'})``
-    partition_cols: list[str], optional
+    partition_cols
         List of columns to partition the table by. Only required when creating a new table.
-    schema_mode: str, optional
+    schema_mode
         If set to "overwrite", allows replacing the schema of the table. Set to "merge" to merge with existing schema.
-    lock_dynamodb_table: str | None
+    lock_dynamodb_table
         DynamoDB table to use as a locking provider.
         A locking mechanism is needed to prevent unsafe concurrent writes to a delta lake directory when writing to S3.
         If you don't want to use a locking mechanism, you can choose to set ``s3_allow_unsafe_rename`` to True.
 
         For information on how to set up the lock table,
         please check `this page <https://delta-io.github.io/delta-rs/usage/writing/writing-to-s3-with-locking-provider/#dynamodb>`_.
-    s3_allow_unsafe_rename: bool
+    s3_allow_unsafe_rename
         Allows using the default S3 backend without support for concurrent writers.
-    boto3_session: boto3.Session, optional
-        Boto3 Session. If None, the default boto3 session is used.
-    pyarrow_additional_kwargs: dict[str, Any], optional
+    boto3_session
+        If None, the default boto3 session is used.
+    pyarrow_additional_kwargs
         Forwarded to the Delta Table class for the storage options of the S3 backend.
 
     Examples

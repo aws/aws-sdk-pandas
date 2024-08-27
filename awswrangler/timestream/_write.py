@@ -251,42 +251,41 @@ def write(
 
     Parameters
     ----------
-    df : pandas.DataFrame
+    df
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    database : str
+    database
         Amazon Timestream database name.
-    table : str
+    table
         Amazon Timestream table name.
-    time_col: str, optional
+    time_col
         DataFrame column name to be used as time. MUST be a timestamp column.
-    measure_col: str | List[str] | None
+    measure_col
         DataFrame column name(s) to be used as measure.
-    dimensions_cols: list[str]
+    dimensions_cols
         List of DataFrame column names to be used as dimensions.
-    version : int
+    version
         Version number used for upserts.
         Documentation https://docs.aws.amazon.com/timestream/latest/developerguide/API_WriteRecords.html.
-    time_unit: str, optional
+    time_unit
         Time unit for the time column. MILLISECONDS by default.
-    use_threads: bool | int
+    use_threads
         True to enable concurrent writing, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the number of threads.
         If integer is provided, specified number is used.
-    measure_name: str, optional
+    measure_name
         Name that represents the data attribute of the time series.
         Overrides ``measure_col`` if specified.
-    common_attributes: dict[str, Any], optional
+    common_attributes
         Dictionary of attributes shared across all records in the request.
         Using common attributes can optimize the cost of writes by reducing the size of request payloads.
         Values in ``common_attributes`` take precedence over all other arguments and data frame values.
         Dimension attributes are merged with attributes in record objects.
         Example: ``{"Dimensions": [{"Name": "device_id", "Value": "12345"}], "MeasureValueType": "DOUBLE"}``.
-    boto3_session: boto3.Session(), optional
-        Boto3 Session. If None, the default boto3 Session is used.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    List[Dict[str, str]]
         Rejected records.
         Possible reasons for rejection are described here:
         https://docs.aws.amazon.com/timestream/latest/developerguide/API_RejectedRecord.html
@@ -396,16 +395,15 @@ def wait_batch_load_task(
 
     Parameters
     ----------
-    task_id : str
+    task_id
         The ID of the batch load task.
-    timestream_batch_load_wait_polling_delay : float, optional
+    timestream_batch_load_wait_polling_delay
         Time to wait between two polling attempts.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session is used if None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         Dictionary with the describe_batch_load_task response.
 
     Examples
@@ -468,44 +466,43 @@ def batch_load(
 
     Parameters
     ----------
-    df : pandas.DataFrame
+    df
         Pandas DataFrame.
-    path : str
+    path
         S3 prefix to write the data.
-    database : str
+    database
         Amazon Timestream database name.
-    table : str
+    table
         Amazon Timestream table name.
-    time_col : str
+    time_col
         Column name with the time data. It must be a long data type that represents the time since the Unix epoch.
-    dimensions_cols : List[str]
+    dimensions_cols
         List of column names with the dimensions data.
-    measure_cols : List[str]
+    measure_cols
         List of column names with the measure data.
-    measure_name_col : str
+    measure_name_col
         Column name with the measure name.
-    report_s3_configuration : TimestreamBatchLoadReportS3Configuration
+    report_s3_configuration
         Dictionary of the configuration for the S3 bucket where the error report is stored.
         https://docs.aws.amazon.com/timestream/latest/developerguide/API_ReportS3Configuration.html
         Example: {"BucketName": 'error-report-bucket-name'}
-    time_unit : str, optional
+    time_unit
         Time unit for the time column. MILLISECONDS by default.
-    record_version : int, optional
+    record_version
         Record version.
-    timestream_batch_load_wait_polling_delay : float, optional
+    timestream_batch_load_wait_polling_delay
         Time to wait between two polling attempts.
-    keep_files : bool, optional
+    keep_files
         Whether to keep the files after the operation.
-    use_threads : Union[bool, int], optional
+    use_threads
         True to enable concurrent requests, False to disable multiple threads.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session is used if None.
-    s3_additional_kwargs: dict[str, str], optional
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+    s3_additional_kwargs
         Forwarded to S3 botocore requests.
 
     Returns
     -------
-    Dict[str, Any]
         A dictionary of the batch load task response.
 
     Examples
@@ -599,39 +596,38 @@ def batch_load_from_files(
 
     Parameters
     ----------
-    path : str
+    path
         S3 prefix to write the data.
-    database : str
+    database
         Amazon Timestream database name.
-    table : str
+    table
         Amazon Timestream table name.
-    time_col : str
+    time_col
         Column name with the time data. It must be a long data type that represents the time since the Unix epoch.
-    dimensions_cols : List[str]
+    dimensions_cols
         List of column names with the dimensions data.
-    measure_cols : List[str]
+    measure_cols
         List of column names with the measure data.
-    measure_name_col : str
+    measure_name_col
         Column name with the measure name.
-    report_s3_configuration : TimestreamBatchLoadReportS3Configuration
+    report_s3_configuration
         Dictionary of the configuration for the S3 bucket where the error report is stored.
         https://docs.aws.amazon.com/timestream/latest/developerguide/API_ReportS3Configuration.html
         Example: {"BucketName": 'error-report-bucket-name'}
-    time_unit : str, optional
+    time_unit
         Time unit for the time column. MILLISECONDS by default.
-    record_version : int, optional
+    record_version
         Record version.
-    data_source_csv_configuration : Dict[str, Union[str, bool]], optional
+    data_source_csv_configuration
         Dictionary of the data source CSV configuration.
         https://docs.aws.amazon.com/timestream/latest/developerguide/API_CsvConfiguration.html
-    timestream_batch_load_wait_polling_delay : float, optional
+    timestream_batch_load_wait_polling_delay
         Time to wait between two polling attempts.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session is used if None.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
 
     Returns
     -------
-    Dict[str, Any]
         A dictionary of the batch load task response.
 
     Examples
