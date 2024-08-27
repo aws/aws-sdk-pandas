@@ -81,6 +81,9 @@ popd
 
 pushd /aws-sdk-pandas
 
+# Install Numpy 1.x because 2.x is not support in layers right now
+pip3 install "numpy==1.*" -t ./python
+
 pip3 install . -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]"
 
 rm -rf python/pyarrow*
