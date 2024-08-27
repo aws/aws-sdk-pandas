@@ -36,8 +36,8 @@ pandas = [
     { version = ">=1.2.0,<3.0.0", markers = "python_version >= \"3.9\"" },
 ]
 numpy = [
-    {version = "^1.18", markers = "python_version < \"3.12\""},
-    {version = "^1.26", markers = "python_version >= \"3.12\""}
+    { version = ">=1.18,<2.0", markers = "python_version < \"3.9\"" },
+    { version = ">=1.26,<3.0", markers = "python_version >= \"3.9\"" }
 ]
 pyarrow = ">=8.0.0"
 typing-extensions = "^4.4.0"
