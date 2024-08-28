@@ -83,6 +83,9 @@ pushd /aws-sdk-pandas
 
 pip3 install . -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]"
 
+# Install Numpy 1.x because 2.x is not support in layers right now
+pip3 install -t ./python --upgrade "numpy==1.*"
+
 rm -rf python/pyarrow*
 rm -rf python/boto*
 rm -rf python/urllib3*
