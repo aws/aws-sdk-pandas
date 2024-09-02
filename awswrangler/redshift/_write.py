@@ -24,8 +24,8 @@ else:
     redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 _logger: logging.Logger = logging.getLogger(__name__)
-_ToSqlModeLiteral = Literal["append", "overwrite", "upsert"]
 
+_ToSqlModeLiteral = Literal["append", "overwrite", "upsert"]
 _ToSqlOverwriteModeLiteral = Literal["drop", "cascade", "truncate", "delete"]
 _ToSqlDistStyleLiteral = Literal["AUTO", "EVEN", "ALL", "KEY"]
 _ToSqlSortStyleLiteral = Literal["COMPOUND", "INTERLEAVED"]
