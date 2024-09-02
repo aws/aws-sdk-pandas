@@ -106,6 +106,27 @@ def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: s
     return fields
 
 
+def _get_table_columns(cursor: "redshift_connector.Cursor", schema: str, table: str) -> list[str]:
+    sql = (f"SELECT column_name FROM svv_columns\n"
+           f"WHERE table_schema = '{schema}' AND table_name = '{table}'")
+    _logger.debug("Executing select query:\n%s", sql)
+    cursor.execute(sql)
+    result: tuple[list[str]] = cursor.fetchall()
+    columns = [''.join(lst) for lst in result]
+    return columns
+
+
+def _add_table_columns(cursor: "redshift_connector.Cursor", schema: str,
+                       table: str, new_columns: dict[str, str]) -> None:
+    for column_name, column_type in new_columns.items():
+        sql = (
+            f"ALTER TABLE {_identifier(schema)}.{_identifier(table)}\n"
+            f"ADD COLUMN {column_name} {column_type};"
+        )
+        _logger.debug("Executing alter query:\n%s", sql)
+        cursor.execute(sql)
+
+
 def _does_table_exist(cursor: "redshift_connector.Cursor", schema: str | None, table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     sql = (
@@ -267,75 +288,23 @@ def _redshift_types_from_path(
     return redshift_types
 
 
-def _create_table(  # noqa: PLR0912,PLR0913,PLR0915
-    df: pd.DataFrame | None,
-    path: str | list[str] | None,
-    con: "redshift_connector.Connection",
-    cursor: "redshift_connector.Cursor",
-    table: str,
-    schema: str,
-    mode: str,
-    overwrite_method: str,
-    index: bool,
-    dtype: dict[str, str] | None,
-    diststyle: str,
-    sortstyle: str,
-    distkey: str | None,
-    sortkey: list[str] | None,
-    primary_keys: list[str] | None,
-    varchar_lengths_default: int,
-    varchar_lengths: dict[str, int] | None,
-    data_format: Literal["parquet", "orc", "csv"] = "parquet",
-    redshift_column_types: dict[str, str] | None = None,
-    parquet_infer_sampling: float = 1.0,
-    path_suffix: str | None = None,
-    path_ignore_suffix: str | list[str] | None = None,
-    manifest: bool | None = False,
-    use_threads: bool | int = True,
-    boto3_session: boto3.Session | None = None,
-    s3_additional_kwargs: dict[str, str] | None = None,
-    lock: bool = False,
-) -> tuple[str, str | None]:
-    _logger.debug("Creating table %s with mode %s, and overwrite method %s", table, mode, overwrite_method)
-    if mode == "overwrite":
-        if overwrite_method == "truncate":
-            try:
-                # Truncate commits current transaction, if successful.
-                # Fast, but not atomic.
-                _truncate_table(cursor=cursor, schema=schema, table=table)
-            except redshift_connector.error.ProgrammingError as e:
-                # Caught "relation does not exist".
-                if e.args[0]["C"] != "42P01":
-                    raise e
-                _logger.debug(str(e))
-                con.rollback()
-            _begin_transaction(cursor=cursor)
-            if lock:
-                _lock(cursor, [table], schema=schema)
-        elif overwrite_method == "delete":
-            if _does_table_exist(cursor=cursor, schema=schema, table=table):
-                if lock:
-                    _lock(cursor, [table], schema=schema)
-                # Atomic, but slow.
-                _delete_all(cursor=cursor, schema=schema, table=table)
-        else:
-            # Fast, atomic, but either fails if there are any dependent views or, in cascade mode, deletes them.
-            _drop_table(cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "cascade"))
-            # No point in locking here, the oid will change.
-    elif _does_table_exist(cursor=cursor, schema=schema, table=table) is True:
-        _logger.debug("Table %s exists", table)
-        if lock:
-            _lock(cursor, [table], schema=schema)
-        if mode == "upsert":
-            guid: str = uuid.uuid4().hex
-            temp_table: str = f"temp_redshift_{guid}"
-            sql: str = f"CREATE TEMPORARY TABLE {temp_table} (LIKE {_identifier(schema)}.{_identifier(table)})"
-            _logger.debug("Executing create temporary table query:\n%s", sql)
-            cursor.execute(sql)
-            return temp_table, None
-        return table, schema
-    diststyle = diststyle.upper() if diststyle else "AUTO"
-    sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
+def _get_rsh_types(
+        df: pd.DataFrame | None,
+        path: str | list[str] | None,
+        index: bool,
+        dtype: dict[str, str] | None,
+        varchar_lengths_default: int,
+        varchar_lengths: dict[str, int] | None,
+        data_format: Literal["parquet", "orc", "csv"] = "parquet",
+        redshift_column_types: dict[str, str] | None = None,
+        parquet_infer_sampling: float = 1.0,
+        path_suffix: str | None = None,
+        path_ignore_suffix: str | list[str] | None = None,
+        manifest: bool | None = False,
+        use_threads: bool | int = True,
+        boto3_session: boto3.Session | None = None,
+        s3_additional_kwargs: dict[str, str] | None = None,
+) -> dict[str: str]:
     if df is not None:
         redshift_types: dict[str, str] = _data_types.database_types_from_pandas(
             df=df,
@@ -379,6 +348,104 @@ def _create_table(  # noqa: PLR0912,PLR0913,PLR0915
             redshift_types = redshift_column_types
     else:
         raise ValueError("df and path are None. You MUST pass at least one.")
+    return redshift_types
+
+
+def _create_table(  # noqa: PLR0912,PLR0913,PLR0915
+    df: pd.DataFrame | None,
+    path: str | list[str] | None,
+    con: "redshift_connector.Connection",
+    cursor: "redshift_connector.Cursor",
+    table: str,
+    schema: str,
+    mode: str,
+    overwrite_method: str,
+    index: bool,
+    dtype: dict[str, str] | None,
+    diststyle: str,
+    sortstyle: str,
+    distkey: str | None,
+    sortkey: list[str] | None,
+    primary_keys: list[str] | None,
+    varchar_lengths_default: int,
+    varchar_lengths: dict[str, int] | None,
+    data_format: Literal["parquet", "orc", "csv"] = "parquet",
+    redshift_column_types: dict[str, str] | None = None,
+    parquet_infer_sampling: float = 1.0,
+    path_suffix: str | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
+    manifest: bool | None = False,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
+    lock: bool = False,
+    add_new_columns: bool = False,
+) -> tuple[str, str | None]:
+    _logger.debug("Creating table %s with mode %s, and overwrite method %s", table, mode, overwrite_method)
+    redshift_types = _get_rsh_types(
+        df=df,
+        path=path,
+        index=index,
+        dtype=dtype,
+        varchar_lengths_default=varchar_lengths_default,
+        varchar_lengths=varchar_lengths,
+        parquet_infer_sampling=parquet_infer_sampling,
+        path_suffix=path_suffix,
+        path_ignore_suffix=path_ignore_suffix,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        data_format=data_format,
+        redshift_column_types=redshift_column_types,
+        manifest=manifest
+    )
+    if add_new_columns is True:
+        if _does_table_exist(cursor=cursor, schema=schema, table=table) is True:
+            actual_table_columns = set(_get_table_columns(cursor=cursor, schema=schema, table=table))
+            new_df_columns = {key: value for key, value in redshift_types.items()
+                           if key.lower() not in actual_table_columns}
+            _add_table_columns(cursor=cursor, schema=schema, table=table, new_columns=new_df_columns)
+
+    if mode == "overwrite":
+        if overwrite_method == "truncate":
+            try:
+                # Truncate commits current transaction, if successful.
+                # Fast, but not atomic.
+                _truncate_table(cursor=cursor, schema=schema, table=table)
+            except redshift_connector.error.ProgrammingError as e:
+                # Caught "relation does not exist".
+                if e.args[0]["C"] != "42P01":
+                    raise e
+                _logger.debug(str(e))
+                con.rollback()
+            _begin_transaction(cursor=cursor)
+            if lock:
+                _lock(cursor, [table], schema=schema)
+        elif overwrite_method == "delete":
+            if _does_table_exist(cursor=cursor, schema=schema, table=table):
+                if lock:
+                    _lock(cursor, [table], schema=schema)
+                # Atomic, but slow.
+                _delete_all(cursor=cursor, schema=schema, table=table)
+        else:
+            # Fast, atomic, but either fails if there are any dependent views or, in cascade mode, deletes them.
+            _drop_table(cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "cascade"))
+            # No point in locking here, the oid will change.
+    elif _does_table_exist(cursor=cursor, schema=schema, table=table) is True:
+        _logger.debug("Table %s exists", table)
+        if lock:
+            _lock(cursor, [table], schema=schema)
+        if mode == "upsert":
+            guid: str = uuid.uuid4().hex
+            temp_table: str = f"temp_redshift_{guid}"
+            sql: str = f"CREATE TEMPORARY TABLE {temp_table} (LIKE {_identifier(schema)}.{_identifier(table)})"
+            _logger.debug("Executing create temporary table query:\n%s", sql)
+            cursor.execute(sql)
+            return temp_table, None
+        return table, schema
+    diststyle = diststyle.upper() if diststyle else "AUTO"
+    sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
+
     _validate_parameters(
         redshift_types=redshift_types,
         diststyle=diststyle,
