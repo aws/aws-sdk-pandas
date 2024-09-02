@@ -11,6 +11,7 @@ import awswrangler.pandas as pd
 from awswrangler import _databases as _db_utils
 from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
+
 from ._connect import _validate_connection
 from ._utils import _create_table, _make_s3_auth_string, _upsert
 
@@ -24,6 +25,7 @@ else:
 
 _logger: logging.Logger = logging.getLogger(__name__)
 _ToSqlModeLiteral = Literal["append", "overwrite", "upsert"]
+
 _ToSqlOverwriteModeLiteral = Literal["drop", "cascade", "truncate", "delete"]
 _ToSqlDistStyleLiteral = Literal["AUTO", "EVEN", "ALL", "KEY"]
 _ToSqlSortStyleLiteral = Literal["COMPOUND", "INTERLEAVED"]
