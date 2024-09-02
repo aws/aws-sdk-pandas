@@ -301,7 +301,7 @@ def _get_rsh_types(
     use_threads: bool | int = True,
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, str] | None = None,
-) -> dict[str:str]:
+) -> dict[str, str]:
     if df is not None:
         redshift_types: dict[str, str] = _data_types.database_types_from_pandas(
             df=df,
@@ -348,7 +348,7 @@ def _get_rsh_types(
     return redshift_types
 
 
-def _create_table(  # noqa: PLR0912,PLR0913,PLR0915
+def _create_table(  # noqa: PLR0913
     df: pd.DataFrame | None,
     path: str | list[str] | None,
     con: "redshift_connector.Connection",
