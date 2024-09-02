@@ -107,22 +107,19 @@ def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: s
 
 
 def _get_table_columns(cursor: "redshift_connector.Cursor", schema: str, table: str) -> list[str]:
-    sql = (f"SELECT column_name FROM svv_columns\n"
-           f"WHERE table_schema = '{schema}' AND table_name = '{table}'")
+    sql = f"SELECT column_name FROM svv_columns\n" f"WHERE table_schema = '{schema}' AND table_name = '{table}'"
     _logger.debug("Executing select query:\n%s", sql)
     cursor.execute(sql)
     result: tuple[list[str]] = cursor.fetchall()
-    columns = [''.join(lst) for lst in result]
+    columns = ["".join(lst) for lst in result]
     return columns
 
 
-def _add_table_columns(cursor: "redshift_connector.Cursor", schema: str,
-                       table: str, new_columns: dict[str, str]) -> None:
+def _add_table_columns(
+    cursor: "redshift_connector.Cursor", schema: str, table: str, new_columns: dict[str, str]
+) -> None:
     for column_name, column_type in new_columns.items():
-        sql = (
-            f"ALTER TABLE {_identifier(schema)}.{_identifier(table)}\n"
-            f"ADD COLUMN {column_name} {column_type};"
-        )
+        sql = f"ALTER TABLE {_identifier(schema)}.{_identifier(table)}\n" f"ADD COLUMN {column_name} {column_type};"
         _logger.debug("Executing alter query:\n%s", sql)
         cursor.execute(sql)
 
@@ -289,22 +286,22 @@ def _redshift_types_from_path(
 
 
 def _get_rsh_types(
-        df: pd.DataFrame | None,
-        path: str | list[str] | None,
-        index: bool,
-        dtype: dict[str, str] | None,
-        varchar_lengths_default: int,
-        varchar_lengths: dict[str, int] | None,
-        data_format: Literal["parquet", "orc", "csv"] = "parquet",
-        redshift_column_types: dict[str, str] | None = None,
-        parquet_infer_sampling: float = 1.0,
-        path_suffix: str | None = None,
-        path_ignore_suffix: str | list[str] | None = None,
-        manifest: bool | None = False,
-        use_threads: bool | int = True,
-        boto3_session: boto3.Session | None = None,
-        s3_additional_kwargs: dict[str, str] | None = None,
-) -> dict[str: str]:
+    df: pd.DataFrame | None,
+    path: str | list[str] | None,
+    index: bool,
+    dtype: dict[str, str] | None,
+    varchar_lengths_default: int,
+    varchar_lengths: dict[str, int] | None,
+    data_format: Literal["parquet", "orc", "csv"] = "parquet",
+    redshift_column_types: dict[str, str] | None = None,
+    parquet_infer_sampling: float = 1.0,
+    path_suffix: str | None = None,
+    path_ignore_suffix: str | list[str] | None = None,
+    manifest: bool | None = False,
+    use_threads: bool | int = True,
+    boto3_session: boto3.Session | None = None,
+    s3_additional_kwargs: dict[str, str] | None = None,
+) -> dict[str:str]:
     if df is not None:
         redshift_types: dict[str, str] = _data_types.database_types_from_pandas(
             df=df,
@@ -397,13 +394,14 @@ def _create_table(  # noqa: PLR0912,PLR0913,PLR0915
         s3_additional_kwargs=s3_additional_kwargs,
         data_format=data_format,
         redshift_column_types=redshift_column_types,
-        manifest=manifest
+        manifest=manifest,
     )
     if add_new_columns is True:
         if _does_table_exist(cursor=cursor, schema=schema, table=table) is True:
             actual_table_columns = set(_get_table_columns(cursor=cursor, schema=schema, table=table))
-            new_df_columns = {key: value for key, value in redshift_types.items()
-                           if key.lower() not in actual_table_columns}
+            new_df_columns = {
+                key: value for key, value in redshift_types.items() if key.lower() not in actual_table_columns
+            }
             _add_table_columns(cursor=cursor, schema=schema, table=table, new_columns=new_df_columns)
 
     if mode == "overwrite":

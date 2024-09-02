@@ -213,7 +213,7 @@ def to_sql(
                 varchar_lengths_default=varchar_lengths_default,
                 varchar_lengths=varchar_lengths,
                 lock=lock,
-                add_new_columns=add_new_columns
+                add_new_columns=add_new_columns,
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
