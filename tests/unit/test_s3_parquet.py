@@ -1034,7 +1034,8 @@ def test_read_from_access_point(access_point_path_path: str) -> None:
     assert df_out.shape == (3, 3)
 
 
-def test_save_dataframe_with_ms_units(path, glue_database, glue_table):
+@pytest.mark.parametrize("use_threads", [True, False, 2])
+def test_save_dataframe_with_ms_units(path, glue_database, glue_table, use_threads):
     df = pd.DataFrame(
         {
             "c0": [
@@ -1052,6 +1053,7 @@ def test_save_dataframe_with_ms_units(path, glue_database, glue_table):
         dataset=True,
         database=glue_database,
         table=glue_table,
+        use_threads=use_threads,
     )
 
     # Saving exactly the same data twice. This ensures that even if the athena table exists, the flow of using its metadata
@@ -1062,6 +1064,7 @@ def test_save_dataframe_with_ms_units(path, glue_database, glue_table):
         dataset=True,
         database=glue_database,
         table=glue_table,
+        use_threads=use_threads,
     )
     df_out = wr.s3.read_parquet_table(table=glue_table, database=glue_database)
     assert df_out.shape == (8, 1)
