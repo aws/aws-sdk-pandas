@@ -1034,7 +1034,6 @@ def test_read_from_access_point(access_point_path_path: str) -> None:
     assert df_out.shape == (3, 3)
 
 
-@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_save_dataframe_with_ms_units(path, glue_database, glue_table):
     df = pd.DataFrame(
         {
