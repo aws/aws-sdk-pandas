@@ -331,15 +331,15 @@ def athena2pyarrow(dtype: str, df_type: str = None) -> pa.DataType:  # noqa: PLR
     if dtype == "timestamp":
         if df_type:
             match df_type:
-                case "datetime64[s]": 
+                case "datetime64[s]":
                     return pa.timestamp(unit="s")
-                case "datetime64[ms]": 
+                case "datetime64[ms]":
                     return pa.timestamp(unit="ms")
-                case "datetime64[us]": 
+                case "datetime64[us]":
                     return pa.timestamp(unit="us")
-                case "datetime64[ns]": 
+                case "datetime64[ns]":
                     return pa.timestamp(unit="ns")
-                case _: 
+                case _:
                     return pa.timestamp(unit="ns")
     if dtype == "date":
         return pa.date32()
