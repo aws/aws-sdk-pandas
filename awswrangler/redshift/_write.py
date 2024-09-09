@@ -14,7 +14,7 @@ from awswrangler._config import apply_configs
 
 from ._connect import _validate_connection
 from ._utils import (
-    _add_new_columns,
+    _add_new_table_columns,
     _create_table,
     _does_table_exist,
     _get_rsh_columns_types,
@@ -210,9 +210,8 @@ def to_sql(
                     varchar_lengths_default=varchar_lengths_default,
                     varchar_lengths=varchar_lengths,
                 )
-                _add_new_columns(
-                    cursor=cursor, schema=schema, table=table, redshift_columns_types=redshift_columns_types
-                )
+                _add_new_table_columns(cursor=cursor, schema=schema, table=table,
+                                       redshift_columns_types=redshift_columns_types)
 
             created_table, created_schema = _create_table(
                 df=df,
@@ -464,9 +463,8 @@ def copy_from_files(  # noqa: PLR0913
                     redshift_column_types=redshift_column_types,
                     manifest=manifest,
                 )
-                _add_new_columns(
-                    cursor=cursor, schema=schema, table=table, redshift_columns_types=redshift_columns_types
-                )
+                _add_new_table_columns(cursor=cursor, schema=schema, table=table,
+                                       redshift_columns_types=redshift_columns_types)
             created_table, created_schema = _create_table(
                 df=None,
                 path=path,

@@ -358,9 +358,9 @@ def _get_rsh_columns_types(
     return redshift_types
 
 
-def _add_new_columns(
+def _add_new_table_columns(
     cursor: "redshift_connector.Cursor", schema: str, table: str, redshift_columns_types: dict[str, str]
-):
+) -> None:
     # Check if the cluster is configured as case sensitive or no
     is_case_sensitive = False
     if _get_parameter_setting(cursor=cursor, parameter_name="enable_case_sensitive_identifier").lower() in [
