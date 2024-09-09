@@ -107,7 +107,7 @@ def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: s
 
 
 def _get_table_columns(cursor: "redshift_connector.Cursor", schema: str, table: str) -> list[str]:
-    sql = f"SELECT column_name FROM svv_columns\n" f"WHERE table_schema = '{schema}' AND table_name = '{table}'"
+    sql = f"SELECT column_name FROM svv_columns\n WHERE table_schema = '{schema}' AND table_name = '{table}'"
     _logger.debug("Executing select query:\n%s", sql)
     cursor.execute(sql)
     result: tuple[list[str]] = cursor.fetchall()
@@ -119,7 +119,7 @@ def _add_table_columns(
     cursor: "redshift_connector.Cursor", schema: str, table: str, new_columns: dict[str, str]
 ) -> None:
     for column_name, column_type in new_columns.items():
-        sql = f"ALTER TABLE {_identifier(schema)}.{_identifier(table)}\n" f"ADD COLUMN {column_name} {column_type};"
+        sql = f"ALTER TABLE {_identifier(schema)}.{_identifier(table)}\n ADD COLUMN {column_name} {column_type};"
         _logger.debug("Executing alter query:\n%s", sql)
         cursor.execute(sql)
 
@@ -144,6 +144,16 @@ def _get_paths_from_manifest(path: str, boto3_session: boto3.Session | None = No
     paths = [path["url"] for path in manifest_content["entries"]]
     _logger.debug("Read %d paths from manifest file in: %s", len(paths), path)
     return paths
+
+
+def _get_parameter_setting(cursor: "redshift_connector.Cursor", parameter_name: str) -> str:
+    sql = f"SHOW {parameter_name}"
+    _logger.debug("Executing select query:\n%s", sql)
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    status = result[0][0]
+    print(f"{status=}")  # @todo remove
+    return status
 
 
 def _lock(
@@ -285,7 +295,7 @@ def _redshift_types_from_path(
     return redshift_types
 
 
-def _get_rsh_types(
+def _get_rsh_columns_types(
     df: pd.DataFrame | None,
     path: str | list[str] | None,
     index: bool,
@@ -348,6 +358,26 @@ def _get_rsh_types(
     return redshift_types
 
 
+def _add_new_columns(
+    cursor: "redshift_connector.Cursor", schema: str, table: str, redshift_columns_types: dict[str, str]
+):
+    # Check if the cluster is configured as case sensitive or no
+    is_case_sensitive = False
+    if _get_parameter_setting(cursor=cursor, parameter_name="enable_case_sensitive_identifier").lower() in [
+        "on",
+        "true",  # @todo choose one
+    ]:
+        is_case_sensitive = True
+
+    # If it is case-insensitive, convert all DataFrame column names to lowercase before performing the comparison
+    if is_case_sensitive is False:
+        redshift_columns_types = {key.lower(): value for key, value in redshift_columns_types.items()}
+    actual_table_columns = set(_get_table_columns(cursor=cursor, schema=schema, table=table))
+    new_df_columns = {key: value for key, value in redshift_columns_types.items() if key not in actual_table_columns}
+
+    _add_table_columns(cursor=cursor, schema=schema, table=table, new_columns=new_df_columns)
+
+
 def _create_table(  # noqa: PLR0913
     df: pd.DataFrame | None,
     path: str | list[str] | None,
@@ -376,7 +406,6 @@ def _create_table(  # noqa: PLR0913
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, str] | None = None,
     lock: bool = False,
-    add_new_columns: bool = False,
 ) -> tuple[str, str | None]:
     _logger.debug("Creating table %s with mode %s, and overwrite method %s", table, mode, overwrite_method)
     if mode == "overwrite":
@@ -408,29 +437,6 @@ def _create_table(  # noqa: PLR0913
         _logger.debug("Table %s exists", table)
         if lock:
             _lock(cursor, [table], schema=schema)
-        if add_new_columns is True:
-            redshift_types = _get_rsh_types(
-                df=df,
-                path=path,
-                index=index,
-                dtype=dtype,
-                varchar_lengths_default=varchar_lengths_default,
-                varchar_lengths=varchar_lengths,
-                parquet_infer_sampling=parquet_infer_sampling,
-                path_suffix=path_suffix,
-                path_ignore_suffix=path_ignore_suffix,
-                use_threads=use_threads,
-                boto3_session=boto3_session,
-                s3_additional_kwargs=s3_additional_kwargs,
-                data_format=data_format,
-                redshift_column_types=redshift_column_types,
-                manifest=manifest,
-            )
-            actual_table_columns = set(_get_table_columns(cursor=cursor, schema=schema, table=table))
-            new_df_columns = {
-                key: value for key, value in redshift_types.items() if key.lower() not in actual_table_columns
-            }
-            _add_table_columns(cursor=cursor, schema=schema, table=table, new_columns=new_df_columns)
         if mode == "upsert":
             guid: str = uuid.uuid4().hex
             temp_table: str = f"temp_redshift_{guid}"
@@ -442,7 +448,7 @@ def _create_table(  # noqa: PLR0913
     diststyle = diststyle.upper() if diststyle else "AUTO"
     sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
 
-    redshift_types = _get_rsh_types(
+    redshift_types = _get_rsh_columns_types(
         df=df,
         path=path,
         index=index,

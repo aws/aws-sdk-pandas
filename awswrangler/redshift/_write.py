@@ -13,7 +13,14 @@ from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
 
 from ._connect import _validate_connection
-from ._utils import _create_table, _make_s3_auth_string, _upsert
+from ._utils import (
+    _add_new_columns,
+    _create_table,
+    _does_table_exist,
+    _get_rsh_columns_types,
+    _make_s3_auth_string,
+    _upsert,
+)
 
 if TYPE_CHECKING:
     try:
@@ -194,6 +201,19 @@ def to_sql(
     con.autocommit = False
     try:
         with con.cursor() as cursor:
+            if add_new_columns and _does_table_exist(cursor=cursor, schema=schema, table=table):
+                redshift_columns_types = _get_rsh_columns_types(
+                    df=df,
+                    path=None,
+                    index=index,
+                    dtype=dtype,
+                    varchar_lengths_default=varchar_lengths_default,
+                    varchar_lengths=varchar_lengths,
+                )
+                _add_new_columns(
+                    cursor=cursor, schema=schema, table=table, redshift_columns_types=redshift_columns_types
+                )
+
             created_table, created_schema = _create_table(
                 df=df,
                 path=None,
@@ -213,7 +233,6 @@ def to_sql(
                 varchar_lengths_default=varchar_lengths_default,
                 varchar_lengths=varchar_lengths,
                 lock=lock,
-                add_new_columns=add_new_columns,
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
@@ -427,6 +446,27 @@ def copy_from_files(  # noqa: PLR0913
     con.autocommit = False
     try:
         with con.cursor() as cursor:
+            if add_new_columns and _does_table_exist(cursor=cursor, schema=schema, table=table):
+                redshift_columns_types = _get_rsh_columns_types(
+                    df=None,
+                    path=path,
+                    index=False,
+                    dtype=None,
+                    varchar_lengths_default=varchar_lengths_default,
+                    varchar_lengths=varchar_lengths,
+                    parquet_infer_sampling=parquet_infer_sampling,
+                    path_suffix=path_suffix,
+                    path_ignore_suffix=path_ignore_suffix,
+                    use_threads=use_threads,
+                    boto3_session=boto3_session,
+                    s3_additional_kwargs=s3_additional_kwargs,
+                    data_format=data_format,  # type: ignore[arg-type]
+                    redshift_column_types=redshift_column_types,
+                    manifest=manifest,
+                )
+                _add_new_columns(
+                    cursor=cursor, schema=schema, table=table, redshift_columns_types=redshift_columns_types
+                )
             created_table, created_schema = _create_table(
                 df=None,
                 path=path,
@@ -455,7 +495,6 @@ def copy_from_files(  # noqa: PLR0913
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
                 lock=lock,
-                add_new_columns=add_new_columns,
             )
             _copy(
                 cursor=cursor,
@@ -637,7 +676,7 @@ def copy(  # noqa: PLR0913
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
-    add_new_columns:
+    add_new_columns
         If True, it automatically adds the new DataFrame columns into the target table.
 
     Examples
