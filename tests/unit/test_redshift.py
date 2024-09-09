@@ -1476,8 +1476,8 @@ def test_copy_add_new_columns(
     )
     df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
     assert df2.columns.tolist() == df.columns.tolist()
-    assert df2["abc"].tolist() == [pd.NA, pd.NA, pd.NA, "f", "g", "h"]
-    assert df2["bce"].tolist() == [pd.NA, pd.NA, pd.NA, "j", "k", "l"]
+    assert df2["abc"].tolist() == ["f", "g", "h"]
+    assert df2["bce"].tolist() == ["j", "k", "l"]
 
     # Assert error when trying to add a new column with 'add_new_columns' set to False
     df["cde"] = ["m", "n", "o"]
@@ -1540,8 +1540,8 @@ def test_to_sql_add_new_columns(
 
     df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
     assert df2.columns.tolist() == df.columns.tolist()
-    assert df2["cba"].tolist() == [pd.NA, pd.NA, pd.NA, "f", "g", "h"]
-    assert df2["ebc"].tolist() == [pd.NA, pd.NA, pd.NA, "j", "k", "l"]
+    assert df2["cba"].tolist() == ["f", "g", "h"]
+    assert df2["ebc"].tolist() == ["j", "k", "l"]
 
     # Assert error when trying to add a new column with 'add_new_columns' set to False
     df["cde"] = ["m", "n", "o"]
@@ -1565,7 +1565,7 @@ def test_add_new_columns_case_sensitive(
 
     # Set enable_case_sensitive_identifier to False (default value)
     with redshift_con.cursor() as cursor:
-        cursor.execute("SET enable_case_sensitive_identifier TO false;")
+        cursor.execute("SET enable_case_sensitive_identifier TO off;")
     redshift_con.commit()
 
     df["Boo"] = ["f", "g", "h"]
@@ -1586,7 +1586,7 @@ def test_add_new_columns_case_sensitive(
 
     # Enable enable_case_sensitive_identifier
     with redshift_con.cursor() as cursor:
-        cursor.execute("SET enable_case_sensitive_identifier TO true;")
+        cursor.execute("SET enable_case_sensitive_identifier TO on;")
         redshift_con.commit()
         wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema="public", add_new_columns=True)
         cursor.execute("RESET enable_case_sensitive_identifier;")

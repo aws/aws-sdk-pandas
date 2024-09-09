@@ -151,8 +151,8 @@ def _get_parameter_setting(cursor: "redshift_connector.Cursor", parameter_name: 
     _logger.debug("Executing select query:\n%s", sql)
     cursor.execute(sql)
     result = cursor.fetchall()
-    status = result[0][0]
-    print(f"{status=}")  # @todo remove
+    status = str(result[0][0])
+    _logger.debug(f"{parameter_name}='{status}'")
     return status
 
 
