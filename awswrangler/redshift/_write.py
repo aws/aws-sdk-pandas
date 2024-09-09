@@ -460,7 +460,7 @@ def copy_from_files(  # noqa: PLR0913
                     use_threads=use_threads,
                     boto3_session=boto3_session,
                     s3_additional_kwargs=s3_additional_kwargs,
-                    data_format=data_format,  # type: ignore[arg-type]
+                    data_format=data_format,
                     redshift_column_types=redshift_column_types,
                     manifest=manifest,
                 )
