@@ -491,7 +491,7 @@ def test_athena_paramstyle_qmark_with_caching(
         paramstyle="qmark",
         keep_files=False,
         s3_output=path2,
-        athena_cache_settings={"max_cache_seconds": 300}
+        athena_cache_settings={"max_cache_seconds": 300},
     )
 
     assert len(df_out) == 1 and df_out.iloc[0]["string"] == "Washington"
@@ -506,7 +506,7 @@ def test_athena_paramstyle_qmark_with_caching(
         paramstyle="qmark",
         keep_files=False,
         s3_output=path2,
-        athena_cache_settings={"max_cache_seconds": 300}
+        athena_cache_settings={"max_cache_seconds": 300},
     )
 
     assert len(df_out) == 1 and df_out.iloc[0]["string"] == "Seattle"
