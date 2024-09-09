@@ -1426,3 +1426,174 @@ def test_unload_escape_quotation_marks(
         keep_files=False,
     )
     assert len(df2) == 1
+
+
+@pytest.mark.parametrize(
+    "mode,overwrite_method",
+    [
+        ("append", ""),
+        ("upsert", ""),
+        ("overwrite", "drop"),
+        ("overwrite", "cascade"),
+        ("overwrite", "truncate"),
+        ("overwrite", "delete"),
+    ],
+)
+def test_copy_add_new_columns(
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: dict[str, Any],
+    mode: str,
+    overwrite_method: str,
+) -> None:
+    df = pd.DataFrame({"foo": ["a", "b", "c"], "bar": ["c", "d", "e"]})
+    wr.redshift.copy(
+        df=df,
+        path=path,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        iam_role=databases_parameters["redshift"]["role"],
+        add_new_columns=True,
+        mode=mode,
+        overwrite_method=overwrite_method,
+    )
+
+    # Add new columns
+    df["abc"] = ["f", "g", "h"]
+    df["bce"] = ["j", "k", "l"]
+    wr.redshift.copy(
+        df=df,
+        path=path,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        iam_role=databases_parameters["redshift"]["role"],
+        add_new_columns=True,
+        mode=mode,
+        overwrite_method=overwrite_method,
+    )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
+    assert df2.columns.tolist() == df.columns.tolist()
+    assert df2["abc"].tolist() == [pd.NA, pd.NA, pd.NA, "f", "g", "h"]
+    assert df2["bce"].tolist() == [pd.NA, pd.NA, pd.NA, "j", "k", "l"]
+
+    # Assert error when trying to add a new column with 'add_new_columns' set to False
+    df["cde"] = ["m", "n", "o"]
+    with pytest.raises(redshift_connector.error.ProgrammingError) as exc_info:
+        wr.redshift.copy(
+            df=df,
+            path=path,
+            con=redshift_con,
+            schema="public",
+            table=redshift_table,
+            iam_role=databases_parameters["redshift"]["role"],
+            mode=mode,
+            overwrite_method=overwrite_method,
+        )
+    assert "unmatched number of columns" in str(exc_info.value).lower()
+
+
+@pytest.mark.parametrize(
+    "mode,overwrite_method",
+    [
+        ("append", ""),
+        ("upsert", ""),
+        ("overwrite", "drop"),
+        ("overwrite", "cascade"),
+        ("overwrite", "truncate"),
+        ("overwrite", "delete"),
+    ],
+)
+def test_to_sql_add_new_columns(
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: dict[str, Any],
+    mode: str,
+    overwrite_method: str,
+) -> None:
+    df = pd.DataFrame({"foo": ["a", "b", "c"], "bar": ["c", "d", "e"]})
+    wr.redshift.to_sql(
+        df=df,
+        con=redshift_con,
+        table=redshift_table,
+        schema="public",
+        add_new_columns=True,
+        mode=mode,
+        overwrite_method=overwrite_method,
+    )
+
+    # Add new columns
+    df["cba"] = ["f", "g", "h"]
+    df["ebc"] = ["j", "k", "l"]
+    wr.redshift.to_sql(
+        df=df,
+        con=redshift_con,
+        table=redshift_table,
+        schema="public",
+        add_new_columns=True,
+        mode=mode,
+        overwrite_method=overwrite_method,
+    )
+
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
+    assert df2.columns.tolist() == df.columns.tolist()
+    assert df2["cba"].tolist() == [pd.NA, pd.NA, pd.NA, "f", "g", "h"]
+    assert df2["ebc"].tolist() == [pd.NA, pd.NA, pd.NA, "j", "k", "l"]
+
+    # Assert error when trying to add a new column with 'add_new_columns' set to False
+    df["cde"] = ["m", "n", "o"]
+    with pytest.raises(redshift_connector.error.ProgrammingError) as exc_info:
+        wr.redshift.to_sql(
+            df=df,
+            con=redshift_con,
+            table=redshift_table,
+            schema="public",
+            mode=mode,
+            overwrite_method=overwrite_method,
+        )
+    assert "unmatched number of columns" in str(exc_info.value).lower()
+
+
+def test_add_new_columns_case_sensitive(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
+) -> None:
+    df = pd.DataFrame({"foo": ["a", "b", "c"]})
+    wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema="public", add_new_columns=True)
+
+    # Set enable_case_sensitive_identifier to False (default value)
+    with redshift_con.cursor() as cursor:
+        cursor.execute("SET enable_case_sensitive_identifier TO false;")
+    redshift_con.commit()
+
+    df["Boo"] = ["f", "g", "h"]
+    wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema="public", add_new_columns=True)
+    df_check = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
+
+    # Since 'enable_case_sensitive_identifier' is set to False, the column 'Boo' is automatically written as 'boo' by
+    # Redshift
+    assert df_check.columns.tolist() == [x.lower() for x in df.columns]
+    assert "boo" in df_check.columns
+
+    # Trying to add a new column 'BOO' causes an exception because Redshift attempts to lowercase it, resulting in a
+    # column mismatch between the DataFrame and the table schema
+    df["BOO"] = ["j", "k", "l"]
+    with pytest.raises(redshift_connector.error.ProgrammingError) as exc_info:
+        wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema="public", add_new_columns=True)
+    assert "insert has more expressions than target columns" in str(exc_info.value).lower()
+
+    # Enable enable_case_sensitive_identifier
+    with redshift_con.cursor() as cursor:
+        cursor.execute("SET enable_case_sensitive_identifier TO true;")
+        redshift_con.commit()
+        wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema="public", add_new_columns=True)
+        cursor.execute("RESET enable_case_sensitive_identifier;")
+        redshift_con.commit()
+
+    # Ensure that the new uppercase column has been added correctly
+    df_check = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
+    assert df_check.columns.tolist() == df.columns.tolist()
+    assert "boo" in df_check.columns
+    assert "BOO" in df_check.columns
