@@ -1048,6 +1048,7 @@ def read_sql_query(
     if not client_request_token:
         cache_info: _CacheInfo = _check_for_cached_results(
             sql=sql,
+            params=params if paramstyle == "qmark" else None,
             boto3_session=boto3_session,
             workgroup=workgroup,
             athena_cache_settings=athena_cache_settings,

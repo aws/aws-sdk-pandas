@@ -461,6 +461,57 @@ def test_athena_paramstyle_qmark_parameters(
     assert len(df_out) == 1
 
 
+def test_athena_paramstyle_qmark_with_caching(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+    workgroup0: str,
+    ctas_approach: bool,
+    unload_approach: bool,
+) -> None:
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+
+    df_out = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_table} WHERE string = ?",
+        database=glue_database,
+        ctas_approach=ctas_approach,
+        unload_approach=unload_approach,
+        workgroup=workgroup0,
+        params=["Washington"],
+        paramstyle="qmark",
+        keep_files=False,
+        s3_output=path2,
+        athena_cache_settings={"max_cache_seconds": 300}
+    )
+
+    assert len(df_out) == 1 and df_out.iloc[0]["string"] == "Washington"
+
+    df_out = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_table} WHERE string = ?",
+        database=glue_database,
+        ctas_approach=ctas_approach,
+        unload_approach=unload_approach,
+        workgroup=workgroup0,
+        params=["Seattle"],
+        paramstyle="qmark",
+        keep_files=False,
+        s3_output=path2,
+        athena_cache_settings={"max_cache_seconds": 300}
+    )
+
+    assert len(df_out) == 1 and df_out.iloc[0]["string"] == "Seattle"
+
+
 def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_database, glue_table, workgroup0):
     wr.s3.to_parquet(
         df=get_df(),

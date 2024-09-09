@@ -7,7 +7,7 @@ import logging
 import re
 import threading
 from heapq import heappop, heappush
-from typing import TYPE_CHECKING, Any, Match, NamedTuple
+from typing import TYPE_CHECKING, Match, NamedTuple
 
 import boto3
 
@@ -23,23 +23,23 @@ class _CacheInfo(NamedTuple):
     has_valid_cache: bool
     file_format: str | None = None
     query_execution_id: str | None = None
-    query_execution_payload: dict[str, Any] | None = None
+    query_execution_payload: "QueryExecutionTypeDef" | None = None
 
 
 class _LocalMetadataCacheManager:
     def __init__(self) -> None:
         self._lock: threading.Lock = threading.Lock()
-        self._cache: dict[str, Any] = {}
+        self._cache: dict[str, "QueryExecutionTypeDef"] = {}
         self._pqueue: list[tuple[datetime.datetime, str]] = []
         self._max_cache_size = 100
 
-    def update_cache(self, items: list[dict[str, Any]]) -> None:
+    def update_cache(self, items: list["QueryExecutionTypeDef"]) -> None:
         """
         Update the local metadata cache with new query metadata.
 
         Parameters
         ----------
-        items : List[Dict[str, Any]]
+        items
             List of query execution metadata which is returned by boto3 `batch_get_query_execution()`.
         """
         with self._lock:
@@ -62,7 +62,7 @@ class _LocalMetadataCacheManager:
                 heappush(self._pqueue, (item["Status"]["SubmissionDateTime"], item["QueryExecutionId"]))
                 self._cache[item["QueryExecutionId"]] = item
 
-    def sorted_successful_generator(self) -> list[dict[str, Any]]:
+    def sorted_successful_generator(self) -> list["QueryExecutionTypeDef"]:
         """
         Sorts the entries in the local cache based on query Completion DateTime.
 
@@ -70,10 +70,9 @@ class _LocalMetadataCacheManager:
 
         Returns
         -------
-        List[Dict[str, Any]]
             Returns successful DDL and DML queries sorted by query completion time.
         """
-        filtered: list[dict[str, Any]] = []
+        filtered: list["QueryExecutionTypeDef"] = []
         for query in self._cache.values():
             if (query["Status"].get("State") == "SUCCEEDED") and (query.get("StatementType") in ["DDL", "DML"]):
                 filtered.append(query)
@@ -111,13 +110,13 @@ def _parse_select_query_from_possible_ctas(possible_ctas: str) -> str | None:
     return None
 
 
-def _compare_query_string(sql: str, other: str) -> bool:
+def _compare_query_string(
+    sql: str, other: str, sql_params: list[str] | None = None, other_params: list[str] | None = None
+) -> bool:
     comparison_query = _prepare_query_string_for_comparison(query_string=other)
     _logger.debug("sql: %s", sql)
     _logger.debug("comparison_query: %s", comparison_query)
-    if sql == comparison_query:
-        return True
-    return False
+    return sql == comparison_query and sql_params == other_params
 
 
 def _prepare_query_string_for_comparison(query_string: str) -> str:
@@ -135,7 +134,7 @@ def _get_last_query_infos(
     max_remote_cache_entries: int,
     boto3_session: boto3.Session | None = None,
     workgroup: str | None = None,
-) -> list[dict[str, Any]]:
+) -> list["QueryExecutionTypeDef"]:
     """Return an iterator of `query_execution_info`s run by the workgroup in Athena."""
     client_athena = _utils.client(service_name="athena", session=boto3_session)
     page_size = 50
@@ -160,7 +159,7 @@ def _get_last_query_infos(
                     QueryExecutionIds=uncached_ids[i : i + page_size],
                 ).get("QueryExecutions")
             )
-        _cache_manager.update_cache(new_execution_data)  # type: ignore[arg-type]
+        _cache_manager.update_cache(new_execution_data)
     return _cache_manager.sorted_successful_generator()
 
 
@@ -168,6 +167,7 @@ def _check_for_cached_results(
     sql: str,
     boto3_session: boto3.Session | None,
     workgroup: str | None,
+    params: list[str] | None = None,
     athena_cache_settings: typing.AthenaCacheSettings | None = None,
 ) -> _CacheInfo:
     """
@@ -207,7 +207,12 @@ def _check_for_cached_results(
         if statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
             parsed_query: str | None = _parse_select_query_from_possible_ctas(possible_ctas=query_info["Query"])
             if parsed_query is not None:
-                if _compare_query_string(sql=comparable_sql, other=parsed_query):
+                if _compare_query_string(
+                    sql=comparable_sql,
+                    other=parsed_query,
+                    sql_params=params,
+                    other_params=query_info.get("ExecutionParameters"),
+                ):
                     return _CacheInfo(
                         has_valid_cache=True,
                         file_format="parquet",
@@ -215,7 +220,12 @@ def _check_for_cached_results(
                         query_execution_payload=query_info,
                     )
         elif statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
-            if _compare_query_string(sql=comparable_sql, other=query_info["Query"]):
+            if _compare_query_string(
+                sql=comparable_sql,
+                other=query_info["Query"],
+                sql_params=params,
+                other_params=query_info.get("ExecutionParameters"),
+            ):
                 return _CacheInfo(
                     has_valid_cache=True,
                     file_format="csv",
