@@ -1557,8 +1557,9 @@ def test_add_new_columns_case_sensitive(
     path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
 ) -> None:
     schema = "public"
-
     df = pd.DataFrame({"foo": ["a", "b", "c"]})
+
+    # Create table
     wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema=schema, add_new_columns=True)
 
     # Set enable_case_sensitive_identifier to False (default value)
@@ -1592,8 +1593,5 @@ def test_add_new_columns_case_sensitive(
 
     # Ensure that the new uppercase columns have been added correctly
     df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM {schema}.{redshift_table}", con=redshift_con)
-    assert df.columns.tolist() + ["boo"] == df2.columns.tolist()
-    assert "foo" in df2.columns
-    assert "boo" in df2.columns
-    assert "Boo" in df2.columns
-    assert "BOO" in df2.columns
+    expected_columns = list(sorted(df.columns.tolist() + ["boo"]))
+    assert expected_columns == list(sorted(df2.columns.tolist()))

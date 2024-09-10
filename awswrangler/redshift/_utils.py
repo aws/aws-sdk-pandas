@@ -119,7 +119,10 @@ def _add_table_columns(
     cursor: "redshift_connector.Cursor", schema: str, table: str, new_columns: dict[str, str]
 ) -> None:
     for column_name, column_type in new_columns.items():
-        sql = f"ALTER TABLE {_identifier(schema)}.{_identifier(table)}\n ADD COLUMN {_identifier(column_name)} {column_type};"
+        sql = (
+            f"ALTER TABLE {_identifier(schema)}.{_identifier(table)}"
+            f"\nADD COLUMN {_identifier(column_name)} {column_type};"
+        )
         _logger.debug("Executing alter query:\n%s", sql)
         cursor.execute(sql)
 
