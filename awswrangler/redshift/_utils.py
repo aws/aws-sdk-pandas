@@ -364,15 +364,15 @@ def _get_rsh_columns_types(
 def _add_new_table_columns(
     cursor: "redshift_connector.Cursor", schema: str, table: str, redshift_columns_types: dict[str, str]
 ) -> None:
-    # Check if the cluster is configured as case sensitive or no
+    # Check if Redshift is configured as case sensitive or not
     is_case_sensitive = False
     if _get_parameter_setting(cursor=cursor, parameter_name="enable_case_sensitive_identifier").lower() in [
         "on",
-        "true",  # @todo choose one
+        "true",
     ]:
         is_case_sensitive = True
 
-    # If it is case-insensitive, convert all DataFrame column names to lowercase before performing the comparison
+    # If it is case-insensitive, convert all the DataFrame columns names to lowercase before performing the comparison
     if is_case_sensitive is False:
         redshift_columns_types = {key.lower(): value for key, value in redshift_columns_types.items()}
     actual_table_columns = set(_get_table_columns(cursor=cursor, schema=schema, table=table))
