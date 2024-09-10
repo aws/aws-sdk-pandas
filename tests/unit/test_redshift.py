@@ -1537,7 +1537,7 @@ def test_to_sql_add_new_columns(
     assert df.columns.tolist() == df2.columns.tolist()
 
     # Assert error when trying to add a new column without 'add_new_columns' parameter (False as default) in "append"
-    # or "upsert". No error are expected in ('drop', 'cascade') overwrite_method
+    # or "upsert". No errors expected in ('drop', 'cascade') overwrite_method
     df["abc"] = ["m", "n", "o"]
     if overwrite_method in ("drop", "cascade"):
         wr.redshift.to_sql(**to_sql_kwargs)
@@ -1576,7 +1576,7 @@ def test_add_new_columns_case_sensitive(
     assert "boo" in df2.columns
 
     # Trying to add a new column 'BOO' causes an exception because Redshift attempts to lowercase it, resulting in a
-    # column mismatch between the DataFrame and the table schema
+    # columns mismatch between the DataFrame and the table schema
     df["BOO"] = ["j", "k", "l"]
     with pytest.raises(redshift_connector.error.ProgrammingError) as exc_info:
         wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema=schema, add_new_columns=True)
@@ -1590,9 +1590,10 @@ def test_add_new_columns_case_sensitive(
         cursor.execute("RESET enable_case_sensitive_identifier;")
         redshift_con.commit()
 
-    # Ensure that the new uppercase column has been added correctly
+    # Ensure that the new uppercase columns have been added correctly
     df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM {schema}.{redshift_table}", con=redshift_con)
-    assert df2.columns.tolist() == df.columns.tolist()
+    assert df.columns.tolist() + ["boo"] == df2.columns.tolist()
     assert "foo" in df2.columns
     assert "boo" in df2.columns
+    assert "Boo" in df2.columns
     assert "BOO" in df2.columns
