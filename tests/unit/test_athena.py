@@ -461,6 +461,14 @@ def test_athena_paramstyle_qmark_parameters(
     assert len(df_out) == 1
 
 
+@pytest.mark.parametrize(
+    "ctas_approach,unload_approach",
+    [
+        pytest.param(False, False, id="regular"),
+        pytest.param(True, False, id="ctas"),
+        pytest.param(False, True, id="unload"),
+    ],
+)
 def test_athena_paramstyle_qmark_with_caching(
     path: str,
     path2: str,
