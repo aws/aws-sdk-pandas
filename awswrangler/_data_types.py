@@ -12,7 +12,6 @@ from typing import Any, Callable, Iterator, Match, Sequence
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-import pyarrow.parquet
 
 from awswrangler import _arrow, exceptions
 from awswrangler._distributed import engine
@@ -306,7 +305,7 @@ def _split_map(s: str) -> list[str]:
     return parts
 
 
-def athena2pyarrow(dtype: str) -> pa.DataType:  # noqa: PLR0911,PLR0912
+def athena2pyarrow(dtype: str, df_type: str | None = None) -> pa.DataType:  # noqa: PLR0911,PLR0912
     """Athena to PyArrow data types conversion."""
     dtype = dtype.strip()
     if dtype.startswith(("array", "struct", "map")):
@@ -329,7 +328,16 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # noqa: PLR0911,PLR0912
     if (dtype in ("string", "uuid")) or dtype.startswith("char") or dtype.startswith("varchar"):
         return pa.string()
     if dtype == "timestamp":
-        return pa.timestamp(unit="ns")
+        if df_type == "datetime64[ns]":
+            return pa.timestamp(unit="ns")
+        elif df_type == "datetime64[us]":
+            return pa.timestamp(unit="us")
+        elif df_type == "datetime64[ms]":
+            return pa.timestamp(unit="ms")
+        elif df_type == "datetime64[s]":
+            return pa.timestamp(unit="s")
+        else:
+            return pa.timestamp(unit="ns")
     if dtype == "date":
         return pa.date32()
     if dtype in ("binary" or "varbinary"):
@@ -701,7 +709,7 @@ def pyarrow_schema_from_pandas(
     )
     for k, v in casts.items():
         if (k not in ignore) and (k in df.columns or _is_index_name(k, df.index)):
-            columns_types[k] = athena2pyarrow(dtype=v)
+            columns_types[k] = athena2pyarrow(dtype=v, df_type=df.dtypes.get(k))
     columns_types = {k: v for k, v in columns_types.items() if v is not None}
     _logger.debug("columns_types: %s", columns_types)
     return pa.schema(fields=columns_types)

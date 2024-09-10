@@ -119,7 +119,7 @@ def _df_to_table(
         for col_name, col_type in dtype.items():
             if col_name in table.column_names:
                 col_index = table.column_names.index(col_name)
-                pyarrow_dtype = athena2pyarrow(col_type)
+                pyarrow_dtype = athena2pyarrow(col_type, df.dtypes.get(col_name))
                 field = pa.field(name=col_name, type=pyarrow_dtype)
                 table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
                 _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)

@@ -1032,3 +1032,39 @@ def test_read_from_access_point(access_point_path_path: str) -> None:
     wr.s3.to_parquet(df, path)
     df_out = wr.s3.read_parquet(path)
     assert df_out.shape == (3, 3)
+
+
+@pytest.mark.parametrize("use_threads", [True, False, 2])
+def test_save_dataframe_with_ms_units(path, glue_database, glue_table, use_threads):
+    df = pd.DataFrame(
+        {
+            "c0": [
+                "2023-01-01 00:00:00.000",
+                "2023-01-02 00:00:00.000",
+                "0800-01-01 00:00:00.000",  # Out-of-bounds timestamp
+                "2977-09-21 00:12:43.000",
+            ]
+        }
+    )
+
+    wr.s3.to_parquet(
+        df,
+        path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        use_threads=use_threads,
+    )
+
+    # Saving exactly the same data twice. This ensures that even if the athena table exists, the flow of using its metadata
+    # to identify the schema of the data is working correctly.
+    wr.s3.to_parquet(
+        df,
+        path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        use_threads=use_threads,
+    )
+    df_out = wr.s3.read_parquet_table(table=glue_table, database=glue_database)
+    assert df_out.shape == (8, 1)
