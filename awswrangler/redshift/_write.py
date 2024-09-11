@@ -13,7 +13,14 @@ from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
 
 from ._connect import _validate_connection
-from ._utils import _create_table, _make_s3_auth_string, _upsert
+from ._utils import (
+    _add_new_table_columns,
+    _create_table,
+    _does_table_exist,
+    _get_rsh_columns_types,
+    _make_s3_auth_string,
+    _upsert,
+)
 
 if TYPE_CHECKING:
     try:
@@ -102,6 +109,7 @@ def to_sql(
     chunksize: int = 200,
     commit_transaction: bool = True,
     precombine_key: str | None = None,
+    add_new_columns: bool = False,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
 
@@ -169,6 +177,8 @@ def to_sql(
         When there is a primary_key match during upsert, this column will change the upsert method,
         comparing the values of the specified column from source and target, and keeping the
         larger of the two. Will only work when mode = upsert.
+    add_new_columns
+        If True, it automatically adds the new DataFrame columns into the target table.
 
     Examples
     --------
@@ -191,6 +201,19 @@ def to_sql(
     con.autocommit = False
     try:
         with con.cursor() as cursor:
+            if add_new_columns and _does_table_exist(cursor=cursor, schema=schema, table=table):
+                redshift_columns_types = _get_rsh_columns_types(
+                    df=df,
+                    path=None,
+                    index=index,
+                    dtype=dtype,
+                    varchar_lengths_default=varchar_lengths_default,
+                    varchar_lengths=varchar_lengths,
+                )
+                _add_new_table_columns(
+                    cursor=cursor, schema=schema, table=table, redshift_columns_types=redshift_columns_types
+                )
+
             created_table, created_schema = _create_table(
                 df=df,
                 path=None,
@@ -280,6 +303,7 @@ def copy_from_files(  # noqa: PLR0913
     s3_additional_kwargs: dict[str, str] | None = None,
     precombine_key: str | None = None,
     column_names: list[str] | None = None,
+    add_new_columns: bool = False,
 ) -> None:
     """Load files from S3 to a Table on Amazon Redshift (Through COPY command).
 
@@ -396,6 +420,8 @@ def copy_from_files(  # noqa: PLR0913
         larger of the two. Will only work when mode = upsert.
     column_names
         List of column names to map source data fields to the target columns.
+    add_new_columns
+        If True, it automatically adds the new DataFrame columns into the target table.
 
     Examples
     --------
@@ -420,6 +446,27 @@ def copy_from_files(  # noqa: PLR0913
     con.autocommit = False
     try:
         with con.cursor() as cursor:
+            if add_new_columns and _does_table_exist(cursor=cursor, schema=schema, table=table):
+                redshift_columns_types = _get_rsh_columns_types(
+                    df=None,
+                    path=path,
+                    index=False,
+                    dtype=None,
+                    varchar_lengths_default=varchar_lengths_default,
+                    varchar_lengths=varchar_lengths,
+                    parquet_infer_sampling=parquet_infer_sampling,
+                    path_suffix=path_suffix,
+                    path_ignore_suffix=path_ignore_suffix,
+                    use_threads=use_threads,
+                    boto3_session=boto3_session,
+                    s3_additional_kwargs=s3_additional_kwargs,
+                    data_format=data_format,
+                    redshift_column_types=redshift_column_types,
+                    manifest=manifest,
+                )
+                _add_new_table_columns(
+                    cursor=cursor, schema=schema, table=table, redshift_columns_types=redshift_columns_types
+                )
             created_table, created_schema = _create_table(
                 df=None,
                 path=path,
@@ -521,6 +568,7 @@ def copy(  # noqa: PLR0913
     max_rows_by_file: int | None = 10_000_000,
     precombine_key: str | None = None,
     use_column_names: bool = False,
+    add_new_columns: bool = False,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -628,6 +676,8 @@ def copy(  # noqa: PLR0913
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
+    add_new_columns
+        If True, it automatically adds the new DataFrame columns into the target table.
 
     Examples
     --------
@@ -692,6 +742,7 @@ def copy(  # noqa: PLR0913
             sql_copy_extra_params=sql_copy_extra_params,
             precombine_key=precombine_key,
             column_names=column_names,
+            add_new_columns=add_new_columns,
         )
     finally:
         if keep_files is False:
