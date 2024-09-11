@@ -1426,3 +1426,172 @@ def test_unload_escape_quotation_marks(
         keep_files=False,
     )
     assert len(df2) == 1
+
+
+@pytest.mark.parametrize(
+    "mode,overwrite_method",
+    [
+        ("append", ""),
+        ("upsert", ""),
+        ("overwrite", "drop"),
+        ("overwrite", "cascade"),
+        ("overwrite", "truncate"),
+        ("overwrite", "delete"),
+    ],
+)
+def test_copy_add_new_columns(
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: dict[str, Any],
+    mode: str,
+    overwrite_method: str,
+) -> None:
+    schema = "public"
+    df = pd.DataFrame({"foo": ["a", "b", "c"], "bar": ["c", "d", "e"]})
+    copy_kwargs = {
+        "df": df,
+        "path": path,
+        "con": redshift_con,
+        "schema": schema,
+        "table": redshift_table,
+        "iam_role": databases_parameters["redshift"]["role"],
+        "primary_keys": ["foo"] if mode == "upsert" else None,
+        "overwrite_method": overwrite_method,
+    }
+
+    # Create table
+    wr.redshift.copy(**copy_kwargs, add_new_columns=True, mode="overwrite")
+    copy_kwargs["mode"] = mode
+
+    # Add new columns
+    df["xoo"] = ["f", "g", "h"]
+    df["baz"] = ["j", "k", "l"]
+    wr.redshift.copy(**copy_kwargs, add_new_columns=True)
+
+    sql = f"SELECT * FROM {schema}.{redshift_table}"
+    if mode == "append":
+        sql += "\nWHERE xoo IS NOT NULL AND baz IS NOT NULL"
+    df2 = wr.redshift.read_sql_query(sql=sql, con=redshift_con)
+    df2 = df2.sort_values(by=df2.columns.to_list())
+    assert df.values.tolist() == df2.values.tolist()
+    assert df.columns.tolist() == df2.columns.tolist()
+
+    # Assert error when trying to add a new column without 'add_new_columns' parameter (False as default) in "append"
+    # or "upsert". No error are expected in ('drop', 'cascade') overwrite_method
+    df["abc"] = ["m", "n", "o"]
+    if overwrite_method in ("drop", "cascade"):
+        wr.redshift.copy(**copy_kwargs)
+    else:
+        with pytest.raises(redshift_connector.error.ProgrammingError) as exc_info:
+            wr.redshift.copy(**copy_kwargs)
+        assert "ProgrammingError" == exc_info.typename
+        assert "unmatched number of columns" in str(exc_info.value).lower()
+
+
+@pytest.mark.parametrize(
+    "mode,overwrite_method",
+    [
+        ("append", ""),
+        ("upsert", ""),
+        ("overwrite", "drop"),
+        ("overwrite", "cascade"),
+        ("overwrite", "truncate"),
+        ("overwrite", "delete"),
+    ],
+)
+def test_to_sql_add_new_columns(
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: dict[str, Any],
+    mode: str,
+    overwrite_method: str,
+) -> None:
+    schema = "public"
+    df = pd.DataFrame({"foo": ["a", "b", "c"], "bar": ["c", "d", "e"]})
+    to_sql_kwargs = {
+        "df": df,
+        "con": redshift_con,
+        "schema": schema,
+        "table": redshift_table,
+        "primary_keys": ["foo"] if mode == "upsert" else None,
+        "overwrite_method": overwrite_method,
+    }
+
+    # Create table
+    wr.redshift.to_sql(**to_sql_kwargs, add_new_columns=True, mode="overwrite")
+    to_sql_kwargs["mode"] = mode
+
+    # Add new columns
+    df["xoo"] = ["f", "g", "h"]
+    df["baz"] = ["j", "k", "l"]
+    wr.redshift.to_sql(**to_sql_kwargs, add_new_columns=True)
+
+    sql = f"SELECT * FROM {schema}.{redshift_table}"
+    if mode == "append":
+        sql += "\nWHERE xoo IS NOT NULL AND baz IS NOT NULL"
+    df2 = wr.redshift.read_sql_query(sql=sql, con=redshift_con)
+    df2 = df2.sort_values(by=df2.columns.to_list())
+    assert df.values.tolist() == df2.values.tolist()
+    assert df.columns.tolist() == df2.columns.tolist()
+
+    # Assert error when trying to add a new column without 'add_new_columns' parameter (False as default) in "append"
+    # or "upsert". No errors expected in ('drop', 'cascade') overwrite_method
+    df["abc"] = ["m", "n", "o"]
+    if overwrite_method in ("drop", "cascade"):
+        wr.redshift.to_sql(**to_sql_kwargs)
+    else:
+        with pytest.raises(redshift_connector.error.ProgrammingError) as exc_info:
+            wr.redshift.to_sql(**to_sql_kwargs)
+        assert "ProgrammingError" == exc_info.typename
+        assert "insert has more expressions than target columns" in str(exc_info.value).lower()
+
+        with pytest.raises(redshift_connector.error.ProgrammingError) as exc_info:
+            wr.redshift.to_sql(**to_sql_kwargs, use_column_names=True)
+        assert "ProgrammingError" == exc_info.typename
+        assert 'column "abc" of relation' in str(exc_info.value).lower()
+
+
+def test_add_new_columns_case_sensitive(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
+) -> None:
+    schema = "public"
+    df = pd.DataFrame({"foo": ["a", "b", "c"]})
+
+    # Create table
+    wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema=schema, add_new_columns=True)
+
+    # Set enable_case_sensitive_identifier to False (default value)
+    with redshift_con.cursor() as cursor:
+        cursor.execute("SET enable_case_sensitive_identifier TO off;")
+    redshift_con.commit()
+
+    df["Boo"] = ["f", "g", "h"]
+    wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema=schema, add_new_columns=True)
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM {schema}.{redshift_table}", con=redshift_con)
+
+    # Since 'enable_case_sensitive_identifier' is set to False, the column 'Boo' is automatically written as 'boo' by
+    # Redshift
+    assert df2.columns.tolist() == [x.lower() for x in df.columns]
+    assert "boo" in df2.columns
+
+    # Trying to add a new column 'BOO' causes an exception because Redshift attempts to lowercase it, resulting in a
+    # columns mismatch between the DataFrame and the table schema
+    df["BOO"] = ["j", "k", "l"]
+    with pytest.raises(redshift_connector.error.ProgrammingError) as exc_info:
+        wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema=schema, add_new_columns=True)
+    assert "insert has more expressions than target columns" in str(exc_info.value).lower()
+
+    # Enable enable_case_sensitive_identifier
+    with redshift_con.cursor() as cursor:
+        cursor.execute("SET enable_case_sensitive_identifier TO on;")
+        redshift_con.commit()
+        wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema=schema, add_new_columns=True)
+        cursor.execute("RESET enable_case_sensitive_identifier;")
+        redshift_con.commit()
+
+    # Ensure that the new uppercase columns have been added correctly
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM {schema}.{redshift_table}", con=redshift_con)
+    expected_columns = list(sorted(df.columns.tolist() + ["boo"]))
+    assert expected_columns == list(sorted(df2.columns.tolist()))
