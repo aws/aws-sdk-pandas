@@ -244,7 +244,7 @@ class _Config:
     @staticmethod
     def _cast_bool(name: str, value: str) -> bool:
         _true = ("true", "1")
-        _false = ("false", "0")
+        _false = ("false", "0", "")
         if value not in _true + _false:
             raise exceptions.InvalidArgumentValue(f"{name} configuration only accepts True/False or 0/1.")
         return value in _true
