@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Iterator
-
 import uuid
+from typing import Any, Iterator
 
 import boto3
 import pytest
