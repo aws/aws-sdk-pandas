@@ -582,7 +582,7 @@ def to_csv(  # noqa: PLR0912,PLR0915
                 "catalog_table_input": catalog_table_input,
                 "catalog_id": catalog_id,
                 "compression": pandas_kwargs.get("compression"),
-                "skip_header_line_count": True if header else None,
+                "skip_header_line_count": 1 if header else None,
                 "serde_library": None,
                 "serde_parameters": None,
             }
