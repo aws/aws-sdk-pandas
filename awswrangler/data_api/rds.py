@@ -359,6 +359,9 @@ def _create_value_dict(  # noqa: PLR0911
     if isinstance(value, Decimal):
         return {"stringValue": str(value)}, "DECIMAL"
 
+    if isinstance(value, uuid.UUID):
+        return {"stringValue": str(value)}, "UUID"
+
     raise exceptions.InvalidArgumentType(f"Value {value} not supported.")
 
 

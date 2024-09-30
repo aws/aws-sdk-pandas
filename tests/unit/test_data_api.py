@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from typing import Any, Iterator
 
 import boto3
@@ -284,7 +285,8 @@ def test_data_api_mysql_ansi(mysql_serverless_connector: "RdsDataApi", mysql_ser
 
 def test_data_api_postgresql(postgresql_serverless_connector: "RdsDataApi", postgresql_serverless_table: str) -> None:
     database = "test"
-    frame = pd.DataFrame([[42, "test"]], columns=["id", "name"])
+    _id = uuid.uuid4()
+    frame = pd.DataFrame([[_id, "test"]], columns=["id", "name"])
 
     wr.data_api.rds.to_sql(
         df=frame,
@@ -295,7 +297,7 @@ def test_data_api_postgresql(postgresql_serverless_connector: "RdsDataApi", post
     )
 
     out_frame = wr.data_api.rds.read_sql_query(
-        f"SELECT name FROM {postgresql_serverless_table} WHERE id = 42", con=postgresql_serverless_connector
+        f"SELECT name FROM {postgresql_serverless_table} WHERE id = '{_id}'", con=postgresql_serverless_connector
     )
     expected_dataframe = pd.DataFrame([["test"]], columns=["name"])
     assert_pandas_equals(out_frame, expected_dataframe)
