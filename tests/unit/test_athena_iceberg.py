@@ -1159,3 +1159,55 @@ def test_to_iceberg_fill_missing_columns_with_complex_types(
         schema_evolution=True,
         fill_missing_columns_in_df=True,
     )
+
+
+def test_athena_to_iceberg_alter_schema(
+    path: str,
+    path2: str,
+    glue_database: str,
+    glue_table: str,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "id": pd.Series([1, 2, 3, 4, 5], dtype="Int64"),
+            "name": pd.Series(["a", "b", "c", "d", "e"], dtype="string"),
+        },
+    ).reset_index(drop=True)
+
+    split_index = 3
+
+    wr.athena.to_iceberg(
+        df=df[:split_index],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        schema_evolution=True,
+        keep_files=False,
+    )
+
+    wr.athena.start_query_execution(
+        sql=f"ALTER TABLE {glue_table} CHANGE COLUMN id new_id bigint",
+        database=glue_database,
+        wait=True,
+    )
+
+    df = df.rename(columns={"id": "new_id"})
+
+    wr.athena.to_iceberg(
+        df=df[split_index:],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        schema_evolution=True,
+        keep_files=False,
+    )
+
+    df_actual = wr.athena.read_sql_query(
+        sql=f"SELECT new_id, name FROM '{glue_table}' ORDER BY new_id",
+        database=glue_database,
+        ctas_approach=False,
+    )
+
+    assert_pandas_equals(df, df_actual)
