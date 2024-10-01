@@ -21,6 +21,7 @@ class GlueRayStack(Stack):  # type: ignore
             "Script Bucket",
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=RemovalPolicy.DESTROY,
+            enforce_ssl=True,
         )
 
         self.athena_workgroup = athena.CfnWorkGroup(

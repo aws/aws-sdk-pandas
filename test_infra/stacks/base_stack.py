@@ -79,6 +79,7 @@ class BaseStack(Stack):  # type: ignore
                 ),
             ],
             versioned=True,
+            enforce_ssl=True,
         )
         self.bucket_access_point = s3.CfnAccessPoint(
             self,
