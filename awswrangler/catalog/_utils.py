@@ -34,7 +34,9 @@ def _sanitize_name(name: str) -> str:
 def _extract_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> dict[str, str]:
     dtypes: dict[str, str] = {}
     for col in response["Table"]["StorageDescriptor"]["Columns"]:
-        dtypes[col["Name"]] = col["Type"]
+        # Do not return "hidden" iceberg columns
+        if col.get("Parameters", {}).get("iceberg.field.current") != "false":
+            dtypes[col["Name"]] = col["Type"]
     if "PartitionKeys" in response["Table"]:
         for par in response["Table"]["PartitionKeys"]:
             dtypes[par["Name"]] = par["Type"]
