@@ -504,6 +504,7 @@ def index_documents(
     initial_backoff: int | None = None,
     max_backoff: int | None = None,
     use_threads: bool | int = False,
+    modify_refresh_interval: bool = True,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """
@@ -559,6 +560,8 @@ def index_documents(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
+    modify_refresh_interval
+        True (default) to enable ``refresh_interval`` modification to ``-1`` (disabled) while indexing documents
     **kwargs
         KEYWORD arguments forwarded to bulk operation
         elasticsearch >= 7.10.2 / opensearch: \
@@ -614,7 +617,7 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
                 widgets=widgets, max_value=total_documents, prefix="Indexing: "
             ).start()
         for i, bulk_chunk_documents in enumerate(actions):
-            if i == 1:  # second bulk iteration, in case the index didn't exist before
+            if i == 1 and modify_refresh_interval:  # second bulk iteration, in case the index didn't exist before
                 refresh_interval = _get_refresh_interval(client, index)
                 _disable_refresh_interval(client, index)
             _logger.debug("running bulk index of %s documents", len(bulk_chunk_documents))
@@ -655,6 +658,7 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
             raise e
 
     finally:
-        _set_refresh_interval(client, index, refresh_interval)
+        if modify_refresh_interval:
+            _set_refresh_interval(client, index, refresh_interval)
 
     return {"success": success, "errors": errors}
