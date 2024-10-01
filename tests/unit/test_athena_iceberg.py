@@ -1205,7 +1205,7 @@ def test_athena_to_iceberg_alter_schema(
     )
 
     df_actual = wr.athena.read_sql_query(
-        sql=f"SELECT new_id, name FROM '{glue_table}' ORDER BY new_id",
+        sql=f"SELECT new_id, name FROM {glue_table} ORDER BY new_id",
         database=glue_database,
         ctas_approach=False,
     )
