@@ -115,7 +115,13 @@ def _determine_differences(
 
     catalog_column_types = typing.cast(
         Dict[str, str],
-        catalog.get_table_types(database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session),
+        catalog.get_table_types(
+            database=database,
+            table=table,
+            catalog_id=catalog_id,
+            return_iceberg_current=True,
+            boto3_session=boto3_session,
+        ),
     )
 
     original_column_names = set(catalog_column_types)
