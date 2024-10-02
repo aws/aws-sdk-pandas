@@ -100,6 +100,8 @@ def test_unknown_overwrite_method_error(postgresql_table, postgresql_con):
 def test_sql_types(postgresql_table, postgresql_con):
     table = postgresql_table
     df = get_df()
+    df["arrint"] = pd.Series([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    df["arrstr"] = pd.Series([["a", "b", "c"], ["d", "e", "f"], ["g", "h", "i"]])
     df.drop(["binary"], axis=1, inplace=True)
     wr.postgresql.to_sql(
         df=df,
@@ -108,7 +110,7 @@ def test_sql_types(postgresql_table, postgresql_con):
         schema="public",
         mode="overwrite",
         index=True,
-        dtype={"iint32": "INTEGER"},
+        dtype={"iint32": "INTEGER", "arrint": "INTEGER[]", "arrstr": "VARCHAR[]"},
     )
     df = wr.postgresql.read_sql_query(f"SELECT * FROM public.{table}", postgresql_con)
     ensure_data_types(df, has_list=False)
@@ -130,6 +132,8 @@ def test_sql_types(postgresql_table, postgresql_con):
             "timestamp": pa.timestamp(unit="ns"),
             "binary": pa.binary(),
             "category": pa.float64(),
+            "arrint": pa.list_(pa.int64()),
+            "arrstr": pa.list_(pa.string()),
         },
     )
     for df in dfs:

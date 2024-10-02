@@ -359,6 +359,8 @@ def generate_placeholder_parameter_pairs(
     """Extract Placeholder and Parameter pairs."""
 
     def convert_value_to_native_python_type(value: Any) -> Any:
+        if isinstance(value, list):
+            return value
         if pd.isna(value):
             return None
         if hasattr(value, "to_pydatetime"):
