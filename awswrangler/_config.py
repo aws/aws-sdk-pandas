@@ -224,8 +224,9 @@ class _Config:
             raise exceptions.InvalidArgumentValue(
                 f"{name} configuration does not accept a null value. Please pass {dtype}."
             )
+        # Handle case where string is empty, "False" or "0"
         if isinstance(value, str) and dtype is bool:
-            return _Config._cast_bool(name=name, value=value.lower())
+            return value.lower() in ("false", "0", "")
         try:
             return dtype(value) if isinstance(value, dtype) is False else value
         except ValueError as ex:
@@ -240,14 +241,6 @@ class _Config:
             if value.lower() in ("none", "null", "nil"):
                 return True
         return False
-
-    @staticmethod
-    def _cast_bool(name: str, value: str) -> bool:
-        _true = ("true", "1")
-        _false = ("false", "0", "")
-        if value not in _true + _false:
-            raise exceptions.InvalidArgumentValue(f"{name} configuration only accepts True/False or 0/1.")
-        return value in _true
 
     @property
     def catalog_id(self) -> str | None:
