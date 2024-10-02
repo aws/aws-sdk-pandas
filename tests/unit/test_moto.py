@@ -486,17 +486,17 @@ def test_s3_delete_object_success(moto_s3_client: "S3Client") -> None:
 
 
 def test_s3_dataset_empty_table(moto_s3_client: "S3Client") -> None:
-    """ Test that a dataset split into multiple parquet files whose first
+    """Test that a dataset split into multiple parquet files whose first
     partition is an empty table still loads properly.
     """
     partition_col, partition_val = "col0", "1"
     dataset = f"{partition_col}={partition_val}"
-    s3_key = f's3://bucket/{dataset}'
+    s3_key = f"s3://bucket/{dataset}"
 
     dtypes = {"id": "string[python]"}
     df1 = pd.DataFrame({"id": []}).astype(dtypes)
-    df2 = pd.DataFrame({"id": ['1'] * 2}).astype(dtypes)
-    df3 = pd.DataFrame({"id": ['1'] * 3}).astype(dtypes)
+    df2 = pd.DataFrame({"id": ["1"] * 2}).astype(dtypes)
+    df3 = pd.DataFrame({"id": ["1"] * 3}).astype(dtypes)
 
     dataframes = [df1, df2, df3]
     r_df = pd.concat(dataframes, ignore_index=True)
