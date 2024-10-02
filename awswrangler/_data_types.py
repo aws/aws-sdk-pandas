@@ -213,6 +213,8 @@ def pyarrow2postgresql(  # noqa: PLR0911
         return pyarrow2postgresql(dtype=dtype.value_type, string_type=string_type)
     if pa.types.is_binary(dtype):
         return "BYTEA"
+    if pa.types.is_list(dtype):
+        return pyarrow2postgresql(dtype=dtype.value_type, string_type=string_type) + "[]"
     raise exceptions.UnsupportedType(f"Unsupported PostgreSQL type: {dtype}")
 
 
