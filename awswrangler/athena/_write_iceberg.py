@@ -119,7 +119,7 @@ def _determine_differences(
             database=database,
             table=table,
             catalog_id=catalog_id,
-            return_iceberg_current=True,
+            filter_iceberg_current=True,
             boto3_session=boto3_session,
         ),
     )
