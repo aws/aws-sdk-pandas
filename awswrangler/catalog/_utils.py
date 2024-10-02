@@ -33,12 +33,12 @@ def _sanitize_name(name: str) -> str:
 
 def _extract_dtypes_from_table_details(
     response: "GetTableResponseTypeDef",
-    return_iceberg_current: bool = False,
+    filter_iceberg_current: bool = False,
 ) -> dict[str, str]:
     dtypes: dict[str, str] = {}
     for col in response["Table"]["StorageDescriptor"]["Columns"]:
         # Only return current fields if flag is enabled
-        if not return_iceberg_current or col.get("Parameters", {}).get("iceberg.field.current") == "true":
+        if not filter_iceberg_current or col.get("Parameters", {}).get("iceberg.field.current") == "true":
             dtypes[col["Name"]] = col["Type"]
     # Add partition keys as columns
     if "PartitionKeys" in response["Table"]:

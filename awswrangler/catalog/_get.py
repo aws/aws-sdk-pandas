@@ -107,7 +107,7 @@ def get_table_types(
     database: str,
     table: str,
     catalog_id: str | None = None,
-    return_iceberg_current: bool = False,
+    filter_iceberg_current: bool = False,
     boto3_session: boto3.Session | None = None,
 ) -> dict[str, str] | None:
     """Get all columns and types from a table.
@@ -121,9 +121,9 @@ def get_table_types(
     catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If ``None`` is provided, the AWS account ID is used by default.
-    return_iceberg_current
-            If True, returns only current iceberg fields (fields marked with iceberg.field.current: true).
-            Otherwise, returns the all fields. False by default (return all fields).
+    filter_iceberg_current
+        If True, returns only current iceberg fields (fields marked with iceberg.field.current: true).
+        Otherwise, returns the all fields. False by default (return all fields).
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
 
@@ -145,7 +145,7 @@ def get_table_types(
         return None
     return _extract_dtypes_from_table_details(
         response=response,
-        return_iceberg_current=return_iceberg_current,
+        filter_iceberg_current=filter_iceberg_current,
     )
 
 
