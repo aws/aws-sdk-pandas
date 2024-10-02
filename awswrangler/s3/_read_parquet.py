@@ -308,7 +308,14 @@ def _read_parquet(
         itertools.repeat(schema),
         itertools.repeat(decryption_properties),
     )
-    tables = [table for table in tables if len(table) > 0]
+    # When the first table is empty in a dataset, the inferred schema may not
+    # be compatible with the other tables, which will raise an exception when
+    # concatening them down the line. As a workaround, we filter out empty
+    # tables, unless every table is empty. In that latter case, the schemas
+    # will be compatible so we do nothing in that case.
+    should_filter_out = any(len(table) > 0 for table in tables)
+    if should_filter_out:
+        tables = [table for table in tables if len(table) > 0]
     return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
 
 

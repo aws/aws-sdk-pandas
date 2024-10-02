@@ -485,6 +485,20 @@ def test_s3_delete_object_success(moto_s3_client: "S3Client") -> None:
         wr.s3.read_parquet(path=path, dataset=True)
 
 
+@pytest.mark.parametrize("chunked", [True, False])
+def test_s3_parquet_empty_table(moto_s3_client: "S3Client", chunked) -> None:
+    path = "s3://bucket/file.parquet"
+
+    r_df = pd.DataFrame({"id": []}, dtype=pd.Int64Dtype())
+    wr.s3.to_parquet(df=r_df, path=path)
+
+    df = wr.s3.read_parquet(path, chunked=chunked)
+    if chunked:
+        df = pd.concat(list(df))
+
+    pd.testing.assert_frame_equal(r_df, df, check_dtype=True)
+
+
 def test_s3_dataset_empty_table(moto_s3_client: "S3Client") -> None:
     """Test that a dataset split into multiple parquet files whose first
     partition is an empty table still loads properly.
