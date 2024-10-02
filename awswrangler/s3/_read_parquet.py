@@ -308,6 +308,7 @@ def _read_parquet(
         itertools.repeat(schema),
         itertools.repeat(decryption_properties),
     )
+    tables = [table for table in tables if len(table) > 0]
     return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
 
 
