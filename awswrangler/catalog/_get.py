@@ -107,6 +107,7 @@ def get_table_types(
     database: str,
     table: str,
     catalog_id: str | None = None,
+    filter_iceberg_current: bool = False,
     boto3_session: boto3.Session | None = None,
 ) -> dict[str, str] | None:
     """Get all columns and types from a table.
@@ -120,6 +121,9 @@ def get_table_types(
     catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
         If ``None`` is provided, the AWS account ID is used by default.
+    filter_iceberg_current
+        If True, returns only current iceberg fields (fields marked with iceberg.field.current: true).
+        Otherwise, returns the all fields. False by default (return all fields).
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
 
@@ -139,7 +143,10 @@ def get_table_types(
         response = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
     except client_glue.exceptions.EntityNotFoundException:
         return None
-    return _extract_dtypes_from_table_details(response=response)
+    return _extract_dtypes_from_table_details(
+        response=response,
+        filter_iceberg_current=filter_iceberg_current,
+    )
 
 
 def get_databases(

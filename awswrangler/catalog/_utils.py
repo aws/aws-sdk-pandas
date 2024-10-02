@@ -31,10 +31,16 @@ def _sanitize_name(name: str) -> str:
     return re.sub("[^A-Za-z0-9_]+", "_", name).lower()  # Replacing non alphanumeric characters by underscore
 
 
-def _extract_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> dict[str, str]:
+def _extract_dtypes_from_table_details(
+    response: "GetTableResponseTypeDef",
+    filter_iceberg_current: bool = False,
+) -> dict[str, str]:
     dtypes: dict[str, str] = {}
     for col in response["Table"]["StorageDescriptor"]["Columns"]:
-        dtypes[col["Name"]] = col["Type"]
+        # Only return current fields if flag is enabled
+        if not filter_iceberg_current or col.get("Parameters", {}).get("iceberg.field.current") == "true":
+            dtypes[col["Name"]] = col["Type"]
+    # Add partition keys as columns
     if "PartitionKeys" in response["Table"]:
         for par in response["Table"]["PartitionKeys"]:
             dtypes[par["Name"]] = par["Type"]
