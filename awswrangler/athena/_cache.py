@@ -110,13 +110,11 @@ def _parse_select_query_from_possible_ctas(possible_ctas: str) -> str | None:
     return None
 
 
-def _compare_query_string(
-    sql: str, other: str, sql_params: list[str] | None = None, other_params: list[str] | None = None
-) -> bool:
+def _compare_query_string(sql: str, other: str) -> bool:
     comparison_query = _prepare_query_string_for_comparison(query_string=other)
     _logger.debug("sql: %s", sql)
     _logger.debug("comparison_query: %s", comparison_query)
-    return sql == comparison_query and sql_params == other_params
+    return sql == comparison_query
 
 
 def _prepare_query_string_for_comparison(query_string: str) -> str:
@@ -167,7 +165,6 @@ def _check_for_cached_results(
     sql: str,
     boto3_session: boto3.Session | None,
     workgroup: str | None,
-    params: list[str] | None = None,
     athena_cache_settings: typing.AthenaCacheSettings | None = None,
 ) -> _CacheInfo:
     """
@@ -207,12 +204,7 @@ def _check_for_cached_results(
         if statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
             parsed_query: str | None = _parse_select_query_from_possible_ctas(possible_ctas=query_info["Query"])
             if parsed_query is not None:
-                if _compare_query_string(
-                    sql=comparable_sql,
-                    other=parsed_query,
-                    sql_params=params,
-                    other_params=query_info.get("ExecutionParameters"),
-                ):
+                if _compare_query_string(sql=comparable_sql, other=parsed_query):
                     return _CacheInfo(
                         has_valid_cache=True,
                         file_format="parquet",
@@ -220,12 +212,7 @@ def _check_for_cached_results(
                         query_execution_payload=query_info,
                     )
         elif statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
-            if _compare_query_string(
-                sql=comparable_sql,
-                other=query_info["Query"],
-                sql_params=params,
-                other_params=query_info.get("ExecutionParameters"),
-            ):
+            if _compare_query_string(sql=comparable_sql, other=query_info["Query"]):
                 return _CacheInfo(
                     has_valid_cache=True,
                     file_format="csv",

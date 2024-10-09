@@ -1045,10 +1045,12 @@ def read_sql_query(
     # Substitute query parameters if applicable
     sql, execution_params = _apply_formatter(sql, params, paramstyle)
 
-    if not client_request_token:
+    if not client_request_token and paramstyle != "qmark":
+        # For paramstyle=="qmark", we will need to use Athena's caching option.
+        # The issue is that when describing an Athena execution, the API does not return
+        # the parameters that were used.
         cache_info: _CacheInfo = _check_for_cached_results(
             sql=sql,
-            params=params if paramstyle == "qmark" else None,
             boto3_session=boto3_session,
             workgroup=workgroup,
             athena_cache_settings=athena_cache_settings,

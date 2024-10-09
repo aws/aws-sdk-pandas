@@ -469,7 +469,7 @@ def test_athena_paramstyle_qmark_parameters(
         pytest.param(False, True, id="unload"),
     ],
 )
-def test_athena_paramstyle_qmark_with_caching(
+def test_athena_paramstyle_qmark_skip_caching(
     path: str,
     path2: str,
     glue_database: str,
