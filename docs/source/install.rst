@@ -217,11 +217,11 @@ AWS Glue PySpark Jobs
 Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 * Key: ``--additional-python-modules``
-* Value: ``pyarrow==7,awswrangler``
+* Value: ``awswrangler``
 
 To install a specific version, set the value for the above Job parameter as follows:
 
-* Value: ``pyarrow==7,pandas==1.5.3,awswrangler==3.9.2b1``
+* Value: ``pyarrow==14,pandas==1.5.3,awswrangler==3.10.0``
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 

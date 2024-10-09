@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "awswrangler - test infrastructure"
-version = "3.9.2b1"
+version = "3.10.0"
 description = "CDK test infrastructure for AWS SDK for pandas"
 authors = ["Amazon Web Services"]
 license = "Apache License 2.0"
