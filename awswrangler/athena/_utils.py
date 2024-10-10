@@ -35,6 +35,7 @@ from . import _executions
 from ._cache import _cache_manager, _LocalMetadataCacheManager
 
 if TYPE_CHECKING:
+    from mypy_boto3_athena.type_defs import QueryExecutionTypeDef
     from mypy_boto3_glue.type_defs import ColumnOutputTypeDef
 
 _QUERY_FINAL_STATES: list[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
@@ -53,7 +54,7 @@ class _QueryMetadata(NamedTuple):
     binaries: list[str]
     output_location: str | None
     manifest_location: str | None
-    raw_payload: dict[str, Any]
+    raw_payload: "QueryExecutionTypeDef"
 
 
 class _WorkGroupConfig(NamedTuple):
@@ -214,7 +215,7 @@ def _get_query_metadata(
     query_execution_id: str,
     boto3_session: boto3.Session | None = None,
     categories: list[str] | None = None,
-    query_execution_payload: dict[str, Any] | None = None,
+    query_execution_payload: "QueryExecutionTypeDef" | None = None,
     metadata_cache_manager: _LocalMetadataCacheManager | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     execution_params: list[str] | None = None,
@@ -225,12 +226,15 @@ def _get_query_metadata(
         if query_execution_payload["Status"]["State"] != "SUCCEEDED":
             reason: str = query_execution_payload["Status"]["StateChangeReason"]
             raise exceptions.QueryFailed(f"Query error: {reason}")
-        _query_execution_payload: dict[str, Any] = query_execution_payload
+        _query_execution_payload = query_execution_payload
     else:
-        _query_execution_payload = _executions.wait_query(
-            query_execution_id=query_execution_id,
-            boto3_session=boto3_session,
-            athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+        _query_execution_payload = cast(
+            "QueryExecutionTypeDef",
+            _executions.wait_query(
+                query_execution_id=query_execution_id,
+                boto3_session=boto3_session,
+                athena_query_wait_polling_delay=athena_query_wait_polling_delay,
+            ),
         )
     cols_types: dict[str, str] = get_query_columns_types(
         query_execution_id=query_execution_id, boto3_session=boto3_session
@@ -266,8 +270,8 @@ def _get_query_metadata(
     if "ResultConfiguration" in _query_execution_payload:
         output_location = _query_execution_payload["ResultConfiguration"].get("OutputLocation")
 
-    athena_statistics: dict[str, int | str] = _query_execution_payload.get("Statistics", {})
-    manifest_location: str | None = str(athena_statistics.get("DataManifestLocation"))
+    athena_statistics = _query_execution_payload.get("Statistics", {})
+    manifest_location: str | None = athena_statistics.get("DataManifestLocation")
 
     if metadata_cache_manager is not None and query_execution_id not in metadata_cache_manager:
         metadata_cache_manager.update_cache(items=[_query_execution_payload])
