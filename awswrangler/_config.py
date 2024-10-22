@@ -224,6 +224,9 @@ class _Config:
             raise exceptions.InvalidArgumentValue(
                 f"{name} configuration does not accept a null value. Please pass {dtype}."
             )
+        # Handle case where string is empty, "False" or "0". Anything else is True
+        if isinstance(value, str) and dtype is bool:
+            return value.lower() not in ("false", "0", "")
         try:
             return dtype(value) if isinstance(value, dtype) is False else value
         except ValueError as ex:

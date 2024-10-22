@@ -793,11 +793,11 @@ def read_sql_query(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.9.2b1/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.10.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.9.2b1/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.10.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.9.2b1/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.10.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -861,7 +861,7 @@ def read_sql_query(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.9.2b1/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.10.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -1045,7 +1045,10 @@ def read_sql_query(
     # Substitute query parameters if applicable
     sql, execution_params = _apply_formatter(sql, params, paramstyle)
 
-    if not client_request_token:
+    if not client_request_token and paramstyle != "qmark":
+        # For paramstyle=="qmark", we will need to use Athena's caching option.
+        # The issue is that when describing an Athena execution, the API does not return
+        # the parameters that were used.
         cache_info: _CacheInfo = _check_for_cached_results(
             sql=sql,
             boto3_session=boto3_session,
@@ -1137,11 +1140,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.9.2b1/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.10.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.9.2b1/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.10.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.9.2b1/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.10.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -1205,7 +1208,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.9.2b1/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.10.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
