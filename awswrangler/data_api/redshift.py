@@ -111,9 +111,9 @@ class RedshiftDataApi(_connector.DataApiConnector):
         parameters: list[dict[str, Any]] | None = None,
     ) -> str:
         if transaction_id:
-            exceptions.InvalidArgument("`transaction_id` not supported for Redshift Data API")
+            raise exceptions.InvalidArgument("`transaction_id` not supported for Redshift Data API")
         if parameters:
-            exceptions.InvalidArgument("`parameters` not supported for Redshift Data API")
+            raise exceptions.InvalidArgument("`parameters` not supported for Redshift Data API")
 
         self._validate_redshift_target()
         self._validate_auth_method()

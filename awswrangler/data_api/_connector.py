@@ -132,7 +132,7 @@ class DataApiConnector(ABC):
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-data.html#RedshiftDataAPIService.Client.get_statement_result
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds-data.html#RDSDataService.Client.execute_statement
         """
-        for key in column_value:
+        for key in column_value:  # noqa: PLC0206
             if column_value[key] is not None:
                 if (key == "isNull") and column_value[key]:
                     return None

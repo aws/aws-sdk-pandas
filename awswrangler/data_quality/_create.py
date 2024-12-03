@@ -170,7 +170,7 @@ def update_ruleset(
         df_existing = get_ruleset(name=name, boto3_session=boto3_session)
         df_existing = df_existing.set_index(keys=["rule_type", "parameter"], drop=False, verify_integrity=True)
         df_updated = _rules_to_df(dqdl_rules) if dqdl_rules is not None else df_rules
-        df_updated = df_updated.set_index(keys=["rule_type", "parameter"], drop=False, verify_integrity=True)
+        df_updated = df_updated.set_index(keys=["rule_type", "parameter"], drop=False, verify_integrity=True)  # type: ignore[union-attr]
         merged_df = pd.concat([df_existing[~df_existing.index.isin(df_updated.index)], df_updated])
         dqdl_rules = _create_dqdl(merged_df.reset_index(drop=True))
     else:
