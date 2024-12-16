@@ -59,4 +59,15 @@ then
     .
 fi
 
+# Python 3.13
+if [[ $PYTHON_VERSION == "ALL" || $PYTHON_VERSION == "3.13" ]]
+then
+  docker build \
+    --pull \
+    --tag awswrangler-build-py313 \
+    --build-arg base_image=public.ecr.aws/lambda/python:3.13 \
+    --file Dockerfile.al2023 \
+    .
+fi
+
 rm -rf pyproject.toml poetry.lock
