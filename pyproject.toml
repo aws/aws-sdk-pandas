@@ -176,7 +176,7 @@ max-returns=6  # Maximum number of return / yield for function / method body.
 max-statements=50  # Maximum number of statements in function / method body.
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 strict = true
 ignore_missing_imports = true
 warn_unused_ignores = true
