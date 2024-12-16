@@ -8,16 +8,6 @@ export DOCKER_BUILDKIT=1
 
 PYTHON_VERSION=${1:-ALL}
 
-# Python 3.8
-if [[ $PYTHON_VERSION == "ALL" || $PYTHON_VERSION == "3.8" ]]
-then
-  docker build \
-    --pull \
-    --tag awswrangler-build-py38 \
-    --build-arg base_image=public.ecr.aws/lambda/python:3.8 \
-    .
-fi
-
 # Python 3.9
 if [[ $PYTHON_VERSION == "ALL" || $PYTHON_VERSION == "3.9" ]]
 then
