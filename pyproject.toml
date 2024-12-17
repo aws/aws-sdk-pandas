@@ -106,10 +106,10 @@ msgpack = "*"
 poetry = "^1.8.5"
 
 # Lint
-boto3-stubs = {version = "^1.35.76", extras = ["athena", "cleanrooms", "chime", "cloudwatch", "dynamodb", "ec2", "emr", "emr-serverless", "glue", "kms", "logs", "neptune", "opensearch", "opensearchserverless", "quicksight", "rds", "rds-data", "redshift", "redshift-data", "s3", "secretsmanager", "ssm", "sts", "timestream-query", "timestream-write"]}
+boto3-stubs = {version = "^1.35.82", extras = ["athena", "cleanrooms", "chime", "cloudwatch", "dynamodb", "ec2", "emr", "emr-serverless", "glue", "kms", "logs", "neptune", "opensearch", "opensearchserverless", "quicksight", "rds", "rds-data", "redshift", "redshift-data", "s3", "secretsmanager", "ssm", "sts", "timestream-query", "timestream-write"]}
 doc8 = "^1.1"
 mypy = "^1.13"
-ruff = "^0.8.2"
+ruff = "^0.8.3"
 
 # Test
 moto = "^5.0"
@@ -124,7 +124,7 @@ s3fs = "0.4.2"  # Must be pinned to 0.4.2
 tox = "^4.23.2"
 
 # Docs
-bump-my-version = "^0.28.1"
+bump-my-version = "^0.28.2"
 IPython = "^8.10.0"
 jupyterlab = "^4.3"
 nbsphinx = "^0.9.5"
