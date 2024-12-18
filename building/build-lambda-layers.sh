@@ -21,17 +21,6 @@ pushd lambda
 # Building all related docker images
 ./build-docker-images.sh $PYTHON_VERSION
 
-# Python 3.8
-if [[ $PYTHON_VERSION == "ALL" || $PYTHON_VERSION == "3.8" ]]
-then
-  docker run \
-    --volume "$DIR_NAME":/aws-sdk-pandas/ \
-    --workdir /aws-sdk-pandas/building/lambda \
-    --rm \
-    awswrangler-build-py38 \
-    build-lambda-layer.sh "${VERSION}-py3.8${ARCH_SUFFIX}" "ninja-build"
-fi
-
 # Python 3.9
 if [[ $PYTHON_VERSION == "ALL" || $PYTHON_VERSION == "3.9" ]]
 then
@@ -74,4 +63,15 @@ then
     --rm \
     awswrangler-build-py312 \
     build-lambda-layer.sh "${VERSION}-py3.12${ARCH_SUFFIX}" "ninja-build"
+fi
+
+# Python 3.13
+if [[ $PYTHON_VERSION == "ALL" || $PYTHON_VERSION == "3.13" ]]
+then
+  docker run \
+    --volume "$DIR_NAME":/aws-sdk-pandas/ \
+    --workdir /aws-sdk-pandas/building/lambda \
+    --rm \
+    awswrangler-build-py313 \
+    build-lambda-layer.sh "${VERSION}-py3.13${ARCH_SUFFIX}" "ninja-build"
 fi
