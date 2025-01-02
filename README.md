@@ -96,8 +96,6 @@ AWS SDK for pandas can also run your workflows at scale by leveraging [Modin](ht
 
 Read our [docs](https://aws-sdk-pandas.readthedocs.io/en/3.10.1/scale.html) or head to our latest [tutorials](https://github.com/aws/aws-sdk-pandas/tree/main/tutorials) to learn more.
 
-> ⚠️ **Ray is currently not available for Python 3.12. While AWS SDK for pandas supports Python 3.12, it cannot be used at scale.**
-
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
 
 - [**What is AWS SDK for pandas?**](https://aws-sdk-pandas.readthedocs.io/en/3.10.1/about.html)
