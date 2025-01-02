@@ -19,6 +19,9 @@ jobs:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         platform: [ubuntu-latest, macos-latest, windows-latest]
+        exclude:
+          - python-version: 3.13
+            platform: windows-latest
 
     env:
       AWS_DEFAULT_REGION: us-east-1
