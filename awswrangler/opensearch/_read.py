@@ -41,12 +41,24 @@ def _hit_to_row(hit: Mapping[str, Any]) -> Mapping[str, Any]:
     return row
 
 
-def _search_response_to_documents(response: Mapping[str, Any]) -> list[Mapping[str, Any]]:
-    return [_hit_to_row(hit) for hit in response.get("hits", {}).get("hits", [])]
+def _search_response_to_documents(
+    response: Mapping[str, Any], aggregations: list[str] | None = None
+) -> list[Mapping[str, Any]]:
+    hits = response.get("hits", {}).get("hits", [])
+    if not hits and aggregations:
+        hits = [
+            aggregation_hit
+            for aggregation_name in aggregations
+            for aggregation_hit in response.get("aggregations", {})
+            .get(aggregation_name, {})
+            .get("hits", {})
+            .get("hits", [])
+        ]
+    return [_hit_to_row(hit) for hit in hits]
 
 
-def _search_response_to_df(response: Mapping[str, Any] | Any) -> pd.DataFrame:
-    return pd.DataFrame(_search_response_to_documents(response))
+def _search_response_to_df(response: Mapping[str, Any] | Any, aggregations: list[str] | None = None) -> pd.DataFrame:
+    return pd.DataFrame(_search_response_to_documents(response=response, aggregations=aggregations))
 
 
 @_utils.check_optional_dependency(opensearchpy, "opensearchpy")
@@ -128,8 +140,16 @@ def search(
         documents = [_hit_to_row(doc) for doc in documents_generator]
         df = pd.DataFrame(documents)
     else:
+        aggregations = (
+            list(search_body.get("aggregations", {}).keys() or search_body.get("aggs", {}).keys())
+            if search_body
+            else None
+        )
         response = client.search(index=index, body=search_body, filter_path=filter_path, **kwargs)
-        df = _search_response_to_df(response)
+        df = _search_response_to_df(
+            response=response,
+            aggregations=aggregations,
+        )
     return df
 
 
