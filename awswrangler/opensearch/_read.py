@@ -47,7 +47,7 @@ def _search_response_to_documents(
     hits = response.get("hits", {}).get("hits", [])
     if not hits and aggregations:
         hits = [
-            aggregation_hit
+            dict(aggregation_hit, _aggregation_name=aggregation_name)
             for aggregation_name in aggregations
             for aggregation_hit in response.get("aggregations", {})
             .get(aggregation_name, {})

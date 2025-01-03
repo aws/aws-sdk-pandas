@@ -442,10 +442,19 @@ def test_search_aggregation(client):
         df = wr.opensearch.search(
             client,
             index=index,
-            search_body={"aggregations": {"top_hits_inspections": {"top_hits": {"size": 2}}}},
+            search_body={
+                "aggregations": {
+                    "latest_inspections": {"top_hits": {"sort": [{"inspection_date": {"order": "asc"}}], "size": 1}},
+                    "lowest_inspection_score": {
+                        "top_hits": {"sort": [{"inspection_score": {"order": "asc"}}], "size": 1}
+                    },
+                }
+            },
             filter_path=["aggregations"],
         )
         assert df.shape[0] == 2
+        assert len(df.loc[df["_aggregation_name"] == "latest_inspections"]) == 1
+        assert len(df.loc[df["_aggregation_name"] == "lowest_inspection_score"]) == 1
     finally:
         wr.opensearch.delete_index(client, index)
 
