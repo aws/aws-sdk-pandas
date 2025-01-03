@@ -424,6 +424,41 @@ def test_search_scroll(client):
         wr.opensearch.delete_index(client, index)
 
 
+def test_search_aggregation(client):
+    index = f"test_search_agg_{_get_unique_suffix()}"
+    kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
+    try:
+        wr.opensearch.index_documents(
+            client,
+            documents=inspections_documents,
+            index=index,
+            id_keys=["inspection_id"],
+            **kwargs,
+        )
+        if _is_serverless(client):
+            # The refresh interval for OpenSearch Serverless is between 10 and 30 seconds
+            # depending on the size of the request.
+            time.sleep(30)
+        df = wr.opensearch.search(
+            client,
+            index=index,
+            search_body={
+                "aggregations": {
+                    "latest_inspections": {"top_hits": {"sort": [{"inspection_date": {"order": "asc"}}], "size": 1}},
+                    "lowest_inspection_score": {
+                        "top_hits": {"sort": [{"inspection_score": {"order": "asc"}}], "size": 1}
+                    },
+                }
+            },
+            filter_path=["aggregations"],
+        )
+        assert df.shape[0] == 2
+        assert len(df.loc[df["_aggregation_name"] == "latest_inspections"]) == 1
+        assert len(df.loc[df["_aggregation_name"] == "lowest_inspection_score"]) == 1
+    finally:
+        wr.opensearch.delete_index(client, index)
+
+
 @pytest.mark.parametrize("fetch_size", [None, 1000, 10000])
 @pytest.mark.parametrize("fetch_size_param_name", ["size", "fetch_size"])
 def test_search_sql(client, fetch_size, fetch_size_param_name):
