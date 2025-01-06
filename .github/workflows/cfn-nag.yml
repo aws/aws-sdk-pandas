@@ -54,7 +54,7 @@ jobs:
           poetry env use python
           poetry env info
           source $(poetry env info --path)/bin/activate
-          poetry install -vvv
+          poetry install -vvv --no-root
       - name: Set up cdk.json
         run: |
           cd test_infra
