@@ -1505,26 +1505,27 @@ files = [
 
 [[package]]
 name = "deltalake"
-version = "0.21.0"
+version = "0.23.2"
 description = "Native Delta Lake Python binding based on delta-rs with Pandas integration"
 optional = true
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "deltalake-0.21.0-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:4b4a352da534a173d837906357c808cd36dd216974b9df2c3998acb98d04954a"},
-    {file = "deltalake-0.21.0-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:2e7762af03fed0a67ce8f89b6b75356a74e485f52923c73a5c850c6c574d3481"},
-    {file = "deltalake-0.21.0-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:02870db9dfe4694034fb209cb4822f85ba1a11885e353e11fd0dfb51b0af67d2"},
-    {file = "deltalake-0.21.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:92ccd486243dbe17c45a6ca06b108351dfd07708d34e75405fcb13033c63d176"},
-    {file = "deltalake-0.21.0-cp38-abi3-win_amd64.whl", hash = "sha256:dc84334a0f8df1f4f5c6ca9aaffbeffb896f43de6744d0c77c306ca8ba27041b"},
-    {file = "deltalake-0.21.0.tar.gz", hash = "sha256:88f92cede44b2737431dbf86d43ed3b3c8cb73db56e99138aea1a6d93e9c6821"},
+    {file = "deltalake-0.23.2-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:ad97cb4294a63607b7a4ed9bf842fdef1bc09f2b99e1eb220b7cded849f19fdb"},
+    {file = "deltalake-0.23.2-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:f375cf25e9d7992bcdc98631c006642a1a4c45cf3cbab506caca3aa2a7f9dfc7"},
+    {file = "deltalake-0.23.2-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6808ef6a9385fed1cc969fa36eefa643c465285e6661a92f633ce6d666f8677e"},
+    {file = "deltalake-0.23.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0d62793556407296563a04de957462178514305e651633bacd2afba0f985b5a8"},
+    {file = "deltalake-0.23.2-cp39-abi3-win_amd64.whl", hash = "sha256:0362afbacd67748f176ca8d4c30b28fb2d511dd576b2fdb73d63c171e7c2782d"},
+    {file = "deltalake-0.23.2.tar.gz", hash = "sha256:1f1d9df16e3ba068e8297cfffd50993a5a3722f8f2a27c18f7306300ea06e4fc"},
 ]
 
 [package.dependencies]
 pyarrow = ">=16"
 
 [package.extras]
-devel = ["azure-storage-blob (==12.20.0)", "mypy (==1.10.1)", "packaging (>=20)", "pytest", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-timeout", "ruff (==0.5.2)", "sphinx (<=4.5)", "sphinx-rtd-theme", "toml", "wheel"]
+devel = ["azure-storage-blob (==12.20.0)", "mypy (==1.10.1)", "packaging (>=20)", "pip (>=24.0)", "pytest", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-timeout", "ruff (==0.5.2)", "sphinx (<=4.5)", "sphinx-rtd-theme", "toml", "wheel"]
 pandas = ["pandas"]
-pyspark = ["delta-spark", "numpy (==1.22.2)", "pyspark"]
+polars = ["polars (==1.17.1)"]
+pyspark = ["delta-spark", "numpy (==1.26.4)", "pyspark"]
 
 [[package]]
 name = "distlib"
@@ -3150,13 +3151,13 @@ typing-extensions = {version = "*", markers = "python_version < \"3.11\""}
 
 [[package]]
 name = "modin"
-version = "0.31.0"
+version = "0.32.0"
 description = "Modin: Make your pandas code run faster by changing one line of code."
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "modin-0.31.0-py3-none-any.whl", hash = "sha256:d97378709efb883fd6148be40c9b1a039922ac04f4f7db4208c57a2bee344de9"},
-    {file = "modin-0.31.0.tar.gz", hash = "sha256:bb11c3b2943d74bf2911fab2acb87d0c45d16becc03708be3392f7a1f5736000"},
+    {file = "modin-0.32.0-py3-none-any.whl", hash = "sha256:3f61e9ca286a1bea7296a6f70ce66f39c7fc7673c2b3e87ea34d6a499d1aebfa"},
+    {file = "modin-0.32.0.tar.gz", hash = "sha256:9f68557add5e92617d006eb98bfd93d298e7d4d9932a0cd48a5e38ee4f30a134"},
 ]
 
 [package.dependencies]
@@ -7333,4 +7334,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9, <4.0"
-content-hash = "65f3e0bbc0a4072417e28e2382c65d70162564653faeb778b271b3419b73b85e"
+content-hash = "e4e0f810cef4147b25dbdf189fda93f61b243ded55325c505f4de0480d888515"
