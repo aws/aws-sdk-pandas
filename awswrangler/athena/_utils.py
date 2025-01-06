@@ -457,8 +457,8 @@ def create_athena_bucket(boto3_session: boto3.Session | None = None) -> str:
     args = {} if region_name == "us-east-1" else {"CreateBucketConfiguration": {"LocationConstraint": region_name}}
     try:
         client_s3.create_bucket(Bucket=bucket_name, **args)  # type: ignore[arg-type]
-    except (client_s3.exceptions.BucketAlreadyExists, client_s3.exceptions.BucketAlreadyOwnedByYou) as err:
-        _logger.debug("Bucket %s already exists.", err.response["Error"]["BucketName"])
+    except (client_s3.exceptions.BucketAlreadyExists, client_s3.exceptions.BucketAlreadyOwnedByYou):
+        _logger.debug("Bucket %s already exists.", bucket_name)
     except botocore.exceptions.ClientError as err:
         if err.response["Error"]["Code"] == "OperationAborted":
             _logger.debug("A conflicting conditional operation is currently in progress against this resource.")
