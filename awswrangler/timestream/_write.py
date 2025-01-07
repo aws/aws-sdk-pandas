@@ -179,7 +179,7 @@ def _write_batch(
                 Records=records,
             )
     except client_timestream.exceptions.RejectedRecordsException as ex:
-        return cast(List[Dict[str, str]], ex.response["RejectedRecords"])
+        return cast(List[Dict[str, str]], ex.response["RejectedRecords"])  # type: ignore[typeddict-item]
     return []
 
 
