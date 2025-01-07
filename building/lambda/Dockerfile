@@ -25,7 +25,7 @@ COPY pyproject.toml poetry.lock ./
 
 RUN pip3 install --upgrade pip wheel
 RUN pip3 install --upgrade urllib3==1.26.16  # temporary to avoid https://github.com/urllib3/urllib3/issues/2168 (TODO remove when the AL2 image updates to support OpenSSL 1.1.1+)
-RUN pip3 install --upgrade six cython==3.0.8 cmake hypothesis poetry
+RUN pip3 install --upgrade six cython cmake hypothesis poetry
 RUN poetry config virtualenvs.create false --local && poetry install --no-root --only main
 
 RUN rm -f pyproject.toml poetry.lock
