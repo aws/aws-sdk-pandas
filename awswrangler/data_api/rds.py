@@ -18,7 +18,7 @@ from awswrangler._sql_utils import identifier
 from awswrangler.data_api import _connector
 
 if TYPE_CHECKING:
-    from mypy_boto3_rds_data.client import BotocoreClientError
+    from mypy_boto3_rds_data.client import BotocoreClientError  # type: ignore[attr-defined]
     from mypy_boto3_rds_data.type_defs import BatchExecuteStatementResponseTypeDef, ExecuteStatementResponseTypeDef
 
 
