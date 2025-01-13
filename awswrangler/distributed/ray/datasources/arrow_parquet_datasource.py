@@ -334,16 +334,16 @@ class ArrowParquetDatasource(Datasource):
             )
 
         read_tasks = []
-        for fragments, paths, metadata in zip(  # type: ignore[var-annotated]
+        for fragments, paths, metadata in zip(
             np.array_split(pq_fragments, parallelism),
             np.array_split(pq_paths, parallelism),
-            np.array_split(pq_metadata, parallelism),  # type: ignore[arg-type]
+            np.array_split(pq_metadata, parallelism),
         ):
             if len(fragments) <= 0:
                 continue
 
             meta = self._meta_provider(
-                paths,  # type: ignore[arg-type]
+                paths,
                 self._inferred_schema,
                 num_fragments=len(fragments),
                 prefetched_metadata=metadata,

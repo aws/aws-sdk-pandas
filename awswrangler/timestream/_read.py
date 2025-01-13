@@ -409,7 +409,7 @@ def unload_to_files(
     timestream_client = _utils.client(service_name="timestream-query", session=boto3_session)
 
     partitioned_by_str: str = (
-        f"""partitioned_by = ARRAY [{','.join([f"'{col}'" for col in partition_cols])}],\n"""
+        f"""partitioned_by = ARRAY [{",".join([f"'{col}'" for col in partition_cols])}],\n"""
         if partition_cols is not None
         else ""
     )

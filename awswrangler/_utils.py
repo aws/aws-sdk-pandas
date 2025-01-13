@@ -121,8 +121,7 @@ def check_optional_dependency(
                 package_name = INSTALL_MAPPING.get(name)
                 install_name = package_name if package_name is not None else name
                 raise ModuleNotFoundError(
-                    f"Missing optional dependency '{name}'. "
-                    f"Use pip install awswrangler[{install_name}] to install it."
+                    f"Missing optional dependency '{name}'. Use pip install awswrangler[{install_name}] to install it."
                 )
             return func(*args, **kwargs)
 
@@ -663,7 +662,7 @@ def chunkify(
     if not lst:
         return []
     n: int = num_chunks if max_length is None else int(math.ceil(float(len(lst)) / float(max_length)))
-    np_chunks = np.array_split(lst, n)  # type: ignore[arg-type,var-annotated]
+    np_chunks = np.array_split(lst, n)
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 

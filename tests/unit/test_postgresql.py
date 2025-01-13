@@ -239,7 +239,7 @@ def test_connect_secret_manager(dbname):
 
 def test_insert_with_column_names(postgresql_table, postgresql_con):
     create_table_sql = (
-        f"CREATE TABLE public.{postgresql_table} " "(c0 varchar NULL," "c1 int NULL DEFAULT 42," "c2 int NOT NULL);"
+        f"CREATE TABLE public.{postgresql_table} (c0 varchar NULL,c1 int NULL DEFAULT 42,c2 int NOT NULL);"
     )
     with postgresql_con.cursor() as cursor:
         cursor.execute(create_table_sql)
