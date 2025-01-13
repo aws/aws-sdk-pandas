@@ -211,7 +211,7 @@ def test_connect_secret_manager(dbname):
 
 def test_insert_with_column_names(mysql_table, mysql_con):
     create_table_sql = (
-        f"CREATE TABLE test.{mysql_table} " "(c0 varchar(100) NULL, " "c1 INT DEFAULT 42 NULL, " "c2 INT NOT NULL);"
+        f"CREATE TABLE test.{mysql_table} (c0 varchar(100) NULL, c1 INT DEFAULT 42 NULL, c2 INT NOT NULL);"
     )
     with mysql_con.cursor() as cursor:
         cursor.execute(create_table_sql)
@@ -236,7 +236,7 @@ def test_insert_with_column_names(mysql_table, mysql_con):
 
 def test_upsert_distinct(mysql_table, mysql_con):
     create_table_sql = (
-        f"CREATE TABLE test.{mysql_table} " "(c0 varchar(100) NULL, " "c1 INT DEFAULT 42 NULL, " "c2 INT NOT NULL);"
+        f"CREATE TABLE test.{mysql_table} (c0 varchar(100) NULL, c1 INT DEFAULT 42 NULL, c2 INT NOT NULL);"
     )
     with mysql_con.cursor() as cursor:
         cursor.execute(create_table_sql)
@@ -276,10 +276,7 @@ def test_upsert_distinct(mysql_table, mysql_con):
 
 def test_upsert_duplicate_key(mysql_table, mysql_con):
     create_table_sql = (
-        f"CREATE TABLE test.{mysql_table} "
-        "(c0 varchar(100) PRIMARY KEY, "
-        "c1 INT DEFAULT 42 NULL, "
-        "c2 INT NOT NULL);"
+        f"CREATE TABLE test.{mysql_table} (c0 varchar(100) PRIMARY KEY, c1 INT DEFAULT 42 NULL, c2 INT NOT NULL);"
     )
     with mysql_con.cursor() as cursor:
         cursor.execute(create_table_sql)
@@ -319,10 +316,7 @@ def test_upsert_duplicate_key(mysql_table, mysql_con):
 
 def test_upsert_replace(mysql_table, mysql_con):
     create_table_sql = (
-        f"CREATE TABLE test.{mysql_table} "
-        "(c0 varchar(100) PRIMARY KEY, "
-        "c1 INT DEFAULT 42 NULL, "
-        "c2 INT NOT NULL);"
+        f"CREATE TABLE test.{mysql_table} (c0 varchar(100) PRIMARY KEY, c1 INT DEFAULT 42 NULL, c2 INT NOT NULL);"
     )
     with mysql_con.cursor() as cursor:
         cursor.execute(create_table_sql)
@@ -375,10 +369,7 @@ def test_dfs_are_equal_for_different_chunksizes(mysql_table, mysql_con, chunksiz
 
 def test_ignore(mysql_table, mysql_con):
     create_table_sql = (
-        f"CREATE TABLE test.{mysql_table} "
-        "(c0 varchar(100) PRIMARY KEY, "
-        "c1 INT DEFAULT 42 NULL, "
-        "c2 INT NOT NULL);"
+        f"CREATE TABLE test.{mysql_table} (c0 varchar(100) PRIMARY KEY, c1 INT DEFAULT 42 NULL, c2 INT NOT NULL);"
     )
     with mysql_con.cursor() as cursor:
         cursor.execute(create_table_sql)
