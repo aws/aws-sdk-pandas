@@ -279,6 +279,8 @@ class _S3WriteStrategy(ABC):
         partitions_values: dict[str, list[str]] = {}
 
         if mode == "overwrite_files":
+            assert max_rows_by_file in [None, 0]
+
             if filename_prefix is None:
                 filename_prefix = "part"
             random_filename_suffix = ""

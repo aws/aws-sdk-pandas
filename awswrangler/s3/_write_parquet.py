@@ -353,7 +353,7 @@ def to_parquet(
     partition_cols: list[str] | None = None,
     bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
-    mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
+    mode: Literal["append", "overwrite", "overwrite_partitions", "overwrite_files"] | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
     database: str | None = None,
