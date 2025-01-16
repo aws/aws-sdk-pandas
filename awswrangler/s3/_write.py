@@ -277,9 +277,20 @@ class _S3WriteStrategy(ABC):
         partition_cols = partition_cols if partition_cols else []
         dtype = dtype if dtype else {}
         partitions_values: dict[str, list[str]] = {}
-        mode = "append" if mode is None else mode
 
-        filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
+        if mode == "overwrite_files":
+            if filename_prefix is None:
+                filename_prefix = "part"
+            random_filename_suffix = ""
+            mode = "append"
+        else:
+            random_filename_suffix = uuid.uuid4().hex
+
+        if filename_prefix is None:
+            filename_prefix = ""
+        filename_prefix = filename_prefix + random_filename_suffix
+
+        mode = "append" if mode is None else mode
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         s3_client = _utils.client(service_name="s3", session=boto3_session)
 
