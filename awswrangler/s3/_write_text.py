@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import logging
-import uuid
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import boto3
