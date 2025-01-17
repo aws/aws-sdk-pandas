@@ -24,8 +24,8 @@ def _load_mode_and_filename_prefix(*, mode: str | None, filename_prefix: str | N
         mode = "append"
 
     if mode == "overwrite_files":
-        # In `overwrite_files` mode, we need create a deterministic
-        # filename to ensure that the same file is overwritten:
+        # In `overwrite_files` mode, we need to create a deterministic
+        # filename to ensure that the same file is always overwritten:
         if filename_prefix is None:
             filename_prefix = "data"
         random_filename_suffix = ""
