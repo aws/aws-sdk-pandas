@@ -107,7 +107,8 @@ def _validate_args(
         if mode == "overwrite_files" and (max_rows_by_file or bucketing_info):
             raise exceptions.InvalidArgumentValue(
                 "When mode is set to 'overwrite_files', the "
-                "`max_rows_by_file` and `bucketing_info` arguments cannot be set.")
+                "`max_rows_by_file` and `bucketing_info` arguments cannot be set."
+            )
         if any(arg is not None for arg in (table, description, parameters, columns_comments, columns_parameters)):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass dataset=True to be able to use any one of these "
@@ -298,8 +299,7 @@ class _S3WriteStrategy(ABC):
         dtype = dtype if dtype else {}
         partitions_values: dict[str, list[str]] = {}
 
-        mode, filename_prefix = _compose_filename_prefix_for_mode(
-            mode=mode, filename_prefix=filename_prefix)
+        mode, filename_prefix = _compose_filename_prefix_for_mode(mode=mode, filename_prefix=filename_prefix)
         mode = "append" if mode is None else mode
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         s3_client = _utils.client(service_name="s3", session=boto3_session)
