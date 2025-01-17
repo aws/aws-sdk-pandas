@@ -35,8 +35,7 @@ _COMPRESSION_2_EXT: dict[str | None, str] = {
 }
 
 
-def _load_mode_and_filename_prefix(
-        *, mode: str | None, filename_prefix: str | None = None) -> tuple[str, str]:
+def _load_mode_and_filename_prefix(*, mode: str | None, filename_prefix: str | None = None) -> tuple[str, str]:
     if mode is None:
         mode = "append"
 
