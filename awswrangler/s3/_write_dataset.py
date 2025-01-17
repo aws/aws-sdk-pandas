@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any, Callable
 
 import boto3
@@ -16,6 +17,24 @@ from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _load_mode_and_filename_prefix(*, mode: str | None, filename_prefix: str | None = None) -> tuple[str, str]:
+    if mode is None:
+        mode = "append"
+
+    if mode == "overwrite_files":
+        if filename_prefix is None:
+            filename_prefix = "part"
+        random_filename_suffix = ""
+        mode = "append"
+    else:
+        random_filename_suffix = uuid.uuid4().hex
+
+    if filename_prefix is None:
+        filename_prefix = ""
+    filename_prefix = filename_prefix + random_filename_suffix
+    return mode, filename_prefix
 
 
 def _get_bucketing_series(df: pd.DataFrame, bucketing_info: typing.BucketingInfoTuple) -> pd.Series:
@@ -212,6 +231,7 @@ def _to_dataset(
 ) -> tuple[list[str], dict[str, list[str]]]:
     path_root = path_root if path_root.endswith("/") else f"{path_root}/"
     # Evaluate mode
+    mode, filename_prefix = _load_mode_and_filename_prefix(mode=mode, filename_prefix=filename_prefix)
     if mode not in ["append", "overwrite", "overwrite_partitions"]:
         raise exceptions.InvalidArgumentValue(
             f"{mode} is a invalid mode, please use append, overwrite or overwrite_partitions."

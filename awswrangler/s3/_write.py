@@ -35,24 +35,6 @@ _COMPRESSION_2_EXT: dict[str | None, str] = {
 }
 
 
-def _load_mode_and_filename_prefix(*, mode: str | None, filename_prefix: str | None = None) -> tuple[str, str]:
-    if mode is None:
-        mode = "append"
-
-    if mode == "overwrite_files":
-        if filename_prefix is None:
-            filename_prefix = "part"
-        random_filename_suffix = ""
-        mode = "append"
-    else:
-        random_filename_suffix = uuid.uuid4().hex
-
-    if filename_prefix is None:
-        filename_prefix = ""
-    filename_prefix = filename_prefix + random_filename_suffix
-    return mode, filename_prefix
-
-
 def _extract_dtypes_from_table_input(table_input: dict[str, Any]) -> dict[str, str]:
     dtypes: dict[str, str] = {}
     for col in table_input["StorageDescriptor"]["Columns"]:
@@ -301,8 +283,8 @@ class _S3WriteStrategy(ABC):
         partition_cols = partition_cols if partition_cols else []
         dtype = dtype if dtype else {}
         partitions_values: dict[str, list[str]] = {}
+        mode = "append" if mode is None else mode
 
-        mode, filename_prefix = _load_mode_and_filename_prefix(mode=mode, filename_prefix=filename_prefix)
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         s3_client = _utils.client(service_name="s3", session=boto3_session)
 
@@ -351,7 +333,6 @@ class _S3WriteStrategy(ABC):
             paths = self._write_to_s3(
                 df,
                 path=path,
-                filename_prefix=filename_prefix,
                 schema=schema,
                 index=index,
                 cpus=cpus,

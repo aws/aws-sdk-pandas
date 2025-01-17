@@ -469,7 +469,6 @@ def to_csv(  # noqa: PLR0912,PLR0915
     partitions_values: dict[str, list[str]] = {}
     mode = "append" if mode is None else mode
 
-    filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     s3_client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards
@@ -919,7 +918,6 @@ def to_json(  # noqa: PLR0912,PLR0915
     partitions_values: dict[str, list[str]] = {}
     mode = "append" if mode is None else mode
 
-    filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     s3_client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards
