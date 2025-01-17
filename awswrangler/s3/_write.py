@@ -6,7 +6,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Tuple
 
 import boto3
 import pandas as pd
@@ -33,6 +33,21 @@ _COMPRESSION_2_EXT: dict[str | None, str] = {
     "zip": ".zip",
     "zstd": ".zstd",
 }
+
+
+def _compose_filename_prefix_for_mode(*, mode: str, filename_prefix: str = None) -> Tuple[str, str]:
+    if mode == "overwrite_files":
+        if filename_prefix is None:
+            filename_prefix = "part"
+        random_filename_suffix = ""
+        mode = "append"
+    else:
+        random_filename_suffix = uuid.uuid4().hex
+
+    if filename_prefix is None:
+        filename_prefix = ""
+    filename_prefix = filename_prefix + random_filename_suffix
+    return filename_prefix, mode
 
 
 def _extract_dtypes_from_table_input(table_input: dict[str, Any]) -> dict[str, str]:
@@ -71,6 +86,7 @@ def _validate_args(
     parameters: dict[str, str] | None,
     columns_comments: dict[str, str] | None,
     columns_parameters: dict[str, dict[str, str]] | None,
+    max_rows_by_file: int | None,
     execution_engine: Enum,
 ) -> None:
     if df.empty is True:
@@ -88,6 +104,10 @@ def _validate_args(
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use bucketing_info.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
+        if mode == "overwrite_files" and (max_rows_by_file or bucketing_info):
+            raise exceptions.InvalidArgumentValue(
+                "When mode is set to 'overwrite_files', the "
+                "`max_rows_by_file` and `bucketing_info` arguments cannot be set.")
         if any(arg is not None for arg in (table, description, parameters, columns_comments, columns_parameters)):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass dataset=True to be able to use any one of these "
@@ -278,20 +298,8 @@ class _S3WriteStrategy(ABC):
         dtype = dtype if dtype else {}
         partitions_values: dict[str, list[str]] = {}
 
-        if mode == "overwrite_files":
-            assert max_rows_by_file in [None, 0]
-
-            if filename_prefix is None:
-                filename_prefix = "part"
-            random_filename_suffix = ""
-            mode = "append"
-        else:
-            random_filename_suffix = uuid.uuid4().hex
-
-        if filename_prefix is None:
-            filename_prefix = ""
-        filename_prefix = filename_prefix + random_filename_suffix
-
+        mode, filename_prefix = _compose_filename_prefix_for_mode(
+            mode=mode, filename_prefix=filename_prefix)
         mode = "append" if mode is None else mode
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         s3_client = _utils.client(service_name="s3", session=boto3_session)

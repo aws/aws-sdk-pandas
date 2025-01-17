@@ -645,6 +645,7 @@ def to_orc(
         parameters=parameters,
         columns_comments=columns_comments,
         columns_parameters=columns_parameters,
+        max_rows_by_file=max_rows_by_file,
         execution_engine=engine.get(),
     )
 
