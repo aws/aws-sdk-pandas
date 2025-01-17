@@ -179,7 +179,7 @@ def to_csv(  # noqa: PLR0912,PLR0915
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
-        (Only considered if dataset=True and mode in ("append", "overwrite_partitions")). False by default.
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions", "overwrite_files")). False by default.
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.11.0/tutorials/014%20-%20Schema%20Evolution.html
     database
@@ -724,7 +724,7 @@ def to_json(  # noqa: PLR0912,PLR0915
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
-        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions", "overwrite_files"))
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.11.0/tutorials/014%20-%20Schema%20Evolution.html
     database

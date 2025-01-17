@@ -833,7 +833,7 @@ def block_waiting_available_thread(seq: Sequence[Future], max_workers: int) -> N
 
 def check_schema_changes(columns_types: dict[str, str], table_input: dict[str, Any] | None, mode: str) -> None:
     """Check schema changes."""
-    if (table_input is not None) and (mode in ("append", "overwrite_partitions")):
+    if (table_input is not None) and (mode in ("append", "overwrite_partitions", "overwrite_files")):
         catalog_cols: dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
         for c, t in columns_types.items():
             if c not in catalog_cols:

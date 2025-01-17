@@ -414,7 +414,7 @@ def to_orc(
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised. True by default.
-        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions", "overwrite_files"))
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.11.0/tutorials/014%20-%20Schema%20Evolution.html
     database

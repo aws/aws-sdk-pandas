@@ -47,7 +47,7 @@ def _extract_dtypes_from_table_input(table_input: dict[str, Any]) -> dict[str, s
 def _apply_dtype(
     df: pd.DataFrame, dtype: dict[str, str], catalog_table_input: dict[str, Any] | None, mode: str
 ) -> pd.DataFrame:
-    if mode in ("append", "overwrite_partitions"):
+    if mode in ("append", "overwrite_partitions", "overwrite_files"):
         if catalog_table_input is not None:
             catalog_types: dict[str, str] | None = _extract_dtypes_from_table_input(table_input=catalog_table_input)
             if catalog_types is not None:
