@@ -107,11 +107,6 @@ def _validate_args(
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use bucketing_info.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
-        if mode == "overwrite_files" and (max_rows_by_file or bucketing_info):
-            raise exceptions.InvalidArgumentValue(
-                "When mode is set to 'overwrite_files', the "
-                "`max_rows_by_file` and `bucketing_info` arguments cannot be set."
-            )
         if any(arg is not None for arg in (table, description, parameters, columns_comments, columns_parameters)):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass dataset=True to be able to use any one of these "
@@ -130,6 +125,11 @@ def _validate_args(
     elif bucketing_info and bucketing_info[1] <= 0:
         raise exceptions.InvalidArgumentValue(
             "Please pass a value greater than 1 for the number of buckets for bucketing."
+        )
+    elif mode == "overwrite_files" and (max_rows_by_file or bucketing_info):
+        raise exceptions.InvalidArgumentValue(
+            "When mode is set to 'overwrite_files', the "
+            "`max_rows_by_file` and `bucketing_info` arguments cannot be set."
         )
 
 
