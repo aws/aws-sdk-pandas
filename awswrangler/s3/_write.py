@@ -47,7 +47,7 @@ def _compose_filename_prefix_for_mode(*, mode: str, filename_prefix: str = None)
     if filename_prefix is None:
         filename_prefix = ""
     filename_prefix = filename_prefix + random_filename_suffix
-    return filename_prefix, mode
+    return mode, filename_prefix
 
 
 def _extract_dtypes_from_table_input(table_input: dict[str, Any]) -> dict[str, str]:
