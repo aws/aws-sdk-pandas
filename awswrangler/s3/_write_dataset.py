@@ -220,7 +220,7 @@ def _to_dataset(
     concurrent_partitioning: bool,
     df: pd.DataFrame,
     path_root: str,
-    filename_prefix: str,
+    filename_prefix: str | None,
     index: bool,
     use_threads: bool | int,
     mode: str,
