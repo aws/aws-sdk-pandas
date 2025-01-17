@@ -6,7 +6,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Tuple
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple
 
 import boto3
 import pandas as pd
@@ -35,7 +35,7 @@ _COMPRESSION_2_EXT: dict[str | None, str] = {
 }
 
 
-def _compose_filename_prefix_for_mode(*, mode: str, filename_prefix: str = None) -> Tuple[str, str]:
+def _compose_filename_prefix_for_mode(*, mode: str, filename_prefix: str = None) -> tuple[str, str]:
     if mode == "overwrite_files":
         if filename_prefix is None:
             filename_prefix = "part"
