@@ -86,8 +86,8 @@ def _validate_args(
     parameters: dict[str, str] | None,
     columns_comments: dict[str, str] | None,
     columns_parameters: dict[str, dict[str, str]] | None,
-    max_rows_by_file: int | None,
     execution_engine: Enum,
+    max_rows_by_file: int | None = None,
 ) -> None:
     if df.empty is True:
         _logger.warning("Empty DataFrame will be written.")
