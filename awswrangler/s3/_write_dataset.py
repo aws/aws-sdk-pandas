@@ -24,8 +24,10 @@ def _load_mode_and_filename_prefix(*, mode: str | None, filename_prefix: str | N
         mode = "append"
 
     if mode == "overwrite_files":
+        # In `overwrite_files` mode, we need create a deterministic
+        # filename to ensure that the same file is overwritten:
         if filename_prefix is None:
-            filename_prefix = "part"
+            filename_prefix = "data"
         random_filename_suffix = ""
         mode = "append"
     else:
@@ -68,8 +70,8 @@ def _get_bucket_number(number_of_buckets: int, values: list[str | int | bool]) -
 def _get_value_hash(value: str | int | bool) -> int:
     if isinstance(value, (int, np.int_)):
         value = int(value)
-        bigint_min, bigint_max = -(2**63), 2**63 - 1
-        int_min, int_max = -(2**31), 2**31 - 1
+        bigint_min, bigint_max = -(2 ** 63), 2 ** 63 - 1
+        int_min, int_max = -(2 ** 31), 2 ** 31 - 1
         if not bigint_min <= value <= bigint_max:
             raise ValueError(f"{value} exceeds the range that Athena cannot handle as bigint.")
         if not int_min <= value <= int_max:
@@ -97,13 +99,13 @@ def _get_subgroup_prefix(keys: tuple[str, None], partition_cols: list[str], path
 
 
 def _delete_objects(
-    keys: tuple[str, None],
-    path_root: str,
-    use_threads: bool | int,
-    mode: str,
-    partition_cols: list[str],
-    boto3_session: boto3.Session | None = None,
-    **func_kwargs: Any,
+        keys: tuple[str, None],
+        path_root: str,
+        use_threads: bool | int,
+        mode: str,
+        partition_cols: list[str],
+        boto3_session: boto3.Session | None = None,
+        **func_kwargs: Any,
 ) -> str:
     # Keys are either a primitive type or a tuple if partitioning by multiple cols
     keys = (keys,) if not isinstance(keys, tuple) else keys
@@ -120,17 +122,17 @@ def _delete_objects(
 
 @engine.dispatch_on_engine
 def _to_partitions(
-    df: pd.DataFrame,
-    func: Callable[..., list[str]],
-    concurrent_partitioning: bool,
-    path_root: str,
-    use_threads: bool | int,
-    mode: str,
-    partition_cols: list[str],
-    bucketing_info: typing.BucketingInfoTuple | None,
-    filename_prefix: str,
-    boto3_session: boto3.Session | None,
-    **func_kwargs: Any,
+        df: pd.DataFrame,
+        func: Callable[..., list[str]],
+        concurrent_partitioning: bool,
+        path_root: str,
+        use_threads: bool | int,
+        mode: str,
+        partition_cols: list[str],
+        bucketing_info: typing.BucketingInfoTuple | None,
+        filename_prefix: str,
+        boto3_session: boto3.Session | None,
+        **func_kwargs: Any,
 ) -> tuple[list[str], dict[str, list[str]]]:
     partitions_values: dict[str, list[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
@@ -187,15 +189,15 @@ def _to_partitions(
 
 @engine.dispatch_on_engine
 def _to_buckets(
-    df: pd.DataFrame,
-    func: Callable[..., list[str]],
-    path_root: str,
-    bucketing_info: typing.BucketingInfoTuple,
-    filename_prefix: str,
-    boto3_session: boto3.Session | None,
-    use_threads: bool | int,
-    proxy: _WriteProxy | None = None,
-    **func_kwargs: Any,
+        df: pd.DataFrame,
+        func: Callable[..., list[str]],
+        path_root: str,
+        bucketing_info: typing.BucketingInfoTuple,
+        filename_prefix: str,
+        boto3_session: boto3.Session | None,
+        use_threads: bool | int,
+        proxy: _WriteProxy | None = None,
+        **func_kwargs: Any,
 ) -> list[str]:
     _proxy: _WriteProxy = proxy if proxy else _WriteProxy(use_threads=False)
     s3_client = client(service_name="s3", session=boto3_session)
@@ -216,18 +218,18 @@ def _to_buckets(
 
 
 def _to_dataset(
-    func: Callable[..., list[str]],
-    concurrent_partitioning: bool,
-    df: pd.DataFrame,
-    path_root: str,
-    filename_prefix: str | None,
-    index: bool,
-    use_threads: bool | int,
-    mode: str,
-    partition_cols: list[str] | None,
-    bucketing_info: typing.BucketingInfoTuple | None,
-    boto3_session: boto3.Session | None,
-    **func_kwargs: Any,
+        func: Callable[..., list[str]],
+        concurrent_partitioning: bool,
+        df: pd.DataFrame,
+        path_root: str,
+        filename_prefix: str | None,
+        index: bool,
+        use_threads: bool | int,
+        mode: str,
+        partition_cols: list[str] | None,
+        bucketing_info: typing.BucketingInfoTuple | None,
+        boto3_session: boto3.Session | None,
+        **func_kwargs: Any,
 ) -> tuple[list[str], dict[str, list[str]]]:
     path_root = path_root if path_root.endswith("/") else f"{path_root}/"
     # Evaluate mode
