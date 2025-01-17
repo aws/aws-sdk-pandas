@@ -35,7 +35,11 @@ _COMPRESSION_2_EXT: dict[str | None, str] = {
 }
 
 
-def _compose_filename_prefix_for_mode(*, mode: str, filename_prefix: str = None) -> tuple[str, str]:
+def _load_mode_and_filename_prefix(
+        *, mode: str | None, filename_prefix: str | None = None) -> tuple[str, str]:
+    if mode is None:
+        mode = "append"
+
     if mode == "overwrite_files":
         if filename_prefix is None:
             filename_prefix = "part"
@@ -299,8 +303,7 @@ class _S3WriteStrategy(ABC):
         dtype = dtype if dtype else {}
         partitions_values: dict[str, list[str]] = {}
 
-        mode, filename_prefix = _compose_filename_prefix_for_mode(mode=mode, filename_prefix=filename_prefix)
-        mode = "append" if mode is None else mode
+        mode, filename_prefix = _load_mode_and_filename_prefix(mode=mode, filename_prefix=filename_prefix)
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         s3_client = _utils.client(service_name="s3", session=boto3_session)
 
