@@ -420,17 +420,17 @@ css = ["tinycss2 (>=1.1.0,<1.5)"]
 
 [[package]]
 name = "boto3"
-version = "1.35.93"
+version = "1.35.97"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "boto3-1.35.93-py3-none-any.whl", hash = "sha256:7de2c44c960e486f3c57e5203ea6393c6c4f0914c5f81c789ceb8b5d2ba5d1c5"},
-    {file = "boto3-1.35.93.tar.gz", hash = "sha256:2446e819cf4e295833474cdcf2c92bc82718ce537e9ee1f17f7e3d237f60e69b"},
+    {file = "boto3-1.35.97-py3-none-any.whl", hash = "sha256:8e49416216a6e3a62c2a0c44fba4dd2852c85472e7b702516605b1363867d220"},
+    {file = "boto3-1.35.97.tar.gz", hash = "sha256:7d398f66a11e67777c189d1f58c0a75d9d60f98d0ee51b8817e828930bf19e4e"},
 ]
 
 [package.dependencies]
-botocore = ">=1.35.93,<1.36.0"
+botocore = ">=1.35.97,<1.36.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.10.0,<0.11.0"
 
@@ -889,13 +889,13 @@ xray = ["mypy-boto3-xray (>=1.35.0,<1.36.0)"]
 
 [[package]]
 name = "botocore"
-version = "1.35.97"
+version = "1.35.99"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "botocore-1.35.97-py3-none-any.whl", hash = "sha256:fed4f156b1a9b8ece53738f702ba5851b8c6216b4952de326547f349cc494f14"},
-    {file = "botocore-1.35.97.tar.gz", hash = "sha256:88f2fab29192ffe2f2115d5bafbbd823ff4b6eb2774296e03ec8b5b0fe074f61"},
+    {file = "botocore-1.35.99-py3-none-any.whl", hash = "sha256:b22d27b6b617fc2d7342090d6129000af2efd20174215948c0d7ae2da0fab445"},
+    {file = "botocore-1.35.99.tar.gz", hash = "sha256:1eab44e969c39c5f3d9a3104a0836c24715579a455f12b3979a31d7cde51b3c3"},
 ]
 
 [package.dependencies]
@@ -1518,17 +1518,17 @@ files = [
 
 [[package]]
 name = "deltalake"
-version = "0.23.2"
+version = "0.24.0"
 description = "Native Delta Lake Python binding based on delta-rs with Pandas integration"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "deltalake-0.23.2-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:ad97cb4294a63607b7a4ed9bf842fdef1bc09f2b99e1eb220b7cded849f19fdb"},
-    {file = "deltalake-0.23.2-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:f375cf25e9d7992bcdc98631c006642a1a4c45cf3cbab506caca3aa2a7f9dfc7"},
-    {file = "deltalake-0.23.2-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6808ef6a9385fed1cc969fa36eefa643c465285e6661a92f633ce6d666f8677e"},
-    {file = "deltalake-0.23.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0d62793556407296563a04de957462178514305e651633bacd2afba0f985b5a8"},
-    {file = "deltalake-0.23.2-cp39-abi3-win_amd64.whl", hash = "sha256:0362afbacd67748f176ca8d4c30b28fb2d511dd576b2fdb73d63c171e7c2782d"},
-    {file = "deltalake-0.23.2.tar.gz", hash = "sha256:1f1d9df16e3ba068e8297cfffd50993a5a3722f8f2a27c18f7306300ea06e4fc"},
+    {file = "deltalake-0.24.0-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:1c4c5b2d3b8d467fb35504ef5649344bf3ad4f656303101e463ece3db2843c79"},
+    {file = "deltalake-0.24.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:3d59e62305d42b76c78e0c3dcb479d9ad512a2bbe12867c24e3ed2d66492d2b4"},
+    {file = "deltalake-0.24.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:59487ae82c7de5950ec951e2dad7d4b2b281e81fac7b65d8187dac64b1506359"},
+    {file = "deltalake-0.24.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:05dc5ee8adb05cc4aaf8988335c14720b4e7b042d0d1976bde10c2a5cc3b9654"},
+    {file = "deltalake-0.24.0-cp39-abi3-win_amd64.whl", hash = "sha256:1c423bdab46fa3c01a9364ba5533167d3b58099fd4a0599e6d0c363e9ba64799"},
+    {file = "deltalake-0.24.0.tar.gz", hash = "sha256:0a33528b40067ee204b527efd88cc1a4cea4b61af4886ca57539d5b6b657e20f"},
 ]
 
 [package.dependencies]
@@ -1536,6 +1536,7 @@ pyarrow = ">=16"
 
 [package.extras]
 devel = ["azure-storage-blob (==12.20.0)", "mypy (==1.10.1)", "packaging (>=20)", "pip (>=24.0)", "pytest", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-timeout", "ruff (==0.5.2)", "sphinx (<=4.5)", "sphinx-rtd-theme", "toml", "wheel"]
+lakefs = ["lakefs (==0.8.0)"]
 pandas = ["pandas"]
 polars = ["polars (==1.17.1)"]
 pyspark = ["delta-spark", "numpy (==1.26.4)", "pyspark"]
@@ -7374,4 +7375,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9, <4.0"
-content-hash = "ea8371546f31a96430b7facc1fd5438b9b66aaa9260bbcb1db6a56b245ec07a1"
+content-hash = "0f05089d7d384d5a579370da38c03d58193ae8767158ec00093d4f527b54b5c5"
