@@ -222,7 +222,7 @@ def test_connect_secret_manager(dbname):
 
 def test_insert_with_column_names(sqlserver_table, sqlserver_con):
     create_table_sql = (
-        f"CREATE TABLE dbo.{sqlserver_table} " "(c0 varchar(100) NULL," "c1 INT DEFAULT 42 NULL," "c2 INT NOT NULL);"
+        f"CREATE TABLE dbo.{sqlserver_table} (c0 varchar(100) NULL,c1 INT DEFAULT 42 NULL,c2 INT NOT NULL);"
     )
     with sqlserver_con.cursor() as cursor:
         cursor.execute(create_table_sql)

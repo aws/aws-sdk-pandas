@@ -1219,7 +1219,7 @@ def test_failed_keep_files(
 
 def test_insert_with_column_names(redshift_table: str, redshift_con: redshift_connector.Connection) -> None:
     create_table_sql = (
-        f"CREATE TABLE public.{redshift_table} " "(c0 varchar(100), " "c1 integer default 42, " "c2 integer not null);"
+        f"CREATE TABLE public.{redshift_table} (c0 varchar(100), c1 integer default 42, c2 integer not null);"
     )
     with redshift_con.cursor() as cursor:
         cursor.execute(create_table_sql)
