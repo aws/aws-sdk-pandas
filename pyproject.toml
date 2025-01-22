@@ -69,10 +69,7 @@ jsonpath-ng = { version = "^1.5.3", optional = true }
 openpyxl = { version = "^3.0.0", optional = true }
 progressbar2 = { version = "^4.0.0", optional = true }
 deltalake = { version = ">=0.18.0,<0.25.0", optional = true }
-geopandas = [
-    { version = "^0.13.2", markers = "python_version < \"3.12\"", optional = true },
-    { version = "^0.14.1", markers = "python_version >= \"3.12\"", optional = true }
-]
+geopandas = { version = "^1.0.0", optional = true }
 
 # Distributed
 modin = { version = ">=0.31,<0.33", optional = true }
@@ -95,7 +92,7 @@ geopandas = ["geopandas"]
 modin = ["modin"]
 ray = ["ray"]
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 # Build
 setuptools = "*"
 wheel = "^0.45.1"
