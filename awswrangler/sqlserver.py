@@ -536,8 +536,7 @@ def to_sql(
                     sql = f"MERGE INTO {table_identifier}\nUSING (VALUES {placeholders}) AS source ({quoted_columns})\n"
                     sql += f"ON {' AND '.join(f'{table_identifier}.{col}=source.{col}' for col in merge_on_columns)}\n"
                     sql += (
-                        f"WHEN MATCHED THEN\n UPDATE "
-                        f"SET {', '.join(f'{col}=source.{col}' for col in column_names)}\n"
+                        f"WHEN MATCHED THEN\n UPDATE SET {', '.join(f'{col}=source.{col}' for col in column_names)}\n"
                     )
                     sql += (
                         f"WHEN NOT MATCHED THEN\n INSERT "

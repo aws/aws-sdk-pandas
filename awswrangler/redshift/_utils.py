@@ -73,7 +73,7 @@ def _begin_transaction(cursor: "redshift_connector.Cursor") -> None:
 def _drop_table(cursor: "redshift_connector.Cursor", schema: str | None, table: str, cascade: bool = False) -> None:
     schema_str = f'"{schema}".' if schema else ""
     cascade_str = " CASCADE" if cascade else ""
-    sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"' f"{cascade_str}"
+    sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"{cascade_str}'
     _logger.debug("Executing drop table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -130,10 +130,7 @@ def _add_table_columns(
 def _does_table_exist(cursor: "redshift_connector.Cursor", schema: str | None, table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     sql = (
-        f"SELECT true WHERE EXISTS ("
-        f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
-        f"{schema_str} TABLE_NAME = '{table}'"
-        f");"
+        f"SELECT true WHERE EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE {schema_str} TABLE_NAME = '{table}');"
     )
     _logger.debug("Executing select query:\n%s", sql)
     cursor.execute(sql)
@@ -236,12 +233,12 @@ def _validate_parameters(
     if sortkey:
         if not isinstance(sortkey, list):
             raise exceptions.InvalidRedshiftSortkey(
-                f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {sortkey}"
+                f"sortkey must be a List of items in the columns list: {cols}. Currently value: {sortkey}"
             )
         for key in sortkey:
             if key not in cols:
                 raise exceptions.InvalidRedshiftSortkey(
-                    f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {key}"
+                    f"sortkey must be a List of items in the columns list: {cols}. Currently value: {key}"
                 )
     if primary_keys:
         if not isinstance(primary_keys, list):

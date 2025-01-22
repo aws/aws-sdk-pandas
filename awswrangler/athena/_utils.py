@@ -1025,13 +1025,13 @@ def generate_create_query(
 
         query_parts += [
             """ROW FORMAT SERDE """,
-            f"""  '{table_detail['StorageDescriptor']['SerdeInfo']['SerializationLibrary']}' """,
+            f"""  '{table_detail["StorageDescriptor"]["SerdeInfo"]["SerializationLibrary"]}' """,
             """STORED AS INPUTFORMAT """,
-            f"""  '{table_detail['StorageDescriptor']['InputFormat']}' """,
+            f"""  '{table_detail["StorageDescriptor"]["InputFormat"]}' """,
             """OUTPUTFORMAT """,
-            f"""  '{table_detail['StorageDescriptor']['OutputFormat']}'""",
+            f"""  '{table_detail["StorageDescriptor"]["OutputFormat"]}'""",
             """LOCATION""",
-            f"""  '{table_detail['StorageDescriptor']['Location']}'""",
+            f"""  '{table_detail["StorageDescriptor"]["Location"]}'""",
             f"""TBLPROPERTIES (\n{tblproperties})""",
         ]
         sql = "\n".join(query_parts)

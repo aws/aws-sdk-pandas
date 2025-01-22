@@ -610,7 +610,7 @@ def _unload(
     if partitioned_by:
         unload_parameters += f"  , partitioned_by=ARRAY{partitioned_by}"
 
-    sql = f"UNLOAD ({sql}) " f"TO '{path}' " f"WITH ({unload_parameters})"
+    sql = f"UNLOAD ({sql}) TO '{path}' WITH ({unload_parameters})"
     _logger.debug("Executing unload query: %s", sql)
     try:
         query_id: str = _start_query_execution(
