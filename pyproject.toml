@@ -92,7 +92,7 @@ geopandas = ["geopandas"]
 modin = ["modin"]
 ray = ["ray"]
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 # Build
 setuptools = "*"
 wheel = "^0.45.1"
