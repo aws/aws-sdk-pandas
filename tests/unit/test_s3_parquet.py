@@ -62,7 +62,7 @@ def test_read_parquet_metadata_nonexistent_file(path):
         wr.s3.read_parquet_metadata(path + "non-existent-file.parquet")
 
 
-def read_parquet_metadata_large_dtype(path):
+def test_read_parquet_metadata_large_dtype(path):
     schema = pa.schema(
         [
             pa.field("c0", pa.large_list(pa.large_string())),
