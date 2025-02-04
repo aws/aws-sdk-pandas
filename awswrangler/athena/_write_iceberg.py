@@ -544,10 +544,6 @@ def to_iceberg(
 
                 schema_differences["missing_columns"] = {}
 
-                # Ensure that the ordering of the DF is the same as in the catalog.
-                # This is required for the INSERT command to work.
-                df = df[catalog_cols + list(schema_differences["new_columns"].keys())]
-
             if schema_evolution is False and any([schema_differences[x] for x in schema_differences]):  # type: ignore[literal-required]
                 raise exceptions.InvalidArgumentValue(f"Schema change detected: {schema_differences}")
 
@@ -564,6 +560,22 @@ def to_iceberg(
                 kms_key=kms_key,
                 boto3_session=boto3_session,
             )
+
+            # Ensure that the ordering of the DF is the same as in the catalog.
+            # This is required for the INSERT command to work.
+            # update catalog_cols after altering table
+            catalog_column_types = typing.cast(
+                Dict[str, str],
+                catalog.get_table_types(
+                    database=database,
+                    table=table,
+                    catalog_id=catalog_id,
+                    filter_iceberg_current=True,
+                    boto3_session=boto3_session,
+                ),
+            )
+            catalog_cols = [key for key in catalog_column_types]
+            df = df[catalog_cols]
 
         # if mode == "overwrite_partitions", drop matched partitions
         if mode == "overwrite_partitions":
