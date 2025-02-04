@@ -1211,3 +1211,58 @@ def test_athena_to_iceberg_alter_schema(
     )
 
     assert_pandas_equals(df, df_actual)
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["name"]])
+def test_athena_to_iceberg_append_schema_evolution(
+    path: str,
+    path2: str,
+    path3: str,
+    glue_database: str,
+    glue_table: str,
+    partition_cols: list[str] | None,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5],
+            "name": ["a", "b", "c", "a", "c"],
+            "age": [None, None, None, None, 50],
+        }
+    )
+    df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
+    df["name"] = df["name"].astype("string")
+    df["age"] = df["age"].astype("Int64")  # Cast as nullable int64 type
+    split_index_rows = 4
+    split_index_columns = 2
+
+    wr.athena.to_iceberg(
+        df=df.iloc[:split_index_rows, :split_index_columns],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=partition_cols,
+        keep_files=False,
+    )
+
+    wr.athena.to_iceberg(
+        df=df.iloc[split_index_rows:, :],
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        partition_cols=partition_cols,
+        schema_evolution=True,
+        keep_files=False,
+        mode="append",
+        s3_output=path3,
+    )
+
+    df_actual = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    assert_pandas_equals(df, df_actual)
