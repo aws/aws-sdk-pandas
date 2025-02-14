@@ -75,6 +75,7 @@ def test_read_parquet_metadata_large_dtype(path):
 
     # use pyarrow-backed dataframe to simulate the large_list and large_string dtypes
     pandas_df = df.to_pandas(types_mapper=lambda pa_dtype: pd.ArrowDtype(pa_dtype))
+    path = f"{path}df.parquet"
 
     wr.s3.to_parquet(pandas_df, path)
     columns_types, _ = wr.s3.read_parquet_metadata(path)
