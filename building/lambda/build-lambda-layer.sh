@@ -11,12 +11,14 @@ popd
 rm -rf dist arrow
 
 export ARROW_HOME=$(pwd)/dist
+export ARROW_VERSION=18.1.0
 export LD_LIBRARY_PATH=$(pwd)/dist/lib:$LD_LIBRARY_PATH
 export CMAKE_PREFIX_PATH=$ARROW_HOME:$CMAKE_PREFIX_PATH
+export SETUPTOOLS_SCM_PRETEND_VERSION=$ARROW_VERSION
 
 git clone \
   --depth 1 \
-  --branch apache-arrow-16.1.0 \
+  --branch "apache-arrow-${ARROW_VERSION}" \
   --single-branch \
   https://github.com/apache/arrow.git
 
@@ -81,10 +83,7 @@ popd
 
 pushd /aws-sdk-pandas
 
-pip3 install . -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]"
-
-# Install Numpy 1.x because 2.x is not support in layers right now
-pip3 install -t ./python --upgrade "numpy==1.*"
+pip3 install . --no-binary numpy,pandas -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]"
 
 rm -rf python/pyarrow*
 rm -rf python/boto*

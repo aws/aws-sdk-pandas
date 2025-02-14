@@ -62,6 +62,28 @@ def test_read_parquet_metadata_nonexistent_file(path):
         wr.s3.read_parquet_metadata(path + "non-existent-file.parquet")
 
 
+def test_read_parquet_metadata_large_dtype(path):
+    schema = pa.schema(
+        [
+            pa.field("c0", pa.large_list(pa.large_string())),
+            pa.field("c1", pa.large_string()),
+        ]
+    )
+    c0 = pa.array([["a", "b", "c"], ["d", "e", "f"], ["g", "h", "i"]])
+    c1 = pa.array(["a", "b", "c"])
+    df = pa.table([c0, c1], schema=schema)
+
+    # use pyarrow-backed dataframe to simulate the large_list and large_string dtypes
+    pandas_df = df.to_pandas(types_mapper=lambda pa_dtype: pd.ArrowDtype(pa_dtype))
+    path = f"{path}df.parquet"
+
+    wr.s3.to_parquet(pandas_df, path)
+    columns_types, _ = wr.s3.read_parquet_metadata(path)
+    assert len(columns_types) == len(df.columns)
+    assert columns_types.get("c0") == "array<string>"
+    assert columns_types.get("c1") == "string"
+
+
 @pytest.mark.parametrize(
     "partition_cols",
     [
