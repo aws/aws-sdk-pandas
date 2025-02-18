@@ -52,6 +52,7 @@ def test_athena_to_iceberg(
         temp_path=path2,
         partition_cols=partition_cols,
         additional_table_properties=additional_table_properties,
+        pyarrow_additional_kwargs={"coerce_timestamps": "us"},
     )
 
     df_out = wr.athena.read_sql_query(

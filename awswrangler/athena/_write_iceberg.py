@@ -352,7 +352,7 @@ def _merge_iceberg(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
-def to_iceberg(
+def to_iceberg(  # noqa: PLR0913
     df: pd.DataFrame,
     database: str,
     table: str,
@@ -372,6 +372,7 @@ def to_iceberg(
     kms_key: str | None = None,
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, Any] | None = None,
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
     additional_table_properties: dict[str, Any] | None = None,
     dtype: dict[str, str] | None = None,
     catalog_id: str | None = None,
@@ -429,6 +430,10 @@ def to_iceberg(
         For SSE-KMS, this is the KMS key ARN or ID.
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
+    pyarrow_additional_kwargs
+        Additional parameters forwarded to pyarrow.
+        e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
+        'allow_truncated_timestamps'=False}
     s3_additional_kwargs
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -619,6 +624,7 @@ def to_iceberg(
             table=temp_table,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             dtype=dtype,
             catalog_id=catalog_id,
             glue_table_settings=glue_table_settings,
