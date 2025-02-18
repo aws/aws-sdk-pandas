@@ -569,17 +569,16 @@ def to_iceberg(  # noqa: PLR0913
             # Ensure that the ordering of the DF is the same as in the catalog.
             # This is required for the INSERT command to work.
             # update catalog_cols after altering table
-            catalog_column_types = typing.cast(
-                Dict[str, str],
-                catalog.get_table_types(
-                    database=database,
-                    table=table,
-                    catalog_id=catalog_id,
-                    filter_iceberg_current=True,
-                    boto3_session=boto3_session,
-                ),
+            _, catalog_cols = _determine_differences(
+                df=df,
+                database=database,
+                table=table,
+                index=index,
+                partition_cols=partition_cols,
+                boto3_session=boto3_session,
+                dtype=dtype,
+                catalog_id=catalog_id,
             )
-            catalog_cols = [key for key in catalog_column_types]
             df = df[catalog_cols]
 
         # if mode == "overwrite_partitions", drop matched partitions
