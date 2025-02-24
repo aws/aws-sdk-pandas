@@ -678,6 +678,7 @@ def delete_from_iceberg_table(
     workgroup: str = "primary",
     encryption: str | None = None,
     kms_key: str | None = None,
+    dtype: dict[str, str] | None = None,
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, Any] | None = None,
     catalog_id: str | None = None,
@@ -713,6 +714,10 @@ def delete_from_iceberg_table(
         Valid values: [``None``, ``"SSE_S3"``, ``"SSE_KMS"``]. Notice: ``"CSE_KMS"`` is not supported.
     kms_key
         For SSE-KMS, this is the KMS key ARN or ID.
+    dtype
+        Dictionary of columns names and Athena/Glue types to be casted.
+        Useful when you have columns with undetermined or mixed data types.
+        (e.g. {'col name': 'bigint', 'col2 name': 'int'})
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
     s3_additional_kwargs
@@ -774,6 +779,7 @@ def delete_from_iceberg_table(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             catalog_id=catalog_id,
+            dtype=dtype,
             index=False,
         )
 
