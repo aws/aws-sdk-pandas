@@ -870,6 +870,7 @@ def test_athena_delete_from_iceberg_table(
             "id": [1, 2, 3],
             "name": ["a", "b", "c"],
             "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+            "empty": [pd.NA, pd.NA, pd.NA],
         }
     )
     df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
@@ -883,6 +884,7 @@ def test_athena_delete_from_iceberg_table(
         temp_path=path2,
         partition_cols=partition_cols,
         keep_files=False,
+        dtype={"empty": "string"},
     )
 
     wr.athena.delete_from_iceberg_table(
@@ -892,6 +894,7 @@ def test_athena_delete_from_iceberg_table(
         temp_path=path2,
         merge_cols=["id"],
         keep_files=False,
+        dtype={"empty": "string"},
     )
 
     df_actual = wr.athena.read_sql_query(
@@ -906,10 +909,12 @@ def test_athena_delete_from_iceberg_table(
             "id": [3],
             "name": ["c"],
             "ts": [ts("2020-01-03 00:00:00.0")],
+            "empty": [pd.NA],
         }
     )
     df_expected["id"] = df_expected["id"].astype("Int64")  # Cast as nullable int64 type
     df_expected["name"] = df_expected["name"].astype("string")
+    df_expected["empty"] = df_expected["empty"].astype("string")
 
     assert_pandas_equals(df_expected, df_actual)
 
