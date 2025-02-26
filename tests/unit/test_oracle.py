@@ -254,3 +254,15 @@ def test_dfs_are_equal_for_different_chunksizes(
     df["c1"] = df["c1"].astype("string")
 
     assert df.equals(df2)
+
+
+def test_decimal_columns_none(oracle_table: str, oracle_con: "oracledb.Connection") -> None:
+    create_table_sql = (
+        f'CREATE TABLE "TEST"."{oracle_table}"("VARCOL" VARCHAR2(200),"INTCOL" INTEGER,"NUMCOL" NUMERIC(38, 10))'
+    )
+
+    with oracle_con.cursor() as cursor:
+        cursor.execute(create_table_sql)
+        oracle_con.commit()
+
+    wr.oracle.read_sql_query(f"SELECT * FROM all_tab_columns WHERE table_name = '{oracle_table}'", oracle_con)
