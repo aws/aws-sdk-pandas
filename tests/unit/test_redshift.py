@@ -1595,3 +1595,40 @@ def test_add_new_columns_case_sensitive(
     df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM {schema}.{redshift_table}", con=redshift_con)
     expected_columns = list(sorted(df.columns.tolist() + ["boo"]))
     assert expected_columns == list(sorted(df2.columns.tolist()))
+
+
+def test_copy_serialize_to_json_super(
+    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any]
+) -> None:
+    schema = "public"
+
+    with redshift_con.cursor() as cursor:
+        cursor.execute(f"CREATE TABLE {schema}.{redshift_table} (id BIGINT, text SUPER ENCODE RAW) DISTSTYLE AUTO;")
+        redshift_con.commit()
+
+    df = pd.DataFrame({"id": [1, 2, 3], "text": [{"text": "test1"}, {"text": "test2"}, {"text": "test3"}]})
+
+    df["id"] = df["id"].astype("Int64")
+    # Serialize JSON
+    df["text"] = df["text"].apply(json.dumps)
+
+    wr.redshift.copy(
+        df=df,
+        path=path,
+        con=redshift_con,
+        schema=schema,
+        table=redshift_table,
+        mode="append",
+        serialize_to_json=True,  # Add SERIALIZETOJSON to COPY be able to load into SUPER JSON column
+        iam_role=databases_parameters["redshift"]["role"],
+    )
+
+    df_res = wr.redshift.read_sql_query(
+        sql=f"SELECT * FROM public.{redshift_table} ORDER BY id",
+        con=redshift_con,
+    )
+
+    # Deserialize JSON
+    df_res["text"] = df_res["text"].apply(json.loads)
+
+    assert_pandas_equals(df, df_res)
