@@ -648,6 +648,10 @@ def copy(  # noqa: PLR0913
         The size that will be set for all VARCHAR columns not specified with varchar_lengths.
     varchar_lengths
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
+    serialize_to_json
+        Should awswrangler add SERIALIZETOJSON parameter into the COPY command?
+        SERIALIZETOJSON is necessary to load nested data
+        https://docs.aws.amazon.com/redshift/latest/dg/ingest-super.html#copy_json
     keep_files
         Should keep stage files?
     use_threads
