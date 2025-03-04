@@ -31,7 +31,7 @@ def _update_if_necessary(
     if value is not None:
         if key not in dic or dic[key] != value:
             dic[key] = value
-            if mode in ("append", "overwrite_partitions"):
+            if mode in ("append", "overwrite_partitions", "overwrite_files"):
                 return "update"
     return mode
 
@@ -150,9 +150,10 @@ def _create_table(  # noqa: PLR0912,PLR0915
 
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     skip_archive: bool = not catalog_versioning
-    if mode not in ("overwrite", "append", "overwrite_partitions", "update"):
+    if mode not in ("overwrite", "append", "overwrite_partitions", "overwrite_files", "update"):
         raise exceptions.InvalidArgument(
-            f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
+            f"{mode} is not a valid mode. It must be 'overwrite', "
+            f"'append', 'overwrite_partitions' or 'overwrite_files'."
         )
     args: dict[str, Any] = _catalog_id(
         catalog_id=catalog_id,
@@ -304,7 +305,7 @@ def _create_parquet_table(
     _logger.debug("catalog_table_input: %s", catalog_table_input)
 
     table_input: dict[str, Any]
-    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions", "overwrite_files")):
         table_input = catalog_table_input
 
         is_table_updated = _update_table_input(table_input, columns_types)
@@ -366,7 +367,7 @@ def _create_orc_table(
     _logger.debug("catalog_table_input: %s", catalog_table_input)
 
     table_input: dict[str, Any]
-    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions", "overwrite_files")):
         table_input = catalog_table_input
 
         is_table_updated = _update_table_input(table_input, columns_types)
@@ -436,7 +437,7 @@ def _create_csv_table(
         _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
     table_input: dict[str, Any]
-    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions", "overwrite_files")):
         table_input = catalog_table_input
 
         is_table_updated = _update_table_input(table_input, columns_types, allow_reorder=False)
@@ -508,7 +509,7 @@ def _create_json_table(
     table_input: dict[str, Any]
     if schema_evolution is False:
         _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
-    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions", "overwrite_files")):
         table_input = catalog_table_input
 
         is_table_updated = _update_table_input(table_input, columns_types)
@@ -1098,7 +1099,7 @@ def create_csv_table(
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
-        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions", "overwrite_files"))
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.11.0/tutorials/014%20-%20Schema%20Evolution.html
     sep
@@ -1278,7 +1279,7 @@ def create_json_table(
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
-        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions", "overwrite_files"))
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.11.0/tutorials/014%20-%20Schema%20Evolution.html
     serde_library

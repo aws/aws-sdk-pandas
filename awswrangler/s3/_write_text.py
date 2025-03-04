@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import logging
-import uuid
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import boto3
@@ -98,7 +97,7 @@ def to_csv(  # noqa: PLR0912,PLR0915
     partition_cols: list[str] | None = None,
     bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
-    mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
+    mode: Literal["append", "overwrite", "overwrite_partitions", "overwrite_files"] | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     dtype: dict[str, str] | None = None,
@@ -180,7 +179,7 @@ def to_csv(  # noqa: PLR0912,PLR0915
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
-        (Only considered if dataset=True and mode in ("append", "overwrite_partitions")). False by default.
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions", "overwrite_files")). False by default.
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.11.0/tutorials/014%20-%20Schema%20Evolution.html
     database
@@ -469,7 +468,6 @@ def to_csv(  # noqa: PLR0912,PLR0915
     partitions_values: dict[str, list[str]] = {}
     mode = "append" if mode is None else mode
 
-    filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     s3_client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards
@@ -661,7 +659,7 @@ def to_json(  # noqa: PLR0912,PLR0915
     partition_cols: list[str] | None = None,
     bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
-    mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
+    mode: Literal["append", "overwrite", "overwrite_partitions", "overwrite_files"] | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
     dtype: dict[str, str] | None = None,
@@ -726,7 +724,7 @@ def to_json(  # noqa: PLR0912,PLR0915
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
-        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions", "overwrite_files"))
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.11.0/tutorials/014%20-%20Schema%20Evolution.html
     database
@@ -919,7 +917,6 @@ def to_json(  # noqa: PLR0912,PLR0915
     partitions_values: dict[str, list[str]] = {}
     mode = "append" if mode is None else mode
 
-    filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     s3_client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards

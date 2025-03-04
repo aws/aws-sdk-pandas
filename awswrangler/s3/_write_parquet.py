@@ -353,7 +353,7 @@ def to_parquet(
     partition_cols: list[str] | None = None,
     bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
-    mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
+    mode: Literal["append", "overwrite", "overwrite_partitions", "overwrite_files"] | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
     database: str | None = None,
@@ -444,7 +444,7 @@ def to_parquet(
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised. True by default.
-        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions", "overwrite_files"))
         Related tutorial:
         https://aws-sdk-pandas.readthedocs.io/en/3.11.0/tutorials/014%20-%20Schema%20Evolution.html
     database
@@ -704,6 +704,7 @@ def to_parquet(
         columns_comments=columns_comments,
         columns_parameters=columns_parameters,
         execution_engine=engine.get(),
+        max_rows_by_file=max_rows_by_file,
     )
 
     # Evaluating compression
