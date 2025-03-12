@@ -256,7 +256,7 @@ def connect(
     return RdsDataApi(resource_arn, database, secret_arn=secret_arn, boto3_session=boto3_session, **kwargs)
 
 
-def read_sql_query(sql: str, con: RdsDataApi, database: str | None = None) -> pd.DataFrame:
+def read_sql_query(sql: str, con: RdsDataApi, database: str | None = None, parameters: list[dict[str, Any]] | None = None) -> pd.DataFrame:
     """Run an SQL query on an RdsDataApi connection and return the result as a DataFrame.
 
     Parameters
@@ -267,12 +267,14 @@ def read_sql_query(sql: str, con: RdsDataApi, database: str | None = None) -> pd
         A RdsDataApi connection instance
     database
         Database to run query on - defaults to the database specified by `con`.
+    parameters
+        A list of named parameters e.g. [{"name": "id", "value": "42"}].
 
     Returns
     -------
         A Pandas DataFrame containing the query results.
     """
-    return con.execute(sql, database=database)
+    return con.execute(sql, database=database, parameters=parameters)
 
 
 def _drop_table(con: RdsDataApi, table: str, database: str, transaction_id: str, sql_mode: str) -> None:
