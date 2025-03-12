@@ -124,6 +124,24 @@ def test_data_api_redshift_basic_select(redshift_connector: "RedshiftDataApi", r
     assert_pandas_equals(dataframe, expected_dataframe)
 
 
+def test_data_api_redshift_parameters(redshift_connector: "RedshiftDataApi", redshift_table: str) -> None:
+    wr.data_api.redshift.read_sql_query(
+        f"CREATE TABLE public.{redshift_table} (id INT, name VARCHAR)", con=redshift_connector
+    )
+    wr.data_api.redshift.read_sql_query(
+        f"INSERT INTO public.{redshift_table} VALUES (41, 'test1'), (42, 'test2')", con=redshift_connector
+    )
+    expected_dataframe = pd.DataFrame([[42, "test"]], columns=["id", "name"])
+
+    dataframe = wr.data_api.redshift.read_sql_query(
+        f"SELECT * FROM  public.{redshift_table} WHERE id >= :id",
+        con=redshift_connector,
+        parameters=[{"name": "id", "value": "42"}],
+    )
+
+    assert_pandas_equals(dataframe, expected_dataframe)
+
+
 def test_data_api_redshift_empty_results_select(redshift_connector: "RedshiftDataApi", redshift_table: str) -> None:
     wr.data_api.redshift.read_sql_query(
         f"CREATE TABLE public.{redshift_table} (id INT, name VARCHAR)", con=redshift_connector
