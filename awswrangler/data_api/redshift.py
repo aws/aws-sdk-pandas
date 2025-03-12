@@ -129,7 +129,7 @@ class RedshiftDataApi(_connector.DataApiConnector):
         if self.workgroup_name:
             args["WorkgroupName"] = self.workgroup_name
         if parameters:
-            args["Parameters"] = parameters
+            args["Parameters"] = parameters  # type: ignore[assignment]
 
         _logger.debug("Executing %s", sql)
         response = self.client.execute_statement(
