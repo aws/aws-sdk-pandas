@@ -124,6 +124,24 @@ def test_data_api_redshift_basic_select(redshift_connector: "RedshiftDataApi", r
     assert_pandas_equals(dataframe, expected_dataframe)
 
 
+def test_data_api_redshift_parameters(redshift_connector: "RedshiftDataApi", redshift_table: str) -> None:
+    wr.data_api.redshift.read_sql_query(
+        f"CREATE TABLE public.{redshift_table} (id INT, name VARCHAR)", con=redshift_connector
+    )
+    wr.data_api.redshift.read_sql_query(
+        f"INSERT INTO public.{redshift_table} VALUES (41, 'test1'), (42, 'test2')", con=redshift_connector
+    )
+    expected_dataframe = pd.DataFrame([[42, "test2"]], columns=["id", "name"])
+
+    dataframe = wr.data_api.redshift.read_sql_query(
+        f"SELECT * FROM  public.{redshift_table} WHERE id >= :id",
+        con=redshift_connector,
+        parameters=[{"name": "id", "value": "42"}],
+    )
+
+    assert_pandas_equals(dataframe, expected_dataframe)
+
+
 def test_data_api_redshift_empty_results_select(redshift_connector: "RedshiftDataApi", redshift_table: str) -> None:
     wr.data_api.redshift.read_sql_query(
         f"CREATE TABLE public.{redshift_table} (id INT, name VARCHAR)", con=redshift_connector
@@ -301,3 +319,25 @@ def test_data_api_postgresql(postgresql_serverless_connector: "RdsDataApi", post
     )
     expected_dataframe = pd.DataFrame([["test"]], columns=["name"])
     assert_pandas_equals(out_frame, expected_dataframe)
+
+
+def test_data_api_mysql_parameters(
+    mysql_serverless_connector: "RdsDataApi",
+    mysql_serverless_table: str,
+) -> None:
+    database = "test"
+    df = pd.DataFrame([[42, "test"]], columns=["id", "name"])
+
+    wr.data_api.rds.to_sql(
+        df=df,
+        con=mysql_serverless_connector,
+        table=mysql_serverless_table,
+        database=database,
+    )
+
+    out_df = wr.data_api.rds.read_sql_query(
+        f"SELECT * FROM {database}.{mysql_serverless_table} WHERE name = :name",
+        con=mysql_serverless_connector,
+        parameters=[{"name": "name", "value": {"stringValue": "test"}}],
+    )
+    assert_pandas_equals(out_df, df)
