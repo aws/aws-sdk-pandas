@@ -112,8 +112,6 @@ class RedshiftDataApi(_connector.DataApiConnector):
     ) -> str:
         if transaction_id:
             raise exceptions.InvalidArgument("`transaction_id` not supported for Redshift Data API")
-        if parameters:
-            raise exceptions.InvalidArgument("`parameters` not supported for Redshift Data API")
 
         self._validate_redshift_target()
         self._validate_auth_method()
@@ -130,6 +128,8 @@ class RedshiftDataApi(_connector.DataApiConnector):
             args["ClusterIdentifier"] = self.cluster_id
         if self.workgroup_name:
             args["WorkgroupName"] = self.workgroup_name
+        if parameters:
+            args["Parameters"] = parameters  # type: ignore[assignment]
 
         _logger.debug("Executing %s", sql)
         response = self.client.execute_statement(
@@ -285,7 +285,12 @@ def connect(
     )
 
 
-def read_sql_query(sql: str, con: RedshiftDataApi, database: str | None = None) -> pd.DataFrame:
+def read_sql_query(
+    sql: str,
+    con: RedshiftDataApi,
+    database: str | None = None,
+    parameters: list[dict[str, Any]] | None = None,
+) -> pd.DataFrame:
     """Run an SQL query on a RedshiftDataApi connection and return the result as a DataFrame.
 
     Parameters
@@ -296,9 +301,29 @@ def read_sql_query(sql: str, con: RedshiftDataApi, database: str | None = None) 
         A RedshiftDataApi connection instance
     database
         Database to run query on - defaults to the database specified by `con`.
+    parameters
+        A list of named parameters e.g. [{"name": "id", "value": "42"}].
 
     Returns
     -------
         A Pandas DataFrame containing the query results.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df = wr.data_api.redshift.read_sql_query(
+    >>>     sql="SELECT * FROM public.my_table",
+    >>>     con=con,
+    >>> )
+
+    >>> import awswrangler as wr
+    >>> df = wr.data_api.redshift.read_sql_query(
+    >>>     sql="SELECT * FROM public.my_table WHERE id >= :id",
+    >>>     con=con,
+    >>>     parameters=[
+    >>>        {"name": "id", "value": "42"},
+    >>>     ],
+    >>> )
+
     """
-    return con.execute(sql, database=database)
+    return con.execute(sql, database=database, parameters=parameters)
