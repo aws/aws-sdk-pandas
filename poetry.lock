@@ -4351,44 +4351,44 @@ kerberos = ["requests_kerberos"]
 
 [[package]]
 name = "oracledb"
-version = "2.5.1"
+version = "3.0.0"
 description = "Python interface to Oracle Database"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
 markers = "extra == \"oracle\""
 files = [
-    {file = "oracledb-2.5.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:54ea7b4da179eb3fefad338685b44fed657a9cd733fb0bfc09d344cfb266355e"},
-    {file = "oracledb-2.5.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:05df7a5a61f4d26c986e235fae6f64a81afaac8f1dbef60e2e9ecf9236218e58"},
-    {file = "oracledb-2.5.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:d17c80063375a5d87a7ab57c8343e5434a16ea74f7be3b56f9100300ef0b69d6"},
-    {file = "oracledb-2.5.1-cp310-cp310-win32.whl", hash = "sha256:51b3911ee822319e20f2e19d816351aac747591a59a0a96cf891c62c2a5c0c0d"},
-    {file = "oracledb-2.5.1-cp310-cp310-win_amd64.whl", hash = "sha256:e4e884625117e50b619c93828affbcffa594029ef8c8b40205394990e6af65a8"},
-    {file = "oracledb-2.5.1-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:85318350fa4837b7b637e436fa5f99c17919d6329065e64d1e18e5a7cae52457"},
-    {file = "oracledb-2.5.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:676c221227159d9cee25030c56ff9782f330115cb86164d92d3360f55b07654b"},
-    {file = "oracledb-2.5.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:e78c6de57b4b5df7f932337c57e59b62e34fc4527d2460c0cab10c2ab01825f8"},
-    {file = "oracledb-2.5.1-cp311-cp311-win32.whl", hash = "sha256:0d5974327a1957538a144b073367104cdf8bb39cf056940995b75cb099535589"},
-    {file = "oracledb-2.5.1-cp311-cp311-win_amd64.whl", hash = "sha256:541bb5a107917b9d9eba1346318b42f8b6024e7dd3bef1451f0745364f03399c"},
-    {file = "oracledb-2.5.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:970a9420cc351d650cc6716122e9aa50cfb8c27f425ffc9d83651fd3edff6090"},
-    {file = "oracledb-2.5.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:a6788c128af5a3a45689453fc4832f32b4a0dae2696d9917c7631a2e02865148"},
-    {file = "oracledb-2.5.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8778daa3f08639232341d802b95ca6da4c0c798c8530e4df331b3286d32e49d5"},
-    {file = "oracledb-2.5.1-cp312-cp312-win32.whl", hash = "sha256:a44613f3dfacb2b9462c3871ee333fa535fbd0ec21942e14019fcfd572487db0"},
-    {file = "oracledb-2.5.1-cp312-cp312-win_amd64.whl", hash = "sha256:934d02da80bfc030c644c5c43fbe58119dc170f15b4dfdb6fe04c220a1f8730d"},
-    {file = "oracledb-2.5.1-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:0374481329fa873a2af24eb12de4fd597c6c111e148065200562eb75ea0c6be7"},
-    {file = "oracledb-2.5.1-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:66e885de106701d1f2a630d19e183e491e4f1ccb8d78855f60396ba15856fb66"},
-    {file = "oracledb-2.5.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:fcf446f6250d8edad5367ff03ad73dbbe672a2e4b060c51a774821dd723b0283"},
-    {file = "oracledb-2.5.1-cp313-cp313-win32.whl", hash = "sha256:b02b93199a7073e9b5687fe2dfa83d25ea102ab261c577f9d55820d5ef193dda"},
-    {file = "oracledb-2.5.1-cp313-cp313-win_amd64.whl", hash = "sha256:173b6d132b230f0617380272181e14fc53aec65aaffe68b557a9b6040716a267"},
-    {file = "oracledb-2.5.1-cp38-cp38-macosx_11_0_universal2.whl", hash = "sha256:7d5efc94ce5bb657a5f43e2683e23cc4b4c53c4783e817759869472a113dac26"},
-    {file = "oracledb-2.5.1-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:6919cb69638a7dda45380d6530b6f2f7fd21ea7bdf8d38936653f9ebc4f7e3d6"},
-    {file = "oracledb-2.5.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:44f5eb220945a6e092975ebcb9afc3f1eb10420d04d6bfeace1207ba86d60431"},
-    {file = "oracledb-2.5.1-cp38-cp38-win32.whl", hash = "sha256:aa6ce0dfc64dc7b30bcf477f978538ba82fa7060ecd7a1b9227925b471ae3b50"},
-    {file = "oracledb-2.5.1-cp38-cp38-win_amd64.whl", hash = "sha256:7a3115e4d445e3430d6f34083b7eed607309411f41472b66d145508f7b0c3770"},
-    {file = "oracledb-2.5.1-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:8a2627a0d29390aaef7211c5b3f7182dfd8e76c969b39d57ee3e43c1057c6fe7"},
-    {file = "oracledb-2.5.1-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:730cd03e7fbf05acd32a221ead2a43020b3b91391597eaf728d724548f418b1b"},
-    {file = "oracledb-2.5.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f42524b586733daa896f675acad8b9f2fc2f4380656d60a22a109a573861fc93"},
-    {file = "oracledb-2.5.1-cp39-cp39-win32.whl", hash = "sha256:7958c7796df9f8c97484768c88817dec5c6d49220fc4cccdfde12a1a883f3d46"},
-    {file = "oracledb-2.5.1-cp39-cp39-win_amd64.whl", hash = "sha256:92e0d176e3c76a1916f4e34fc3d84994ad74cce6b8664656c4dbecb8fa7e8c37"},
-    {file = "oracledb-2.5.1.tar.gz", hash = "sha256:63d17ebb95f9129d0ab9386cb632c9e667e3be2c767278cc11a8e4585468de33"},
+    {file = "oracledb-3.0.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:d4fbe19765c489176558bfa2c5145a4e6e960a80b0a451b3f5af368a835623cd"},
+    {file = "oracledb-3.0.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:dec5489116cda6c742f75263bc04333575412775a39a6fea22a0b37f6f9e7021"},
+    {file = "oracledb-3.0.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0ca6fd65ed3dbc78ce25930b179e97754779eb5cb35eeb97dff8b5fc4db75746"},
+    {file = "oracledb-3.0.0-cp310-cp310-win32.whl", hash = "sha256:04e3f935aca72efa8108b2ae2d98e0f65b59b00edfe2f83bc9b0261a68cd5205"},
+    {file = "oracledb-3.0.0-cp310-cp310-win_amd64.whl", hash = "sha256:19903b34cee9c434df32b3e7b04ca0b1c7b81e50d1ea172d70eae59716787bb3"},
+    {file = "oracledb-3.0.0-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:52daa9141c63dfa75c07d445e9bb7f69f43bfb3c5a173ecc48c798fe50288d26"},
+    {file = "oracledb-3.0.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:af98941789df4c6aaaf4338f5b5f6b7f2c8c3fe6f8d6a9382f177f350868747a"},
+    {file = "oracledb-3.0.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9812bb48865aaec35d73af54cd1746679f2a8a13cbd1412ab371aba2e39b3943"},
+    {file = "oracledb-3.0.0-cp311-cp311-win32.whl", hash = "sha256:6c27fe0de64f2652e949eb05b3baa94df9b981a4a45fa7f8a991e1afb450c8e2"},
+    {file = "oracledb-3.0.0-cp311-cp311-win_amd64.whl", hash = "sha256:f922709672002f0b40997456f03a95f03e5712a86c61159951c5ce09334325e0"},
+    {file = "oracledb-3.0.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:acd0e747227dea01bebe627b07e958bf36588a337539f24db629dc3431d3f7eb"},
+    {file = "oracledb-3.0.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:f8b402f77c22af031cd0051aea2472ecd0635c1b452998f511aa08b7350c90a4"},
+    {file = "oracledb-3.0.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:378a27782e9a37918bd07a5a1427a77cb6f777d0a5a8eac9c070d786f50120ef"},
+    {file = "oracledb-3.0.0-cp312-cp312-win32.whl", hash = "sha256:54a28c2cb08316a527cd1467740a63771cc1c1164697c932aa834c0967dc4efc"},
+    {file = "oracledb-3.0.0-cp312-cp312-win_amd64.whl", hash = "sha256:8289bad6d103ce42b140e40576cf0c81633e344d56e2d738b539341eacf65624"},
+    {file = "oracledb-3.0.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:1dcec2916441492e6d6f03be52f06ee9f4814dece672be49f972219ff18fe2c1"},
+    {file = "oracledb-3.0.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:4e5963d72f2bf6f6707649cd490c26fc8cc4314e84dd74a1313ecf1c70c93531"},
+    {file = "oracledb-3.0.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:5da57c328a994985bae5936af7974a5c505cf93178d2e3882d96f3ec8363682b"},
+    {file = "oracledb-3.0.0-cp313-cp313-win32.whl", hash = "sha256:2358ffacf5209b6d9c5aaaf34d9754d491b20a141dc305fe21b6cb1ff23fc12a"},
+    {file = "oracledb-3.0.0-cp313-cp313-win_amd64.whl", hash = "sha256:f6b66fddb9ae440b662ae9b8f1e0f618caaf2c3e44a46bbd1521c3ca11f40b0f"},
+    {file = "oracledb-3.0.0-cp38-cp38-macosx_11_0_universal2.whl", hash = "sha256:a15aebfb07d58b55ced60d95963969aa25d0b9ded0f6b394371ed8702792fb33"},
+    {file = "oracledb-3.0.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:e910d1a9d9b19d3ecdd6b14ccdcbd4b79a734b24421d34d41e2687fd9edb6fae"},
+    {file = "oracledb-3.0.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7b3a08b563072d1ef52f4190b80f4ccd15e0cfe4597d06a7d0541ed7f762cd0a"},
+    {file = "oracledb-3.0.0-cp38-cp38-win32.whl", hash = "sha256:1d67379950c62a3b4f0416bdbe193c8f93fee819309a6aebe6243a8525cd70e4"},
+    {file = "oracledb-3.0.0-cp38-cp38-win_amd64.whl", hash = "sha256:9d72cf398ab9ed60b020e3906489c3b87fce442ee2ecd4f47d6910b014e47ef4"},
+    {file = "oracledb-3.0.0-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:b5df2724d262e3f459c42d03a3df58fcfb9c5e9a96a18739048ecd01aadc94e5"},
+    {file = "oracledb-3.0.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d5087062e55cca4e7ee699e05f53b56a08386d16c7160637a087475a1132567a"},
+    {file = "oracledb-3.0.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:b6c8bc126a876633ecfcff8e568b3c7711ffe80935eaa5e97d6aed189131d4ad"},
+    {file = "oracledb-3.0.0-cp39-cp39-win32.whl", hash = "sha256:2526ffd052fe2d916e04328d5f1db25d8fd0aea3f2a9f4c60bd578e3d0c76f93"},
+    {file = "oracledb-3.0.0-cp39-cp39-win_amd64.whl", hash = "sha256:3b56e74a92f7e8961c5a10103cb97cbcdeac778230db9c2ec2546fe20e3871ca"},
+    {file = "oracledb-3.0.0.tar.gz", hash = "sha256:64dc86ee5c032febc556798b06e7b000ef6828bb0252084f6addacad3363db85"},
 ]
 
 [package.dependencies]
@@ -6555,14 +6555,14 @@ win32 = ["pywin32 ; sys_platform == \"win32\""]
 
 [[package]]
 name = "setuptools"
-version = "75.8.2"
+version = "76.0.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "setuptools-75.8.2-py3-none-any.whl", hash = "sha256:558e47c15f1811c1fa7adbd0096669bf76c1d3f433f58324df69f3f5ecac4e8f"},
-    {file = "setuptools-75.8.2.tar.gz", hash = "sha256:4880473a969e5f23f2a2be3646b2dfd84af9028716d398e46192f84bc36900d2"},
+    {file = "setuptools-76.0.0-py3-none-any.whl", hash = "sha256:199466a166ff664970d0ee145839f5582cb9bca7a0a3a2e795b6a9cb2308e9c6"},
+    {file = "setuptools-76.0.0.tar.gz", hash = "sha256:43b4ee60e10b0d0ee98ad11918e114c70701bc6051662a9a675a0496c1a158f4"},
 ]
 
 [package.extras]
@@ -7854,4 +7854,4 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9, <4.0"
-content-hash = "88fdd34a133883916feb3ffaea48b4723b5af47741389e23b7d25d7764755871"
+content-hash = "df5d062ed9f1bf885c55fa8b58f5698a4c0dd1f8b5a14312feb7c487e23ee541"

@@ -196,8 +196,8 @@ def connect(
         dsn=connection_dsn,
     )
     # oracledb.connect does not have a call_timeout attribute, it has to be set separatly
-    oracle_connection.call_timeout = call_timeout
-    return oracle_connection  # type: ignore[no-any-return]
+    oracle_connection.call_timeout = call_timeout  # type: ignore[assignment]
+    return oracle_connection
 
 
 @overload
