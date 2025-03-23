@@ -117,9 +117,63 @@ def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
     return df
 
 
+def _convert_datetime_columns(df: pd.DataFrame, datetime_format: str = "iso") -> pd.DataFrame:
+    """
+    Convert datetime columns in a DataFrame to a format compatible with Neptune.
+
+    Parameters
+    ----------
+    df
+        The DataFrame to process
+    datetime_format
+        Format to use for datetime conversion:
+        - 'iso': ISO 8601 format (default)
+        - 'timestamp': Unix timestamp in milliseconds
+        - 'string': Simple string representation
+        - Any strftime format string (e.g., '%Y-%m-%d')
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with datetime columns converted
+    """
+    df_copy = df.copy()
+
+    # Find all datetime columns
+    datetime_cols = [col for col in df.columns if pd.api.types.is_datetime64_any_dtype(df[col])]
+
+    if not datetime_cols:
+        return df  # No datetime columns to convert
+
+    _logger.debug("Converting datetime columns: %s", datetime_cols)
+
+    # Convert each datetime column based on specified format
+    for col in datetime_cols:
+        if datetime_format == "iso":
+            df_copy[col] = df_copy[col].dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+        elif datetime_format == "timestamp":
+            df_copy[col] = df_copy[col].apply(lambda x: int(x.timestamp() * 1000) if pd.notna(x) else None)
+        elif datetime_format == "string":
+            df_copy[col] = df_copy[col].astype(str)
+        else:
+            # Try to use custom format string if provided
+            try:
+                df_copy[col] = df_copy[col].dt.strftime(datetime_format)
+            except ValueError:
+                # Fall back to ISO format if custom format fails
+                _logger.warning("Invalid datetime format '%s', falling back to ISO format", datetime_format)
+                df_copy[col] = df_copy[col].dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+
+    return df_copy
+
+
 @_utils.check_optional_dependency(gremlin_python, "gremlin_python")
 def to_property_graph(
-    client: NeptuneClient, df: pd.DataFrame, batch_size: int = 50, use_header_cardinality: bool = True
+    client: NeptuneClient,
+    df: pd.DataFrame,
+    batch_size: int = 50,
+    use_header_cardinality: bool = True,
+    datetime_format: str = "iso",
 ) -> bool:
     """Write records stored in a DataFrame into Amazon Neptune.
 
@@ -149,6 +203,12 @@ def to_property_graph(
         The number of rows to save at a time. Default 50
     use_header_cardinality
         If True, then the header cardinality will be used to save the data. Default True
+    datetime_format
+        Format to use for datetime columns. Options:
+        - 'iso': Convert to ISO 8601 string (default)
+        - 'timestamp': Convert to Unix timestamp (milliseconds)
+        - 'string': Convert to string using str()
+        - Any strftime format string (e.g., '%Y-%m-%d')
 
     Returns
     -------
@@ -163,7 +223,28 @@ def to_property_graph(
     >>> wr.neptune.gremlin.to_property_graph(
     ...     df=df
     ... )
+
+    Writing DataFrame with datetime columns to Neptune
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> from datetime import datetime
+    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    >>> df = pd.DataFrame({
+    ...     "~id": ["v1", "v2"],
+    ...     "~label": ["person", "person"],
+    ...     "name": ["John", "Jane"],
+    ...     "created_at": [datetime.now(), datetime.now()]
+    ... })
+    >>> # Datetime values will be automatically converted to ISO format
+    >>> wr.neptune.to_property_graph(
+    ...     client=client,
+    ...     df=df
+    ... )
     """
+    # Convert datetime columns to Neptune-compatible format
+    df = _convert_datetime_columns(df, datetime_format)
+
     # check if ~id and ~label column exist and if not throw error
     g = gremlin.traversal().withGraph(gremlin.Graph())
     is_edge_df = False

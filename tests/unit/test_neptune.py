@@ -537,3 +537,66 @@ def _create_dummy_quad(s: str = "foo") -> dict[str, Any]:
         **_create_dummy_triple(s=s),
         "g": "bar",
     }
+
+
+def test_gremlin_write_datetime_values(neptune_endpoint, neptune_port) -> dict[str, Any]:
+    """Test that datetime values are properly converted when writing to Neptune."""
+    from datetime import datetime
+
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+
+    # Create a vertex with datetime properties
+    test_id = str(uuid.uuid4())
+    now = datetime.now()
+
+    # Test with default ISO format
+    data = [{"~id": test_id, "~label": "test_datetime", "created_at": now, "name": "test_vertex"}]
+    df = pd.DataFrame(data)
+
+    # Verify the DataFrame has datetime type
+    assert pd.api.types.is_datetime64_dtype(df["created_at"])
+
+    # Write to Neptune with default datetime handling (ISO format)
+    res = wr.neptune.to_property_graph(client, df)
+    assert res
+
+    # Retrieve the vertex and check the property
+    result_df = wr.neptune.execute_gremlin(client, f"g.V('{test_id}').valueMap()")
+    assert not result_df.empty
+    assert "created_at" in result_df.iloc[0]
+
+    # Test with timestamp format
+    test_id2 = str(uuid.uuid4())
+    data = [
+        {
+            "~id": test_id2,
+            "~label": "test_datetime",
+            "created_at": now,
+            "updated_at": now,
+            "name": "test_vertex_timestamp",
+        }
+    ]
+    df = pd.DataFrame(data)
+
+    # Write to Neptune with timestamp format
+    res = wr.neptune.to_property_graph(client, df, datetime_format="timestamp")
+    assert res
+
+    # Retrieve the vertex and check the property
+    result_df = wr.neptune.execute_gremlin(client, f"g.V('{test_id2}').valueMap()")
+    assert not result_df.empty
+    assert "created_at" in result_df.iloc[0]
+
+    # Test with string format
+    test_id3 = str(uuid.uuid4())
+    data = [{"~id": test_id3, "~label": "test_datetime", "created_at": now, "name": "test_vertex_string"}]
+    df = pd.DataFrame(data)
+
+    # Write to Neptune with string format
+    res = wr.neptune.to_property_graph(client, df, datetime_format="string")
+    assert res
+
+    # Retrieve the vertex and check the property
+    result_df = wr.neptune.execute_gremlin(client, f"g.V('{test_id3}').valueMap()")
+    assert not result_df.empty
+    assert "created_at" in result_df.iloc[0]
