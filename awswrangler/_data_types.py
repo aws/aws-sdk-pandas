@@ -309,10 +309,10 @@ def _split_map(s: str) -> list[str]:
 
 def athena2pyarrow(dtype: str, df_type: str | None = None) -> pa.DataType:  # noqa: PLR0911,PLR0912
     """Athena to PyArrow data types conversion."""
-    dtype = dtype.strip()
+    dtype = dtype.strip().lower()
     if dtype.startswith(("array", "struct", "map")):
         orig_dtype: str = dtype
-    dtype = dtype.lower().replace(" ", "")
+    dtype = dtype.replace(" ", "")
     if dtype == "tinyint":
         return pa.int8()
     if dtype == "smallint":
