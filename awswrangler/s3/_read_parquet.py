@@ -33,12 +33,12 @@ from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
     _check_version_id,
+    _concat_union_categoricals,
     _extract_partitions_dtypes_from_table_details,
     _get_num_output_blocks,
     _get_path_ignore_suffix,
     _get_path_root,
     _get_paths_for_glue_table,
-    _concat_union_categoricals,
     _InternalReadTableMetadataReturnValue,
     _TableMetadataReader,
 )
