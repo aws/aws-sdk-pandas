@@ -38,6 +38,7 @@ from awswrangler.s3._read import (
     _get_path_ignore_suffix,
     _get_path_root,
     _get_paths_for_glue_table,
+    _concat_union_categoricals,
     _InternalReadTableMetadataReturnValue,
     _TableMetadataReader,
 )
@@ -264,7 +265,7 @@ def _read_parquet_chunked(
                         yield df
                     else:
                         if next_slice is not None:
-                            df = pd.concat(objs=[next_slice, df], sort=False, copy=False)
+                            df = _concat_union_categoricals(dfs=[next_slice, df], ignore_index=False)
                         while len(df.index) >= chunked:
                             yield df.iloc[:chunked, :].copy()
                             df = df.iloc[chunked:, :]

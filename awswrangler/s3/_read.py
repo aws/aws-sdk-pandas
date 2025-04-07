@@ -116,7 +116,8 @@ def _extract_partitions_dtypes_from_table_details(response: "GetTableResponseTyp
     return dtypes
 
 
-def _union(dfs: list[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
+def _concat_union_categoricals(dfs: list[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
+    """Concatenate dataframes with union of categorical columns."""
     cats: tuple[set[str], ...] = tuple(set(df.select_dtypes(include="category").columns) for df in dfs)
     for col in set.intersection(*cats):
         cat = union_categoricals([df[col] for df in dfs])
