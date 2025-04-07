@@ -19,10 +19,10 @@ from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
     _check_version_id,
+    _concat_union_categoricals,
     _get_num_output_blocks,
     _get_path_ignore_suffix,
     _get_path_root,
-    _union,
 )
 from awswrangler.s3._read_text_core import _read_text_file, _read_text_files_chunked
 from awswrangler.typing import RaySettings
@@ -70,7 +70,7 @@ def _read_text(
         itertools.repeat(s3_additional_kwargs),
         itertools.repeat(dataset),
     )
-    return _union(dfs=tables, ignore_index=ignore_index)
+    return _concat_union_categoricals(dfs=tables, ignore_index=ignore_index)
 
 
 def _read_text_format(
