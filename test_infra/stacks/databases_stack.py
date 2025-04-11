@@ -511,25 +511,25 @@ class DatabasesStack(Stack):  # type: ignore
         port = 3306
         database = "test"
         schema = "test"
-        aurora_mysql = rds.ServerlessCluster(
+        aurora_mysql = rds.DatabaseCluster(
             self,
             "aws-sdk-pandas-aurora-cluster-mysql-serverless",
             removal_policy=RemovalPolicy.DESTROY,
-            engine=rds.DatabaseClusterEngine.aurora_mysql(
-                version=rds.AuroraMysqlEngineVersion.VER_2_11_4,
-            ),
+            engine=rds.DatabaseClusterEngine.aurora_mysql(version=rds.AuroraMysqlEngineVersion.VER_3_08_1),
             cluster_identifier="mysql-serverless-cluster-sdk-pandas",
             default_database_name=database,
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
                 password=self.db_password_secret,
             ),
-            scaling=rds.ServerlessScalingOptions(
-                auto_pause=Duration.minutes(5),
-                min_capacity=rds.AuroraCapacityUnit.ACU_1,
-                max_capacity=rds.AuroraCapacityUnit.ACU_1,
+            serverless_v2_min_capacity=0.5,  # Minimum ACU
+            serverless_v2_max_capacity=1.0,  # Maximum ACU
+            writer=rds.ClusterInstance.serverless_v2(
+                "writer",
+                scale_with_writer=True,
+                auto_minor_version_upgrade=True,
             ),
-            backup_retention=Duration.days(1),
+            backup=rds.BackupProps(retention=Duration.days(1), preferred_window="03:00-04:00"),
             vpc=self.vpc,
             subnet_group=self.rds_subnet_group,
             security_groups=[self.db_security_group],
@@ -566,12 +566,12 @@ class DatabasesStack(Stack):  # type: ignore
         port = 5432
         database = "test"
         schema = "test"
-        aurora_postgresql = rds.ServerlessCluster(
+        aurora_postgresql = rds.DatabaseCluster(
             self,
             "aws-sdk-pandas-aurora-cluster-postgresql-serverless",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_postgres(
-                version=rds.AuroraPostgresEngineVersion.VER_13_8,
+                version=rds.AuroraPostgresEngineVersion.VER_16_2,
             ),
             cluster_identifier="postgresql-serverless-cluster-sdk-pandas",
             default_database_name=database,
@@ -579,12 +579,14 @@ class DatabasesStack(Stack):  # type: ignore
                 username=self.db_username,
                 password=self.db_password_secret,
             ),
-            scaling=rds.ServerlessScalingOptions(
-                auto_pause=Duration.minutes(5),
-                min_capacity=rds.AuroraCapacityUnit.ACU_2,
-                max_capacity=rds.AuroraCapacityUnit.ACU_2,
+            serverless_v2_min_capacity=0.5,  # Minimum ACU
+            serverless_v2_max_capacity=2.0,  # Maximum ACU
+            writer=rds.ClusterInstance.serverless_v2(
+                "writer",
+                scale_with_writer=True,
+                auto_minor_version_upgrade=True,
             ),
-            backup_retention=Duration.days(1),
+            backup=rds.BackupProps(retention=Duration.days(1), preferred_window="03:00-04:00"),
             vpc=self.vpc,
             subnet_group=self.rds_subnet_group,
             security_groups=[self.db_security_group],

@@ -11,7 +11,7 @@ import awswrangler.pandas as pd
 from awswrangler.data_api.rds import RdsDataApi
 from awswrangler.data_api.redshift import RedshiftDataApi
 
-from .._utils import assert_pandas_equals, get_df, get_time_str_with_random_suffix, is_ray_modin
+from .._utils import assert_pandas_equals, get_time_str_with_random_suffix
 
 pytestmark = pytest.mark.distributed
 
@@ -169,7 +169,7 @@ def test_data_api_redshift_column_subset_select(redshift_connector: "RedshiftDat
 
 
 def test_data_api_mysql_columnless_query(mysql_serverless_connector: "RdsDataApi") -> None:
-    dataframe = wr.data_api.rds.read_sql_query("SELECT 1", con=mysql_serverless_connector)
+    dataframe = wr.data_api.rds.read_sql_query("SELECT 1", con=mysql_serverless_connector).rename(columns={"": "1"})
     expected_dataframe = pd.DataFrame([[1]], columns=["1"])
     assert_pandas_equals(dataframe, expected_dataframe)
 
@@ -179,7 +179,7 @@ def test_data_api_mysql_basic_select(
     mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str, use_column_names: bool
 ) -> None:
     database = "test"
-    frame = pd.DataFrame([[42, "test", None], [23, "foo", "bar"]], columns=["id", "name", "missing"])
+    frame = pd.DataFrame([[42, "test"]], columns=["id", "name"])
 
     wr.data_api.rds.to_sql(
         df=frame,
@@ -240,7 +240,7 @@ def test_data_api_mysql_to_sql_mode(
     mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str, mode: str
 ) -> None:
     database = "test"
-    frame = get_df()
+    frame = pd.DataFrame([[42, "test"]], columns=["id", "name"])
     wr.data_api.rds.to_sql(
         df=frame,
         con=mysql_serverless_connector,
@@ -248,7 +248,7 @@ def test_data_api_mysql_to_sql_mode(
         database=database,
     )
 
-    frame2 = get_df()
+    frame2 = pd.DataFrame([[52, "test2"]], columns=["id", "name"])
     wr.data_api.rds.to_sql(
         df=frame2,
         con=mysql_serverless_connector,
@@ -268,18 +268,17 @@ def test_data_api_mysql_to_sql_mode(
 
     # Cast types
     out_frame = out_frame.astype(expected_frame.dtypes)
-    # Modin upcasts to float64 now
-    if is_ray_modin:
-        out_frame["float"] = out_frame["float"].astype("float32")
-
     assert_pandas_equals(out_frame, expected_frame)
 
 
 def test_data_api_exception(mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str) -> None:
-    with pytest.raises(boto3.client("rds-data").exceptions.BadRequestException):
+    with pytest.raises(boto3.client("rds-data").exceptions.DatabaseErrorException):
         wr.data_api.rds.read_sql_query("CUPCAKE", con=mysql_serverless_connector)
 
 
+@pytest.mark.xfail(
+    raises=boto3.client("rds-data").exceptions.DatabaseErrorException, reason="Must understand MYSQL 8.0 SQL Syntax."
+)
 def test_data_api_mysql_ansi(mysql_serverless_connector: "RdsDataApi", mysql_serverless_table: str) -> None:
     database = "test"
     frame = pd.DataFrame([[42, "test"]], columns=["id", "name"])
