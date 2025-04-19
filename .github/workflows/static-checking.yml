@@ -26,19 +26,28 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Install Requirements
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-          poetry config virtualenvs.create false --local
-          poetry install --all-extras -vvv
-      - name: ruff format check
-        run: ruff format --check .
-      - name: ruff check
-        run: ruff check --output-format=github .
-      - name: mypy check
-        run: mypy --install-types --non-interactive awswrangler
-      - name: Documentation check
-        run: doc8 --max-line-length 120 docs/source
-      - name: Check poetry.lock consistency with pyproject.toml
-        run: poetry check --lock
+        run: uv sync --frozen --all-extras --dev --verbose
+        working-directory: ${{ github.workspace }}
+      - name: Run ruff format
+        working-directory: src/${{ matrix.package }}
+        run: uv run --frozen ruff format --check .
+      - name: Run ruff check
+        working-directory: src/${{ matrix.package }}
+        run: uv run --frozen ruff check --output-format=github .
+      - name: Run mypy check
+        working-directory: src/${{ matrix.package }}
+        run: uv run --frozen mypy --install-types --non-interactive awswrangler 
+      - name: Run mypy check
+        working-directory: src/${{ matrix.package }}
+        run: uv run --frozen mypy --install-types --non-interactive awswrangler
+      - name: Run documentation check
+        working-directory: src/${{ matrix.package }}
+        run: uv run --frozen doc8 --max-line-length 120 docs/source
+      - name: Run uv lock check
+        working-directory: src/${{ matrix.package }}
+        run: uv lock --check
