@@ -151,7 +151,7 @@ Amazon Athena
     list_prepared_statements
     delete_prepared_statement
 
-    read_sql_query(sql, con, **kwargs)
+read_sql_query(sql, con, **kwargs)
 ----------------------------------
 
 Executes a SQL query and returns the result as a Pandas DataFrame.
@@ -168,7 +168,6 @@ Executes a SQL query and returns the result as a Pandas DataFrame.
 
     # Run SQL query and get results into Pandas DataFrame
     df = wr.read_sql_query("SELECT * FROM employees", con=engine)
-
 
 Amazon Redshift
 ---------------
