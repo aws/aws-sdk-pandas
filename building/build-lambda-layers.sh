@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-VERSION=$(poetry version --short)
+VERSION=$(uv version --short)
 DIR_NAME=$(dirname "$PWD")
 
 PYTHON_VERSION=${1:-ALL}
