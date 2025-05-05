@@ -44,9 +44,6 @@ jobs:
       - name: Run mypy check
         run: uv run mypy --install-types --non-interactive awswrangler
         working-directory: ${{ github.workspace }}
-      - name: Run mypy check
-        run: uv run mypy --install-types --non-interactive awswrangler
-        working-directory: ${{ github.workspace }}
       - name: Run documentation check
         run: uv run doc8 --max-line-length 120 docs/source
         working-directory: ${{ github.workspace }}
