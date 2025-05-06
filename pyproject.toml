@@ -127,7 +127,7 @@ sphinx = "^7.1"
 sphinx-autodoc-typehints = "^2.0.1"
 sphinx-bootstrap-theme = "^0.8"
 sphinx-copybutton = "^0.5.1"
-pydot = "^3.0.3"
+pydot = ">=3.0.3,<5.0.0"
 myst-parser = "^3.0.1"
 
 [build-system]
