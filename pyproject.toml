@@ -33,12 +33,14 @@ boto3 = "^1.20.32"
 botocore = "^1.23.32"
 pandas = { version = ">=1.2.0,<3.0.0" }
 numpy = [
-    { version = ">=1.26,<2.1.0", markers = "python_version < \"3.10\"" },
-    { version = ">=1.26,<3.0", markers = "python_version >= \"3.10\"" }
+    { version = ">=1.26,<2.1.0", markers = "python_version < '3.10'" },
+    { version = ">=1.26,<3.0", markers = "python_version >= '3.10'" }
 ]
 pyarrow = [
-    { version = ">=8.0.0,<19.0.0", markers = "python_version < \"3.13\"" },
-    { version = ">=18.0.0,<19.0.0", markers = "python_version >= \"3.13\"" }
+    { version = ">=18.0.0,<19.0.0", markers = "sys_platform != 'darwin' or platform_machine != 'x86_64'" },
+    # pyarrow 18 causes macos build failures
+    # https://github.com/ray-project/ray/pull/48446
+    { version = ">=8.0.0,<18.0.0", markers = "sys_platform == 'darwin' and platform_machine == 'x86_64'" }
 ]
 typing-extensions = "^4.4.0"
 packaging = ">=21.1,<26.0"
@@ -73,7 +75,7 @@ geopandas = { version = "^1.0.0", optional = true }
 
 # Distributed
 modin = { version = ">=0.31,<0.33", optional = true }
-ray = { version = ">=2.30.0,<2.38.0", extras = ["default", "data"], optional = true }
+ray = { version = "^2.45.0", extras = ["default", "data"], optional = true }
 
 [tool.poetry.extras]
 redshift = ["redshift-connector"]
