@@ -1,13 +1,16 @@
-[tool.poetry]
-name = "awswrangler - test infrastructure"
+[project]
+name = "awswrangler-test-infrastructure"
 version = "3.11.0"
 description = "CDK test infrastructure for AWS SDK for pandas"
 authors = ["Amazon Web Services"]
-license = "Apache License 2.0"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.9, <4.0"
 
-[tool.poetry.dependencies]
-python = ">=3.9, <4.0"
-"aws-cdk-lib" = "^2.188.0"
-"aws-cdk.aws-glue-alpha" = "^2.188.0a0"
-"aws-cdk.aws-neptune-alpha" = "^2.188.0a0"
-"aws-cdk.aws-redshift-alpha" = "^2.188.0a0"
+dependencies = [
+    "aws-cdk-lib>=2.188.0,<3",
+    "aws-cdk.aws-glue-alpha>=2.188.0a0,<3",
+    "aws-cdk.aws-neptune-alpha>=2.188.0a0,<3",
+    "aws-cdk.aws-redshift-alpha>=2.188.0a0,<3",
+    "packaging>=21.1,<25.0",
+    'setuptools ; python_version >= "3.12"',
+]

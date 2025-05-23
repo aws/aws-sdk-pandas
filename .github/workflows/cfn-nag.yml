@@ -46,15 +46,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
-      - name: Install Requirements
-        run: |
-          cd test_infra
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-          poetry env use python
-          poetry env info
-          source $(poetry env info --path)/bin/activate
-          poetry install -vvv --no-root
+      - name: Rust latest
+        run: rustup update
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Set up cdk.json
         run: |
           cd test_infra
@@ -75,8 +72,9 @@ jobs:
       - name: CDK Synth
         run: |
           cd test_infra
-          source $(poetry env info --path)/bin/activate
-          cdk synth
+          uv sync --frozen --no-install-project --verbose
+          uv run cdk synth
+        working-directory: ${{ github.workspace }}
       - uses: stelligent/cfn_nag@master
         with:
           input_path: test_infra/cdk.out
