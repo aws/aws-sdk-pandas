@@ -23,10 +23,13 @@ dependencies = [
     "botocore>=1.23.32,<2",
     "pandas>=1.2.0,<3.0.0",
     "numpy>=1.26,<3.0",
-    "pyarrow>=8.0.0,<19.0.0",
+    "pyarrow>=18.0.0,<19.0.0 ; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    # pyarrow 18 causes macos build failures
+    # https://github.com/ray-project/ray/pull/48446
+    "pyarrow>=8.0.0,<19.0.0 ; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "typing-extensions>=4.4.0,<5",
     "packaging>=21.1,<25.0",
-    'setuptools ; python_version >= "3.12"',
+    "setuptools ; python_version >= '3.12'",
 ]
 
 [project.optional-dependencies]
@@ -56,7 +59,7 @@ progressbar = ["progressbar2>=4.0.0,<5"]
 deltalake = ["deltalake>=0.18.0,<0.26.0"]
 geopandas = ["geopandas>=1.0.0,<2"]
 modin = ["modin>=0.31,<0.33"]
-ray = ["ray[default, data]>=2.30.0,<2.38.0"]
+ray = ["ray[default, data]>=2.45.0,<3"]
 
 [project.urls]
 Homepage = "https://aws-sdk-pandas.readthedocs.io/"

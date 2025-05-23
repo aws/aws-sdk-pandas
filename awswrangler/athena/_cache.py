@@ -73,9 +73,10 @@ class _LocalMetadataCacheManager:
             Returns successful DDL and DML queries sorted by query completion time.
         """
         filtered: list["QueryExecutionTypeDef"] = []
-        for query in self._cache.values():
-            if (query["Status"].get("State") == "SUCCEEDED") and (query.get("StatementType") in ["DDL", "DML"]):
-                filtered.append(query)
+        with self._lock:
+            for query in self._cache.values():
+                if (query["Status"].get("State") == "SUCCEEDED") and (query.get("StatementType") in ["DDL", "DML"]):
+                    filtered.append(query)
         return sorted(filtered, key=lambda e: str(e["Status"]["CompletionDateTime"]), reverse=True)
 
     def __contains__(self, key: str) -> bool:
