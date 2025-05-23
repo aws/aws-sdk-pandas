@@ -34,7 +34,7 @@ RUN ln -s /usr/bin/gcc10-ld /usr/bin/ld
 FROM ${python_version}
 COPY pyproject.toml poetry.lock ./
 
-# Setuptools is a build dependency of arrow.
+# Setuptools is a build dependency of arrow and runtime dependency of some of our dependencies.
 # Remove when arrow version shipped with lambda layers is updated.
 RUN pip3 install --upgrade pip wheel setuptools>=78.1.1 setuptools_scm>=8
 RUN pip3 install --upgrade urllib3==1.26.16  # temporary to avoid https://github.com/urllib3/urllib3/issues/2168 (TODO remove when the AL2 image updates to support OpenSSL 1.1.1+)
