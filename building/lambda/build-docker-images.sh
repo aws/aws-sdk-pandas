@@ -2,7 +2,7 @@
 set -ex
 
 cp ../../pyproject.toml .
-cp ../../poetry.lock .
+cp ../../uv.lock .
 
 export DOCKER_BUILDKIT=1
 
@@ -60,4 +60,4 @@ then
     .
 fi
 
-rm -rf pyproject.toml poetry.lock
+rm -rf pyproject.toml uv.lock
