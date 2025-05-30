@@ -29,10 +29,11 @@ RUN pip3 install --upgrade pip wheel setuptools>=78.1.1 setuptools_scm>=8
 # In new CMake 4, compatibility with CMake < 3.5 has been removed. 
 # Unpin CMake when arrow version shipped with lambda layers is updated.
 RUN pip3 install --upgrade cmake==3.31.6
-RUN pip3 install --upgrade six cython hypothesis poetry
-# ENV PIP_NO_BINARY="numpy,pandas"
-# RUN poetry config virtualenvs.create false --local && poetry install --no-root --only main
-RUN uv sync --frozen --no-dev --no-install-project \
+RUN pip3 install --upgrade six cython hypothesis uv
+
+ENV PIP_NO_BINARY="numpy,pandas"
+ENV UV_PROJECT_ENVIRONMENT="/var/lang"
+RUN uv sync --frozen --inexact --no-dev --no-install-project \
     --no-binary-package numpy \
     --no-binary-package pandas
 

@@ -42,9 +42,10 @@ RUN pip3 install --upgrade urllib3==1.26.16  # temporary to avoid https://github
 # Unpin CMake when arrow version shipped with lambda layers is updated.
 RUN pip3 install --upgrade cmake==3.31.6
 RUN pip3 install --upgrade six cython hypothesis uv
-# ENV PIP_NO_BINARY="numpy,pandas"
-# RUN poetry config virtualenvs.create false --local && poetry install --no-root --only main
-RUN uv sync --frozen --no-dev --no-install-project \
+
+ENV PIP_NO_BINARY="numpy,pandas"
+ENV UV_PROJECT_ENVIRONMENT="/var/lang"
+RUN uv sync --frozen --inexact --no-dev --no-install-project \
     --no-binary-package numpy \
     --no-binary-package pandas
 
