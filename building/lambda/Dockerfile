@@ -32,7 +32,7 @@ RUN ln -s /usr/bin/gcc10-mpn /usr/bin/mpn
 RUN ln -s /usr/bin/gcc10-ld /usr/bin/ld
 
 FROM ${python_version}
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock ./
 
 # Setuptools is a build dependency of arrow and runtime dependency of some of our dependencies (mainly redshift-connector).
 # Remove when arrow version shipped with lambda layers and dependencies are updated.
@@ -41,10 +41,14 @@ RUN pip3 install --upgrade urllib3==1.26.16  # temporary to avoid https://github
 # In new CMake 4, compatibility with CMake < 3.5 has been removed. 
 # Unpin CMake when arrow version shipped with lambda layers is updated.
 RUN pip3 install --upgrade cmake==3.31.6
-RUN pip3 install --upgrade six cython hypothesis poetry
-ENV PIP_NO_BINARY="numpy,pandas"
-RUN poetry config virtualenvs.create false --local && poetry install --no-root --only main
+RUN pip3 install --upgrade six cython hypothesis uv
 
-RUN rm -f pyproject.toml poetry.lock
+ENV PIP_NO_BINARY="numpy,pandas"
+ENV UV_PROJECT_ENVIRONMENT="/var/lang"
+RUN uv sync --frozen --inexact --no-dev --no-install-project \
+    --no-binary-package numpy \
+    --no-binary-package pandas
+
+RUN rm -f pyproject.toml uv.lock
 
 ENTRYPOINT ["/bin/sh"]

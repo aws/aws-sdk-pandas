@@ -2,6 +2,6 @@
 set -ex
 
 pushd ..
-rm -fr dist
-poetry publish --build
-rm -fr dist
+rm -rf dist/*.whl
+uv build --wheel
+uv publish dist/*.whl
