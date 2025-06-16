@@ -1100,7 +1100,7 @@ def create_csv_table(
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.12.0/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.12.1/tutorials/014%20-%20Schema%20Evolution.html
     sep
         String of length 1. Field delimiter for the output file.
     skip_header_line_count
@@ -1280,7 +1280,7 @@ def create_json_table(
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.12.0/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.12.1/tutorials/014%20-%20Schema%20Evolution.html
     serde_library
         Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
         as a string.
