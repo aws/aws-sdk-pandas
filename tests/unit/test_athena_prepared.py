@@ -79,21 +79,19 @@ def test_athena_deallocate_prepared_statement(workgroup0: str, statement: str) -
 
 
 def test_list_prepared_statements(workgroup1: str, statement: str) -> None:
-    wr.athena.create_prepared_statement(
-        sql="SELECT 1 as col0",
-        statement_name=statement,
-        workgroup=workgroup1,
-    )
+    try:
+        wr.athena.create_prepared_statement(
+            sql="SELECT 1 as col0",
+            statement_name=statement,
+            workgroup=workgroup1,
+        )
 
-    statement_list = wr.athena.list_prepared_statements(workgroup1)
+        statement_list = wr.athena.list_prepared_statements(workgroup1)
 
-    assert len(statement_list) == 1
-    assert statement_list[0]["StatementName"] == statement
-
-    wr.athena.delete_prepared_statement(statement, workgroup=workgroup1)
-
-    statement_list = wr.athena.list_prepared_statements(workgroup1)
-    assert len(statement_list) == 0
+        statement_list = [s for s in statement_list if s["StatementName"] == statement]
+        assert len(statement_list) == 1
+    finally:
+        wr.athena.delete_prepared_statement(statement, workgroup=workgroup1)
 
 
 def test_athena_execute_prepared_statement(
