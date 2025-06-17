@@ -6,7 +6,7 @@ authors = [{ name = "Amazon Web Services" }]
 requires-python = ">=3.9, <4.0"
 readme = "README.md"
 license = {text = "Apache-2.0"}
-license-files = ["LICENSE", "NOTICE" ]
+license-files = ["LICENSE.txt", "NOTICE.txt" ]
 keywords = [
     "pandas",
     "aws",
@@ -100,7 +100,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.sdist]
-include = ["awswrangler/py.typed"]
+include = ["awswrangler"]
 exclude = [
     "*.so",
     "*.pyc",
@@ -113,7 +113,7 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-include = ["awswrangler/py.typed"]
+include = ["awswrangler"]
 exclude = [
     "*.so",
     "*.pyc",
