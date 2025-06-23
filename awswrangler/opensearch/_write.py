@@ -334,12 +334,9 @@ def index_json(
     """
     _logger.debug("indexing %s from %s", index, path)
 
-    if boto3_session is None:
-        raise ValueError("boto3_session cannot be None")
-
     if path.startswith("s3://"):
         bucket, key = parse_path(path)
-        s3 = boto3_session.client("s3")
+        s3 = _utils.client(service_name="s3", session=boto3_session)
         obj = s3.get_object(Bucket=bucket, Key=key)
         body = obj["Body"].read()
         lines = body.splitlines()
