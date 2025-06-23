@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import math
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal
 
 import boto3
 import pandas as pd

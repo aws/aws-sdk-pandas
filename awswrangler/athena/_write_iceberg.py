@@ -6,7 +6,7 @@ import logging
 import re
 import typing
 import uuid
-from typing import Any, Dict, Literal, TypedDict, cast
+from typing import Any, Dict, Literal, TypedDict
 
 import boto3
 import pandas as pd

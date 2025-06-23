@@ -9,7 +9,7 @@ from collections import defaultdict
 from enum import Enum, unique
 from functools import wraps
 from importlib import reload
-from typing import Any, Callable, Literal, TypeVar, cast
+from typing import Any, Callable, Literal, TypeVar
 
 EngineLiteral = Literal["python", "ray"]
 MemoryFormatLiteral = Literal["pandas", "modin"]
