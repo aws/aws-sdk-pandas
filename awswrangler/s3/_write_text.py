@@ -435,10 +435,7 @@ def to_csv(  # noqa: PLR0912,PLR0915
             "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',', compression='gzip')"
         )
 
-    glue_table_settings = cast(
-        GlueTableSettings,
-        glue_table_settings if glue_table_settings else {},
-    )
+    glue_table_settings = glue_table_settings if glue_table_settings else {}
 
     table_type = glue_table_settings.get("table_type")
     description = glue_table_settings.get("description")
@@ -885,10 +882,7 @@ def to_json(  # noqa: PLR0912,PLR0915
             "e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')"
         )
 
-    glue_table_settings = cast(
-        GlueTableSettings,
-        glue_table_settings if glue_table_settings else {},
-    )
+    glue_table_settings = glue_table_settings if glue_table_settings else {}
 
     table_type = glue_table_settings.get("table_type")
     description = glue_table_settings.get("description")

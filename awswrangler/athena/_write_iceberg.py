@@ -501,10 +501,7 @@ def to_iceberg(  # noqa: PLR0913
         merge_condition=merge_condition,
     )
 
-    glue_table_settings = cast(
-        GlueTableSettings,
-        glue_table_settings if glue_table_settings else {},
-    )
+    glue_table_settings = glue_table_settings if glue_table_settings else {}
 
     try:
         # Create Iceberg table if it doesn't exist
