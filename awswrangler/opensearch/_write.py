@@ -280,7 +280,7 @@ def index_json(
     path: str,
     index: str,
     doc_type: str | None = None,
-    boto3_session: boto3.Session | None = boto3.Session(),
+    boto3_session: boto3.Session | None = None,
     json_path: str | None = None,
     use_threads: bool | int = False,
     **kwargs: Any,
