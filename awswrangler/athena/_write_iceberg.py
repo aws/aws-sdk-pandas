@@ -6,7 +6,7 @@ import logging
 import re
 import typing
 import uuid
-from typing import Any, Dict, Literal, TypedDict, cast
+from typing import Any, Dict, Literal, TypedDict
 
 import boto3
 import pandas as pd
@@ -501,10 +501,7 @@ def to_iceberg(  # noqa: PLR0913
         merge_condition=merge_condition,
     )
 
-    glue_table_settings = cast(
-        GlueTableSettings,
-        glue_table_settings if glue_table_settings else {},
-    )
+    glue_table_settings = glue_table_settings if glue_table_settings else {}
 
     try:
         # Create Iceberg table if it doesn't exist

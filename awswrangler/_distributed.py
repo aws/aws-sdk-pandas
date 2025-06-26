@@ -9,7 +9,7 @@ from collections import defaultdict
 from enum import Enum, unique
 from functools import wraps
 from importlib import reload
-from typing import Any, Callable, Literal, TypeVar, cast
+from typing import Any, Callable, Literal, TypeVar
 
 EngineLiteral = Literal["python", "ray"]
 MemoryFormatLiteral = Literal["pandas", "modin"]
@@ -112,7 +112,7 @@ class Engine:
     def register(cls, name: EngineLiteral | None = None) -> None:
         """Register the distribution engine dispatch methods."""
         with cls._lock:
-            engine_name = cast(EngineLiteral, name or cls.get().value)
+            engine_name = name or cls.get().value
             cls.set(engine_name)
             cls._registry.clear()
 
@@ -125,7 +125,7 @@ class Engine:
     def initialize(cls, name: EngineLiteral | None = None) -> None:
         """Initialize the distribution engine."""
         with cls._lock:
-            engine_name = cast(EngineLiteral, name or cls.get_installed().value)
+            engine_name = name or cls.get_installed().value
             if engine_name == EngineEnum.RAY.value:
                 from awswrangler.distributed.ray import initialize_ray
 
@@ -136,7 +136,7 @@ class Engine:
     def is_initialized(cls, name: EngineLiteral | None = None) -> bool:
         """Check if the distribution engine is initialized."""
         with cls._lock:
-            engine_name = cast(EngineLiteral, name or cls.get_installed().value)
+            engine_name = name or cls.get_installed().value
 
             return False if not cls._initialized_engine else cls._initialized_engine.value == engine_name
 

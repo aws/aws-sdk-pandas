@@ -28,7 +28,7 @@ def _list(
     client = _utils.client(service_name="quicksight", session=boto3_session)
     func: Callable[..., dict[str, Any]] = getattr(client, func_name)
     response: dict[str, Any] = func(AwsAccountId=account_id, **kwargs)
-    next_token: str = response.get("NextToken", None)
+    next_token: str | None = response.get("NextToken", None)
     result: list[dict[str, Any]] = response[attr_name]
     while next_token is not None:
         response = func(AwsAccountId=account_id, NextToken=next_token, **kwargs)
