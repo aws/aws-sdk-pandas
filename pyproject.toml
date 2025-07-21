@@ -50,15 +50,15 @@ sparql = [
 ]
 opencypher = ["requests>=2.0.0,<3"]
 opensearch = [
-    "opensearch-py>=2.0.0,<3",
+    "opensearch-py>=2.0.0,<4",
     "jsonpath-ng>=1.5.3,<2",
     "requests-aws4auth>=1.1.1,<2",
 ]
 openpyxl = ["openpyxl>=3.0.0,<4"]
 progressbar = ["progressbar2>=4.0.0,<5"]
-deltalake = ["deltalake>=0.18.0,<1.1.0"]
+deltalake = ["deltalake>=0.18.0,<1.2.0"]
 geopandas = ["geopandas>=1.0.0,<2"]
-modin = ["modin>=0.31,<0.34"]
+modin = ["modin>=0.31,<0.35"]
 ray = ["ray[default, data]>=2.45.0,<3"]
 
 [project.urls]
