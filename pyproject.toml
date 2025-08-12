@@ -1,6 +1,6 @@
 [project]
 name = "awswrangler"
-version = "3.12.1"
+version = "3.12.2"
 description = "Pandas on AWS."
 authors = [{ name = "Amazon Web Services" }]
 requires-python = ">=3.9, <4.0"
