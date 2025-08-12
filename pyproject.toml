@@ -41,7 +41,7 @@ oracle = ["oracledb>=1,<4"]
 gremlin = [
     "gremlinpython>=3.7.1,<4",
     "requests>=2.0.0,<3",
-    "aiohttp>=3.9.0,<4",
+    "aiohttp>=3.12.14,<4",
     "async-timeout>=4.0.3,<6.0.0",
 ]
 sparql = [
