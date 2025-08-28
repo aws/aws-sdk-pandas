@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import (
     Any,
     Dict,
     cast,
 )
 
-import os
 import boto3
 import botocore
 from typing_extensions import Literal
 
-from concurrent.futures import ThreadPoolExecutor
 from awswrangler import _utils, exceptions, typing
 from awswrangler._config import apply_configs
 

@@ -1708,3 +1708,65 @@ def test_athena_date_recovery(path, glue_database, glue_table):
         ctas_approach=False,
     )
     assert pandas_equals(df, df2)
+
+def test_start_query_executions_ids_and_results(path, glue_database, glue_table):
+    # Prepare table
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+
+    sqls = [
+        f"SELECT * FROM {glue_table} LIMIT 1",
+        f"SELECT COUNT(*) FROM {glue_table}",
+    ]
+
+    # Case 1: Sequential, return query IDs
+    qids = wr.athena.start_query_executions(sqls=sqls, database=glue_database, wait=False, use_threads=False)
+    assert isinstance(qids, list)
+    assert all(isinstance(qid, str) for qid in qids)
+    assert len(qids) == len(sqls)
+
+    # Case 2: Sequential, wait for results
+    results = wr.athena.start_query_executions(sqls=sqls, database=glue_database, wait=True, use_threads=False)
+    assert isinstance(results, list)
+    assert all(isinstance(r, dict) for r in results)
+    assert all("Status" in r for r in results)
+
+    # Case 3: Parallel execution with threads
+    results_parallel = wr.athena.start_query_executions(
+        sqls=sqls, database=glue_database, wait=True, use_threads=True
+    )
+    assert isinstance(results_parallel, list)
+    assert all(isinstance(r, dict) for r in results_parallel)
+
+
+def test_start_query_executions_as_iterator(path, glue_database, glue_table):
+    # Prepare table
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+
+    sqls = [f"SELECT * FROM {glue_table} LIMIT 1"]
+
+    # Case: as_iterator=True should return a generator-like object
+    qids_iter = wr.athena.start_query_executions(
+        sqls=sqls, database=glue_database, wait=False, as_iterator=True
+    )
+    assert not isinstance(qids_iter, list)
+    qids = list(qids_iter)
+    assert len(qids) == 1
+    assert isinstance(qids[0], str)
