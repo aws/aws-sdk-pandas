@@ -33,6 +33,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 _DEFAULT_MAX_WORKERS = max(4, os.cpu_count() or 4)
 
+
 @apply_configs
 def start_query_execution(
     sql: str,
@@ -170,6 +171,7 @@ def start_query_execution(
         )
 
     return query_execution_id
+
 
 @apply_configs
 def start_query_executions(
