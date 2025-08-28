@@ -18,7 +18,6 @@ from typing_extensions import Literal
 from concurrent.futures import ThreadPoolExecutor
 from awswrangler import _utils, exceptions, typing
 from awswrangler._config import apply_configs
-from functools import reduce
 
 from ._cache import _CacheInfo, _check_for_cached_results
 from ._utils import (
