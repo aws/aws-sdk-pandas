@@ -1709,6 +1709,7 @@ def test_athena_date_recovery(path, glue_database, glue_table):
     )
     assert pandas_equals(df, df2)
 
+
 def test_start_query_executions_ids_and_results(path, glue_database, glue_table):
     # Prepare table
     wr.s3.to_parquet(
@@ -1740,9 +1741,7 @@ def test_start_query_executions_ids_and_results(path, glue_database, glue_table)
     assert all("Status" in r for r in results)
 
     # Case 3: Parallel execution with threads
-    results_parallel = wr.athena.start_query_executions(
-        sqls=sqls, database=glue_database, wait=True, use_threads=True
-    )
+    results_parallel = wr.athena.start_query_executions(sqls=sqls, database=glue_database, wait=True, use_threads=True)
     assert isinstance(results_parallel, list)
     assert all(isinstance(r, dict) for r in results_parallel)
 
@@ -1763,9 +1762,7 @@ def test_start_query_executions_as_iterator(path, glue_database, glue_table):
     sqls = [f"SELECT * FROM {glue_table} LIMIT 1"]
 
     # Case: as_iterator=True should return a generator-like object
-    qids_iter = wr.athena.start_query_executions(
-        sqls=sqls, database=glue_database, wait=False, as_iterator=True
-    )
+    qids_iter = wr.athena.start_query_executions(sqls=sqls, database=glue_database, wait=False, as_iterator=True)
     assert not isinstance(qids_iter, list)
     qids = list(qids_iter)
     assert len(qids) == 1
