@@ -3,22 +3,21 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import (
     Any,
     Dict,
     cast,
 )
 
-import os
 import boto3
 import botocore
 from typing_extensions import Literal
 
-from concurrent.futures import ThreadPoolExecutor
 from awswrangler import _utils, exceptions, typing
 from awswrangler._config import apply_configs
-from functools import reduce
 
 from ._cache import _CacheInfo, _check_for_cached_results
 from ._utils import (
@@ -33,6 +32,7 @@ from ._utils import (
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _DEFAULT_MAX_WORKERS = max(4, os.cpu_count() or 4)
+
 
 @apply_configs
 def start_query_execution(
@@ -171,6 +171,7 @@ def start_query_execution(
         )
 
     return query_execution_id
+
 
 @apply_configs
 def start_query_executions(
