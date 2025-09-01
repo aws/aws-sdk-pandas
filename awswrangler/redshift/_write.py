@@ -185,7 +185,7 @@ def to_sql(
     Writing to Redshift using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> with wr.redshift.connect("MY_GLUE_CONNECTION") as con"
+    >>> with wr.redshift.connect("MY_GLUE_CONNECTION") as con:
     ...     wr.redshift.to_sql(
     ...         df=df,
     ...         table="my_table",
