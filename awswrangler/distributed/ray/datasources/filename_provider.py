@@ -26,13 +26,16 @@ class _DefaultFilenameProvider(FilenameProvider):
     def get_filename_for_block(
         self,
         block: Block,
+        write_uuid: str,
         task_index: int,
         block_index: int,
     ) -> str:
         file_id = f"{task_index:06}_{block_index:06}"
         return self._generate_filename(file_id)
 
-    def get_filename_for_row(self, row: dict[str, Any], task_index: int, block_index: int, row_index: int) -> str:
+    def get_filename_for_row(
+        self, row: dict[str, Any], write_uuid: str, task_index: int, block_index: int, row_index: int
+    ) -> str:
         file_id = f"{task_index:06}_{block_index:06}_{row_index:06}"
         return self._generate_filename(file_id)
 
