@@ -192,7 +192,7 @@ def start_query_executions(
     check_workgroup: bool = True,
     enforce_workgroup: bool = False,
     as_iterator: bool = False,
-    use_threads: bool | int = False
+    use_threads: bool | int = False,
 ) -> list[str] | list[dict[str, typing.Any]]:
     """
     Start multiple SQL queries against Amazon Athena.
@@ -265,10 +265,7 @@ def start_query_executions(
         formatted_queries = (_apply_formatter(q, params, "named") for q in sqls)
     elif paramstyle == "qmark":
         _params_list = params or [None] * len(sqls)
-        formatted_queries = (
-            _apply_formatter(q, query_params, "qmark")
-            for q, query_params in zip(sqls, _params_list)
-        )
+        formatted_queries = (_apply_formatter(q, query_params, "qmark") for q, query_params in zip(sqls, _params_list))
     else:
         raise ValueError("paramstyle must be 'named' or 'qmark'")
 
@@ -351,6 +348,7 @@ def start_query_executions(
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             return list(executor.map(_submit, items))
+
 
 def stop_query_execution(query_execution_id: str, boto3_session: boto3.Session | None = None) -> None:
     """Stop a query execution.
