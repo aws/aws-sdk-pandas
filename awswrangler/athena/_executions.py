@@ -184,22 +184,24 @@ def start_query_executions(
     params: dict[str, typing.Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
     boto3_session: boto3.Session | None = None,
-    client_request_token: str | list[str] | None = None,
+    client_request_token: str | list[list[str]] | None = None,
     athena_cache_settings: typing.AthenaCacheSettings | None = None,
-    athena_query_wait_polling_delay: float = 1.0,
+    athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     data_source: str | None = None,
     wait: bool = False,
     check_workgroup: bool = True,
     enforce_workgroup: bool = False,
     as_iterator: bool = False,
-    use_threads: bool | int = False,
+    use_threads: bool | int = False
 ) -> list[str] | list[dict[str, typing.Any]]:
     """
     Start multiple SQL queries against Amazon Athena.
 
-    Each query can optionally use Athena's result cache and idempotent request tokens.
-    Submissions can be sequential or parallel, and each query can be waited on
-    individually (inside its submission thread) if ``wait=True``.
+    This is the multi-query counterpart to ``start_query_execution``. It supports
+    per-query caching and idempotent client request tokens, optional workgroup
+    validation/enforcement, sequential or thread-pooled parallel dispatch, and
+    either eager (list) or lazy (iterator) consumption. If ``wait=True``, each
+    query may be awaited to completion within its submission thread.
 
     Parameters
     ----------
@@ -255,11 +257,20 @@ def start_query_executions(
             raise ValueError("Length of client_request_token list must match number of queries in sqls")
         tokens = client_request_token
     elif isinstance(client_request_token, str):
-        tokens = [f"{client_request_token}-{i}" for i in range(len(sqls))]
+        tokens = (f"{client_request_token}-{i}" for i in range(len(sqls)))
     else:
         tokens = [None] * len(sqls)
 
-    formatted_queries = list(map(lambda q: _apply_formatter(q, params, paramstyle), sqls))
+    if paramstyle == "named":
+        formatted_queries = (_apply_formatter(q, params, "named") for q in sqls)
+    elif paramstyle == "qmark":
+        _params_list = params or [None] * len(sqls)
+        formatted_queries = (
+            _apply_formatter(q, query_params, "qmark")
+            for q, query_params in zip(sqls, _params_list)
+        )
+    else:
+        raise ValueError("paramstyle must be 'named' or 'qmark'")
 
     if check_workgroup:
         wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
@@ -273,6 +284,7 @@ def start_query_executions(
 
     def _submit(item: tuple[tuple[str, list[str] | None], str | None]):
         (q, execution_params), token = item
+        _logger.debug("Executing query:\n%s", q)
 
         if token is None and athena_cache_settings is not None:
             cache_info = _check_for_cached_results(
@@ -281,7 +293,9 @@ def start_query_executions(
                 workgroup=workgroup,
                 athena_cache_settings=athena_cache_settings,
             )
+            _logger.debug("Cache info:\n%s", cache_info)
             if cache_info.has_valid_cache and cache_info.query_execution_id is not None:
+                _logger.debug("Valid cache found. Retrieving...")
                 return (
                     wait_query(
                         query_execution_id=cache_info.query_execution_id,
@@ -315,17 +329,28 @@ def start_query_executions(
 
         return qid
 
-    items = list(zip(formatted_queries, tokens))
+    items = zip(formatted_queries, tokens)
 
     if use_threads is False:
         results = map(_submit, items)
+        return results if as_iterator else list(results)
+
+    max_workers = _DEFAULT_MAX_WORKERS if use_threads is True else int(use_threads)
+
+    if as_iterator:
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        it = executor.map(_submit, items)
+
+        def _iter():
+            try:
+                yield from it
+            finally:
+                executor.shutdown(wait=True)
+
+        return _iter()
     else:
-        max_workers = _DEFAULT_MAX_WORKERS if use_threads is True else int(use_threads)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            results = executor.map(_submit, items)
-
-    return results if as_iterator else list(results)
-
+            return list(executor.map(_submit, items))
 
 def stop_query_execution(query_execution_id: str, boto3_session: boto3.Session | None = None) -> None:
     """Stop a query execution.
