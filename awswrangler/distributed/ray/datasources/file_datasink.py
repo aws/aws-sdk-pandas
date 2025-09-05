@@ -78,7 +78,7 @@ class _BlockFileDatasink(Datasink[str]):
         write_path = self.path
 
         if write_path.endswith("/"):
-            filename = self.filename_provider.get_filename_for_block(block, ctx.task_idx, 0)
+            filename = self.filename_provider.get_filename_for_block(block, "", ctx.task_idx, 0)
             write_path = posixpath.join(self.path, filename)
 
         return _write_block(write_path, block)
