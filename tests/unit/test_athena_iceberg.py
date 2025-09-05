@@ -321,6 +321,7 @@ def test_athena_to_iceberg_overwrite_partitions_merge_cols_error(
             mode="overwrite_partitions",
         )
 
+
 def test_athena_to_iceberg_schema_evolution_add_columns(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
