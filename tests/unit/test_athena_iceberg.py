@@ -325,7 +325,7 @@ def test_athena_to_iceberg_overwrite_partitions_merge_cols_error(
 def test_athena_to_iceberg_schema_evolution_add_columns(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [6, 7, 8]})
     wr.athena.to_iceberg(
         df=df,
         database=glue_database,
@@ -336,9 +336,9 @@ def test_athena_to_iceberg_schema_evolution_add_columns(
         schema_evolution=True,
     )
 
-    df["c2"] = [6, 7, 8]
+    df2 = pd.DataFrame({"c0": [3, 4, 5], "c2": [9, 10, 11]})
     wr.athena.to_iceberg(
-        df=df,
+        df=df2,
         database=glue_database,
         table=glue_table,
         table_location=path,
@@ -348,7 +348,7 @@ def test_athena_to_iceberg_schema_evolution_add_columns(
     )
 
     column_types = wr.catalog.get_table_types(glue_database, glue_table)
-    assert len(column_types) == len(df.columns)
+    assert len(column_types) == 3
 
     df_out = wr.athena.read_sql_table(
         table=glue_table,
@@ -356,12 +356,17 @@ def test_athena_to_iceberg_schema_evolution_add_columns(
         ctas_approach=False,
         unload_approach=False,
     )
-    assert len(df_out) == len(df) * 2
 
-    df["c3"] = [9, 10, 11]
+    df_expected = pd.DataFrame(
+        {"c0": [0, 1, 2, 3, 4, 5], "c1": [6, 7, 8, np.nan, np.nan, np.nan], "c2": [np.nan, np.nan, np.nan, 9, 10, 11]},
+        dtype="Int64",
+    )
+    assert_pandas_equals(df_out.sort_values(by=["c0"]).reset_index(drop=True), df_expected)
+
+    df3 = pd.DataFrame({"c0": [12], "c1": [13], "c2": [14], "c3": [15]})
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.athena.to_iceberg(
-            df=df,
+            df=df3,
             database=glue_database,
             table=glue_table,
             table_location=path,
