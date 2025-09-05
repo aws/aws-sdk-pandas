@@ -23,10 +23,7 @@ dependencies = [
     "botocore>=1.23.32,<2",
     "pandas>=1.2.0,<3.0.0",
     "numpy>=1.26,<3.0",
-    "pyarrow>=18.0.0,<21.0.0 ; sys_platform != 'darwin' or platform_machine != 'x86_64'",
-    # pyarrow 18 causes macos build failures
-    # https://github.com/ray-project/ray/pull/48446
-    "pyarrow>=8.0.0,<18.0.0 ; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "pyarrow>=8.0.0,<21.0.0",
     "typing-extensions>=4.4.0,<5",
     "packaging>=21.1,<26.0",
     "setuptools ; python_version >= '3.12'",
@@ -41,7 +38,7 @@ oracle = ["oracledb>=1,<4"]
 gremlin = [
     "gremlinpython>=3.7.1,<4",
     "requests>=2.0.0,<3",
-    "aiohttp>=3.9.0,<4",
+    "aiohttp>=3.12.14,<4",
     "async-timeout>=4.0.3,<6.0.0",
 ]
 sparql = [
@@ -58,8 +55,8 @@ openpyxl = ["openpyxl>=3.0.0,<4"]
 progressbar = ["progressbar2>=4.0.0,<5"]
 deltalake = ["deltalake>=0.18.0,<1.2.0"]
 geopandas = ["geopandas>=1.0.0,<2"]
-modin = ["modin>=0.31,<0.35"]
-ray = ["ray[default, data]>=2.45.0,<3"]
+modin = ["modin>=0.31,<0.36"]
+ray = ["ray[default, data]>=2.49.0,<3"]
 
 [project.urls]
 Homepage = "https://aws-sdk-pandas.readthedocs.io/"

@@ -39,7 +39,7 @@ class _RayMaxConcurrencyExecutor(_BaseExecutor):
         super().__init__()
 
         _logger.debug("Initializing Ray Actor with maximum concurrency %d", max_concurrency)
-        self._actor: ray.actor.ActorHandle = AsyncActor.options(max_concurrency=max_concurrency).remote()  # type: ignore[attr-defined]
+        self._actor: "ray.actor.ActorHandle[AsyncActor]" = AsyncActor.options(max_concurrency=max_concurrency).remote()  # type: ignore[attr-defined]
 
     def map(self, func: Callable[..., MapOutputType], _: "BaseClient" | None, *args: Any) -> list[MapOutputType]:
         """Map func and return ray futures."""
