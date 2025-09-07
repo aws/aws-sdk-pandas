@@ -6,7 +6,7 @@ import logging
 import re
 import typing
 import uuid
-from typing import Any, Dict, Literal, TypedDict
+from typing import Any, Dict, Literal, TypedDict, Union
 
 import boto3
 import pandas as pd
@@ -18,6 +18,7 @@ from awswrangler.athena._utils import (
     _get_workgroup_config,
     _start_query_execution,
     _WorkGroupConfig,
+    _MergeClause
 )
 from awswrangler.typing import GlueTableSettings
 
@@ -361,7 +362,9 @@ def to_iceberg(  # noqa: PLR0913
     table_location: str | None = None,
     partition_cols: list[str] | None = None,
     merge_cols: list[str] | None = None,
-    merge_condition: Literal["update", "ignore"] = "update",
+    merge_on_condition: str | None = None,
+    merge_condition: Literal["update", "ignore", "conditional_merge"] = "update",
+    merge_conditional_clauses: list[_MergeClause] | None = None,
     merge_match_nulls: bool = False,
     keep_files: bool = True,
     data_source: str | None = None,
