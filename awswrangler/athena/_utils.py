@@ -43,6 +43,11 @@ _QUERY_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
+class _MergeClause(TypedDict, total=False):
+    when: Literal["MATCHED", "NOT_MATCHED", "NOT_MATCHED_BY_SOURCE"]
+    condition: str | None
+    action: Literal["UPDATE", "DELETE", "INSERT"]
+    columns: list[str] | None
 
 class _QueryMetadata(NamedTuple):
     execution_id: str
@@ -62,7 +67,6 @@ class _WorkGroupConfig(NamedTuple):
     s3_output: str | None
     encryption: str | None
     kms_key: str | None
-
 
 def _get_s3_output(
     s3_output: str | None, wg_config: _WorkGroupConfig, boto3_session: boto3.Session | None = None
