@@ -220,7 +220,9 @@ def _validate_args(
     mode: Literal["append", "overwrite", "overwrite_partitions"],
     partition_cols: list[str] | None,
     merge_cols: list[str] | None,
-    merge_condition: Literal["update", "ignore"],
+    merge_on_condition: str | None,
+    merge_condition: Literal["update", "ignore", "conditional_merge"],
+    merge_conditional_clauses: list[_MergeClause] | None,
 ) -> None:
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
@@ -229,6 +231,45 @@ def _validate_args(
         raise exceptions.InvalidArgumentCombination(
             "Either path or workgroup path must be specified to store the temporary results."
         )
+    
+    if merge_cols and merge_on_condition:
+           raise exceptions.InvalidArgumentCombination(
+               "Cannot specify both merge_cols and merge_on_condition. Use either merge_cols for simple equality matching or merge_on_condition for custom logic."
+           )
+    
+    if merge_conditional_clauses and merge_condition != "conditional_merge":
+       raise exceptions.InvalidArgumentCombination(
+           "merge_conditional_clauses can only be used when merge_condition is 'conditional_merge'."
+       )
+    
+    if (merge_cols or merge_on_condition) and merge_condition not in ["update", "ignore", "conditional_merge"]:
+        raise exceptions.InvalidArgumentValue(
+            f"Invalid merge_condition: {merge_condition}. Valid values: ['update', 'ignore', 'conditional_merge']"
+        )
+    
+    if merge_condition == "conditional_merge":
+       if not merge_conditional_clauses:
+           raise exceptions.InvalidArgumentCombination(
+               "merge_conditional_clauses must be provided when merge_condition is 'conditional_merge'."
+           )
+       
+       for i, clause in enumerate(merge_conditional_clauses):
+           if "when" not in clause:
+               raise exceptions.InvalidArgumentValue(
+                   f"merge_conditional_clauses[{i}] must contain 'when' field."
+               )
+           if "action" not in clause:
+               raise exceptions.InvalidArgumentValue(
+                   f"merge_conditional_clauses[{i}] must contain 'action' field."
+               )
+           if clause["when"] not in ['MATCHED', 'NOT_MATCHED', 'NOT_MATCHED_BY_SOURCE']:
+               raise exceptions.InvalidArgumentValue(
+                   f"merge_conditional_clauses[{i}]['when'] must be one of ['MATCHED', 'NOT_MATCHED', 'NOT_MATCHED_BY_SOURCE']."
+               )
+           if clause["action"] not in ["UPDATE", "DELETE", "INSERT", "IGNORE"]:
+               raise exceptions.InvalidArgumentValue(
+                   f"merge_conditional_clauses[{i}]['action'] must be one of ['UPDATE', 'DELETE', 'INSERT', 'IGNORE']."
+               )
 
     if mode == "overwrite_partitions":
         if not partition_cols:
@@ -239,12 +280,6 @@ def _validate_args(
             raise exceptions.InvalidArgumentCombination(
                 "When mode is 'overwrite_partitions' merge_cols must not be specified."
             )
-
-    if merge_cols and merge_condition not in ["update", "ignore"]:
-        raise exceptions.InvalidArgumentValue(
-            f"Invalid merge_condition: {merge_condition}. Valid values: ['update', 'ignore']"
-        )
-
 
 def _merge_iceberg(
     df: pd.DataFrame,
@@ -502,7 +537,9 @@ def to_iceberg(  # noqa: PLR0913
         mode=mode,
         partition_cols=partition_cols,
         merge_cols=merge_cols,
+        merge_on_condition=merge_on_condition,
         merge_condition=merge_condition,
+        merge_conditional_clauses=merge_conditional_clauses,
     )
 
     glue_table_settings = glue_table_settings if glue_table_settings else {}
