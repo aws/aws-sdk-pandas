@@ -57,7 +57,7 @@ def _new_writer(
     s3_additional_kwargs: dict[str, str] | None,
     use_threads: bool | int,
 ) -> Iterator["ORCWriter"]:
-    from pyarrow.orc import ORCWriter
+    from pyarrow.orc import ORCWriter  # noqa: PLC0415
 
     writer: "ORCWriter" | None = None
     if not pyarrow_additional_kwargs:

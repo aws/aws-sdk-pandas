@@ -117,7 +117,7 @@ def _file_line_generator(path: str, is_json: bool = False) -> Generator[Any, Non
 
 @_utils.check_optional_dependency(jsonpath_ng, "jsonpath_ng")
 def _get_documents_w_json_path(documents: list[Mapping[str, Any]], json_path: str) -> list[Any]:
-    from jsonpath_ng.exceptions import JsonPathParserError
+    from jsonpath_ng.exceptions import JsonPathParserError  # noqa: PLC0415
 
     try:
         jsonpath_expression = jsonpath_ng.parse(json_path)
