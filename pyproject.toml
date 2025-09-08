@@ -83,6 +83,7 @@ dev = [
     "pytest-xdist>=3.6.1,<4",
     "s3fs==0.4.2",
     "tox>=4.23.2,<5",
+    "tox-uv==1.28.0",
     "bump-my-version>=0.29,<1.3",
     "IPython>=8.18.1,<9",
     "jupyterlab~=4.3",
