@@ -232,7 +232,7 @@ def create_index(
         body = None  # type: ignore[assignment]
 
     # ignore 400 cause by IndexAlreadyExistsException when creating an index
-    response: dict[str, Any] = client.indices.create(index, body=body, ignore=400)
+    response: dict[str, Any] = client.indices.create(index=index, body=body, ignore=400)
     if "error" in response:
         _logger.warning(response)
         if str(response["error"]).startswith("MapperParsingException"):
@@ -268,7 +268,7 @@ def delete_index(client: "opensearchpy.OpenSearch", index: str) -> dict[str, Any
 
     """
     # ignore 400/404 IndexNotFoundError exception
-    response: dict[str, Any] = client.indices.delete(index, ignore=[400, 404])
+    response: dict[str, Any] = client.indices.delete(index=index, ignore=[400, 404])
     if "error" in response:
         _logger.warning(response)
     return response
