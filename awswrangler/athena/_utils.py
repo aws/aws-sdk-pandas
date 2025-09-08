@@ -44,7 +44,7 @@ _QUERY_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 _logger: logging.Logger = logging.getLogger(__name__)
 
 class _MergeClause(TypedDict, total=False):
-    when: Literal["MATCHED", "NOT_MATCHED", "NOT_MATCHED_BY_SOURCE"]
+    when: Literal["MATCHED", "NOT MATCHED", "NOT MATCHED BY SOURCE"]
     condition: str | None
     action: Literal["UPDATE", "DELETE", "INSERT"]
     columns: list[str] | None
