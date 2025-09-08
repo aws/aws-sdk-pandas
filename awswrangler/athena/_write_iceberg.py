@@ -220,9 +220,10 @@ def _validate_args(
     mode: Literal["append", "overwrite", "overwrite_partitions"],
     partition_cols: list[str] | None,
     merge_cols: list[str] | None,
-    merge_on_condition: str | None,
+    merge_on_clause: str | None,
     merge_condition: Literal["update", "ignore", "conditional_merge"],
     merge_conditional_clauses: list[_MergeClause] | None,
+    merge_match_nulls: bool,
 ) -> None:
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
@@ -232,9 +233,14 @@ def _validate_args(
             "Either path or workgroup path must be specified to store the temporary results."
         )
     
-    if merge_cols and merge_on_condition:
+    if merge_cols and merge_on_clause:
            raise exceptions.InvalidArgumentCombination(
-               "Cannot specify both merge_cols and merge_on_condition. Use either merge_cols for simple equality matching or merge_on_condition for custom logic."
+               "Cannot specify both merge_cols and merge_on_clause. Use either merge_cols for simple equality matching or merge_on_clause for custom logic."
+           )
+    
+    if merge_on_clause and merge_match_nulls:
+           raise exceptions.InvalidArgumentCombination(
+               "merge_match_nulls can only be used together with merge_cols."
            )
     
     if merge_conditional_clauses and merge_condition != "conditional_merge":
@@ -242,7 +248,7 @@ def _validate_args(
            "merge_conditional_clauses can only be used when merge_condition is 'conditional_merge'."
        )
     
-    if (merge_cols or merge_on_condition) and merge_condition not in ["update", "ignore", "conditional_merge"]:
+    if (merge_cols or merge_on_clause) and merge_condition not in ["update", "ignore", "conditional_merge"]:
         raise exceptions.InvalidArgumentValue(
             f"Invalid merge_condition: {merge_condition}. Valid values: ['update', 'ignore', 'conditional_merge']"
         )
@@ -262,9 +268,9 @@ def _validate_args(
                raise exceptions.InvalidArgumentValue(
                    f"merge_conditional_clauses[{i}] must contain 'action' field."
                )
-           if clause["when"] not in ['MATCHED', 'NOT_MATCHED', 'NOT_MATCHED_BY_SOURCE']:
+           if clause["when"] not in ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE']:
                raise exceptions.InvalidArgumentValue(
-                   f"merge_conditional_clauses[{i}]['when'] must be one of ['MATCHED', 'NOT_MATCHED', 'NOT_MATCHED_BY_SOURCE']."
+                   f"merge_conditional_clauses[{i}]['when'] must be one of ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE']."
                )
            if clause["action"] not in ["UPDATE", "DELETE", "INSERT", "IGNORE"]:
                raise exceptions.InvalidArgumentValue(
@@ -287,7 +293,9 @@ def _merge_iceberg(
     table: str,
     source_table: str,
     merge_cols: list[str] | None = None,
-    merge_condition: Literal["update", "ignore"] = "update",
+    merge_on_clause: str | None = None,
+    merge_condition: Literal["update", "ignore", "conditional_merge"] = "update",
+    merge_conditional_clauses: list[_MergeClause] | None = None,
     merge_match_nulls: bool = False,
     kms_key: str | None = None,
     boto3_session: boto3.Session | None = None,
@@ -342,27 +350,66 @@ def _merge_iceberg(
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
 
     sql_statement: str
-    if merge_cols:
+    if merge_cols or merge_on_clause:
+        if merge_on_clause:
+            on_condition = merge_on_clause
+        else:
+            if merge_match_nulls:
+                merge_conditions = [f'(target."{x}" IS NOT DISTINCT FROM source."{x}")' for x in merge_cols]
+            else:
+                merge_conditions = [f'(target."{x}" = source."{x}")' for x in merge_cols]
+            on_condition = " AND ".join(merge_conditions)
+
+        # Build WHEN clauses based on merge_condition
+        when_clauses = []
+        
         if merge_condition == "update":
-            match_condition = f"""WHEN MATCHED THEN
-                UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in df.columns])}"""
-        else:
-            match_condition = ""
-
-        if merge_match_nulls:
-            merge_conditions = [f'(target."{x}" IS NOT DISTINCT FROM source."{x}")' for x in merge_cols]
-        else:
-            merge_conditions = [f'(target."{x}" = source."{x}")' for x in merge_cols]
-
+            when_clauses.append(f"""WHEN MATCHED THEN
+                UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in df.columns])}""")
+            when_clauses.append(f"""WHEN NOT MATCHED THEN
+                INSERT ({", ".join([f'"{x}"' for x in df.columns])})
+                VALUES ({", ".join([f'source."{x}"' for x in df.columns])})""")
+                
+        elif merge_condition == "ignore":
+            when_clauses.append(f"""WHEN NOT MATCHED THEN
+                INSERT ({", ".join([f'"{x}"' for x in df.columns])})
+                VALUES ({", ".join([f'source."{x}"' for x in df.columns])})""")
+                
+        elif merge_condition == "conditional_merge":
+            for clause in merge_conditional_clauses:
+                when_type = clause["when"]
+                action = clause["action"]
+                condition = clause.get("condition")
+                columns = clause.get("columns")
+                
+                # Build WHEN clause
+                when_part = f"WHEN {when_type}"
+                if condition:
+                    when_part += f" AND {condition}"
+                
+                # Build action
+                if action == "UPDATE":
+                    update_columns = columns or df.columns.tolist()
+                    update_sets = [f'"{col}" = source."{col}"' for col in update_columns]
+                    when_part += f" THEN UPDATE SET {', '.join(update_sets)}"
+                    
+                elif action == "DELETE":
+                    when_part += " THEN DELETE"
+                    
+                elif action == "INSERT":
+                    insert_columns = columns or df.columns.tolist()
+                    column_list = ", ".join([f'"{col}"' for col in insert_columns])
+                    values_list = ", ".join([f'source."{col}"' for col in insert_columns])
+                    when_part += f" THEN INSERT ({column_list}) VALUES ({values_list})"
+                
+                when_clauses.append(when_part)
+        
         sql_statement = f"""
             MERGE INTO "{database}"."{table}" target
             USING "{database}"."{source_table}" source
-            ON {" AND ".join(merge_conditions)}
-            {match_condition}
-            WHEN NOT MATCHED THEN
-                INSERT ({", ".join([f'"{x}"' for x in df.columns])})
-                VALUES ({", ".join([f'source."{x}"' for x in df.columns])})
-        """
+            ON {on_condition}
+            {"\n    ".join(when_clauses)}
+        """      
     else:
         sql_statement = f"""
         INSERT INTO "{database}"."{table}" ({", ".join([f'"{x}"' for x in df.columns])})
@@ -397,7 +444,7 @@ def to_iceberg(  # noqa: PLR0913
     table_location: str | None = None,
     partition_cols: list[str] | None = None,
     merge_cols: list[str] | None = None,
-    merge_on_condition: str | None = None,
+    merge_on_clause: str | None = None,
     merge_condition: Literal["update", "ignore", "conditional_merge"] = "update",
     merge_conditional_clauses: list[_MergeClause] | None = None,
     merge_match_nulls: bool = False,
@@ -537,9 +584,10 @@ def to_iceberg(  # noqa: PLR0913
         mode=mode,
         partition_cols=partition_cols,
         merge_cols=merge_cols,
-        merge_on_condition=merge_on_condition,
+        merge_on_clause=merge_on_clause,
         merge_condition=merge_condition,
         merge_conditional_clauses=merge_conditional_clauses,
+        merge_match_nulls=merge_match_nulls,
     )
 
     glue_table_settings = glue_table_settings if glue_table_settings else {}
@@ -664,7 +712,9 @@ def to_iceberg(  # noqa: PLR0913
             table=table,
             source_table=temp_table,
             merge_cols=merge_cols,
+            merge_on_clause=merge_on_clause,
             merge_condition=merge_condition,
+            merge_conditional_clauses=merge_conditional_clauses,
             merge_match_nulls=merge_match_nulls,
             kms_key=kms_key,
             boto3_session=boto3_session,
