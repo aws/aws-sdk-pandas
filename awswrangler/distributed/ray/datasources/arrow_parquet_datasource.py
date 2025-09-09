@@ -5,6 +5,7 @@ This module is pulled from Ray's [ParquetDatasource]
 and customized to ensure compatibility with AWS SDK for pandas behavior. Changes from the original implementation,
 are documented in the comments and marked with (AWS SDK for pandas) prefix.
 """
+# ruff: noqa: PLC0415
 
 from __future__ import annotations
 

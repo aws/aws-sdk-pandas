@@ -1,4 +1,5 @@
 """Ray and Modin registered methods (PRIVATE)."""
+# ruff: noqa: PLC0415
 
 from awswrangler._data_types import pyarrow_types_from_pandas
 from awswrangler._distributed import MemoryFormatEnum, engine, memory_format
