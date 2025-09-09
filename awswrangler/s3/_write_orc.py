@@ -57,7 +57,7 @@ def _new_writer(
     s3_additional_kwargs: dict[str, str] | None,
     use_threads: bool | int,
 ) -> Iterator["ORCWriter"]:
-    from pyarrow.orc import ORCWriter
+    from pyarrow.orc import ORCWriter  # noqa: PLC0415
 
     writer: "ORCWriter" | None = None
     if not pyarrow_additional_kwargs:
@@ -407,7 +407,7 @@ def to_orc(
     concurrent_partitioning
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-sdk-pandas.readthedocs.io/en/3.12.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.13.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
     catalog_versioning
@@ -416,7 +416,7 @@ def to_orc(
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised. True by default.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.12.1/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.13.0/tutorials/014%20-%20Schema%20Evolution.html
     database
         Glue/Athena catalog: Database name.
     table

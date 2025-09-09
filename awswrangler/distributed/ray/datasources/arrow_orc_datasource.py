@@ -1,4 +1,5 @@
 """Ray ArrowCSVDatasource Module."""
+# ruff: noqa: PLC0415
 
 from __future__ import annotations
 

@@ -117,7 +117,7 @@ class Engine:
             cls._registry.clear()
 
             if engine_name == EngineEnum.RAY.value:
-                from awswrangler.distributed.ray._register import register_ray
+                from awswrangler.distributed.ray._register import register_ray  # noqa: PLC0415
 
                 register_ray()
 
@@ -127,7 +127,7 @@ class Engine:
         with cls._lock:
             engine_name = name or cls.get_installed().value
             if engine_name == EngineEnum.RAY.value:
-                from awswrangler.distributed.ray import initialize_ray
+                from awswrangler.distributed.ray import initialize_ray  # noqa: PLC0415
 
                 initialize_ray()
             cls._initialized_engine = EngineEnum[engine_name.upper()]
@@ -187,7 +187,7 @@ class MemoryFormat:
 
 def _reload() -> None:
     """Reload Pandas proxy module."""
-    import awswrangler.pandas
+    import awswrangler.pandas  # noqa: PLC0415
 
     reload(awswrangler.pandas)
 
