@@ -548,7 +548,7 @@ def to_iceberg(  # noqa: PLR0913
 
                 # Ensure that the ordering of the DF is the same as in the catalog.
                 # This is required for the INSERT command to work.
-                df = df[catalog_cols]
+                df = df[catalog_cols + [col_name for col_name, _ in schema_differences["new_columns"].items()]]
 
             if schema_evolution is False and any([schema_differences[x] for x in schema_differences]):  # type: ignore[literal-required]
                 raise exceptions.InvalidArgumentValue(f"Schema change detected: {schema_differences}")
