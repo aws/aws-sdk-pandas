@@ -14,12 +14,7 @@ import pandas as pd
 from awswrangler import _data_types, _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler.athena._executions import wait_query
-from awswrangler.athena._utils import (
-    _get_workgroup_config,
-    _start_query_execution,
-    _WorkGroupConfig,
-    _MergeClause
-)
+from awswrangler.athena._utils import _get_workgroup_config, _start_query_execution, _WorkGroupConfig, _MergeClause
 from awswrangler.typing import GlueTableSettings
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -232,59 +227,53 @@ def _validate_args(
         raise exceptions.InvalidArgumentCombination(
             "Either path or workgroup path must be specified to store the temporary results."
         )
-    
+
     if merge_cols and merge_on_clause:
-           raise exceptions.InvalidArgumentCombination(
-               "Cannot specify both merge_cols and merge_on_clause. Use either merge_cols for simple equality matching or merge_on_clause for custom logic."
-           )
-    
+        raise exceptions.InvalidArgumentCombination(
+            "Cannot specify both merge_cols and merge_on_clause. Use either merge_cols for simple equality matching or merge_on_clause for custom logic."
+        )
+
     if merge_on_clause and merge_match_nulls:
-           raise exceptions.InvalidArgumentCombination(
-               "merge_match_nulls can only be used together with merge_cols."
-           )
-    
+        raise exceptions.InvalidArgumentCombination("merge_match_nulls can only be used together with merge_cols.")
+
     if merge_conditional_clauses and merge_condition != "conditional_merge":
-       raise exceptions.InvalidArgumentCombination(
-           "merge_conditional_clauses can only be used when merge_condition is 'conditional_merge'."
-       )
-    
+        raise exceptions.InvalidArgumentCombination(
+            "merge_conditional_clauses can only be used when merge_condition is 'conditional_merge'."
+        )
+
     if (merge_cols or merge_on_clause) and merge_condition not in ["update", "ignore", "conditional_merge"]:
         raise exceptions.InvalidArgumentValue(
             f"Invalid merge_condition: {merge_condition}. Valid values: ['update', 'ignore', 'conditional_merge']"
         )
-    
+
     if merge_condition == "conditional_merge":
-       if not merge_conditional_clauses:
-           raise exceptions.InvalidArgumentCombination(
-               "merge_conditional_clauses must be provided when merge_condition is 'conditional_merge'."
-           )
-       
-       seen_not_matched = False
-       for i, clause in enumerate(merge_conditional_clauses):
-           if "when" not in clause:
-               raise exceptions.InvalidArgumentValue(
-                   f"merge_conditional_clauses[{i}] must contain 'when' field."
-               )
-           if "action" not in clause:
-               raise exceptions.InvalidArgumentValue(
-                   f"merge_conditional_clauses[{i}] must contain 'action' field."
-               )
-           if clause["when"] not in ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE']:
-               raise exceptions.InvalidArgumentValue(
-                   f"merge_conditional_clauses[{i}]['when'] must be one of ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE']."
-               )
-           if clause["action"] not in ["UPDATE", "DELETE", "INSERT"]:
-               raise exceptions.InvalidArgumentValue(
-                   f"merge_conditional_clauses[{i}]['action'] must be one of ['UPDATE', 'DELETE', 'INSERT']."
-               )
-           
-           if clause["when"] in ["NOT MATCHED", "NOT MATCHED BY SOURCE"]:
-               seen_not_matched = True
-           elif clause["when"] == "MATCHED" and seen_not_matched:
-               raise exceptions.InvalidArgumentValue(
-                   f"merge_conditional_clauses[{i}]['when'] is MATCHED but appears after a NOT MATCHED clause. "
-                   "WHEN MATCHED must come before WHEN NOT MATCHED or WHEN NOT MATCHED BY SOURCE."
-               )
+        if not merge_conditional_clauses:
+            raise exceptions.InvalidArgumentCombination(
+                "merge_conditional_clauses must be provided when merge_condition is 'conditional_merge'."
+            )
+
+        seen_not_matched = False
+        for i, clause in enumerate(merge_conditional_clauses):
+            if "when" not in clause:
+                raise exceptions.InvalidArgumentValue(f"merge_conditional_clauses[{i}] must contain 'when' field.")
+            if "action" not in clause:
+                raise exceptions.InvalidArgumentValue(f"merge_conditional_clauses[{i}] must contain 'action' field.")
+            if clause["when"] not in ["MATCHED", "NOT MATCHED", "NOT MATCHED BY SOURCE"]:
+                raise exceptions.InvalidArgumentValue(
+                    f"merge_conditional_clauses[{i}]['when'] must be one of ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE']."
+                )
+            if clause["action"] not in ["UPDATE", "DELETE", "INSERT"]:
+                raise exceptions.InvalidArgumentValue(
+                    f"merge_conditional_clauses[{i}]['action'] must be one of ['UPDATE', 'DELETE', 'INSERT']."
+                )
+
+            if clause["when"] in ["NOT MATCHED", "NOT MATCHED BY SOURCE"]:
+                seen_not_matched = True
+            elif clause["when"] == "MATCHED" and seen_not_matched:
+                raise exceptions.InvalidArgumentValue(
+                    f"merge_conditional_clauses[{i}]['when'] is MATCHED but appears after a NOT MATCHED clause. "
+                    "WHEN MATCHED must come before WHEN NOT MATCHED or WHEN NOT MATCHED BY SOURCE."
+                )
 
     if mode == "overwrite_partitions":
         if not partition_cols:
@@ -295,6 +284,7 @@ def _validate_args(
             raise exceptions.InvalidArgumentCombination(
                 "When mode is 'overwrite_partitions' merge_cols must not be specified."
             )
+
 
 def _merge_iceberg(
     df: pd.DataFrame,
@@ -387,55 +377,55 @@ def _merge_iceberg(
 
         # Build WHEN clauses based on merge_condition
         when_clauses = []
-        
+
         if merge_condition == "update":
             when_clauses.append(f"""WHEN MATCHED THEN
                 UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in df.columns])}""")
             when_clauses.append(f"""WHEN NOT MATCHED THEN
                 INSERT ({", ".join([f'"{x}"' for x in df.columns])})
                 VALUES ({", ".join([f'source."{x}"' for x in df.columns])})""")
-                
+
         elif merge_condition == "ignore":
             when_clauses.append(f"""WHEN NOT MATCHED THEN
                 INSERT ({", ".join([f'"{x}"' for x in df.columns])})
                 VALUES ({", ".join([f'source."{x}"' for x in df.columns])})""")
-                
+
         elif merge_condition == "conditional_merge":
             for clause in merge_conditional_clauses:
                 when_type = clause["when"]
                 action = clause["action"]
                 condition = clause.get("condition")
                 columns = clause.get("columns")
-                
+
                 # Build WHEN clause
                 when_part = f"WHEN {when_type}"
                 if condition:
                     when_part += f" AND {condition}"
-                
+
                 # Build action
                 if action == "UPDATE":
                     update_columns = columns or df.columns.tolist()
                     update_sets = [f'"{col}" = source."{col}"' for col in update_columns]
                     when_part += f" THEN UPDATE SET {', '.join(update_sets)}"
-                    
+
                 elif action == "DELETE":
                     when_part += " THEN DELETE"
-                    
+
                 elif action == "INSERT":
                     insert_columns = columns or df.columns.tolist()
                     column_list = ", ".join([f'"{col}"' for col in insert_columns])
                     values_list = ", ".join([f'source."{col}"' for col in insert_columns])
                     when_part += f" THEN INSERT ({column_list}) VALUES ({values_list})"
-                
+
                 when_clauses.append(when_part)
-        
+
         joined_clauses = "\n    ".join(when_clauses)
         sql_statement = f"""
             MERGE INTO "{database}"."{table}" target
             USING "{database}"."{source_table}" source
             ON {on_condition}
             {joined_clauses}
-        """      
+        """
     else:
         sql_statement = f"""
         INSERT INTO "{database}"."{table}" ({", ".join([f'"{x}"' for x in df.columns])})

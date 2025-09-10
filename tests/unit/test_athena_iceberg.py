@@ -1005,6 +1005,7 @@ def test_athena_delete_from_iceberg_empty_df_error(
             keep_files=False,
         )
 
+
 def test_to_iceberg_merge_cols_and_merge_on_clause_error(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
@@ -1020,6 +1021,7 @@ def test_to_iceberg_merge_cols_and_merge_on_clause_error(
             merge_on_clause="id = source.id",
         )
 
+
 def test_to_iceberg_merge_match_nulls_with_merge_on_clause_error(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
@@ -1034,6 +1036,7 @@ def test_to_iceberg_merge_match_nulls_with_merge_on_clause_error(
             merge_on_clause="id = source.id",
             merge_match_nulls=True,
         )
+
 
 def test_to_iceberg_merge_conditional_clauses_without_conditional_merge_error(
     path: str, path2: str, glue_database: str, glue_table: str
@@ -1051,6 +1054,7 @@ def test_to_iceberg_merge_conditional_clauses_without_conditional_merge_error(
             merge_condition="update",
         )
 
+
 def test_to_iceberg_conditional_merge_without_clauses_error(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
@@ -1066,9 +1070,8 @@ def test_to_iceberg_conditional_merge_without_clauses_error(
             merge_condition="conditional_merge",
         )
 
-def test_to_iceberg_invalid_merge_condition_error(
-    path: str, path2: str, glue_database: str, glue_table: str
-) -> None:
+
+def test_to_iceberg_invalid_merge_condition_error(path: str, path2: str, glue_database: str, glue_table: str) -> None:
     df = pd.DataFrame({"id": [1], "val": ["a"]})
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.athena.to_iceberg(
@@ -1081,9 +1084,8 @@ def test_to_iceberg_invalid_merge_condition_error(
             merge_condition="not_a_valid_condition",
         )
 
-def test_to_iceberg_conditional_merge_happy_path(
-    path: str, path2: str, glue_database: str, glue_table: str
-) -> None:
+
+def test_to_iceberg_conditional_merge_happy_path(path: str, path2: str, glue_database: str, glue_table: str) -> None:
     df = pd.DataFrame({"id": [1, 2], "val": ["a", "b"]})
     wr.athena.to_iceberg(
         df=df,
@@ -1118,6 +1120,7 @@ def test_to_iceberg_conditional_merge_happy_path(
     # id=1 should be updated, id=2 should remain, id=3 should be inserted
     expected = pd.DataFrame({"id": [1, 2, 3], "val": ["c", "b", "d"]})
     assert_pandas_equals(expected, df_out.reset_index(drop=True))
+
 
 def test_athena_iceberg_use_partition_function(
     path: str,
