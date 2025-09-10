@@ -380,7 +380,7 @@ def _merge_iceberg(
     if merge_cols or merge_on_clause:
         if merge_on_clause:
             on_condition = merge_on_clause
-        else:
+        elif merge_cols is not None:
             if merge_match_nulls:
                 merge_conditions = [f'(target."{x}" IS NOT DISTINCT FROM source."{x}")' for x in merge_cols]
             else:
@@ -402,7 +402,7 @@ def _merge_iceberg(
                 INSERT ({", ".join([f'"{x}"' for x in df.columns])})
                 VALUES ({", ".join([f'source."{x}"' for x in df.columns])})""")
 
-        elif merge_condition == "conditional_merge":
+        elif merge_condition == "conditional_merge" and merge_conditional_clauses is not None:
             for clause in merge_conditional_clauses:
                 when_type = clause["when"]
                 action = clause["action"]
