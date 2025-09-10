@@ -229,8 +229,7 @@ def _validate_args(
         )
 
     _validate_merge_arguments(
-        merge_cols, merge_on_clause, merge_condition,
-        merge_conditional_clauses, merge_match_nulls
+        merge_cols, merge_on_clause, merge_condition, merge_conditional_clauses, merge_match_nulls
     )
 
     if mode == "overwrite_partitions":
