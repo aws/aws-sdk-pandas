@@ -1005,6 +1005,119 @@ def test_athena_delete_from_iceberg_empty_df_error(
             keep_files=False,
         )
 
+def test_to_iceberg_merge_cols_and_merge_on_clause_error(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame({"id": [1], "val": ["a"]})
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.to_iceberg(
+            df=df,
+            database=glue_database,
+            table=glue_table,
+            table_location=path,
+            temp_path=path2,
+            merge_cols=["id"],
+            merge_on_clause="id = source.id",
+        )
+
+def test_to_iceberg_merge_match_nulls_with_merge_on_clause_error(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame({"id": [1], "val": ["a"]})
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.to_iceberg(
+            df=df,
+            database=glue_database,
+            table=glue_table,
+            table_location=path,
+            temp_path=path2,
+            merge_on_clause="id = source.id",
+            merge_match_nulls=True,
+        )
+
+def test_to_iceberg_merge_conditional_clauses_without_conditional_merge_error(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame({"id": [1], "val": ["a"]})
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.to_iceberg(
+            df=df,
+            database=glue_database,
+            table=glue_table,
+            table_location=path,
+            temp_path=path2,
+            merge_cols=["id"],
+            merge_conditional_clauses=[{"when": "MATCHED", "action": "UPDATE"}],
+            merge_condition="update",
+        )
+
+def test_to_iceberg_conditional_merge_without_clauses_error(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame({"id": [1], "val": ["a"]})
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.to_iceberg(
+            df=df,
+            database=glue_database,
+            table=glue_table,
+            table_location=path,
+            temp_path=path2,
+            merge_cols=["id"],
+            merge_condition="conditional_merge",
+        )
+
+def test_to_iceberg_invalid_merge_condition_error(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame({"id": [1], "val": ["a"]})
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.athena.to_iceberg(
+            df=df,
+            database=glue_database,
+            table=glue_table,
+            table_location=path,
+            temp_path=path2,
+            merge_cols=["id"],
+            merge_condition="not_a_valid_condition",
+        )
+
+def test_to_iceberg_conditional_merge_happy_path(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame({"id": [1, 2], "val": ["a", "b"]})
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+    df2 = pd.DataFrame({"id": [1, 3], "val": ["c", "d"]})
+    clauses = [
+        {"when": "MATCHED", "action": "UPDATE", "columns": ["val"]},
+        {"when": "NOT MATCHED", "action": "INSERT"},
+    ]
+    wr.athena.to_iceberg(
+        df=df2,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        merge_cols=["id"],
+        merge_condition="conditional_merge",
+        merge_conditional_clauses=clauses,
+        keep_files=False,
+    )
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+    # id=1 should be updated, id=2 should remain, id=3 should be inserted
+    expected = pd.DataFrame({"id": [1, 2, 3], "val": ["c", "b", "d"]})
+    assert_pandas_equals(expected, df_out.reset_index(drop=True))
 
 def test_athena_iceberg_use_partition_function(
     path: str,
