@@ -331,11 +331,26 @@ def _merge_iceberg(
     source_table: str
         AWS Glue/Athena source table name.
     merge_cols: List[str], optional
-        List of column names that will be used for conditional inserts and updates.
+        List of column names that will be used for conditional inserts and updates. Cannot be used together with ``merge_on_clause``.
 
         https://docs.aws.amazon.com/athena/latest/ug/merge-into-statement.html
+    merge_on_clause: str, optional
+        Custom ON clause for the MERGE statement. If specified, this string will be used as the ON condition
+        between the target and source tables, allowing for complex join logic beyond simple equality on columns.
+        Cannot be used together with ``merge_cols``.
     merge_condition: str, optional
-        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore'].
+        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore', 'conditional_merge'].
+        - 'update': Update matched rows and insert non-matched rows.
+        - 'ignore': Only insert non-matched rows.
+        - 'conditional_merge': Use custom conditional clauses for merge actions.
+    merge_conditional_clauses : List[dict], optional
+        List of dictionaries specifying custom conditional clauses for the MERGE statement.
+        Each dictionary should have:
+            - 'when': One of ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE']
+            - 'condition': (optional) Additional SQL condition for the clause
+            - 'action': One of ['UPDATE', 'DELETE', 'INSERT']
+            - 'columns': (optional) List of columns to update or insert
+        Used only when merge_condition is 'conditional_merge'.
     merge_match_nulls: bool, optional
         Instruct whether to have nulls in the merge condition match other nulls
     kms_key : str, optional
@@ -504,9 +519,20 @@ def to_iceberg(  # noqa: PLR0913
         List of column names that will be used for conditional inserts and updates.
 
         https://docs.aws.amazon.com/athena/latest/ug/merge-into-statement.html
+    merge_on_clause
+        Custom ON clause for the MERGE statement. If specified, this string will be used as the ON condition
+        between the target and source tables, allowing for complex join logic beyond simple equality on columns.
+        Cannot be used together with ``merge_cols``.
     merge_condition
-        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore'].
-        Default is ``update``.
+        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore', 'conditional_merge'].
+    merge_conditional_clauses
+        List of dictionaries specifying custom conditional clauses for the MERGE statement.
+        Each dictionary should have:
+            - 'when': One of ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE']
+            - 'action': One of ['UPDATE', 'DELETE', 'INSERT']
+            - 'condition': (optional) Additional SQL condition for the clause
+            - 'columns': (optional) List of columns to update or insert
+        Used only when merge_condition is 'conditional_merge'.
     merge_match_nulls
         Instruct whether to have nulls in the merge condition match other nulls.
     keep_files
