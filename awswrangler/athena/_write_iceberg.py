@@ -14,7 +14,7 @@ import pandas as pd
 from awswrangler import _data_types, _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler.athena._executions import wait_query
-from awswrangler.athena._utils import _get_workgroup_config, _start_query_execution, _WorkGroupConfig, _MergeClause
+from awswrangler.athena._utils import _get_workgroup_config, _MergeClause, _start_query_execution, _WorkGroupConfig
 from awswrangler.typing import GlueTableSettings
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -228,6 +228,29 @@ def _validate_args(
             "Either path or workgroup path must be specified to store the temporary results."
         )
 
+    _validate_merge_arguments(
+        merge_cols, merge_on_clause, merge_condition,
+        merge_conditional_clauses, merge_match_nulls
+    )
+
+    if mode == "overwrite_partitions":
+        if not partition_cols:
+            raise exceptions.InvalidArgumentCombination(
+                "When mode is 'overwrite_partitions' partition_cols must be specified."
+            )
+        if merge_cols:
+            raise exceptions.InvalidArgumentCombination(
+                "When mode is 'overwrite_partitions' merge_cols must not be specified."
+            )
+
+
+def _validate_merge_arguments(
+    merge_cols: list[str] | None,
+    merge_on_clause: str | None,
+    merge_condition: Literal["update", "ignore", "conditional_merge"],
+    merge_conditional_clauses: list[_MergeClause] | None,
+    merge_match_nulls: bool,
+) -> None:
     if merge_cols and merge_on_clause:
         raise exceptions.InvalidArgumentCombination(
             "Cannot specify both merge_cols and merge_on_clause. Use either merge_cols for simple equality matching or merge_on_clause for custom logic."
@@ -274,16 +297,6 @@ def _validate_args(
                     f"merge_conditional_clauses[{i}]['when'] is MATCHED but appears after a NOT MATCHED clause. "
                     "WHEN MATCHED must come before WHEN NOT MATCHED or WHEN NOT MATCHED BY SOURCE."
                 )
-
-    if mode == "overwrite_partitions":
-        if not partition_cols:
-            raise exceptions.InvalidArgumentCombination(
-                "When mode is 'overwrite_partitions' partition_cols must be specified."
-            )
-        if merge_cols:
-            raise exceptions.InvalidArgumentCombination(
-                "When mode is 'overwrite_partitions' merge_cols must not be specified."
-            )
 
 
 def _merge_iceberg(
