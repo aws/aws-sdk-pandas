@@ -428,11 +428,12 @@ def _merge_iceberg(
                 
                 when_clauses.append(when_part)
         
+        joined_clauses = "\n    ".join(when_clauses)
         sql_statement = f"""
             MERGE INTO "{database}"."{table}" target
             USING "{database}"."{source_table}" source
             ON {on_condition}
-            {"\n    ".join(when_clauses)}
+            {joined_clauses}
         """      
     else:
         sql_statement = f"""
