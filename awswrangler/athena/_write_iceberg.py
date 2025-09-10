@@ -338,6 +338,7 @@ def _merge_iceberg(
         Custom ON clause for the MERGE statement. If specified, this string will be used as the ON condition
         between the target and source tables, allowing for complex join logic beyond simple equality on columns.
         Cannot be used together with ``merge_cols``.
+        It must produce at most one match per target row. Using OR conditions may result in merge failures.
     merge_condition: str, optional
         The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore', 'conditional_merge'].
         - 'update': Update matched rows and insert non-matched rows.
@@ -491,9 +492,9 @@ def to_iceberg(  # noqa: PLR0913
     glue_table_settings: GlueTableSettings | None = None,
 ) -> None:
     """
-    Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
+    Write a Pandas DataFrame to an Athena Iceberg table, supporting table creation, schema evolution, and advanced merge operations.
 
-    Creates temporary external table, writes staged files and inserts via INSERT INTO ... SELECT.
+    This function inserts data into an Athena Iceberg table, creating the table if it does not exist. It supports multiple write modes (append, overwrite, overwrite_partitions), schema evolution, and conditional merge logic using Athena's MERGE INTO statement. Advanced options allow for custom merge conditions, partitioning, and table properties.
 
     Parameters
     ----------
@@ -524,6 +525,7 @@ def to_iceberg(  # noqa: PLR0913
         Custom ON clause for the MERGE statement. If specified, this string will be used as the ON condition
         between the target and source tables, allowing for complex join logic beyond simple equality on columns.
         Cannot be used together with ``merge_cols``.
+        It must produce at most one match per target row. Using OR conditions may result in merge failures.
     merge_condition
         The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore', 'conditional_merge'].
     merge_conditional_clauses
