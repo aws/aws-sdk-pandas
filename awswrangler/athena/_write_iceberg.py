@@ -259,6 +259,7 @@ def _validate_args(
                "merge_conditional_clauses must be provided when merge_condition is 'conditional_merge'."
            )
        
+       seen_not_matched = False
        for i, clause in enumerate(merge_conditional_clauses):
            if "when" not in clause:
                raise exceptions.InvalidArgumentValue(
@@ -272,9 +273,17 @@ def _validate_args(
                raise exceptions.InvalidArgumentValue(
                    f"merge_conditional_clauses[{i}]['when'] must be one of ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE']."
                )
-           if clause["action"] not in ["UPDATE", "DELETE", "INSERT", "IGNORE"]:
+           if clause["action"] not in ["UPDATE", "DELETE", "INSERT"]:
                raise exceptions.InvalidArgumentValue(
-                   f"merge_conditional_clauses[{i}]['action'] must be one of ['UPDATE', 'DELETE', 'INSERT', 'IGNORE']."
+                   f"merge_conditional_clauses[{i}]['action'] must be one of ['UPDATE', 'DELETE', 'INSERT']."
+               )
+           
+           if clause["when"] in ["NOT MATCHED", "NOT MATCHED BY SOURCE"]:
+               seen_not_matched = True
+           elif clause["when"] == "MATCHED" and seen_not_matched:
+               raise exceptions.InvalidArgumentValue(
+                   f"merge_conditional_clauses[{i}]['when'] is MATCHED but appears after a NOT MATCHED clause. "
+                   "WHEN MATCHED must come before WHEN NOT MATCHED or WHEN NOT MATCHED BY SOURCE."
                )
 
     if mode == "overwrite_partitions":
