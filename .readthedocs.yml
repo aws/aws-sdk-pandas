@@ -4,10 +4,15 @@ formats: all
 build:
   os: ubuntu-22.04
   tools:
-    python: miniconda3-4.7
-
-conda:
-  environment: docs/environment.yml
+    python: "3.13"
 
 sphinx:
   configuration: docs/source/conf.py
+
+python:
+  install:
+    - requirements: docs/source/requirements.txt
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
