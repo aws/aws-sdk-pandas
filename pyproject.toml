@@ -55,7 +55,7 @@ openpyxl = ["openpyxl>=3.0.0,<4"]
 progressbar = ["progressbar2>=4.0.0,<5"]
 deltalake = ["deltalake>=0.18.0,<1.2.0"]
 geopandas = ["geopandas>=1.0.0,<2"]
-modin = ["modin>=0.31,<0.36"]
+modin = ["modin>=0.31,<0.37"]
 ray = ["ray[default, data]>=2.49.0,<3"]
 
 [project.urls]
@@ -72,7 +72,7 @@ dev = [
     "boto3-stubs[athena, cleanrooms, chime, cloudwatch, dynamodb, ec2, emr, emr-serverless, glue, kms, logs, neptune, opensearch, opensearchserverless, quicksight, rds, rds-data, redshift, redshift-data, s3, secretsmanager, ssm, sts, timestream-query, timestream-write]>=1.36.2,<2",
     "doc8~=1.1",
     "mypy~=1.14",
-    "ruff>=0.9.2,<0.13.0",
+    "ruff>=0.9.2,<0.14.0",
     "moto~=5.0",
     "openpyxl~=3.1",
     "pyparsing>=3.2.1,<4",
