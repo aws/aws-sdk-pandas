@@ -93,7 +93,7 @@ def connect(
     write_timeout: int | None = None,
     connect_timeout: int = 10,
     cursorclass: type["Cursor"] | None = None,
-) -> "pymysql.connections.Connection":  # type: ignore[type-arg]
+) -> "pymysql.connections.Connection":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
     https://pymysql.readthedocs.io
