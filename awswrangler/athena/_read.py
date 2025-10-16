@@ -320,6 +320,7 @@ def _resolve_query_without_cache_ctas(
     boto3_session: boto3.Session | None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
     execution_params: list[str] | None = None,
+    result_reuse_configuration: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ctas_query_info: dict[str, str | _QueryMetadata] = create_ctas_table(
@@ -339,6 +340,7 @@ def _resolve_query_without_cache_ctas(
         boto3_session=boto3_session,
         params=execution_params,
         paramstyle="qmark",
+        result_reuse_configuration=result_reuse_configuration,
     )
     fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
     ctas_query_metadata = cast(_QueryMetadata, ctas_query_info["ctas_query_metadata"])
@@ -378,6 +380,7 @@ def _resolve_query_without_cache_unload(
     boto3_session: boto3.Session | None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
     execution_params: list[str] | None = None,
+    result_reuse_configuration: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     query_metadata = _unload(
@@ -395,6 +398,7 @@ def _resolve_query_without_cache_unload(
         data_source=data_source,
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         execution_params=execution_params,
+        result_reuse_configuration=result_reuse_configuration,
     )
     if file_format == "PARQUET":
         return _fetch_parquet_result(
@@ -427,6 +431,7 @@ def _resolve_query_without_cache_regular(
     s3_additional_kwargs: dict[str, Any] | None,
     boto3_session: boto3.Session | None,
     execution_params: list[str] | None = None,
+    result_reuse_configuration: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     client_request_token: str | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
@@ -444,6 +449,7 @@ def _resolve_query_without_cache_regular(
         encryption=encryption,
         kms_key=kms_key,
         execution_params=execution_params,
+        result_reuse_configuration=result_reuse_configuration,
         client_request_token=client_request_token,
         boto3_session=boto3_session,
     )
@@ -467,7 +473,7 @@ def _resolve_query_without_cache_regular(
     )
 
 
-def _resolve_query_without_cache(
+def _resolve_query_without_cache(  # noqa: PLR0913
     sql: str,
     database: str,
     data_source: str | None,
@@ -491,6 +497,7 @@ def _resolve_query_without_cache(
     boto3_session: boto3.Session | None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
     execution_params: list[str] | None = None,
+    result_reuse_configuration: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     client_request_token: str | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
@@ -526,6 +533,7 @@ def _resolve_query_without_cache(
                 boto3_session=boto3_session,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
                 execution_params=execution_params,
+                result_reuse_configuration=result_reuse_configuration,
                 dtype_backend=dtype_backend,
             )
         finally:
@@ -554,6 +562,7 @@ def _resolve_query_without_cache(
             boto3_session=boto3_session,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             execution_params=execution_params,
+            result_reuse_configuration=result_reuse_configuration,
             dtype_backend=dtype_backend,
         )
     return _resolve_query_without_cache_regular(
@@ -572,6 +581,7 @@ def _resolve_query_without_cache(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         execution_params=execution_params,
+        result_reuse_configuration=result_reuse_configuration,
         dtype_backend=dtype_backend,
         client_request_token=client_request_token,
     )
@@ -592,6 +602,7 @@ def _unload(
     data_source: str | None,
     athena_query_wait_polling_delay: float,
     execution_params: list[str] | None,
+    result_reuse_configuration: dict[str, Any] | None = None,
 ) -> _QueryMetadata:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output: str = _get_s3_output(s3_output=path, wg_config=wg_config, boto3_session=boto3_session)
@@ -624,6 +635,7 @@ def _unload(
             kms_key=kms_key,
             boto3_session=boto3_session,
             execution_params=execution_params,
+            result_reuse_configuration=result_reuse_configuration,
         )
     except botocore.exceptions.ClientError as ex:
         msg: str = str(ex)
@@ -1104,6 +1116,7 @@ def read_sql_query(
         boto3_session=boto3_session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         execution_params=execution_params,
+        result_reuse_configuration=cache_info.result_reuse_configuration,
         dtype_backend=dtype_backend,
         client_request_token=client_request_token,
     )
@@ -1371,6 +1384,7 @@ def unload(
     data_source: str | None = None,
     params: dict[str, Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
+    result_reuse_configuration: dict[str, Any] | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> _QueryMetadata:
     """Write query results from a SELECT statement to the specified data format using UNLOAD.
@@ -1459,4 +1473,5 @@ def unload(
         boto3_session=boto3_session,
         data_source=data_source,
         execution_params=execution_params,
+        result_reuse_configuration=result_reuse_configuration,
     )

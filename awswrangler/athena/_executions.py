@@ -40,6 +40,7 @@ def start_query_execution(
     kms_key: str | None = None,
     params: dict[str, Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
+    result_reuse_configuration: dict[str, Any] | None = None,
     boto3_session: boto3.Session | None = None,
     client_request_token: str | None = None,
     athena_cache_settings: typing.AthenaCacheSettings | None = None,
@@ -87,6 +88,8 @@ def start_query_execution(
 
         - ``named``
         - ``qmark``
+    result_reuse_configuration
+        A structure that contains the configuration settings for reusing query results.
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
     client_request_token
@@ -156,6 +159,7 @@ def start_query_execution(
             encryption=encryption,
             kms_key=kms_key,
             execution_params=execution_params,
+            result_reuse_configuration=result_reuse_configuration,
             client_request_token=client_request_token,
             boto3_session=boto3_session,
         )

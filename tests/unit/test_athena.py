@@ -32,6 +32,49 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 pytestmark = pytest.mark.distributed
 
 
+def test_start_query_execution_with_result_reuse_configuration(glue_database):
+    sql = "SELECT 1"
+    result_reuse_configuration = {"ReuseEnabled": True, "MaxAgeInMinutes": 10}
+    query_execution_id = wr.athena.start_query_execution(
+        sql=sql,
+        database=glue_database,
+        result_reuse_configuration=result_reuse_configuration,
+        wait=False,
+    )
+    assert isinstance(query_execution_id, str)
+
+
+def test_read_sql_query_with_result_reuse_configuration(glue_database):
+    sql = "SELECT 1"
+    result_reuse_configuration = {"ReuseEnabled": True, "MaxAgeInMinutes": 10}
+    df = wr.athena.read_sql_query(
+        sql=sql,
+        database=glue_database,
+        result_reuse_configuration=result_reuse_configuration,
+    )
+    assert hasattr(df, "query_metadata")
+
+
+def test_read_sql_query_with_result_reuse_configuration_returns_cached_result(glue_database):
+    sql = "SELECT 1"
+    result_reuse_configuration = {"ReuseEnabled": True, "MaxAgeInMinutes": 10}
+    # First query: should run and cache
+    df1 = wr.athena.read_sql_query(
+        sql=sql,
+        database=glue_database,
+        result_reuse_configuration=result_reuse_configuration,
+    )
+    query_id_1 = getattr(df1, "query_metadata")["QueryExecutionId"]
+    # Second query: should hit cache and return same query_execution_id
+    df2 = wr.athena.read_sql_query(
+        sql=sql,
+        database=glue_database,
+        result_reuse_configuration=result_reuse_configuration,
+    )
+    query_id_2 = getattr(df2, "query_metadata")["QueryExecutionId"]
+    assert query_id_1 == query_id_2, "Expected cached result to return same QueryExecutionId"
+
+
 def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, glue_ctas_database, kms_key):
     df = get_df_list()
     columns_types, partitions_types = wr.catalog.extract_athena_types(df=df, partition_cols=["par0", "par1"])
