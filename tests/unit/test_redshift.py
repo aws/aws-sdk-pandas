@@ -1430,7 +1430,11 @@ def test_unload_escape_quotation_marks(
 
 @pytest.mark.parametrize("cleanpath", [False, True])
 def test_unload_cleanpath(
-    path: str, redshift_table: str, redshift_con: redshift_connector.Connection, databases_parameters: dict[str, Any], cleanpath: bool
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: dict[str, Any],
+    cleanpath: bool,
 ) -> None:
     df = pd.DataFrame({"id": [1, 2], "name": ["foo", "bar"]})
     schema = "public"
