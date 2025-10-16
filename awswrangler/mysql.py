@@ -231,7 +231,7 @@ def read_sql_query(
 @_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_query(
     sql: str,
-    con: "pymysql.connections.Connection",  # type: ignore[type-arg]
+    con: "pymysql.connections.Connection",
     index_col: str | list[str] | None = None,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
     chunksize: int | None = None,
@@ -351,7 +351,7 @@ def read_sql_table(
 @_utils.check_optional_dependency(pymysql, "pymysql")
 def read_sql_table(
     table: str,
-    con: "pymysql.connections.Connection",  # type: ignore[type-arg]
+    con: "pymysql.connections.Connection",
     schema: str | None = None,
     index_col: str | list[str] | None = None,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
@@ -439,7 +439,7 @@ _ToSqlModeLiteral = Literal[
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: "pymysql.connections.Connection",  # type: ignore[type-arg]
+    con: "pymysql.connections.Connection",
     table: str,
     schema: str,
     mode: _ToSqlModeLiteral = "append",
