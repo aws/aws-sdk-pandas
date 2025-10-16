@@ -593,6 +593,7 @@ def to_iceberg(  # noqa: PLR0913
                 wg_config=wg_config,
                 database=database,
                 data_source=data_source,
+                s3_output=s3_output,
                 encryption=encryption,
                 kms_key=kms_key,
                 boto3_session=boto3_session,
