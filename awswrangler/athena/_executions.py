@@ -90,6 +90,7 @@ def start_query_execution(
         - ``qmark``
     result_reuse_configuration
         A structure that contains the configuration settings for reusing query results.
+        See also: https://docs.aws.amazon.com/athena/latest/ug/reusing-query-results.html
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
     client_request_token

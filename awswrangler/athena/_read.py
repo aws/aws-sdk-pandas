@@ -320,7 +320,6 @@ def _resolve_query_without_cache_ctas(
     boto3_session: boto3.Session | None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
     execution_params: list[str] | None = None,
-    result_reuse_configuration: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ctas_query_info: dict[str, str | _QueryMetadata] = create_ctas_table(
@@ -340,7 +339,6 @@ def _resolve_query_without_cache_ctas(
         boto3_session=boto3_session,
         params=execution_params,
         paramstyle="qmark",
-        result_reuse_configuration=result_reuse_configuration,
     )
     fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
     ctas_query_metadata = cast(_QueryMetadata, ctas_query_info["ctas_query_metadata"])
@@ -380,7 +378,6 @@ def _resolve_query_without_cache_unload(
     boto3_session: boto3.Session | None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
     execution_params: list[str] | None = None,
-    result_reuse_configuration: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     query_metadata = _unload(
@@ -398,7 +395,6 @@ def _resolve_query_without_cache_unload(
         data_source=data_source,
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         execution_params=execution_params,
-        result_reuse_configuration=result_reuse_configuration,
     )
     if file_format == "PARQUET":
         return _fetch_parquet_result(
@@ -533,7 +529,6 @@ def _resolve_query_without_cache(  # noqa: PLR0913
                 boto3_session=boto3_session,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
                 execution_params=execution_params,
-                result_reuse_configuration=result_reuse_configuration,
                 dtype_backend=dtype_backend,
             )
         finally:
@@ -562,7 +557,6 @@ def _resolve_query_without_cache(  # noqa: PLR0913
             boto3_session=boto3_session,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             execution_params=execution_params,
-            result_reuse_configuration=result_reuse_configuration,
             dtype_backend=dtype_backend,
         )
     return _resolve_query_without_cache_regular(
@@ -602,7 +596,6 @@ def _unload(
     data_source: str | None,
     athena_query_wait_polling_delay: float,
     execution_params: list[str] | None,
-    result_reuse_configuration: dict[str, Any] | None = None,
 ) -> _QueryMetadata:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output: str = _get_s3_output(s3_output=path, wg_config=wg_config, boto3_session=boto3_session)
@@ -635,7 +628,6 @@ def _unload(
             kms_key=kms_key,
             boto3_session=boto3_session,
             execution_params=execution_params,
-            result_reuse_configuration=result_reuse_configuration,
         )
     except botocore.exceptions.ClientError as ex:
         msg: str = str(ex)
@@ -797,6 +789,7 @@ def read_sql_query(
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     params: dict[str, Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
+    result_reuse_configuration: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     s3_additional_kwargs: dict[str, Any] | None = None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
@@ -992,6 +985,10 @@ def read_sql_query(
 
         - ``named``
         - ``qmark``
+    result_reuse_configuration
+        A structure that contains the configuration settings for reusing query results.
+        This parameter is only valid when both `ctas_approach` and `unload_approach` are set to `False`.
+        See also: https://docs.aws.amazon.com/athena/latest/ug/reusing-query-results.html
     dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
@@ -1051,6 +1048,10 @@ def read_sql_query(
     if client_request_token and (ctas_approach or unload_approach):
         raise exceptions.InvalidArgumentCombination(
             "Using `client_request_token` is only allowed when `ctas_approach=False` and `unload_approach=False`."
+        )
+    if result_reuse_configuration and (ctas_approach or unload_approach):
+        raise exceptions.InvalidArgumentCombination(
+            "Using `result_reuse_configuration` is only allowed when `ctas_approach=False` and `unload_approach=False`."
         )
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
 
@@ -1116,7 +1117,7 @@ def read_sql_query(
         boto3_session=boto3_session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         execution_params=execution_params,
-        result_reuse_configuration=cache_info.result_reuse_configuration,
+        result_reuse_configuration=result_reuse_configuration,
         dtype_backend=dtype_backend,
         client_request_token=client_request_token,
     )
@@ -1384,7 +1385,6 @@ def unload(
     data_source: str | None = None,
     params: dict[str, Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
-    result_reuse_configuration: dict[str, Any] | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
 ) -> _QueryMetadata:
     """Write query results from a SELECT statement to the specified data format using UNLOAD.
@@ -1473,5 +1473,4 @@ def unload(
         boto3_session=boto3_session,
         data_source=data_source,
         execution_params=execution_params,
-        result_reuse_configuration=result_reuse_configuration,
     )

@@ -32,47 +32,66 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 pytestmark = pytest.mark.distributed
 
 
-def test_start_query_execution_with_result_reuse_configuration(glue_database):
-    sql = "SELECT 1"
-    result_reuse_configuration = {"ReuseEnabled": True, "MaxAgeInMinutes": 10}
-    query_execution_id = wr.athena.start_query_execution(
-        sql=sql,
+def test_start_query_execution_with_result_reuse_configuration(path, glue_database, glue_table):
+    df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "bar"]})
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
         database=glue_database,
-        result_reuse_configuration=result_reuse_configuration,
-        wait=False,
+        table=glue_table,
+        mode="overwrite",
     )
-    assert isinstance(query_execution_id, str)
 
+    sql = f'select * from {glue_table}'
+    result_reuse_configuration = {
+        "ResultReuseByAgeConfiguration": {
+            "Enabled": True,
+            "MaxAgeInMinutes": 1
+        }
+    }
+    query_execution_result1 = wr.athena.start_query_execution(sql=sql, database=glue_database, result_reuse_configuration=result_reuse_configuration, wait=True)
+    assert query_execution_result1["Query"] == sql
+    assert query_execution_result1["ResultReuseConfiguration"] == result_reuse_configuration
+    assert not query_execution_result1["Statistics"]["ResultReuseInformation"]["ReusedPreviousResult"]
+    
+    query_execution_result2 = wr.athena.start_query_execution(sql=sql, database=glue_database, result_reuse_configuration=result_reuse_configuration, wait=True)
+    assert query_execution_result2["Query"] == sql
+    assert query_execution_result2["ResultReuseConfiguration"] == result_reuse_configuration
+    assert query_execution_result2["Statistics"]["ResultReuseInformation"]["ReusedPreviousResult"]
 
-def test_read_sql_query_with_result_reuse_configuration(glue_database):
-    sql = "SELECT 1"
-    result_reuse_configuration = {"ReuseEnabled": True, "MaxAgeInMinutes": 10}
-    df = wr.athena.read_sql_query(
-        sql=sql,
+def test_read_sql_query_with_result_reuse_configuration(path, glue_database, glue_table):
+    df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "bar"]})
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
         database=glue_database,
-        result_reuse_configuration=result_reuse_configuration,
+        table=glue_table,
+        mode="overwrite",
     )
-    assert hasattr(df, "query_metadata")
 
+    sql = f'select * from {glue_table}'
+    result_reuse_configuration = {
+        "ResultReuseByAgeConfiguration": { 
+            "Enabled": True,
+            "MaxAgeInMinutes": 1
+      }
+    }
+    df1 = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=False, unload_approach=False, result_reuse_configuration=result_reuse_configuration)
+    df2 = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=False, unload_approach=False, result_reuse_configuration=result_reuse_configuration)
+    assert pandas_equals(df1, df2)
+    assert not df1.query_metadata["Statistics"]["ResultReuseInformation"]["ReusedPreviousResult"]
+    assert df2.query_metadata["Statistics"]["ResultReuseInformation"]["ReusedPreviousResult"]
 
-def test_read_sql_query_with_result_reuse_configuration_returns_cached_result(glue_database):
-    sql = "SELECT 1"
-    result_reuse_configuration = {"ReuseEnabled": True, "MaxAgeInMinutes": 10}
-    # First query: should run and cache
-    df1 = wr.athena.read_sql_query(
-        sql=sql,
-        database=glue_database,
-        result_reuse_configuration=result_reuse_configuration,
-    )
-    query_id_1 = getattr(df1, "query_metadata")["QueryExecutionId"]
-    # Second query: should hit cache and return same query_execution_id
-    df2 = wr.athena.read_sql_query(
-        sql=sql,
-        database=glue_database,
-        result_reuse_configuration=result_reuse_configuration,
-    )
-    query_id_2 = getattr(df2, "query_metadata")["QueryExecutionId"]
-    assert query_id_1 == query_id_2, "Expected cached result to return same QueryExecutionId"
+def test_read_sql_query_with_result_reuse_configuration_error(glue_database):
+    # default behavior: ctas_approach is True and unload_approach is False
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.read_sql_query(sql='select 1', database=glue_database, result_reuse_configuration={"ResultReuseByAgeConfiguration": {"Enabled": True, "MaxAgeInMinutes": 1}})
+
+    # ctas_approach is False and default unload_approach is False
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.read_sql_query(sql='select 1', database=glue_database, ctas_approach=False, unload_approach=True, result_reuse_configuration={"ResultReuseByAgeConfiguration": {"Enabled": True, "MaxAgeInMinutes": 1}})
 
 
 def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, glue_ctas_database, kms_key):

@@ -653,7 +653,6 @@ def create_ctas_table(
     execution_params: list[str] | None = None,
     params: dict[str, Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
-    result_reuse_configuration: dict[str, Any] | None = None,
     boto3_session: boto3.Session | None = None,
 ) -> dict[str, str | _QueryMetadata]:
     """Create a new table populated with the results of a SELECT query.
@@ -718,8 +717,6 @@ def create_ctas_table(
         The syntax style to use for the parameters.
         Supported values are ``named`` and ``qmark``.
         The default is ``named``.
-    result_reuse_configuration
-        A structure that contains the configuration settings for reusing query results.
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
 
@@ -835,7 +832,6 @@ def create_ctas_table(
             kms_key=kms_key,
             boto3_session=boto3_session,
             execution_params=execution_params,
-            result_reuse_configuration=result_reuse_configuration,
         )
     except botocore.exceptions.ClientError as ex:
         error = ex.response["Error"]
