@@ -241,6 +241,7 @@ def unload_to_files(
     kms_key_id: str | None = None,
     manifest: bool = False,
     partition_cols: list[str] | None = None,
+    cleanpath: bool = False,
     boto3_session: boto3.Session | None = None,
 ) -> None:
     """Unload Parquet files on s3 from a Redshift query result (Through the UNLOAD command).
@@ -294,6 +295,21 @@ def unload_to_files(
         Unload a manifest file on S3.
     partition_cols
         Specifies the partition keys for the unload operation.
+    cleanpath
+        Use CLEANPATH instead of ALLOWOVERWRITE. When True, uses CLEANPATH to remove existing files
+        located in the Amazon S3 path before unloading files. When False (default), uses ALLOWOVERWRITE
+        to overwrite existing files, including the manifest file. These options are mutually exclusive.
+
+        ALLOWOVERWRITE: By default, UNLOAD fails if it finds files that it would possibly overwrite.
+        If ALLOWOVERWRITE is specified, UNLOAD overwrites existing files, including the manifest file.
+
+        CLEANPATH: Removes existing files located in the Amazon S3 path specified in the TO clause
+        before unloading files to the specified location. If you include the PARTITION BY clause,
+        existing files are removed only from the partition folders to receive new files generated
+        by the UNLOAD operation. You must have the s3:DeleteObject permission on the Amazon S3 bucket.
+        Files removed using CLEANPATH are permanently deleted and can't be recovered.
+
+        For more information, see: https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html
     boto3_session
         The default boto3 session will be used if **boto3_session** is ``None``.
 
@@ -306,6 +322,15 @@ def unload_to_files(
     ...         path="s3://bucket/extracted_parquet_files/",
     ...         con=con,
     ...         iam_role="arn:aws:iam::XXX:role/XXX"
+    ...     )
+    >>> # Using CLEANPATH instead of ALLOWOVERWRITE
+    >>> with wr.redshift.connect("MY_GLUE_CONNECTION") as con:
+    ...     wr.redshift.unload_to_files(
+    ...         sql="SELECT * FROM public.mytable",
+    ...         path="s3://bucket/extracted_parquet_files/",
+    ...         con=con,
+    ...         iam_role="arn:aws:iam::XXX:role/XXX",
+    ...         cleanpath=True
     ...     )
 
 
@@ -339,11 +364,13 @@ def unload_to_files(
         # Escape quotation marks in SQL
         sql = sql.replace("'", "''")
 
+        overwrite_str: str = "CLEANPATH" if cleanpath else "ALLOWOVERWRITE"
+
         unload_sql = (
             f"UNLOAD ('{sql}')\n"
             f"TO '{path}'\n"
             f"{auth_str}"
-            "ALLOWOVERWRITE\n"
+            f"{overwrite_str}\n"
             f"{parallel_str}\n"
             f"FORMAT {format_str}\n"
             "ENCRYPTED"
@@ -376,6 +403,7 @@ def unload(
     chunked: bool | int = False,
     keep_files: bool = False,
     parallel: bool = True,
+    cleanpath: bool = False,
     use_threads: bool | int = True,
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, str] | None = None,
@@ -452,6 +480,21 @@ def unload(
         By default, UNLOAD writes data in parallel to multiple files, according to the number of
         slices in the cluster. If parallel is False, UNLOAD writes to one or more data files serially,
         sorted absolutely according to the ORDER BY clause, if one is used.
+    cleanpath
+        Use CLEANPATH instead of ALLOWOVERWRITE. When True, uses CLEANPATH to remove existing files
+        located in the Amazon S3 path before unloading files. When False (default), uses ALLOWOVERWRITE
+        to overwrite existing files, including the manifest file. These options are mutually exclusive.
+
+        ALLOWOVERWRITE: By default, UNLOAD fails if it finds files that it would possibly overwrite.
+        If ALLOWOVERWRITE is specified, UNLOAD overwrites existing files, including the manifest file.
+
+        CLEANPATH: Removes existing files located in the Amazon S3 path specified in the TO clause
+        before unloading files to the specified location. If you include the PARTITION BY clause,
+        existing files are removed only from the partition folders to receive new files generated
+        by the UNLOAD operation. You must have the s3:DeleteObject permission on the Amazon S3 bucket.
+        Files removed using CLEANPATH are permanently deleted and can't be recovered.
+
+        For more information, see: https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html
     dtype_backend
         Which dtype_backend to use, e.g. whether a DataFrame should have NumPy arrays,
         nullable dtypes are used for all dtypes that have a nullable implementation when
@@ -489,6 +532,15 @@ def unload(
     ...         con=con,
     ...         iam_role="arn:aws:iam::XXX:role/XXX"
     ...     )
+    >>> # Using CLEANPATH instead of ALLOWOVERWRITE
+    >>> with wr.redshift.connect("MY_GLUE_CONNECTION") as con:
+    ...     df = wr.redshift.unload(
+    ...         sql="SELECT * FROM public.mytable",
+    ...         path="s3://bucket/extracted_parquet_files/",
+    ...         con=con,
+    ...         iam_role="arn:aws:iam::XXX:role/XXX",
+    ...         cleanpath=True
+    ...     )
 
     """
     path = path if path.endswith("/") else f"{path}/"
@@ -505,6 +557,7 @@ def unload(
         kms_key_id=kms_key_id,
         manifest=False,
         parallel=parallel,
+        cleanpath=cleanpath,
         boto3_session=boto3_session,
     )
     if chunked is False:

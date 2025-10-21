@@ -1428,6 +1428,31 @@ def test_unload_escape_quotation_marks(
     assert len(df2) == 1
 
 
+@pytest.mark.parametrize("cleanpath", [False, True])
+def test_unload_cleanpath(
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: dict[str, Any],
+    cleanpath: bool,
+) -> None:
+    df = pd.DataFrame({"id": [1, 2], "name": ["foo", "bar"]})
+    schema = "public"
+
+    wr.redshift.to_sql(df=df, con=redshift_con, table=redshift_table, schema=schema, mode="overwrite", index=False)
+
+    df2 = wr.redshift.unload(
+        sql=f"SELECT * FROM {schema}.{redshift_table}",
+        con=redshift_con,
+        iam_role=databases_parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+        cleanpath=cleanpath,
+    )
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 2
+
+
 @pytest.mark.parametrize(
     "mode,overwrite_method",
     [
