@@ -10,10 +10,11 @@ on:
 
 jobs:
   lint:
+    name: Validate PR title
     runs-on: ubuntu-latest
     permissions:
-      statuses: write
+      pull-requests: read
     steps:
-      - uses: aslafy-z/conventional-pr-title-action@v3
+      - uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

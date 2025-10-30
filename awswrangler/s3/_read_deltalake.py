@@ -25,6 +25,7 @@ def _set_default_storage_options_kwargs(
 ) -> dict[str, Any]:
     defaults = {key.upper(): value for key, value in _utils.boto3_to_primitives(boto3_session=boto3_session).items()}
     defaults["AWS_REGION"] = defaults.pop("REGION_NAME")
+    defaults["AWS_SESSION_TOKEN"] = "" if defaults["AWS_SESSION_TOKEN"] is None else defaults["AWS_SESSION_TOKEN"]
     s3_additional_kwargs = s3_additional_kwargs or {}
     return {
         **defaults,

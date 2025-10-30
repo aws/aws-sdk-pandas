@@ -607,7 +607,7 @@ def detect_oracle_decimal_datatype(cursor: Any) -> dict[str, pa.DataType]:
     if isinstance(cursor, oracledb.Cursor):
         # Oracle stores DECIMAL as the NUMBER type
 
-        for name, db_type, display_size, internal_size, precision, scale, null_ok in cursor.description:
+        for name, db_type, display_size, internal_size, precision, scale, null_ok in cursor.description:  # type: ignore
             _logger.debug((name, db_type, display_size, internal_size, precision, scale, null_ok))
 
             if db_type == oracledb.DB_TYPE_NUMBER and scale is not None and scale > 0:
