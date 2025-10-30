@@ -1,8 +1,8 @@
 [project]
 name = "awswrangler-test-infrastructure"
-version = "3.13.0"
+version = "3.14.0"
 description = "CDK test infrastructure for AWS SDK for pandas"
-authors = ["Amazon Web Services"]
+authors = [{ name = "Amazon Web Services" }]
 license = {text = "Apache-2.0"}
 requires-python = ">=3.9, <4.0"
 
