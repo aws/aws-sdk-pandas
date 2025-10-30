@@ -177,7 +177,7 @@ class MemoryFormat:
             return cls._enum if cls._enum else cls.get_installed()
 
     @classmethod
-    def set(cls, name: EngineLiteral) -> None:
+    def set(cls, name: MemoryFormatLiteral) -> None:
         """Set the memory format."""
         with cls._lock:
             cls._enum = MemoryFormatEnum[name.upper()]
