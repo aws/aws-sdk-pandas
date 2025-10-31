@@ -136,7 +136,6 @@ def to_deltalake(
     )
 
 
-
 def _df_iter_to_record_batch_reader(
     df_iter: Iterable[pd.DataFrame],
     *,
@@ -174,14 +173,14 @@ def _df_iter_to_record_batch_reader(
 
     def batches() -> Iterator[pa.RecordBatch]:
         first_tbl: pa.Table = _df_to_table(first_df, schema, index, dtype)
-        for b in (first_tbl.to_batches(batch_size) if batch_size is not None else first_tbl.to_batches()):
+        for b in first_tbl.to_batches(batch_size) if batch_size is not None else first_tbl.to_batches():
             yield b
 
         for df in it:
             if df.empty:
                 continue
             tbl: pa.Table = _df_to_table(df, schema, index, dtype)
-            for b in (tbl.to_batches(batch_size) if batch_size is not None else tbl.to_batches()):
+            for b in tbl.to_batches(batch_size) if batch_size is not None else tbl.to_batches():
                 yield b
 
     reader = pa.RecordBatchReader.from_batches(schema, batches())
