@@ -144,16 +144,6 @@ def _df_iter_to_record_batch_reader(
     target_schema: pa.Schema | None = None,
     batch_size: int | None = None,
 ) -> tuple[pa.RecordBatchReader, pa.Schema]:
-    """
-    Convert an iterable of Pandas DataFrames into a single Arrow RecordBatchReader
-    suitable for a single delta-rs commit. The first *non-empty* DataFrame fixes the schema.
-
-    Returns
-    -------
-    (reader, schema)
-      reader: pa.RecordBatchReader streaming all chunks as Arrow batches
-      schema: pa.Schema used for conversion
-    """
     it = iter(df_iter)
 
     first_df: pd.DataFrame | None = None
@@ -207,19 +197,6 @@ def to_deltalake_streaming(
     max_rows_per_file: int | None = None,
     target_file_size: int | None = None,
 ) -> None:
-    """
-    Write an iterable/generator of Pandas DataFrames to S3 as a Delta Lake table
-    in a SINGLE atomic commit (one table version).
-
-    Use this for large "restatements" that are produced in chunks. Semantics mirror
-    `to_deltalake` (partitioning, schema handling, S3 locking, etc.).
-
-    Notes
-    -----
-    - The schema is fixed by the first *non-empty* chunk (plus any `dtype` coercions).
-    - All `partition_cols` must be present in every non-empty chunk.
-    - Prefer `lock_dynamodb_table` over `s3_allow_unsafe_rename=True` on S3.
-    """
     dtype = dtype or {}
 
     storage_options = _set_default_storage_options_kwargs(
