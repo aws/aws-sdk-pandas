@@ -259,6 +259,7 @@ def _merge_iceberg(
     workgroup: str = "primary",
     encryption: str | None = None,
     data_source: str | None = None,
+    retreive_workgroup_config: bool = True,
 ) -> None:
     """
     Merge iceberg.
@@ -297,13 +298,20 @@ def _merge_iceberg(
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    retreive_workgroup_config: bool, optional
+        Indicates whether to use the workgroup configuration for the query execution.
+        If True, the workgroup configuration will be retreived and used to determine the s3 output location, encryption, and kms key.
+        If False, the s3 output location, encryption, and kms key will not be set and will be determined by the AWS Athena service.
+        Default is True.
 
     Returns
     -------
     None
 
     """
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_workgroup_config(
+        session=boto3_session, workgroup=workgroup, retreive_workgroup_config=retreive_workgroup_config
+    )
 
     sql_statement: str
     if merge_cols:
@@ -379,6 +387,7 @@ def to_iceberg(  # noqa: PLR0913
     schema_evolution: bool = False,
     fill_missing_columns_in_df: bool = True,
     glue_table_settings: GlueTableSettings | None = None,
+    retreive_workgroup_config: bool = True,
 ) -> None:
     """
     Insert into Athena Iceberg table using INSERT INTO ... SELECT. Will create Iceberg table if it does not exist.
@@ -461,6 +470,12 @@ def to_iceberg(  # noqa: PLR0913
         Glue/Athena catalog: Settings for writing to the Glue table.
         Currently only the 'columns_comments' attribute is supported for this function.
         Columns comments can only be added with this function when creating a new table.
+    retreive_workgroup_config: bool = True,
+        Indicates whether to use the workgroup configuration for the query execution.
+        If True, the workgroup configuration will be retreived and used to determine the s3 output location, encryption, and kms key.
+        If False, the s3 output location, encryption, and kms key will not be set and will be determined by the AWS Athena service.
+        Default is True.
+
 
     Examples
     --------
@@ -488,7 +503,9 @@ def to_iceberg(  # noqa: PLR0913
     ... )
 
     """
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_workgroup_config(
+        session=boto3_session, workgroup=workgroup, retreive_workgroup_config=retreive_workgroup_config
+    )
     temp_table: str = f"temp_table_{uuid.uuid4().hex}"
 
     _validate_args(
@@ -584,6 +601,7 @@ def to_iceberg(  # noqa: PLR0913
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
                 catalog_id=catalog_id,
+                retreive_workgroup_config=retreive_workgroup_config,
             )
         # if mode == "overwrite", delete whole data from table (but not table itself)
         elif mode == "overwrite":
@@ -631,6 +649,7 @@ def to_iceberg(  # noqa: PLR0913
             workgroup=workgroup,
             encryption=encryption,
             data_source=data_source,
+            retreive_workgroup_config=retreive_workgroup_config,
         )
 
     except Exception as ex:
@@ -670,6 +689,7 @@ def delete_from_iceberg_table(
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, Any] | None = None,
     catalog_id: str | None = None,
+    retreive_workgroup_config: bool = True,
 ) -> None:
     """
     Delete rows from an Iceberg table.
@@ -714,6 +734,11 @@ def delete_from_iceberg_table(
     catalog_id
         The ID of the Data Catalog which contains the database and table.
         If none is provided, the AWS account ID is used by default.
+    retreive_workgroup_config: bool = True,
+        Indicates whether to use the workgroup configuration for the query execution.
+        If True, the workgroup configuration will be retreived and used to determine the s3 output location, encryption, and kms key.
+        If False, the s3 output location, encryption, and kms key will not be set and will be determined by the AWS Athena service.
+        Default is True.
 
     Examples
     --------
@@ -743,7 +768,9 @@ def delete_from_iceberg_table(
     if not merge_cols:
         raise exceptions.InvalidArgumentValue("Merge columns must be specified.")
 
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_workgroup_config(
+        session=boto3_session, workgroup=workgroup, retreive_workgroup_config=retreive_workgroup_config
+    )
     temp_table: str = f"temp_table_{uuid.uuid4().hex}"
 
     if not temp_path and not wg_config.s3_output:

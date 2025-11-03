@@ -47,6 +47,7 @@ def start_query_execution(
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     data_source: str | None = None,
     wait: bool = False,
+    retreive_workgroup_config: bool = True,
 ) -> str | dict[str, Any]:
     """Start a SQL Query against AWS Athena.
 
@@ -114,6 +115,11 @@ def start_query_execution(
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     wait
         Indicates whether to wait for the query to finish and return a dictionary with the query execution response.
+    retreive_workgroup_config
+        Indicates whether to use the workgroup configuration for the query execution.
+        If True, the workgroup configuration will be retreived and used to determine the s3 output location, encryption, and kms key.
+        If False, the s3 output location, encryption, and kms key will not be set and will be determined by the AWS Athena service.
+        Default is True.
 
     Returns
     -------
@@ -149,7 +155,9 @@ def start_query_execution(
         query_execution_id = cache_info.query_execution_id
         _logger.debug("Valid cache found. Retrieving...")
     else:
-        wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+        wg_config: _WorkGroupConfig = _get_workgroup_config(
+            session=boto3_session, workgroup=workgroup, retreive_workgroup_config=retreive_workgroup_config
+        )
         query_execution_id = _start_query_execution(
             sql=sql,
             wg_config=wg_config,

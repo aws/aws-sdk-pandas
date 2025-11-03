@@ -140,14 +140,16 @@ def _start_query_execution(
     return response["QueryExecutionId"]
 
 
-def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str = "primary") -> _WorkGroupConfig:
+def _get_workgroup_config(
+    session: boto3.Session | None = None, workgroup: str | None = "primary", retreive_workgroup_config: bool = True
+) -> _WorkGroupConfig:
     enforced: bool
     wg_s3_output: str | None
     wg_encryption: str | None
     wg_kms_key: str | None
 
     enforced, wg_s3_output, wg_encryption, wg_kms_key = False, None, None, None
-    if workgroup is not None:
+    if workgroup is not None and retreive_workgroup_config:
         res = get_work_group(workgroup=workgroup, boto3_session=session)
         enforced = res["WorkGroup"]["Configuration"]["EnforceWorkGroupConfiguration"]
         config: dict[str, Any] = res["WorkGroup"]["Configuration"].get("ResultConfiguration")
@@ -481,6 +483,7 @@ def repair_table(
     kms_key: str | None = None,
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     boto3_session: boto3.Session | None = None,
+    retreive_workgroup_config: bool = True,
 ) -> str:
     """Run the Hive's metastore consistency check: 'MSCK REPAIR TABLE table;'.
 
@@ -515,6 +518,11 @@ def repair_table(
         Interval in seconds for how often the function will check if the Athena query has completed.
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
+    retreive_workgroup_config
+        Indicates whether to use the workgroup configuration for the query execution.
+        If True, the workgroup configuration will be retreived and used to determine the s3 output location, encryption, and kms key.
+        If False, the s3 output location, encryption, and kms key will not be set and will be determined by the AWS Athena service.
+        Default is True.
 
     Returns
     -------
@@ -538,6 +546,7 @@ def repair_table(
         encryption=encryption,
         kms_key=kms_key,
         boto3_session=boto3_session,
+        retreive_workgroup_config=retreive_workgroup_config,
     )
     response: dict[str, Any] = _executions.wait_query(
         query_execution_id=query_id,
@@ -561,6 +570,7 @@ def describe_table(
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     s3_additional_kwargs: dict[str, Any] | None = None,
     boto3_session: boto3.Session | None = None,
+    retreive_workgroup_config: bool = True,
 ) -> pd.DataFrame:
     """Show the list of columns, including partition columns: 'DESCRIBE table;'.
 
@@ -593,6 +603,11 @@ def describe_table(
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
+    retreive_workgroup_config
+        Indicates whether to use the workgroup configuration for the query execution.
+        If True, the workgroup configuration will be retreived and used to determine the s3 output location, encryption, and kms key.
+        If False, the s3 output location, encryption, and kms key will not be set and will be determined by the AWS Athena service.
+        Default is True.
 
     Returns
     -------
@@ -615,6 +630,7 @@ def describe_table(
         encryption=encryption,
         kms_key=kms_key,
         boto3_session=boto3_session,
+        retreive_workgroup_config=retreive_workgroup_config,
     )
     query_metadata: _QueryMetadata = _get_query_metadata(
         query_execution_id=query_id,
@@ -643,7 +659,7 @@ def create_ctas_table(
     bucketing_info: typing.BucketingInfoTuple | None = None,
     field_delimiter: str | None = None,
     schema_only: bool = False,
-    workgroup: str = "primary",
+    workgroup: str | None = "primary",
     data_source: str | None = None,
     encryption: str | None = None,
     kms_key: str | None = None,
@@ -654,6 +670,7 @@ def create_ctas_table(
     params: dict[str, Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
     boto3_session: boto3.Session | None = None,
+    retreive_workgroup_config: bool = True,
 ) -> dict[str, str | _QueryMetadata]:
     """Create a new table populated with the results of a SELECT query.
 
@@ -719,6 +736,11 @@ def create_ctas_table(
         The default is ``named``.
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
+    retreive_workgroup_config
+        Indicates whether to use the workgroup configuration for the query execution.
+        If True, the workgroup configuration will be retreived and used to determine the s3 output location, encryption, and kms key.
+        If False, the s3 output location, encryption, and kms key will not be set and will be determined by the AWS Athena service.
+        Default is True.
 
     Returns
     -------
@@ -783,7 +805,9 @@ def create_ctas_table(
 
     fully_qualified_name = f'"{ctas_database}"."{ctas_table}"'
 
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_workgroup_config(
+        session=boto3_session, workgroup=workgroup, retreive_workgroup_config=retreive_workgroup_config
+    )
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
     s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
     # If the workgroup enforces an external location, then it overrides the user supplied argument
@@ -891,6 +915,7 @@ def show_create_table(
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
     s3_additional_kwargs: dict[str, Any] | None = None,
     boto3_session: boto3.Session | None = None,
+    retreive_workgroup_config: bool = True,
 ) -> str:
     """Generate the query that created it: 'SHOW CREATE TABLE table;'.
 
@@ -922,6 +947,11 @@ def show_create_table(
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session
         The default boto3 session will be used if **boto3_session** receive ``None``.
+    retreive_workgroup_config
+        Indicates whether to use the workgroup configuration for the query execution.
+        If True, the workgroup configuration will be retreived and used to determine the s3 output location, encryption, and kms key.
+        If False, the s3 output location, encryption, and kms key will not be set and will be determined by the AWS Athena service.
+        Default is True.
 
     Returns
     -------
@@ -944,6 +974,7 @@ def show_create_table(
         encryption=encryption,
         kms_key=kms_key,
         boto3_session=boto3_session,
+        retreive_workgroup_config=retreive_workgroup_config,
     )
     query_metadata: _QueryMetadata = _get_query_metadata(
         query_execution_id=query_id,

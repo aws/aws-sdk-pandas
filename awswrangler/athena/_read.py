@@ -321,6 +321,7 @@ def _resolve_query_without_cache_ctas(
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
     execution_params: list[str] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
+    retreive_workgroup_config: bool = True,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     ctas_query_info: dict[str, str | _QueryMetadata] = create_ctas_table(
         sql=sql,
@@ -339,6 +340,7 @@ def _resolve_query_without_cache_ctas(
         boto3_session=boto3_session,
         params=execution_params,
         paramstyle="qmark",
+        retreive_workgroup_config=retreive_workgroup_config,
     )
     fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
     ctas_query_metadata = cast(_QueryMetadata, ctas_query_info["ctas_query_metadata"])
@@ -379,6 +381,7 @@ def _resolve_query_without_cache_unload(
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
     execution_params: list[str] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
+    retreive_workgroup_config: bool = True,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     query_metadata = _unload(
         sql=sql,
@@ -395,6 +398,7 @@ def _resolve_query_without_cache_unload(
         data_source=data_source,
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         execution_params=execution_params,
+        retreive_workgroup_config=retreive_workgroup_config,
     )
     if file_format == "PARQUET":
         return _fetch_parquet_result(
@@ -430,8 +434,11 @@ def _resolve_query_without_cache_regular(
     result_reuse_configuration: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     client_request_token: str | None = None,
+    retreive_workgroup_config: bool = True,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_workgroup_config(
+        session=boto3_session, workgroup=workgroup, retreive_workgroup_config=retreive_workgroup_config
+    )
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
     s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
     _logger.debug("Executing sql: %s", sql)
@@ -496,6 +503,7 @@ def _resolve_query_without_cache(  # noqa: PLR0913
     result_reuse_configuration: dict[str, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     client_request_token: str | None = None,
+    retreive_workgroup_config: bool = True,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """
     Execute a query in Athena and returns results as DataFrame, back to `read_sql_query`.
@@ -530,6 +538,7 @@ def _resolve_query_without_cache(  # noqa: PLR0913
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
                 execution_params=execution_params,
                 dtype_backend=dtype_backend,
+                retreive_workgroup_config=retreive_workgroup_config,
             )
         finally:
             catalog.delete_table_if_exists(database=ctas_database or database, table=name, boto3_session=boto3_session)
@@ -558,6 +567,7 @@ def _resolve_query_without_cache(  # noqa: PLR0913
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             execution_params=execution_params,
             dtype_backend=dtype_backend,
+            retreive_workgroup_config=retreive_workgroup_config,
         )
     return _resolve_query_without_cache_regular(
         sql=sql,
@@ -578,6 +588,7 @@ def _resolve_query_without_cache(  # noqa: PLR0913
         result_reuse_configuration=result_reuse_configuration,
         dtype_backend=dtype_backend,
         client_request_token=client_request_token,
+        retreive_workgroup_config=retreive_workgroup_config,
     )
 
 
@@ -596,8 +607,11 @@ def _unload(
     data_source: str | None,
     athena_query_wait_polling_delay: float,
     execution_params: list[str] | None,
+    retreive_workgroup_config: bool = True,
 ) -> _QueryMetadata:
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_workgroup_config(
+        session=boto3_session, workgroup=workgroup, retreive_workgroup_config=retreive_workgroup_config
+    )
     s3_output: str = _get_s3_output(s3_output=path, wg_config=wg_config, boto3_session=boto3_session)
     s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
     # Athena does not enforce a Query Result Location for UNLOAD. Thus, the workgroup output location
@@ -793,6 +807,7 @@ def read_sql_query(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     s3_additional_kwargs: dict[str, Any] | None = None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
+    retreive_workgroup_config: bool = True,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
@@ -1002,6 +1017,11 @@ def read_sql_query(
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
+    retreive_workgroup_config
+        Indicates whether to use the workgroup configuration for the query execution.
+        If True, the workgroup configuration will be retreived and used to determine the s3 output location, encryption, and kms key.
+        If False, the s3 output location, encryption, and kms key will not be set and will be determined by the AWS Athena service.
+        Default is True.
 
     Returns
     -------
@@ -1120,6 +1140,7 @@ def read_sql_query(
         result_reuse_configuration=result_reuse_configuration,
         dtype_backend=dtype_backend,
         client_request_token=client_request_token,
+        retreive_workgroup_config=retreive_workgroup_config,
     )
 
 
@@ -1386,6 +1407,7 @@ def unload(
     params: dict[str, Any] | list[str] | None = None,
     paramstyle: Literal["qmark", "named"] = "named",
     athena_query_wait_polling_delay: float = _QUERY_WAIT_POLLING_DELAY,
+    retreive_workgroup_config: bool = True,
 ) -> _QueryMetadata:
     """Write query results from a SELECT statement to the specified data format using UNLOAD.
 
@@ -1442,6 +1464,11 @@ def unload(
         - ``qmark``
     athena_query_wait_polling_delay
         Interval in seconds for how often the function will check if the Athena query has completed.
+    retreive_workgroup_config
+        Indicates whether to use the workgroup configuration for the query execution.
+        If True, the workgroup configuration will be retreived and used to determine the s3 output location, encryption, and kms key.
+        If False, the s3 output location, encryption, and kms key will not be set and will be determined by the AWS Athena service.
+        Default is True.
 
     Returns
     -------
@@ -1473,4 +1500,5 @@ def unload(
         boto3_session=boto3_session,
         data_source=data_source,
         execution_params=execution_params,
+        retreive_workgroup_config=retreive_workgroup_config,
     )

@@ -78,6 +78,7 @@ def read_sql_query(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> pd.DataFrame: ...
 @overload
 def read_sql_query(
@@ -105,6 +106,7 @@ def read_sql_query(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_query(
@@ -132,6 +134,7 @@ def read_sql_query(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_query(
@@ -159,6 +162,7 @@ def read_sql_query(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_query(
@@ -186,6 +190,7 @@ def read_sql_query(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_table(
@@ -210,6 +215,7 @@ def read_sql_table(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> pd.DataFrame: ...
 @overload
 def read_sql_table(
@@ -234,6 +240,7 @@ def read_sql_table(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_table(
@@ -258,6 +265,7 @@ def read_sql_table(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_table(
@@ -282,6 +290,7 @@ def read_sql_table(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_sql_table(
@@ -306,6 +315,7 @@ def read_sql_table(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
     s3_additional_kwargs: dict[str, Any] | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 def unload(
     sql: str,
@@ -323,4 +333,5 @@ def unload(
     params: dict[str, Any] | list[str] | None = ...,
     paramstyle: Literal["qmark", "named"] = ...,
     athena_query_wait_polling_delay: float = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> _QueryMetadata: ...

@@ -24,6 +24,7 @@ def start_query_execution(
     athena_query_wait_polling_delay: float = ...,
     data_source: str | None = ...,
     wait: Literal[False] = ...,
+    retreive_workgroup_config: bool = ...,
 ) -> str: ...
 @overload
 def start_query_execution(
@@ -42,6 +43,7 @@ def start_query_execution(
     athena_query_wait_polling_delay: float = ...,
     data_source: str | None = ...,
     wait: Literal[True],
+    retreive_workgroup_config: bool = ...,
 ) -> dict[str, Any]: ...
 @overload
 def start_query_execution(
@@ -60,6 +62,7 @@ def start_query_execution(
     athena_query_wait_polling_delay: float = ...,
     data_source: str | None = ...,
     wait: bool,
+    retreive_workgroup_config: bool = ...,
 ) -> str | dict[str, Any]: ...
 def stop_query_execution(query_execution_id: str, boto3_session: boto3.Session | None = ...) -> None: ...
 def wait_query(
