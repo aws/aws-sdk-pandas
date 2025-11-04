@@ -159,6 +159,7 @@ node_modules
 *.cdk.staging
 *cdk.out
 *cdk.context.json
+*poetry.lock
 
 # ruff
 .ruff_cache/
