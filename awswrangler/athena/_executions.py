@@ -22,7 +22,7 @@ from ._utils import (
     _QUERY_FINAL_STATES,
     _QUERY_WAIT_POLLING_DELAY,
     _apply_formatter,
-    _get_workgroup_config,
+    _get_default_workgroup_config,
     _start_query_execution,
     _WorkGroupConfig,
 )
@@ -149,7 +149,7 @@ def start_query_execution(
         query_execution_id = cache_info.query_execution_id
         _logger.debug("Valid cache found. Retrieving...")
     else:
-        wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+        wg_config: _WorkGroupConfig = _get_default_workgroup_config()
         query_execution_id = _start_query_execution(
             sql=sql,
             wg_config=wg_config,

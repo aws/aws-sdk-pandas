@@ -140,26 +140,9 @@ def _start_query_execution(
     return response["QueryExecutionId"]
 
 
-def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str = "primary") -> _WorkGroupConfig:
-    enforced: bool
-    wg_s3_output: str | None
-    wg_encryption: str | None
-    wg_kms_key: str | None
-
-    enforced, wg_s3_output, wg_encryption, wg_kms_key = False, None, None, None
-    if workgroup is not None:
-        res = get_work_group(workgroup=workgroup, boto3_session=session)
-        enforced = res["WorkGroup"]["Configuration"]["EnforceWorkGroupConfiguration"]
-        config: dict[str, Any] = res["WorkGroup"]["Configuration"].get("ResultConfiguration")
-        if config is not None:
-            wg_s3_output = config.get("OutputLocation")
-            encrypt_config: dict[str, str] | None = config.get("EncryptionConfiguration")
-            wg_encryption = None if encrypt_config is None else encrypt_config.get("EncryptionOption")
-            wg_kms_key = None if encrypt_config is None else encrypt_config.get("KmsKey")
-    wg_config: _WorkGroupConfig = _WorkGroupConfig(
-        enforced=enforced, s3_output=wg_s3_output, encryption=wg_encryption, kms_key=wg_kms_key
-    )
-    _logger.debug("Workgroup config:\n%s", wg_config)
+def _get_default_workgroup_config() -> _WorkGroupConfig:
+    wg_config: _WorkGroupConfig = _WorkGroupConfig(enforced=False, s3_output=None, encryption=None, kms_key=None)
+    _logger.debug("Default workgroup config:\n%s", wg_config)
     return wg_config
 
 
@@ -783,7 +766,7 @@ def create_ctas_table(
 
     fully_qualified_name = f'"{ctas_database}"."{ctas_table}"'
 
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_default_workgroup_config()
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
     s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
     # If the workgroup enforces an external location, then it overrides the user supplied argument

@@ -24,7 +24,7 @@ from awswrangler.athena._utils import (
     _empty_dataframe_response,
     _get_query_metadata,
     _get_s3_output,
-    _get_workgroup_config,
+    _get_default_workgroup_config,
     _QueryMetadata,
     _start_query_execution,
     _WorkGroupConfig,
@@ -431,7 +431,7 @@ def _resolve_query_without_cache_regular(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     client_request_token: str | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_default_workgroup_config()
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
     s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
     _logger.debug("Executing sql: %s", sql)
@@ -597,7 +597,7 @@ def _unload(
     athena_query_wait_polling_delay: float,
     execution_params: list[str] | None,
 ) -> _QueryMetadata:
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_default_workgroup_config()
     s3_output: str = _get_s3_output(s3_output=path, wg_config=wg_config, boto3_session=boto3_session)
     s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
     # Athena does not enforce a Query Result Location for UNLOAD. Thus, the workgroup output location
