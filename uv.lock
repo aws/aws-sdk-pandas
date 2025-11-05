@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.9, <4.0"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -542,7 +542,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=1.2.0,<3.0.0" },
     { name = "pg8000", marker = "extra == 'postgres'", specifier = ">=1.29.0,<2" },
     { name = "progressbar2", marker = "extra == 'progressbar'", specifier = ">=4.0.0,<5" },
-    { name = "pyarrow", specifier = ">=8.0.0,<22.0.0" },
+    { name = "pyarrow", specifier = ">=8.0.0,<23.0.0" },
     { name = "pymysql", marker = "extra == 'mysql'", specifier = ">=1.0.0,<2" },
     { name = "pyodbc", marker = "extra == 'sqlserver'", specifier = ">=4,<6" },
     { name = "ray", extras = ["default", "data"], marker = "extra == 'ray'", specifier = ">=2.49.0,<3" },
