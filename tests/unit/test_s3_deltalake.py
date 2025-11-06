@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Iterator, Iterable
+from typing import Any, Iterable, Iterator
 
 import boto3
 import pyarrow as pa
