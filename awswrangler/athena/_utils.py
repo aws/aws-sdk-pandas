@@ -98,9 +98,9 @@ def _start_query_execution(
 
     # encryption
     if wg_config.enforced is True:
-        if "ResultConfiguration" not in args:
-            args["ResultConfiguration"] = {}
         if wg_config.encryption is not None:
+            if "ResultConfiguration" not in args:
+                args["ResultConfiguration"] = {}
             args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": wg_config.encryption}
             if wg_config.kms_key is not None:
                 args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = wg_config.kms_key
