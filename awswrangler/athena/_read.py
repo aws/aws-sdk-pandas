@@ -19,12 +19,12 @@ from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
 from awswrangler.athena._utils import (
     _QUERY_WAIT_POLLING_DELAY,
+    _get_default_workgroup_config,
     _apply_formatter,
     _apply_query_metadata,
     _empty_dataframe_response,
     _get_query_metadata,
     _get_s3_output,
-    _get_default_workgroup_config,
     _QueryMetadata,
     _start_query_execution,
     _WorkGroupConfig,
