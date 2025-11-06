@@ -193,8 +193,6 @@ def to_deltalake_streaming(
     boto3_session: boto3.Session | None = None,
     s3_additional_kwargs: dict[str, str] | None = None,
     batch_size: int | None = None,
-    max_open_files: int | None = None,
-    max_rows_per_file: int | None = None,
     target_file_size: int | None = None,
 ) -> None:
     dtype = dtype or {}
@@ -224,7 +222,5 @@ def to_deltalake_streaming(
         mode=mode,
         schema_mode=schema_mode,
         storage_options=storage_options,
-        max_open_files=max_open_files,
-        max_rows_per_file=max_rows_per_file,
         target_file_size=target_file_size,
     )
