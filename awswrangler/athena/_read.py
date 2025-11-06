@@ -25,6 +25,7 @@ from awswrangler.athena._utils import (
     _get_default_workgroup_config,
     _get_query_metadata,
     _get_s3_output,
+    _get_workgroup_config,
     _QueryMetadata,
     _start_query_execution,
     _WorkGroupConfig,
@@ -432,8 +433,7 @@ def _resolve_query_without_cache_regular(
     client_request_token: str | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     wg_config: _WorkGroupConfig = _get_default_workgroup_config()
-    s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
-    s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
+    s3_output = s3_output[:-1] if s3_output and s3_output[-1] == "/" else s3_output
     _logger.debug("Executing sql: %s", sql)
     query_id: str = _start_query_execution(
         sql=sql,
@@ -597,13 +597,13 @@ def _unload(
     athena_query_wait_polling_delay: float,
     execution_params: list[str] | None,
 ) -> _QueryMetadata:
-    wg_config: _WorkGroupConfig = _get_default_workgroup_config()
+    wg_config: _WorkGroupConfig = _get_workgroup_config(workgroup=workgroup, session=boto3_session)
     s3_output: str = _get_s3_output(s3_output=path, wg_config=wg_config, boto3_session=boto3_session)
-    s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
-    # Athena does not enforce a Query Result Location for UNLOAD. Thus, the workgroup output location
-    # is only used if no path is supplied.
-    if not path:
-        path = s3_output
+    s3_output = s3_output[:-1] if s3_output and s3_output[-1] == "/" else s3_output
+    if not s3_output:
+        raise exceptions.InvalidArgumentValue(
+            "Output S3 location is required for UNLOAD, either as the path argument or as a workgroup configuration"
+        )
 
     # Set UNLOAD parameters
     unload_parameters = f"  format='{file_format}'"
@@ -614,7 +614,7 @@ def _unload(
     if partitioned_by:
         unload_parameters += f"  , partitioned_by=ARRAY{partitioned_by}"
 
-    sql = f"UNLOAD ({sql}) TO '{path}' WITH ({unload_parameters})"
+    sql = f"UNLOAD ({sql}) TO '{s3_output}' WITH ({unload_parameters})"
     _logger.debug("Executing unload query: %s", sql)
     try:
         query_id: str = _start_query_execution(
