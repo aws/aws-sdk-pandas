@@ -13,7 +13,7 @@ from awswrangler.s3._read_text import read_csv, read_fwf, read_json
 from awswrangler.s3._select import select_query
 from awswrangler.s3._upload import upload
 from awswrangler.s3._wait import wait_objects_exist, wait_objects_not_exist
-from awswrangler.s3._write_deltalake import to_deltalake
+from awswrangler.s3._write_deltalake import to_deltalake, to_deltalake_streaming
 from awswrangler.s3._write_excel import to_excel
 from awswrangler.s3._write_orc import to_orc
 from awswrangler.s3._write_parquet import store_parquet_metadata, to_parquet
@@ -49,6 +49,7 @@ __all__ = [
     "to_csv",
     "to_json",
     "to_deltalake",
+    "to_deltalake_streaming",
     "to_excel",
     "read_excel",
     "download",
