@@ -25,7 +25,7 @@ class CleanRoomsStack(Stack):  # type: ignore
             description="Collaboration Room for AWS SDK for pandas test infrastructure",
             members=[],
             query_log_status="ENABLED",
-            analytics_ngine="SPARK",
+            analytics_engine="SPARK",
         )
 
         self.membership = cleanrooms.CfnMembership(
