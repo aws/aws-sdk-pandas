@@ -250,6 +250,15 @@ Run this command in any Python 3 notebook cell and then make sure to
 
     >>> !pip install awswrangler
 
+**Platform compatibility notice:**
+
+* ``awswrangler>=3.14.0`` requires **AL2023-v1 or later** notebook instances
+* If using AL2-V3, pin to an older version:
+
+    >>> !pip install "awswrangler<3.14.0"
+
+This is due to AL2-V3 not meeting the build requirements for PyArrow 21.0.0+ (CMake 3.25+).
+
 Amazon SageMaker Notebook Lifecycle
 -----------------------------------
 
