@@ -14,7 +14,7 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/python-3.12@master
         continue-on-error: true  # To make sure that SARIF upload gets called
