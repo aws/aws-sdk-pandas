@@ -24,7 +24,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Use Node.js
         uses: actions/setup-node@v6
         with:
@@ -41,7 +41,7 @@ jobs:
         run: |
           npm install -g aws-cdk
           cdk --version
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
