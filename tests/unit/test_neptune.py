@@ -475,9 +475,7 @@ def test_sparql_bindings_nan_safe() -> None:
     class _DummyClient:
         def read_sparql(self, _query: str) -> dict[str, Any]:
             return {
-                "head": {
-                    "vars": ["book_id", "title", "checked_out", "last_updated", "category_code"]
-                },
+                "head": {"vars": ["book_id", "title", "checked_out", "last_updated", "category_code"]},
                 "results": {
                     "bindings": [
                         {
