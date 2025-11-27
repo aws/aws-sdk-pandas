@@ -110,7 +110,10 @@ def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
     df = None
     if "results" in data and "bindings" in data["results"]:
         df = pd.DataFrame(data["results"]["bindings"], columns=data.get("head", {}).get("vars"))
-        df = df.applymap(lambda d: d["value"] if "value" in d else None)
+        def _binding_value(d: Any) -> Any:
+            return d.get("value") if isinstance(d, dict) else None
+        for col in df.columns:
+            df[col] = df[col].apply(_binding_value)
     else:
         df = pd.DataFrame(data)
 
