@@ -15,7 +15,7 @@ from awswrangler import _data_types, _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler.athena._executions import wait_query
 from awswrangler.athena._utils import (
-    _get_workgroup_config,
+    _get_default_workgroup_config,
     _start_query_execution,
     _WorkGroupConfig,
 )
@@ -303,7 +303,7 @@ def _merge_iceberg(
     None
 
     """
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_default_workgroup_config()
 
     sql_statement: str
     if merge_cols:
@@ -488,7 +488,7 @@ def to_iceberg(  # noqa: PLR0913
     ... )
 
     """
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_default_workgroup_config()
     temp_table: str = f"temp_table_{uuid.uuid4().hex}"
 
     _validate_args(
@@ -743,7 +743,7 @@ def delete_from_iceberg_table(
     if not merge_cols:
         raise exceptions.InvalidArgumentValue("Merge columns must be specified.")
 
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_default_workgroup_config()
     temp_table: str = f"temp_table_{uuid.uuid4().hex}"
 
     if not temp_path and not wg_config.s3_output:
