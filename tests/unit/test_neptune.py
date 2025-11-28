@@ -471,6 +471,51 @@ def test_sparql_write_triples(neptune_endpoint, neptune_port) -> dict[str, Any]:
     assert len(batch_df.index) == len(final_df.index) + 50
 
 
+def test_sparql_bindings_nan_safe() -> None:
+    class _DummyClient:
+        def read_sparql(self, _query: str) -> dict[str, Any]:
+            return {
+                "head": {"vars": ["book_id", "title", "checked_out", "last_updated", "category_code"]},
+                "results": {
+                    "bindings": [
+                        {
+                            "title": {
+                                "xml:lang": "en",
+                                "type": "literal",
+                                "value": "The Art of Space Travel",
+                            },
+                            "book_id": {"type": "literal", "value": "B10045982"},
+                            "last_updated": {
+                                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                                "type": "literal",
+                                "value": "2025-10-01T10:30:00.000Z",
+                            },
+                            "category_code": {
+                                "datatype": "http://www.w3.org/2001/XMLSchema#integer",
+                                "type": "literal",
+                                "value": "5",
+                            },
+                        },
+                    ]
+                },
+            }
+
+    client: Any = _DummyClient()
+    df = wr.neptune.execute_sparql(
+        client,
+        "SELECT ?book_id ?title ?checked_out ?last_updated ?category_code WHERE { ?s ?p ?o }",
+    )
+    assert df.shape == (1, 5)
+    # Row 1
+    v1 = df.iloc[0].tolist()
+    book_id, title, checked_out, last_updated, category_code = v1
+    assert book_id == "B10045982"
+    assert title == "The Art of Space Travel"
+    assert checked_out is None  # missing binding becomes None
+    assert last_updated == "2025-10-01T10:30:00.000Z"
+    assert category_code == "5"
+
+
 def test_sparql_write_quads(neptune_endpoint, neptune_port) -> dict[str, Any]:
     label = f"foo_{uuid.uuid4()}"
     sparkql_query = f"SELECT ?p ?o FROM <bar> WHERE {{ <{label}> ?p ?o .}}"
