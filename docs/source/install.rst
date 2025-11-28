@@ -250,6 +250,17 @@ Run this command in any Python 3 notebook cell and then make sure to
 
     >>> !pip install awswrangler
 
+**Platform compatibility notice:**
+
+``awswrangler>=3.14.0`` defaults to PyArrow 21.0.0+, which requires CMake 3.25+ to build. On AL2-V3 notebook instances (CMake 2.8), you have the following options:
+
+* Pin PyArrow to an older version:
+
+    >>> !pip install awswrangler "pyarrow<21"
+
+* Upgrade CMake version to 3.25+
+* Update your notebook instance platform type to AL2023-V1 or later using ``UpdateNotebookInstance``
+
 Amazon SageMaker Notebook Lifecycle
 -----------------------------------
 
