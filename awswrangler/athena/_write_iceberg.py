@@ -411,7 +411,8 @@ def to_iceberg(  # noqa: PLR0913
 
         https://docs.aws.amazon.com/athena/latest/ug/merge-into-statement.html
     merge_condition
-        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore']. Default is ``update``.
+        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore'].
+        Default is ``update``.
     merge_match_nulls
         Instruct whether to have nulls in the merge condition match other nulls.
     keep_files
@@ -448,7 +449,7 @@ def to_iceberg(  # noqa: PLR0913
         e.g. {'col name': 'bigint', 'col2 name': 'int'}
     catalog_id
         The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default
+        If none is provided, the AWS account ID is used by default.
     schema_evolution
         If ``True`` allows schema evolution for new columns or changes in column types.
         Columns missing from the DataFrame that are present in the Iceberg schema
