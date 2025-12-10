@@ -411,11 +411,11 @@ def to_iceberg(  # noqa: PLR0913
 
         https://docs.aws.amazon.com/athena/latest/ug/merge-into-statement.html
     merge_condition
-        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore'].
+        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore']. Default is ``update``.
     merge_match_nulls
-        Instruct whether to have nulls in the merge condition match other nulls
+        Instruct whether to have nulls in the merge condition match other nulls.
     keep_files
-        Whether staging files produced by Athena are retained. 'True' by default.
+        Whether staging files produced by Athena are retained. Default is ``True``.
     data_source
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     s3_output
