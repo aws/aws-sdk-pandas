@@ -252,7 +252,8 @@ Run this command in any Python 3 notebook cell and then make sure to
 
 **Platform compatibility notice:**
 
-``awswrangler>=3.14.0`` defaults to PyArrow 21.0.0+, which requires CMake 3.25+ to build. On AL2-V3 notebook instances (CMake 2.8), you have the following options:
+``awswrangler>=3.14.0`` defaults to PyArrow 21.0.0+, which requires CMake 3.25+ to build.
+On AL2-V3 notebook instances (CMake 2.8), you have the following options:
 
 * Pin PyArrow to an older version:
 
