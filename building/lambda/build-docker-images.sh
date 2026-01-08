@@ -60,4 +60,15 @@ then
     .
 fi
 
+# Python 3.14
+if [[ $PYTHON_VERSION == "ALL" || $PYTHON_VERSION == "3.14" ]]
+then
+  docker build \
+    --pull \
+    --tag awswrangler-build-py314 \
+    --build-arg base_image=public.ecr.aws/lambda/python:3.14 \
+    --file Dockerfile.al2023 \
+    .
+fi
+
 rm -rf pyproject.toml uv.lock

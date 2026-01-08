@@ -75,3 +75,14 @@ then
     awswrangler-build-py313 \
     build-lambda-layer.sh "${VERSION}-py3.13${ARCH_SUFFIX}" "ninja-build"
 fi
+
+# Python 3.14
+if [[ $PYTHON_VERSION == "ALL" || $PYTHON_VERSION == "3.14" ]]
+then
+  docker run \
+    --volume "$DIR_NAME":/aws-sdk-pandas/ \
+    --workdir /aws-sdk-pandas/building/lambda \
+    --rm \
+    awswrangler-build-py314 \
+    build-lambda-layer.sh "${VERSION}-py3.14${ARCH_SUFFIX}" "ninja-build"
+fi
