@@ -1,6 +1,6 @@
 [project]
 name = "awswrangler-test-infrastructure"
-version = "3.14.0"
+version = "3.15.0"
 description = "CDK test infrastructure for AWS SDK for pandas"
 authors = [{ name = "Amazon Web Services" }]
 license = {text = "Apache-2.0"}
