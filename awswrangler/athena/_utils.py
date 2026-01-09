@@ -93,17 +93,20 @@ def _start_query_execution(
     args: dict[str, Any] = {"QueryString": sql}
 
     # s3_output
-    args["ResultConfiguration"] = {
-        "OutputLocation": _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
-    }
+    if s3_output:
+        args["ResultConfiguration"] = {"OutputLocation": s3_output}
 
     # encryption
     if wg_config.enforced is True:
         if wg_config.encryption is not None:
+            if "ResultConfiguration" not in args:
+                args["ResultConfiguration"] = {}
             args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": wg_config.encryption}
             if wg_config.kms_key is not None:
                 args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = wg_config.kms_key
     elif encryption is not None:
+        if "ResultConfiguration" not in args:
+            args["ResultConfiguration"] = {}
         args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
         if kms_key is not None:
             args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
@@ -138,6 +141,12 @@ def _start_query_execution(
     )
     _logger.debug("Query response:\n%s", response)
     return response["QueryExecutionId"]
+
+
+def _get_default_workgroup_config() -> _WorkGroupConfig:
+    wg_config: _WorkGroupConfig = _WorkGroupConfig(enforced=False, s3_output=None, encryption=None, kms_key=None)
+    _logger.debug("Default workgroup config:\n%s", wg_config)
+    return wg_config
 
 
 def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str = "primary") -> _WorkGroupConfig:
@@ -783,9 +792,8 @@ def create_ctas_table(
 
     fully_qualified_name = f'"{ctas_database}"."{ctas_table}"'
 
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
-    s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
-    s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
+    wg_config: _WorkGroupConfig = _get_default_workgroup_config()
+    s3_output = s3_output[:-1] if s3_output and s3_output[-1] == "/" else s3_output
     # If the workgroup enforces an external location, then it overrides the user supplied argument
     external_location_str: str = (
         f"    external_location = '{s3_output}/{ctas_table}',\n" if (not wg_config.enforced) and (s3_output) else ""
