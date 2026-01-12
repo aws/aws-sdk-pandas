@@ -46,7 +46,6 @@ from ray.util.annotations import PublicAPI
 from awswrangler import exceptions
 from awswrangler._arrow import _add_table_partitions
 
-
 if TYPE_CHECKING:
     import pyarrow
     from pyarrow.dataset import ParquetFileFragment
