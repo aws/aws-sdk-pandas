@@ -310,7 +310,12 @@ class ArrowParquetDatasource(Datasource):
             total_size += file_metadata.total_byte_size
         return total_size * self._encoding_ratio  # type: ignore[return-value]
 
-    def get_read_tasks(self, parallelism: int) -> list[ReadTask]:
+    def get_read_tasks(
+        self,
+        parallelism: int,
+        per_task_row_limit: int | None = None,
+        data_context: "DataContext" | None = None,
+    ) -> list[ReadTask]:
         """Override the base class FileBasedDatasource.get_read_tasks().
 
         Required in order to leverage pyarrow's ParquetDataset abstraction,
@@ -320,7 +325,7 @@ class ArrowParquetDatasource(Datasource):
         if len(pq_metadata) < len(self._pq_fragments):
             # Pad `pq_metadata` to be same length of `self._pq_fragments`.
             # This can happen when no file metadata being prefetched.
-            pq_metadata += [None] * (len(self._pq_fragments) - len(pq_metadata))  # type: ignore[list-item]
+            pq_metadata += [None] * (len(self._pq_fragments) - len(pq_metadata))
 
         if self._file_metadata_shuffler is not None:
             files_metadata = list(zip(self._pq_fragments, self._pq_paths, pq_metadata))

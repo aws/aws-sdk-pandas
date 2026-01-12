@@ -56,7 +56,7 @@ def wait_query(
         response = client_cleanrooms.get_protected_query(
             membershipIdentifier=membership_id, protectedQueryIdentifier=query_id
         )
-        state = response["protectedQuery"].get("status")  # type: ignore[assignment]
+        state = response["protectedQuery"].get("status")
 
     _logger.debug("state: %s", state)
     if state != "SUCCESS":
