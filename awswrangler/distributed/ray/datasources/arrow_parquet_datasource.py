@@ -36,9 +36,7 @@ from ray.data.datasource.file_meta_provider import (
     DefaultFileMetadataProvider,
     _handle_read_os_error,
 )
-from ray.data.datasource.parquet_meta_provider import (
-    ParquetMetadataProvider,
-)
+from awswrangler.distributed.ray._compat import ParquetMetadataProvider
 from ray.data.datasource.partitioning import PathPartitionFilter
 from ray.data.datasource.path_util import (
     _has_file_extension,

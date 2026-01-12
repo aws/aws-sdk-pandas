@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 import modin.pandas as pd
 from pyarrow import csv
 from ray.data import read_datasource
-from ray.data.datasource import FastFileMetadataProvider
+from awswrangler.distributed.ray._compat import FastFileMetadataProvider
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import (
