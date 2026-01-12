@@ -17,7 +17,6 @@ from typing import (
     Callable,
     Iterator,
     Literal,
-    Optional,
 )
 
 import numpy as np
@@ -314,8 +313,8 @@ class ArrowParquetDatasource(Datasource):
     def get_read_tasks(
         self,
         parallelism: int,
-        per_task_row_limit: Optional[int] = None,
-        data_context: Optional["DataContext"] = None,
+        per_task_row_limit: int | None = None,
+        data_context: "DataContext" | None = None,
     ) -> list[ReadTask]:
         """Override the base class FileBasedDatasource.get_read_tasks().
 
