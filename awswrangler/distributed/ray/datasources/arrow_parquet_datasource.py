@@ -17,6 +17,7 @@ from typing import (
     Callable,
     Iterator,
     Literal,
+    Optional,
 )
 
 import numpy as np
@@ -310,7 +311,12 @@ class ArrowParquetDatasource(Datasource):
             total_size += file_metadata.total_byte_size
         return total_size * self._encoding_ratio  # type: ignore[return-value]
 
-    def get_read_tasks(self, parallelism: int) -> list[ReadTask]:
+    def get_read_tasks(
+        self,
+        parallelism: int,
+        per_task_row_limit: Optional[int] = None,
+        data_context: Optional["DataContext"] = None,
+    ) -> list[ReadTask]:
         """Override the base class FileBasedDatasource.get_read_tasks().
 
         Required in order to leverage pyarrow's ParquetDataset abstraction,

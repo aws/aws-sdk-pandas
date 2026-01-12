@@ -154,7 +154,7 @@ def _get_last_query_infos(
         new_execution_data: list[QueryExecutionTypeDef] = []
         for i in range(0, len(uncached_ids), page_size):
             new_execution_data.extend(
-                client_athena.batch_get_query_execution(  # type: ignore[arg-type]
+                client_athena.batch_get_query_execution(
                     QueryExecutionIds=uncached_ids[i : i + page_size],
                 ).get("QueryExecutions")
             )
