@@ -325,7 +325,7 @@ class ArrowParquetDatasource(Datasource):
         if len(pq_metadata) < len(self._pq_fragments):
             # Pad `pq_metadata` to be same length of `self._pq_fragments`.
             # This can happen when no file metadata being prefetched.
-            pq_metadata += [None] * (len(self._pq_fragments) - len(pq_metadata))  # type: ignore[list-item]
+            pq_metadata += [None] * (len(self._pq_fragments) - len(pq_metadata))
 
         if self._file_metadata_shuffler is not None:
             files_metadata = list(zip(self._pq_fragments, self._pq_paths, pq_metadata))
