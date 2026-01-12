@@ -546,7 +546,7 @@ requires-dist = [
     { name = "pyarrow", specifier = ">=8.0.0,<23.0.0" },
     { name = "pymysql", marker = "extra == 'mysql'", specifier = ">=1.0.0,<2" },
     { name = "pyodbc", marker = "extra == 'sqlserver'", specifier = ">=4,<6" },
-    { name = "ray", extras = ["default", "data"], marker = "extra == 'ray'", specifier = ">=2.49.0,<3" },
+    { name = "ray", extras = ["default", "data"], marker = "extra == 'ray'", specifier = ">=2.53.0,<3" },
     { name = "redshift-connector", marker = "extra == 'redshift'", specifier = ">=2.0.0,<3" },
     { name = "requests", marker = "extra == 'gremlin'", specifier = ">=2.0.0,<3" },
     { name = "requests", marker = "extra == 'opencypher'", specifier = ">=2.0.0,<3" },

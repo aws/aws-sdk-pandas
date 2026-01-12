@@ -10,7 +10,7 @@ from pyarrow import csv
 from ray.data import read_datasource
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray._compat import FastFileMetadataProvider
+from ray.data.datasource.file_meta_provider import FastFileMetadataProvider
 from awswrangler.distributed.ray.datasources import (
     ArrowCSVDatasource,
     ArrowJSONDatasource,

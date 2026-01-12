@@ -10,7 +10,7 @@ import pyarrow as pa
 from ray.data import read_datasource
 
 from awswrangler import _data_types
-from awswrangler.distributed.ray._compat import FastFileMetadataProvider
+from ray.data.datasource.file_meta_provider import FastFileMetadataProvider
 from awswrangler.distributed.ray.datasources import ArrowORCDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
 

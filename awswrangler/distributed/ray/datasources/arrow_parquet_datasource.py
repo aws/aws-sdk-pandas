@@ -33,7 +33,7 @@ from ray.data.context import DataContext
 from ray.data.datasource import Datasource
 from ray.data.datasource.datasource import ReadTask
 from ray.data.datasource.file_meta_provider import (
-    DefaultFileMetadataProvider,
+    FileMetadataProvider,
     _handle_read_os_error,
 )
 from ray.data.datasource.partitioning import PathPartitionFilter
@@ -45,7 +45,7 @@ from ray.util.annotations import PublicAPI
 
 from awswrangler import exceptions
 from awswrangler._arrow import _add_table_partitions
-from awswrangler.distributed.ray._compat import ParquetMetadataProvider
+
 
 if TYPE_CHECKING:
     import pyarrow
@@ -184,7 +184,7 @@ class ArrowParquetDatasource(Datasource):
         arrow_parquet_args: dict[str, Any] | None = None,
         _block_udf: Callable[[Block], Block] | None = None,
         filesystem: "pyarrow.fs.FileSystem" | None = None,
-        meta_provider: ParquetMetadataProvider = ParquetMetadataProvider(),
+        meta_provider: FileMetadataProvider = FileMetadataProvider(),
         partition_filter: PathPartitionFilter | None = None,
         shuffle: Literal["files"] | None = None,
         include_paths: bool = False,
@@ -216,7 +216,7 @@ class ArrowParquetDatasource(Datasource):
         # files. To avoid this, we expand the input paths with the default metadata
         # provider and then apply the partition filter or file extensions.
         if partition_filter is not None or file_extensions is not None:
-            default_meta_provider = DefaultFileMetadataProvider()
+            default_meta_provider = FileMetadataProvider()
             expanded_paths, _ = map(list, zip(*default_meta_provider.expand_paths(paths, filesystem)))
 
             paths = list(expanded_paths)
