@@ -36,7 +36,6 @@ from ray.data.datasource.file_meta_provider import (
     DefaultFileMetadataProvider,
     _handle_read_os_error,
 )
-from awswrangler.distributed.ray._compat import ParquetMetadataProvider
 from ray.data.datasource.partitioning import PathPartitionFilter
 from ray.data.datasource.path_util import (
     _has_file_extension,
@@ -46,6 +45,7 @@ from ray.util.annotations import PublicAPI
 
 from awswrangler import exceptions
 from awswrangler._arrow import _add_table_partitions
+from awswrangler.distributed.ray._compat import ParquetMetadataProvider
 
 if TYPE_CHECKING:
     import pyarrow
