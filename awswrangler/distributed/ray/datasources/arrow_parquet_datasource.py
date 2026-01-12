@@ -44,7 +44,6 @@ from ray.data.datasource.path_util import (
 )
 from ray.util.annotations import PublicAPI
 
-from awswrangler import exceptions
 from awswrangler._arrow import _add_table_partitions
 
 if TYPE_CHECKING:
@@ -176,7 +175,7 @@ class ArrowParquetDatasource(Datasource):
     cost of some potential performance and/or compatibility penalties.
     """
 
-    def __init__(  # noqa: PLR0912,PLR0915
+    def __init__(  # noqa: PLR0915
         self,
         paths: str | list[str],
         path_root: str,
