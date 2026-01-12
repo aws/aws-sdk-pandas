@@ -33,6 +33,7 @@ from ray.data.context import DataContext
 from ray.data.datasource import Datasource
 from ray.data.datasource.datasource import ReadTask
 from ray.data.datasource.file_meta_provider import (
+    DefaultFileMetadataProvider,
     FileMetadataProvider,
     _handle_read_os_error,
 )
@@ -215,7 +216,7 @@ class ArrowParquetDatasource(Datasource):
         # files. To avoid this, we expand the input paths with the default metadata
         # provider and then apply the partition filter or file extensions.
         if partition_filter is not None or file_extensions is not None:
-            default_meta_provider = FileMetadataProvider()
+            default_meta_provider = DefaultFileMetadataProvider()
             expanded_paths, _ = map(list, zip(*default_meta_provider.expand_paths(paths, filesystem)))
 
             paths = list(expanded_paths)
@@ -263,18 +264,6 @@ class ArrowParquetDatasource(Datasource):
                 inferred_schema = schema
         else:
             inferred_schema = schema
-
-        try:
-            prefetch_remote_args = {}
-            if self._local_scheduling:
-                prefetch_remote_args["scheduling_strategy"] = self._local_scheduling
-            self._metadata = meta_provider.prefetch_file_metadata(pq_ds.fragments, **prefetch_remote_args) or []
-        except OSError as e:
-            _handle_read_os_error(e, paths)
-        except pa.ArrowInvalid as ex:
-            if "Parquet file size is 0 bytes" in str(ex):
-                raise exceptions.InvalidFile(f"Invalid Parquet file. {str(ex)}")
-            raise
 
         # NOTE: Store the custom serialized `ParquetFileFragment` to avoid unexpected
         # network calls when `_ParquetDatasourceReader` is serialized. See
