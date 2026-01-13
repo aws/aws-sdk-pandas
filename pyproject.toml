@@ -3,7 +3,7 @@ name = "awswrangler"
 version = "3.15.0"
 description = "Pandas on AWS."
 authors = [{ name = "Amazon Web Services" }]
-requires-python = ">=3.9, <4.0"
+requires-python = ">=3.10, <4.0"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE.txt", "NOTICE.txt" ]
@@ -12,7 +12,6 @@ keywords = [
     "aws",
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
