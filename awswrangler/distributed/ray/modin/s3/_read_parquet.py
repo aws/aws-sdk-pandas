@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING, Any
 import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource
-from ray.data.datasource import FastFileMetadataProvider
+from ray.data._internal.datasource.parquet_datasource import ParquetDatasource
+from ray.data.datasource.file_meta_provider import FastFileMetadataProvider
 
-from awswrangler.distributed.ray.datasources import ArrowParquetBaseDatasource, ArrowParquetDatasource
+from awswrangler.distributed.ray.datasources import ArrowParquetBaseDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
 
 if TYPE_CHECKING:
@@ -22,9 +23,13 @@ def _resolve_datasource_parameters(bulk_read: bool, *args: Any, **kwargs: Any) -
             "datasource": ArrowParquetBaseDatasource(*args, **kwargs),
             "meta_provider": FastFileMetadataProvider(),
         }
-    return {
-        "datasource": ArrowParquetDatasource(*args, **kwargs),
-    }
+    else:
+        kwargs.pop("path_root")
+        kwargs.pop("use_threads")
+
+        return {
+            "datasource": ParquetDatasource(*args, **kwargs),
+        }
 
 
 def _read_parquet_distributed(
@@ -53,12 +58,10 @@ def _read_parquet_distributed(
             bulk_read,
             paths=paths,
             path_root=path_root,
-            arrow_parquet_args={
-                "use_threads": use_threads,
-                "schema": schema,
-                "columns": columns,
-                "dataset_kwargs": dataset_kwargs,
-            },
+            schema=schema,
+            columns=columns,
+            dataset_kwargs=dataset_kwargs,
+            use_threads=use_threads,
         ),
         override_num_blocks=override_num_blocks,
     )

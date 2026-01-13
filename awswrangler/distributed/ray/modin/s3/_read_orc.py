@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource
-from ray.data.datasource import FastFileMetadataProvider
+from ray.data.datasource.file_meta_provider import FastFileMetadataProvider
 
 from awswrangler import _data_types
 from awswrangler.distributed.ray.datasources import ArrowORCDatasource

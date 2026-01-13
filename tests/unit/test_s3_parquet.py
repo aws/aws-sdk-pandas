@@ -694,7 +694,7 @@ def test_timezone_raw_values(path):
         pytest.param(
             ["a", "b"],
             marks=pytest.mark.xfail(
-                reason="Empty file cannot be read by Ray", raises=AssertionError, condition=is_ray_modin
+                reason="Empty file cannot be read by Ray", raises=(IndexError, AssertionError), condition=is_ray_modin
             ),
         ),
     ],
@@ -739,6 +739,11 @@ def test_parquet_compression(path, compression) -> None:
     assert_pandas_equals(df, df2)
 
 
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=pa.lib.ArrowInvalid,
+    reason="Regression with Ray ParquetDatasource failing to fetch metadata from an empty file",
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize(
     "schema", [None, pa.schema([pa.field("c0", pa.int64()), pa.field("c1", pa.int64()), pa.field("par", pa.string())])]
@@ -784,7 +789,7 @@ def test_ignore_files(path: str, use_threads: bool | int) -> None:
 
 @pytest.mark.xfail(
     is_ray_modin,
-    raises=AssertionError,
+    raises=(IndexError, AssertionError),
     reason=(
         "Ray currently ignores empty blocks when fetching dataset schema:"
         "(ExecutionPlan)[https://github.com/ray-project/ray/blob/ray-2.0.1/python/ray/data/_internal/plan.py#L253]"
