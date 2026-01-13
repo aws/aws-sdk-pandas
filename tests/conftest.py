@@ -510,7 +510,7 @@ def cleanrooms_results_bucket(bucket):
     try:
         boto3.client("s3").create_bucket(Bucket=results_bucket)
         print(f"Created Clean Rooms results bucket: {results_bucket}")
-    except Exception as e:
+    except Exception:
         pass
 
     return results_bucket
