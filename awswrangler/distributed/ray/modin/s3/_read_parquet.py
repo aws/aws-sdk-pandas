@@ -23,9 +23,13 @@ def _resolve_datasource_parameters(bulk_read: bool, *args: Any, **kwargs: Any) -
             "datasource": ArrowParquetBaseDatasource(*args, **kwargs),
             "meta_provider": FastFileMetadataProvider(),
         }
-    return {
-        "datasource": ParquetDatasource(*args, **kwargs),
-    }
+    else:
+        kwargs.pop("path_root")
+        kwargs.pop("use_threads")
+
+        return {
+            "datasource": ParquetDatasource(*args, **kwargs),
+        }
 
 
 def _read_parquet_distributed(
@@ -53,9 +57,11 @@ def _read_parquet_distributed(
         **_resolve_datasource_parameters(
             bulk_read,
             paths=paths,
+            path_root=path_root,
             schema=schema,
             columns=columns,
             dataset_kwargs=dataset_kwargs,
+            use_threads=use_threads,
         ),
         override_num_blocks=override_num_blocks,
     )

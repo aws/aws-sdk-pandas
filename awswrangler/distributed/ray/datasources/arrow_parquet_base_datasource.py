@@ -22,31 +22,31 @@ class ArrowParquetBaseDatasource(FileBasedDatasource):
         self,
         paths: str | list[str],
         path_root: str,
-        arrow_parquet_args: dict[str, Any] | None = None,
+        schema: pa.schema | None,
+        columns: list[str] | None = None,
+        use_threads: bool | int = False,
+        dataset_kwargs: dict[str, Any] | None = None,
         **file_based_datasource_kwargs: Any,
     ):
         super().__init__(paths, **file_based_datasource_kwargs)
 
-        if arrow_parquet_args is None:
-            arrow_parquet_args = {}
+        if dataset_kwargs is None:
+            dataset_kwargs = {}
 
         self.path_root = path_root
-        self.arrow_parquet_args = arrow_parquet_args
+        self.schema = schema
+        self.columns = columns
+        self.use_threads = use_threads
+        self.dataset_kwargs = dataset_kwargs
 
     def _read_stream(self, f: pa.NativeFile, path: str) -> Iterator[pa.Table]:
-        arrow_parquet_args = self.arrow_parquet_args
-
-        use_threads: bool = arrow_parquet_args.get("use_threads", False)
-        columns: list[str] | None = arrow_parquet_args.get("columns", None)
-
-        dataset_kwargs = arrow_parquet_args.get("dataset_kwargs", {})
-        coerce_int96_timestamp_unit: str | None = dataset_kwargs.get("coerce_int96_timestamp_unit", None)
-        decryption_properties = dataset_kwargs.get("decryption_properties", None)
+        coerce_int96_timestamp_unit: str | None = self.dataset_kwargs.get("coerce_int96_timestamp_unit", None)
+        decryption_properties = self.dataset_kwargs.get("decryption_properties", None)
 
         table = pq.read_table(
             f,
-            use_threads=use_threads,
-            columns=columns,
+            use_threads=self.use_threads,
+            columns=self.columns,
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
             decryption_properties=decryption_properties,
         )
