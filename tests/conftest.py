@@ -502,6 +502,20 @@ def cleanrooms_glue_database_name(cloudformation_outputs):
     return cloudformation_outputs["CleanRoomsGlueDatabaseName"]
 
 
+@pytest.fixture(scope="session")
+def cleanrooms_results_bucket(bucket):
+    """Bucket for Clean Rooms query results to avoid ValidationException."""
+    results_bucket = f"{bucket[:43]}-cleanrooms-results"
+
+    try:
+        boto3.client("s3").create_bucket(Bucket=results_bucket)
+        print(f"Created Clean Rooms results bucket: {results_bucket}")
+    except Exception as e:
+        pass
+
+    return results_bucket
+
+
 @pytest.fixture(scope="function")
 def local_filename() -> Iterator[str]:
     filename = os.path.join(".", f"{get_time_str_with_random_suffix()}.data")

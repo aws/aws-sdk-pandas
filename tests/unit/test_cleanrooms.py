@@ -64,7 +64,7 @@ def test_read_sql_query(
     data: None,
     cleanrooms_membership_id: str,
     cleanrooms_analysis_template_arn: str,
-    bucket: str,
+    cleanrooms_results_bucket: str,
 ):
     sql = """SELECT city, AVG(p.sale_value)
     FROM users u
@@ -75,7 +75,7 @@ def test_read_sql_query(
     df_chunked = wr.cleanrooms.read_sql_query(
         sql=sql,
         membership_id=cleanrooms_membership_id,
-        output_bucket=bucket,
+        output_bucket=cleanrooms_results_bucket,
         output_prefix="results",
         chunksize=chunksize,
         keep_files=False,
@@ -91,7 +91,7 @@ def test_read_sql_query(
     df = wr.cleanrooms.read_sql_query(
         sql=sql,
         membership_id=cleanrooms_membership_id,
-        output_bucket=bucket,
+        output_bucket=cleanrooms_results_bucket,
         output_prefix="results",
         keep_files=False,
     )
@@ -101,7 +101,7 @@ def test_read_sql_query(
         analysis_template_arn=cleanrooms_analysis_template_arn,
         params={"param1": "C"},
         membership_id=cleanrooms_membership_id,
-        output_bucket=bucket,
+        output_bucket=cleanrooms_results_bucket,
         output_prefix="results",
         keep_files=False,
     )
