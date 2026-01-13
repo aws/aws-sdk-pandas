@@ -3,8 +3,6 @@ import pytest
 import awswrangler as wr
 import awswrangler.pandas as pd
 
-from .._utils import is_ray_modin
-
 pytestmark = pytest.mark.distributed
 
 
