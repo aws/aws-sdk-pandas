@@ -739,6 +739,11 @@ def test_parquet_compression(path, compression) -> None:
     assert_pandas_equals(df, df2)
 
 
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=pa.lib.ArrowInvalid,
+    reason="Regression with Ray ParquetDatasource failing to fetch metadata from an empty file",
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize(
     "schema", [None, pa.schema([pa.field("c0", pa.int64()), pa.field("c1", pa.int64()), pa.field("par", pa.string())])]
