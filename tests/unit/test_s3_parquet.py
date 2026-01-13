@@ -694,7 +694,7 @@ def test_timezone_raw_values(path):
         pytest.param(
             ["a", "b"],
             marks=pytest.mark.xfail(
-                reason="Empty file cannot be read by Ray", raises=AssertionError, condition=is_ray_modin
+                reason="Empty file cannot be read by Ray", raises=(IndexError, AssertionError), condition=is_ray_modin
             ),
         ),
     ],
@@ -789,7 +789,7 @@ def test_ignore_files(path: str, use_threads: bool | int) -> None:
 
 @pytest.mark.xfail(
     is_ray_modin,
-    raises=AssertionError,
+    raises=(IndexError, AssertionError),
     reason=(
         "Ray currently ignores empty blocks when fetching dataset schema:"
         "(ExecutionPlan)[https://github.com/ray-project/ray/blob/ray-2.0.1/python/ray/data/_internal/plan.py#L253]"
