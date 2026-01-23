@@ -3,5 +3,5 @@ set -ex
 
 pushd ..
 rm -rf dist/*.whl
-uv build --wheel
+uv build --wheel --sdist
 uv publish dist/*.whl
