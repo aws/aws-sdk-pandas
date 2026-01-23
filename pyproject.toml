@@ -67,7 +67,7 @@ Documentation = "https://aws-sdk-pandas.readthedocs.io/"
 dev = [
     "pip",
     "setuptools",
-    "wheel>=0.45.1,<0.46",
+    "wheel>=0.45.1,<=0.46.3",
     "msgpack",
     "boto3-stubs[athena, cleanrooms, chime, cloudwatch, dynamodb, ec2, emr, emr-serverless, glue, kms, logs, neptune, opensearch, opensearchserverless, quicksight, rds, rds-data, redshift, redshift-data, s3, secretsmanager, ssm, sts, timestream-query, timestream-write]>=1.36.2,<2",
     "doc8~=1.1",
