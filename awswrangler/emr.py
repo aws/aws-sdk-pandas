@@ -297,29 +297,42 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
     # if pars["bootstraps_paths"]:
     #     args["BootstrapActions"] = [{"Name": x, "ScriptBootstrapAction": {"Path": x}} for x in pars["bootstraps_paths"]]
 
-    # Backward compatibility: if user uses old bootstraps_paths parameter
-    if pars.get("bootstraps") is None and pars["bootstraps_paths"]:
-        pars["bootstraps"] = pars["bootstraps_paths"]
+    bootstraps = pars.get("bootstraps")
+    bootstraps_paths = pars.get("bootstraps_paths")
 
-    if pars.get("bootstraps"):
+    # Backward compatibility
+    if bootstraps is None and bootstraps_paths:
+        bootstraps = bootstraps_paths
+
+    if bootstraps:
         bootstrap_actions = []
 
-        for item in pars["bootstraps"]:
-            # Case 1: user passed a simple S3 path string
+        for item in bootstraps:
+            # Case 1: Simple string path
             if isinstance(item, str):
                 bootstrap_actions.append(
                     {
-                        "Name": item,
+                        "Name": "bootstrap",
                         "ScriptBootstrapAction": {
                             "Path": item,
                         },
                     }
                 )
 
-            # Case 2: user passed full bootstrap config dict
+            # Case 2: Dictionary bootstrap action
             elif isinstance(item, dict):
+                # Already in EMR expected format
+                if "ScriptBootstrapAction" in item:
+                    bootstrap_actions.append(item)
+                    continue
+
+                # New simplified format
                 name = item.get("name", "bootstrap")
-                path = item["path"]
+                path = item.get("path")
+
+                if path is None:
+                    raise ValueError("Bootstrap dict must include a 'path' key.")
+
                 args_list = item.get("args", [])
 
                 bootstrap_actions.append(
@@ -333,11 +346,9 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
                 )
 
             else:
-                raise TypeError(
-                    "Each bootstrap must be either a string path or a dict with keys: {'name', 'path', 'args'}."
-                )
+                raise TypeError("Each bootstrap must be a string or a dict.")
 
-        args["BootstrapActions"] = bootstrap_actions
+                args["BootstrapActions"] = bootstrap_actions
 
     # Debugging and Steps
     if (pars["debugging"] is True) or (pars["steps"] is not None):
