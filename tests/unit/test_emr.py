@@ -185,3 +185,33 @@ def test_docker(bucket, cloudformation_outputs, emr_security_configuration):
 )
 def test_get_emr_integer_version(version, result):
     assert wr.emr._get_emr_classification_lib(version) == result
+
+
+def test_create_cluster_bootstrap_with_args():
+    cluster = wr.emr.create_cluster(
+        cluster_name="test",
+        bootstraps=[
+            {
+                "name": "cw agent",
+                "path": "s3://bucket/install.sh",
+                "args": ["--target-account", "121213"],
+            }
+        ],
+    )
+
+    action = cluster["BootstrapActions"][0]
+
+    assert action["Name"] == "cw agent"
+    assert action["ScriptBootstrapAction"]["Path"] == "s3://bucket/install.sh"
+    assert action["ScriptBootstrapAction"]["Args"] == ["--target-account", "121213"]
+
+
+def test_create_cluster_bootstrap_paths_still_work():
+    cluster = wr.emr.create_cluster(
+        cluster_name="test",
+        bootstraps_paths=["s3://bucket/old.sh"],
+    )
+
+    action = cluster["BootstrapActions"][0]
+
+    assert action["ScriptBootstrapAction"]["Path"] == "s3://bucket/old.sh"

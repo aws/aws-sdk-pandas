@@ -294,8 +294,49 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
         args["Applications"] = [{"Name": x} for x in pars["applications"]]
 
     # Bootstraps
-    if pars["bootstraps_paths"]:
-        args["BootstrapActions"] = [{"Name": x, "ScriptBootstrapAction": {"Path": x}} for x in pars["bootstraps_paths"]]
+    # if pars["bootstraps_paths"]:
+    #     args["BootstrapActions"] = [{"Name": x, "ScriptBootstrapAction": {"Path": x}} for x in pars["bootstraps_paths"]]
+    
+    # Backward compatibility: if user uses old bootstraps_paths parameter
+    if pars.get("bootstraps") is None and pars["bootstraps_paths"]:
+        pars["bootstraps"] = pars["bootstraps_paths"]
+
+    if pars.get("bootstraps"):
+        bootstrap_actions = []
+
+        for item in pars["bootstraps"]:
+
+            # Case 1: user passed a simple S3 path string
+            if isinstance(item, str):
+                bootstrap_actions.append(
+                    {
+                        "Name": item,
+                        "ScriptBootstrapAction": {
+                            "Path": item,
+                        },
+                    }
+                )
+
+            # Case 2: user passed full bootstrap config dict
+            elif isinstance(item, dict):
+                bootstrap_actions.append(
+                    {
+                        "Name": item.get("name", "bootstrap"),
+                        "ScriptBootstrapAction": {
+                            "Path": item["path"],
+                            "Args": item.get("args", []),
+                        },
+                    }
+                )
+
+            else:
+                raise TypeError(
+                    "Each bootstrap must be either a string path or a dict with keys: "
+                    "{'name', 'path', 'args'}."
+                )
+
+        args["BootstrapActions"] = bootstrap_actions
+
 
     # Debugging and Steps
     if (pars["debugging"] is True) or (pars["steps"] is not None):
@@ -470,6 +511,7 @@ def create_cluster(  # noqa: PLR0913
     consistent_view_retry_count: int = 5,
     consistent_view_table_name: str = "EmrFSMetadata",
     bootstraps_paths: list[str] | None = None,
+    bootstraps: list[str | dict] | None = None,
     debugging: bool = True,
     applications: list[str] | None = None,
     visible_to_all_users: bool = True,
