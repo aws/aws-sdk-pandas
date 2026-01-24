@@ -189,17 +189,16 @@ def test_get_emr_integer_version(version, result):
 
 def test_create_cluster_bootstrap_with_args():
     cluster = wr.emr.create_cluster(
-    cluster_name="test",
-    subnet_id="subnet-12345678",
-    bootstraps=[
-        {
-            "name": "cw agent",
-            "path": "s3://bucket/install.sh",
-            "args": ["--target-account", "121213"],
-        }
-    ],
-)
-
+        cluster_name="test",
+        subnet_id="subnet-12345678",
+        bootstraps=[
+            {
+                "name": "cw agent",
+                "path": "s3://bucket/install.sh",
+                "args": ["--target-account", "121213"],
+            }
+        ],
+    )
 
     action = cluster["BootstrapActions"][0]
 
@@ -210,11 +209,10 @@ def test_create_cluster_bootstrap_with_args():
 
 def test_create_cluster_bootstrap_paths_still_work():
     cluster = wr.emr.create_cluster(
-    cluster_name="test",
-    subnet_id="subnet-12345678",
-    bootstraps_paths=["s3://bucket/old.sh"],
-)
-
+        cluster_name="test",
+        subnet_id="subnet-12345678",
+        bootstraps_paths=["s3://bucket/old.sh"],
+    )
 
     action = cluster["BootstrapActions"][0]
 
