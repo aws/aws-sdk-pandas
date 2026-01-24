@@ -801,8 +801,10 @@ def create_cluster(  # noqa: PLR0913
     args: dict[str, Any] = _build_cluster_args(**locals())
     client_emr = _utils.client(service_name="emr", session=boto3_session)
     response = client_emr.run_job_flow(**args)
-    _logger.debug("response: \n%s", pprint.pformat(response))
-    return response["JobFlowId"]
+    # Add returned JobFlowId into cluster definition
+    args["JobFlowId"] = response["JobFlowId"]
+
+    return args
 
 
 def get_cluster_state(cluster_id: str, boto3_session: boto3.Session | None = None) -> str:
