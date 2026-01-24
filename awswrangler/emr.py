@@ -318,6 +318,7 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
 
             # Case 2: user passed full bootstrap config dict
             elif isinstance(item, dict):
+                item = dict(item)  # helps mypy infer correctly
                 bootstrap_actions.append(
                     {
                         "Name": item.get("name", "bootstrap"),
@@ -508,7 +509,7 @@ def create_cluster(  # noqa: PLR0913
     consistent_view_retry_count: int = 5,
     consistent_view_table_name: str = "EmrFSMetadata",
     bootstraps_paths: list[str] | None = None,
-    bootstraps: list[str | dict] | None = None,
+    bootstraps: list[str | dict[str, Any]] | None = None,
     debugging: bool = True,
     applications: list[str] | None = None,
     visible_to_all_users: bool = True,
