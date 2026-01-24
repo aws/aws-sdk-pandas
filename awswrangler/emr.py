@@ -318,13 +318,16 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
 
             # Case 2: user passed full bootstrap config dict
             elif isinstance(item, dict):
-                item = dict(item)  # helps mypy infer correctly
+                name = item.get("name", "bootstrap")
+                path = item["path"]
+                args_list = item.get("args", [])
+
                 bootstrap_actions.append(
                     {
-                        "Name": item.get("name", "bootstrap"),
+                        "Name": name,
                         "ScriptBootstrapAction": {
-                            "Path": item["path"],
-                            "Args": item.get("args", []),
+                            "Path": path,
+                            "Args": args_list,
                         },
                     }
                 )
