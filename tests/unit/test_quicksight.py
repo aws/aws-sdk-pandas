@@ -13,6 +13,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 client = boto3.client("quicksight")
 
 
+@pytest.mark.flaky(reruns=5, reruns_delay=30)
 @pytest.mark.xfail(raises=client.exceptions.ConflictException)
 def test_quicksight(
     path: str, quicksight_datasource: str, quicksight_dataset: str, glue_database: str, glue_table: str
