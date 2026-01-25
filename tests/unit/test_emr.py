@@ -187,33 +187,43 @@ def test_get_emr_integer_version(version, result):
     assert wr.emr._get_emr_classification_lib(version) == result
 
 
+from unittest.mock import patch
+
 def test_create_cluster_bootstrap_with_args():
-    cluster = wr.emr.create_cluster(
-        cluster_name="test",
-        subnet_id="subnet-12345678",
-        bootstraps=[
-            {
-                "name": "cw agent",
-                "path": "s3://bucket/install.sh",
-                "args": ["--target-account", "121213"],
-            }
-        ],
-    )
+    with patch("boto3.client") as mock_client:
+        wr.emr.create_cluster(
+            cluster_name="test",
+            subnet_id="subnet-12345678",
+            bootstraps=[
+                {
+                    "name": "cw agent",
+                    "path": "s3://bucket/install.sh",
+                    "args": ["--target-account", "121213"],
+                }
+            ],
+        )
 
-    action = cluster["BootstrapActions"][0]
+        # Extract args passed to boto3
+        args = mock_client.return_value.run_job_flow.call_args[1]
 
-    assert action["Name"] == "cw agent"
-    assert action["ScriptBootstrapAction"]["Path"] == "s3://bucket/install.sh"
-    assert action["ScriptBootstrapAction"]["Args"] == ["--target-account", "121213"]
+        action = args["BootstrapActions"][0]
+
+        assert action["Name"] == "cw agent"
+        assert action["ScriptBootstrapAction"]["Path"] == "s3://bucket/install.sh"
+        assert action["ScriptBootstrapAction"]["Args"] == ["--target-account", "121213"]
+
 
 
 def test_create_cluster_bootstrap_paths_still_work():
-    cluster = wr.emr.create_cluster(
-        cluster_name="test",
-        subnet_id="subnet-12345678",
-        bootstraps_paths=["s3://bucket/old.sh"],
-    )
+    with patch("boto3.client") as mock_client:
+        wr.emr.create_cluster(
+            cluster_name="test",
+            subnet_id="subnet-12345678",
+            bootstraps_paths=["s3://bucket/old.sh"],
+        )
 
-    action = cluster["BootstrapActions"][0]
+        args = mock_client.return_value.run_job_flow.call_args[1]
+        action = args["BootstrapActions"][0]
 
-    assert action["ScriptBootstrapAction"]["Path"] == "s3://bucket/old.sh"
+        assert action["ScriptBootstrapAction"]["Path"] == "s3://bucket/old.sh"
+
