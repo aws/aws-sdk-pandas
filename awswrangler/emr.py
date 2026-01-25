@@ -345,10 +345,14 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
                     }
                 )
 
-            else:
-                raise TypeError("Each bootstrap must be a string or a dict.")
+        # ✅ THIS WAS MISSING
+        if bootstrap_actions:
+            args["BootstrapActions"] = bootstrap_actions
 
-                args["BootstrapActions"] = bootstrap_actions
+        else:
+            raise TypeError("Each bootstrap must be a string or a dict.")
+
+            args["BootstrapActions"] = bootstrap_actions
 
     # Debugging and Steps
     if (pars["debugging"] is True) or (pars["steps"] is not None):
