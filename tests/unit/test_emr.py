@@ -189,6 +189,7 @@ def test_get_emr_integer_version(version, result):
 
 from unittest.mock import patch
 
+
 def test_create_cluster_bootstrap_with_args():
     with patch("boto3.client") as mock_client:
         wr.emr.create_cluster(
@@ -213,7 +214,6 @@ def test_create_cluster_bootstrap_with_args():
         assert action["ScriptBootstrapAction"]["Args"] == ["--target-account", "121213"]
 
 
-
 def test_create_cluster_bootstrap_paths_still_work():
     with patch("boto3.client") as mock_client:
         wr.emr.create_cluster(
@@ -226,4 +226,3 @@ def test_create_cluster_bootstrap_paths_still_work():
         action = args["BootstrapActions"][0]
 
         assert action["ScriptBootstrapAction"]["Path"] == "s3://bucket/old.sh"
-
