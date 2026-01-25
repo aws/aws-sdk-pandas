@@ -5,6 +5,7 @@ import pytest
 
 import awswrangler as wr
 
+from unittest.mock import patch
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
@@ -187,7 +188,6 @@ def test_get_emr_integer_version(version, result):
     assert wr.emr._get_emr_classification_lib(version) == result
 
 
-from unittest.mock import patch
 
 
 def test_create_cluster_bootstrap_with_args():
