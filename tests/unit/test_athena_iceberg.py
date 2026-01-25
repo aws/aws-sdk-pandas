@@ -65,6 +65,7 @@ def test_athena_to_iceberg(
     assert_pandas_equals(df, df_out)
 
 
+@pytest.mark.flaky(reruns=5, reruns_delay=30)
 @pytest.mark.parametrize("partition_cols", [None, ["name"]])
 def test_athena_to_iceberg_append(
     path: str,

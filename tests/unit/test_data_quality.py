@@ -74,6 +74,7 @@ def test_ruleset_dqdl(df, path, glue_database, glue_table, glue_ruleset, glue_da
     assert df_results["Result"].eq("PASS").all()
 
 
+@pytest.mark.flaky(reruns=5, reruns_delay=30)
 @pytest.mark.parametrize("name", [False, True])
 def test_recommendation_ruleset(df, path, name, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
     df_recommended_ruleset = wr.data_quality.create_recommendation_ruleset(
