@@ -25,7 +25,7 @@ dependencies = [
     "numpy>=1.26,<3.0",
     "pyarrow>=8.0.0,<23.0.0",
     "typing-extensions>=4.4.0,<5",
-    "packaging>=21.1,<26.0",
+    "packaging>=21.1,<27.0",
     "setuptools ; python_version >= '3.12'",
 ]
 
