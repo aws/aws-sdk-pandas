@@ -1117,7 +1117,9 @@ def test_to_iceberg_conditional_merge_happy_path(path: str, path2: str, glue_dat
         ctas_approach=False,
         unload_approach=False,
     )
-    expected = pd.DataFrame({"id": pd.array([1, 2, 3], dtype="Int64"), "val": ["c", "b", "d"]})
+    expected = pd.DataFrame(
+        {"id": pd.array([1, 2, 3], dtype="Int64"), "val": pd.array(["c", "b", "d"], dtype="string")}
+    )
     assert_pandas_equals(expected, df_out.reset_index(drop=True))
 
 
