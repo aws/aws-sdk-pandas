@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from typing import Any, TypedDict, cast
@@ -211,16 +210,10 @@ class NeptuneClient:
 
     def _execute_gremlin(self, query: str, headers: Any = None) -> list[dict[str, Any]]:
         try:
-            # Wrap in async task to satisfy aiohttp 3.12.14+ requirement
-            async def _async_query() -> Any:
-                c = self._get_gremlin_connection(headers)
-                result = c.submit(query)
-                future_results = result.all()
-                return future_results.result()
-
-            loop = asyncio.get_event_loop()
-            task = asyncio.ensure_future(_async_query(), loop=loop)
-            results = loop.run_until_complete(task)
+            c = self._get_gremlin_connection(headers)
+            result = c.submit(query)
+            future_results = result.all()
+            results = future_results.result()
             return GremlinParser.gremlin_results_to_dict(results)
         except Exception as e:
             if isinstance(self.gremlin_connection, gremlin.Client):
