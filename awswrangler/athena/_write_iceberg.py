@@ -416,7 +416,7 @@ def _merge_iceberg(
 
                 # Build action
                 if action == "UPDATE":
-                    update_columns = columns or df.columns.tolist()
+                    update_columns = columns if columns is not None else df.columns.tolist()
                     update_sets = [f'"{col}" = source."{col}"' for col in update_columns]
                     when_part += f" THEN UPDATE SET {', '.join(update_sets)}"
 
@@ -424,7 +424,7 @@ def _merge_iceberg(
                     when_part += " THEN DELETE"
 
                 elif action == "INSERT":
-                    insert_columns = columns or df.columns.tolist()
+                    insert_columns = columns if columns is not None else df.columns.tolist()
                     column_list = ", ".join([f'"{col}"' for col in insert_columns])
                     values_list = ", ".join([f'source."{col}"' for col in insert_columns])
                     when_part += f" THEN INSERT ({column_list}) VALUES ({values_list})"
