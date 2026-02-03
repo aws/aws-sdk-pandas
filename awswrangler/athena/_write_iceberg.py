@@ -269,12 +269,12 @@ def _validate_merge_arguments(
         )
 
     if merge_condition == "conditional_merge":
-            if not merge_conditional_clauses:
-                raise exceptions.InvalidArgumentCombination(
-                    "merge_conditional_clauses must be provided when merge_condition is 'conditional_merge'."
-                )
-            _validate_merge_conditional_clauses(merge_conditional_clauses)
-            
+        if not merge_conditional_clauses:
+            raise exceptions.InvalidArgumentCombination(
+                "merge_conditional_clauses must be provided when merge_condition is 'conditional_merge'."
+            )
+        _validate_merge_conditional_clauses(merge_conditional_clauses)
+
 
 def _validate_merge_conditional_clauses(clauses: list[_MergeClause]) -> None:
     """Validate the structure and ordering of merge conditional clauses."""
@@ -300,7 +300,7 @@ def _validate_merge_conditional_clauses(clauses: list[_MergeClause]) -> None:
                 f"merge_conditional_clauses[{i}]['when'] is MATCHED but appears after a NOT MATCHED clause. "
                 "WHEN MATCHED must come before WHEN NOT MATCHED or WHEN NOT MATCHED BY SOURCE."
             )
-        
+
 
 def _merge_iceberg(
     df: pd.DataFrame,
