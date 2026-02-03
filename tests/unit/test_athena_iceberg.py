@@ -1123,6 +1123,46 @@ def test_to_iceberg_conditional_merge_happy_path(path: str, path2: str, glue_dat
     assert_pandas_equals(expected, df_out.reset_index(drop=True))
 
 
+def test_to_iceberg_conditional_merge_happy_path_allow_lowercase_when_and_action(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame({"id": [1, 2], "val": ["a", "b"]})
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+    df2 = pd.DataFrame({"id": [1, 3], "val": ["c", "d"]})
+    clauses = [
+        {"when": "matched", "action": "update", "columns": ["val"]},
+        {"when": "not matched", "action": "insert"},
+    ]
+    wr.athena.to_iceberg(
+        df=df2,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        merge_cols=["id"],
+        merge_condition="conditional_merge",
+        merge_conditional_clauses=clauses,
+        keep_files=False,
+    )
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+    expected = pd.DataFrame(
+        {"id": pd.array([1, 2, 3], dtype="Int64"), "val": pd.array(["c", "b", "d"], dtype="string")}
+    )
+    assert_pandas_equals(expected, df_out.reset_index(drop=True))
+
+
 def test_athena_iceberg_use_partition_function(
     path: str,
     path2: str,
