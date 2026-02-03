@@ -269,34 +269,38 @@ def _validate_merge_arguments(
         )
 
     if merge_condition == "conditional_merge":
-        if not merge_conditional_clauses:
-            raise exceptions.InvalidArgumentCombination(
-                "merge_conditional_clauses must be provided when merge_condition is 'conditional_merge'."
+            if not merge_conditional_clauses:
+                raise exceptions.InvalidArgumentCombination(
+                    "merge_conditional_clauses must be provided when merge_condition is 'conditional_merge'."
+                )
+            _validate_merge_conditional_clauses(merge_conditional_clauses)
+            
+
+def _validate_merge_conditional_clauses(clauses: list[_MergeClause]) -> None:
+    """Validate the structure and ordering of merge conditional clauses."""
+    seen_not_matched = False
+    for i, clause in enumerate(clauses):
+        if "when" not in clause:
+            raise exceptions.InvalidArgumentValue(f"merge_conditional_clauses[{i}] must contain 'when' field.")
+        if "action" not in clause:
+            raise exceptions.InvalidArgumentValue(f"merge_conditional_clauses[{i}] must contain 'action' field.")
+        if clause["when"].upper() not in ["MATCHED", "NOT MATCHED", "NOT MATCHED BY SOURCE"]:
+            raise exceptions.InvalidArgumentValue(
+                f"merge_conditional_clauses[{i}]['when'] must be one of ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE'] (case-insensitive)."
+            )
+        if clause["action"].upper() not in ["UPDATE", "DELETE", "INSERT"]:
+            raise exceptions.InvalidArgumentValue(
+                f"merge_conditional_clauses[{i}]['action'] must be one of ['UPDATE', 'DELETE', 'INSERT'] (case-insensitive)."
             )
 
-        seen_not_matched = False
-        for i, clause in enumerate(merge_conditional_clauses):
-            if "when" not in clause:
-                raise exceptions.InvalidArgumentValue(f"merge_conditional_clauses[{i}] must contain 'when' field.")
-            if "action" not in clause:
-                raise exceptions.InvalidArgumentValue(f"merge_conditional_clauses[{i}] must contain 'action' field.")
-            if clause["when"] not in ["MATCHED", "NOT MATCHED", "NOT MATCHED BY SOURCE"]:
-                raise exceptions.InvalidArgumentValue(
-                    f"merge_conditional_clauses[{i}]['when'] must be one of ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE']."
-                )
-            if clause["action"] not in ["UPDATE", "DELETE", "INSERT"]:
-                raise exceptions.InvalidArgumentValue(
-                    f"merge_conditional_clauses[{i}]['action'] must be one of ['UPDATE', 'DELETE', 'INSERT']."
-                )
-
-            if clause["when"] in ["NOT MATCHED", "NOT MATCHED BY SOURCE"]:
-                seen_not_matched = True
-            elif clause["when"] == "MATCHED" and seen_not_matched:
-                raise exceptions.InvalidArgumentValue(
-                    f"merge_conditional_clauses[{i}]['when'] is MATCHED but appears after a NOT MATCHED clause. "
-                    "WHEN MATCHED must come before WHEN NOT MATCHED or WHEN NOT MATCHED BY SOURCE."
-                )
-
+        if clause["when"].upper() in ["NOT MATCHED", "NOT MATCHED BY SOURCE"]:
+            seen_not_matched = True
+        elif clause["when"].upper() == "MATCHED" and seen_not_matched:
+            raise exceptions.InvalidArgumentValue(
+                f"merge_conditional_clauses[{i}]['when'] is MATCHED but appears after a NOT MATCHED clause. "
+                "WHEN MATCHED must come before WHEN NOT MATCHED or WHEN NOT MATCHED BY SOURCE."
+            )
+        
 
 def _merge_iceberg(
     df: pd.DataFrame,
@@ -349,9 +353,9 @@ def _merge_iceberg(
     merge_conditional_clauses : List[dict], optional
         List of dictionaries specifying custom conditional clauses for the MERGE statement.
         Each dictionary should have:
-            - 'when': One of ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE']
+            - 'when': One of ['MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE'] (case-insensitive)
             - 'condition': (optional) Additional SQL condition for the clause
-            - 'action': One of ['UPDATE', 'DELETE', 'INSERT']
+            - 'action': One of ['UPDATE', 'DELETE', 'INSERT'] (case-insensitive)
             - 'columns': (optional) List of columns to update or insert
         Used only when merge_condition is 'conditional_merge'.
     merge_match_nulls: bool, optional
