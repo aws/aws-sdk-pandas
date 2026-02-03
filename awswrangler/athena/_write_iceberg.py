@@ -438,6 +438,7 @@ def _merge_iceberg(
             ON {on_condition}
             {joined_clauses}
         """
+
     else:
         sql_statement = f"""
         INSERT INTO "{database}"."{table}" ({", ".join([f'"{x}"' for x in df.columns])})
