@@ -408,8 +408,8 @@ def _merge_iceberg(
 
         elif merge_condition == "conditional_merge" and merge_conditional_clauses is not None:
             for clause in merge_conditional_clauses:
-                when_type = clause["when"]
-                action = clause["action"]
+                when_type = clause["when"].upper()
+                action = clause["action"].upper()
                 condition = clause.get("condition")
                 columns = clause.get("columns")
 
