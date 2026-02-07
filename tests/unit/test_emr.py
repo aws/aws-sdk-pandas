@@ -1,5 +1,6 @@
 import logging
 import time
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -185,3 +186,54 @@ def test_docker(bucket, cloudformation_outputs, emr_security_configuration):
 )
 def test_get_emr_integer_version(version, result):
     assert wr.emr._get_emr_classification_lib(version) == result
+
+
+def test_create_cluster_bootstrap_with_args():
+    fake_emr_client = MagicMock()
+    fake_emr_client.run_job_flow.return_value = {"JobFlowId": "j-123"}
+
+    with patch("awswrangler.sts.get_account_id", return_value="123456789012"):
+        with patch("awswrangler._utils.get_region_from_session", return_value="us-east-1"):
+            with patch("awswrangler._utils.client", return_value=fake_emr_client):
+                wr.emr.create_cluster(
+                    cluster_name="test",
+                    subnet_id="subnet-12345678",
+                    bootstraps=[
+                        {
+                            "name": "cw agent",
+                            "path": "s3://bucket/install.sh",
+                            "args": ["--target-account", "121213"],
+                        }
+                    ],
+                )
+
+                args = fake_emr_client.run_job_flow.call_args[1]
+
+                bootstrap = args["BootstrapActions"][0]
+
+                assert bootstrap["Name"] == "cw agent"
+                assert bootstrap["ScriptBootstrapAction"]["Path"] == "s3://bucket/install.sh"
+                assert bootstrap["ScriptBootstrapAction"]["Args"] == [
+                    "--target-account",
+                    "121213",
+                ]
+
+
+def test_create_cluster_bootstrap_paths_still_work():
+    fake_emr_client = MagicMock()
+    fake_emr_client.run_job_flow.return_value = {"JobFlowId": "j-123"}
+
+    with patch("awswrangler.sts.get_account_id", return_value="123456789012"):
+        with patch("awswrangler._utils.get_region_from_session", return_value="us-east-1"):
+            with patch("awswrangler._utils.client", return_value=fake_emr_client):
+                wr.emr.create_cluster(
+                    cluster_name="test",
+                    subnet_id="subnet-12345678",
+                    bootstraps_paths=["s3://bucket/old.sh"],
+                )
+
+                args = fake_emr_client.run_job_flow.call_args[1]
+
+                bootstrap = args["BootstrapActions"][0]
+
+                assert bootstrap["ScriptBootstrapAction"]["Path"] == "s3://bucket/old.sh"
