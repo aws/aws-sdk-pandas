@@ -120,15 +120,13 @@ def _to_partitions(
         # Keys are either a primitive type or a tuple if partitioning by multiple cols
         keys = (keys,) if not isinstance(keys, tuple) else keys  # noqa: PLW2901
         # Drop partition columns from df
-        subgroup.drop(
+        subgroup = subgroup.drop(
             columns=[col for col in partition_cols if col in subgroup.columns],
-            inplace=True,
         )
         # Drop index levels if partitioning by index columns
-        subgroup.reset_index(
+        subgroup = subgroup.reset_index(
             level=[col for col in partition_cols if col in subgroup.index.names],
             drop=True,
-            inplace=True,
         )
         prefix = _delete_objects(
             keys=keys,

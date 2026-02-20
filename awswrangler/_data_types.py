@@ -12,9 +12,12 @@ from typing import Any, Callable, Iterator, Match, Sequence
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+from packaging import version
 
 from awswrangler import _arrow, exceptions
 from awswrangler._distributed import engine
+
+_PANDAS_GE_3 = version.parse(pd.__version__) >= version.parse("3.0.0")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -339,7 +342,7 @@ def athena2pyarrow(dtype: str, df_type: str | None = None) -> pa.DataType:  # no
         elif df_type == "datetime64[s]":
             return pa.timestamp(unit="s")
         else:
-            return pa.timestamp(unit="ns")
+            return pa.timestamp(unit="us" if _PANDAS_GE_3 else "ns")
     if dtype == "date":
         return pa.date32()
     if dtype in ("binary" or "varbinary"):

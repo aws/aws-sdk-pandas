@@ -575,7 +575,7 @@ def to_sql(
                 primary_keys=primary_keys,
             )
             if index:
-                df.reset_index(level=df.index.names, inplace=True)
+                df = df.reset_index(level=df.index.names)
 
             column_placeholders: str = f"({', '.join([':' + str(i + 1) for i in range(len(df.columns))])})"
             table_identifier = _get_table_identifier(schema, table)

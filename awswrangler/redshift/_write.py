@@ -235,7 +235,7 @@ def to_sql(
                 lock=lock,
             )
             if index:
-                df.reset_index(level=df.index.names, inplace=True)
+                df = df.reset_index(level=df.index.names)
             column_names = [f'"{column}"' for column in df.columns]
             column_placeholders: str = ", ".join(["%s"] * len(column_names))
             schema_str = f'"{created_schema}".' if created_schema else ""

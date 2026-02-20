@@ -29,6 +29,7 @@ from awswrangler._utils import try_it
 
 is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
 is_pandas_2_x = False
+is_pandas_3_x = False
 is_python_3_8_x = sys.version_info.major == 3 and sys.version_info.minor == 8
 
 if is_ray_modin:
@@ -39,6 +40,8 @@ else:
 
     if version.parse(_pd.__version__) >= version.parse("2.0.0"):
         is_pandas_2_x = True
+    if version.parse(_pd.__version__) >= version.parse("3.0.0"):
+        is_pandas_3_x = True
 
 
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
