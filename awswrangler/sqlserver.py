@@ -518,7 +518,7 @@ def to_sql(
                 varchar_lengths=varchar_lengths,
             )
             if index:
-                df.reset_index(level=df.index.names, inplace=True)
+                df = df.reset_index(level=df.index.names)
             column_placeholders: str = ", ".join(["?"] * len(df.columns))
             table_identifier = _get_table_identifier(schema, table)
             column_names = [identifier(col, sql_mode="mssql") for col in df.columns]
