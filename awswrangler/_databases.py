@@ -190,7 +190,7 @@ def _records2df(
             timestamp_as_object=timestamp_as_object,
         )
     if index is not None:
-        df = df.set_index(index)
+        df.set_index(index, inplace=True)
     return df
 
 
