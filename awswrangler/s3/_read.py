@@ -123,7 +123,7 @@ def _concat_union_categoricals(dfs: list[pd.DataFrame], ignore_index: bool) -> p
         cat = union_categoricals([df[col] for df in dfs])
         for df in dfs:
             df[col] = pd.Categorical(df[col].values, categories=cat.categories)
-    return pd.concat(objs=dfs, sort=False, ignore_index=ignore_index)
+    return pd.concat(objs=dfs, sort=False, copy=False, ignore_index=ignore_index)
 
 
 def _check_version_id(paths: list[str], version_id: str | dict[str, str] | None = None) -> dict[str, str] | None:
