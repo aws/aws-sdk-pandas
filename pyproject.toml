@@ -54,6 +54,7 @@ opensearch = [
 openpyxl = ["openpyxl>=3.0.0,<4"]
 progressbar = ["progressbar2>=4.0.0,<5"]
 deltalake = ["deltalake>=0.18.0,<1.4.0"]
+pyiceberg = ["pyiceberg[pyarrow]>=0.7.0,<1"]
 geopandas = ["geopandas>=1.0.0,<2"]
 modin = ["modin>=0.31,<0.38"]
 ray = ["ray[default, data]>=2.53.0,<3"]

@@ -18,8 +18,10 @@ from awswrangler.s3._write_excel import to_excel
 from awswrangler.s3._write_orc import to_orc
 from awswrangler.s3._write_parquet import store_parquet_metadata, to_parquet
 from awswrangler.s3._write_text import to_csv, to_json
+from awswrangler.s3 import tables
 
 __all__ = [
+    "tables",
     "copy_objects",
     "merge_datasets",
     "delete_objects",
