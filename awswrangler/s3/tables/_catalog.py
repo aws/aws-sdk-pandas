@@ -7,7 +7,7 @@ import re
 
 import boto3
 
-from awswrangler import _utils, exceptions
+from awswrangler import exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ def _load_catalog(
     pyiceberg.catalog.rest.RestCatalog
         A configured PyIceberg REST catalog instance.
     """
-    from pyiceberg.catalog.rest import RestCatalog
+    from pyiceberg.catalog.rest import RestCatalog  # noqa: PLC0415
 
     properties = _build_catalog_properties(table_bucket_arn, boto3_session)
     catalog = RestCatalog(name="s3tables", **properties)

@@ -1,5 +1,6 @@
 """Amazon S3 Read Module."""
 
+from awswrangler.s3 import tables
 from awswrangler.s3._copy import copy_objects, merge_datasets
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._describe import describe_objects, get_bucket_region, size_objects
@@ -18,7 +19,6 @@ from awswrangler.s3._write_excel import to_excel
 from awswrangler.s3._write_orc import to_orc
 from awswrangler.s3._write_parquet import store_parquet_metadata, to_parquet
 from awswrangler.s3._write_text import to_csv, to_json
-from awswrangler.s3 import tables
 
 __all__ = [
     "tables",

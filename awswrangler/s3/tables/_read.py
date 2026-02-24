@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
 import boto3
@@ -77,11 +76,10 @@ def from_iceberg(
     ...     table_name="my_table",
     ... )
     """
-    from pyiceberg.exceptions import NoSuchTableError, RESTError
-    from pyiceberg.expressions import AlwaysTrue
-    from pyiceberg.table import StaticTable
+    from pyiceberg.exceptions import NoSuchTableError, RESTError  # noqa: PLC0415
+    from pyiceberg.expressions import AlwaysTrue  # noqa: PLC0415
 
-    from awswrangler.s3.tables._catalog import _load_catalog
+    from awswrangler.s3.tables._catalog import _load_catalog  # noqa: PLC0415
 
     catalog = _load_catalog(table_bucket_arn, boto3_session)
     identifier = f"{namespace}.{table_name}"
@@ -91,8 +89,7 @@ def from_iceberg(
     except RESTError as e:
         if "no_such_bucket" in str(e):
             raise exceptions.InvalidArgumentValue(
-                f"Table bucket not found: {table_bucket_arn}. "
-                "Create it with wr.s3.tables.create_table_bucket()."
+                f"Table bucket not found: {table_bucket_arn}. Create it with wr.s3.tables.create_table_bucket()."
             ) from e
         raise
     except NoSuchTableError as e:

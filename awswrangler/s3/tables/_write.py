@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 import boto3
 import pyarrow as pa
@@ -74,9 +74,9 @@ def to_iceberg(
     ...     table_name="my_table",
     ... )
     """
-    from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError, RESTError
+    from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError, RESTError  # noqa: PLC0415
 
-    from awswrangler.s3.tables._catalog import _load_catalog
+    from awswrangler.s3.tables._catalog import _load_catalog  # noqa: PLC0415
 
     dtype = dtype if dtype else {}
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, index=index, ignore_cols=None, dtype=dtype)
@@ -90,8 +90,7 @@ def to_iceberg(
     except RESTError as e:
         if "no_such_bucket" in str(e):
             raise exceptions.InvalidArgumentValue(
-                f"Table bucket not found: {table_bucket_arn}. "
-                "Create it with wr.s3.tables.create_table_bucket()."
+                f"Table bucket not found: {table_bucket_arn}. Create it with wr.s3.tables.create_table_bucket()."
             ) from e
         raise
     except NoSuchTableError:

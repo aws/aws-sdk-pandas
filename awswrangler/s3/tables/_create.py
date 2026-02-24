@@ -35,7 +35,7 @@ def create_table_bucket(
     >>> arn = wr.s3.tables.create_table_bucket(name="my-table-bucket")
     """
     s3tables_client = _utils.client(service_name="s3tables", session=boto3_session)
-    response = s3tables_client.create_table_bucket(name=name)
+    response = s3tables_client.create_table_bucket(name=name)  # type: ignore[attr-defined]
     arn: str = response["arn"]
     _logger.debug("Created table bucket %s with ARN: %s", name, arn)
     return arn
@@ -71,7 +71,7 @@ def create_namespace(
     ... )
     """
     s3tables_client = _utils.client(service_name="s3tables", session=boto3_session)
-    s3tables_client.create_namespace(
+    s3tables_client.create_namespace(  # type: ignore[attr-defined]
         tableBucketARN=table_bucket_arn,
         namespace=[namespace],
     )
@@ -116,7 +116,7 @@ def create_table(
     ... )
     """
     s3tables_client = _utils.client(service_name="s3tables", session=boto3_session)
-    response = s3tables_client.create_table(
+    response = s3tables_client.create_table(  # type: ignore[attr-defined]
         tableBucketARN=table_bucket_arn,
         namespace=namespace,
         name=table_name,

@@ -32,7 +32,7 @@ def delete_table_bucket(
     ... )
     """
     s3tables_client = _utils.client(service_name="s3tables", session=boto3_session)
-    s3tables_client.delete_table_bucket(tableBucketARN=table_bucket_arn)
+    s3tables_client.delete_table_bucket(tableBucketARN=table_bucket_arn)  # type: ignore[attr-defined]
     _logger.debug("Deleted table bucket %s", table_bucket_arn)
 
 
@@ -61,7 +61,7 @@ def delete_namespace(
     ... )
     """
     s3tables_client = _utils.client(service_name="s3tables", session=boto3_session)
-    s3tables_client.delete_namespace(
+    s3tables_client.delete_namespace(  # type: ignore[attr-defined]
         tableBucketARN=table_bucket_arn,
         namespace=namespace,
     )
@@ -107,5 +107,5 @@ def delete_table(
     }
     if version_token is not None:
         kwargs["versionToken"] = version_token
-    s3tables_client.delete_table(**kwargs)
+    s3tables_client.delete_table(**kwargs)  # type: ignore[attr-defined]
     _logger.debug("Deleted table %s.%s from table bucket %s", namespace, table_name, table_bucket_arn)
