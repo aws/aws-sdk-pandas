@@ -1,33 +1,12 @@
 import logging
 
+import pandas as pd
 import pytest
 
 import awswrangler as wr
-from awswrangler.s3_tables._catalog import _build_catalog_properties, _extract_region_from_arn
+from awswrangler.s3.tables._catalog import _build_catalog_properties, _extract_region_from_arn
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-
-
-def test_module_accessible():
-    assert hasattr(wr, "s3_tables")
-
-
-@pytest.mark.parametrize(
-    "func_name",
-    [
-        "create_table_bucket",
-        "create_namespace",
-        "create_table",
-        "delete_table_bucket",
-        "delete_namespace",
-        "delete_table",
-        "read_table",
-        "write_table",
-    ],
-)
-def test_public_functions_exist(func_name):
-    assert hasattr(wr.s3_tables, func_name)
-    assert callable(getattr(wr.s3_tables, func_name))
 
 
 @pytest.mark.parametrize(
@@ -73,3 +52,88 @@ def test_build_catalog_properties_no_credentials_without_custom_session():
     assert "s3tables.access-key-id" not in props
     assert "s3tables.secret-access-key" not in props
     assert "s3tables.session-token" not in props
+
+
+def test_write_and_read(s3_table_namespace):
+    bucket_arn, namespace = s3_table_namespace
+    df = pd.DataFrame({"col_int": [1, 2, 3], "col_str": ["a", "b", "c"]})
+
+    wr.s3.tables.to_iceberg(
+        df=df,
+        table_bucket_arn=bucket_arn,
+        namespace=namespace,
+        table_name="test_rw",
+    )
+
+    df_out = wr.s3.tables.from_iceberg(
+        table_bucket_arn=bucket_arn,
+        namespace=namespace,
+        table_name="test_rw",
+    )
+    assert df_out.shape == (3, 2)
+    assert set(df_out.columns) == {"col_int", "col_str"}
+
+
+def test_write_append(s3_table_namespace):
+    bucket_arn, namespace = s3_table_namespace
+    df1 = pd.DataFrame({"id": [1, 2], "val": [10.0, 20.0]})
+    df2 = pd.DataFrame({"id": [3], "val": [30.0]})
+
+    wr.s3.tables.to_iceberg(df=df1, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_append")
+    wr.s3.tables.to_iceberg(
+        df=df2, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_append", mode="append"
+    )
+
+    df_out = wr.s3.tables.from_iceberg(table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_append")
+    assert len(df_out) == 3
+
+
+def test_write_overwrite(s3_table_namespace):
+    bucket_arn, namespace = s3_table_namespace
+    df1 = pd.DataFrame({"id": [1, 2, 3]})
+    df2 = pd.DataFrame({"id": [99]})
+
+    wr.s3.tables.to_iceberg(df=df1, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_overwrite")
+    wr.s3.tables.to_iceberg(
+        df=df2, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_overwrite", mode="overwrite"
+    )
+
+    df_out = wr.s3.tables.from_iceberg(table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_overwrite")
+    assert len(df_out) == 1
+    assert df_out["id"].tolist() == [99]
+
+
+def test_read_column_selection(s3_table_namespace):
+    bucket_arn, namespace = s3_table_namespace
+    df = pd.DataFrame({"a": [1], "b": [2], "c": [3]})
+
+    wr.s3.tables.to_iceberg(df=df, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_cols")
+
+    df_out = wr.s3.tables.from_iceberg(
+        table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_cols", columns=["a", "c"]
+    )
+    assert set(df_out.columns) == {"a", "c"}
+
+
+def test_read_row_filter(s3_table_namespace):
+    bucket_arn, namespace = s3_table_namespace
+    df = pd.DataFrame({"x": [1, 2, 3, 4, 5]})
+
+    wr.s3.tables.to_iceberg(df=df, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_filter")
+
+    df_out = wr.s3.tables.from_iceberg(
+        table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_filter", row_filter="x > 3"
+    )
+    assert len(df_out) == 2
+
+
+def test_read_limit(s3_table_namespace):
+    bucket_arn, namespace = s3_table_namespace
+    df = pd.DataFrame({"v": list(range(10))})
+
+    wr.s3.tables.to_iceberg(df=df, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_limit")
+
+    df_out = wr.s3.tables.from_iceberg(
+        table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_limit", limit=3
+    )
+    assert len(df_out) == 3
