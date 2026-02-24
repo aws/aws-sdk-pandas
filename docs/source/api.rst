@@ -2,6 +2,7 @@ API Reference
 =============
 
 * `Amazon S3`_
+* `Amazon S3 Tables`_
 * `AWS Glue Catalog`_
 * `Amazon Athena`_
 * `Amazon Redshift`_
@@ -314,6 +315,23 @@ DynamoDB
     put_json
     read_items
     read_partiql_query
+
+Amazon S3 Tables
+-----------------
+
+.. currentmodule:: awswrangler.s3.tables
+
+.. autosummary::
+    :toctree: stubs
+
+    create_table_bucket
+    create_namespace
+    create_table
+    delete_table_bucket
+    delete_namespace
+    delete_table
+    from_iceberg
+    to_iceberg
 
 Amazon Timestream
 -----------------
