@@ -7,14 +7,11 @@ import json
 import logging
 from typing import Any, Tuple, cast
 
-import pandas as _pd
 import pyarrow as pa
-from packaging import version
+import pytz
 
 import awswrangler.pandas as pd
 from awswrangler._data_types import athena2pyarrow
-
-_PANDAS_GE_3 = version.parse(_pd.__version__) >= version.parse("3.0.0")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -55,8 +52,6 @@ def _add_table_partitions(
 
 def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
     """Ensure that all columns has the writeable flag True."""
-    if _PANDAS_GE_3:
-        return df
     for column in df.columns.to_list():
         if hasattr(df[column].values, "flags") is True:
             if df[column].values.flags.writeable is False:
@@ -85,7 +80,7 @@ def _apply_timezone(df: pd.DataFrame, metadata: dict[str, Any]) -> pd.DataFrame:
                 if hasattr(df[col_name].dt, "tz") is False or df[col_name].dt.tz is None:
                     df[col_name] = df[col_name].dt.tz_localize(tz="UTC")
 
-                if timezone is not None and str(timezone) != "UTC" and hasattr(df[col_name].dt, "tz_convert"):
+                if timezone is not None and timezone != pytz.UTC and hasattr(df[col_name].dt, "tz_convert"):
                     df[col_name] = df[col_name].dt.tz_convert(tz=timezone)
 
     return df
