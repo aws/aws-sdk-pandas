@@ -561,17 +561,9 @@ def to_pandas(df: pd.DataFrame | pd.Series) -> PandasDataFrame | PandasSeries:
     raise ValueError("Unknown data frame type %s", type(df))
 
 
-def pandas_equals(
-    df1: pd.DataFrame | pd.Series, df2: pd.DataFrame | pd.Series, check_dtype: bool = True
-) -> bool:
+def pandas_equals(df1: pd.DataFrame | pd.Series, df2: pd.DataFrame | pd.Series) -> bool:
     """Check data frames for equality converting them to pandas first."""
     df1, df2 = to_pandas(df1), to_pandas(df2)
-    if not check_dtype:
-        if isinstance(df1, PandasDataFrame):
-            assert_frame_equal(df1, df2, check_dtype=False)
-        elif isinstance(df1, PandasSeries):
-            assert_series_equal(df1, df2, check_dtype=False)
-        return True
     return df1.equals(df2)
 
 
