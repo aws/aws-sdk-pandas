@@ -21,7 +21,7 @@ classifiers = [
 dependencies = [
     "boto3>=1.20.32,<2",
     "botocore>=1.23.32,<2",
-    "pandas>=1.2.0,<3.0.0",
+    "pandas>=1.2.0,<4.0.0",
     "numpy>=1.26,<3.0",
     "pyarrow>=8.0.0,<23.0.0",
     "typing-extensions>=4.4.0,<5",
@@ -122,6 +122,15 @@ exclude = [
     "DS_Store",
     "__pycache__",
 ]
+
+[tool.uv]
+# Force pandas 3 in the lock file; modin's own pandas<2.4 constraint is ignored during resolution
+override-dependencies = [
+    "pandas>=3.0.0,<4.0.0 ; python_version >= '3.11'",
+    "pandas>=2.0.0,<3.0.0 ; python_version < '3.11'",
+]
+# Pin pyproj to 3.7.1 — 3.7.2 has no pre-built wheel for AL2
+constraint-dependencies = ["pyproj<3.7.2"]
 
 [build-system]
 requires = ["hatchling"]

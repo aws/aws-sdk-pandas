@@ -507,7 +507,10 @@ def test_s3_dataset_empty_table(moto_s3_client: "S3Client") -> None:
     dataset = f"{partition_col}={partition_val}"
     s3_key = f"s3://bucket/{dataset}"
 
-    dtypes = {"id": "string[python]"}
+    # Use "string" (not "string[python]") because PyArrow does not preserve
+    # the storage backend in its pandas metadata, so the round-trip dtype
+    # is always the default StringDtype.
+    dtypes = {"id": "string"}
     df1 = pd.DataFrame({"id": []}).astype(dtypes)
     df2 = pd.DataFrame({"id": ["1"] * 2}).astype(dtypes)
     df3 = pd.DataFrame({"id": ["1"] * 3}).astype(dtypes)

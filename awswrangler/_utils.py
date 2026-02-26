@@ -29,7 +29,6 @@ from typing import (
 import boto3
 import botocore.credentials
 import numpy as np
-import numpy.core.numeric as _nx
 import pyarrow as pa
 from botocore.config import Config
 from packaging import version
@@ -856,7 +855,7 @@ def split_pandas_frame(df: pd.DataFrame, splits: int) -> list[pd.DataFrame]:
     total = len(df)
     each_section, extras = divmod(total, splits)
     section_sizes = [0] + extras * [each_section + 1] + (splits - extras) * [each_section]
-    div_points = _nx.array(section_sizes, dtype=_nx.intp).cumsum()
+    div_points = np.array(section_sizes, dtype=np.intp).cumsum()
 
     sub_dfs = []
     for i in range(splits):

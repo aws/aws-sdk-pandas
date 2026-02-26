@@ -19,11 +19,14 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         platform: [ubuntu-latest, macos-latest, windows-latest]
+        pandas-version: ["2", "3"]
         exclude:
           - python-version: "3.13"
             platform: windows-latest
           - python-version: "3.14"
             platform: windows-latest
+          - python-version: "3.10"
+            pandas-version: "3"
     env:
       AWS_DEFAULT_REGION: us-east-1
 
@@ -44,6 +47,9 @@ jobs:
       - name: Install Requirements
         run: uv sync --frozen --dev --verbose
         working-directory: ${{ github.workspace }}
+      - name: Override pandas ${{ matrix.pandas-version }}
+        if: matrix.pandas-version == '3'
+        run: uv pip install "pandas>=3.0.0,<4.0.0"
       - name: Test Metadata
         run: uv run pytest tests/unit/test_metadata.py
         working-directory: ${{ github.workspace }}
