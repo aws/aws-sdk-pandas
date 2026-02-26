@@ -123,6 +123,13 @@ exclude = [
     "__pycache__",
 ]
 
+[tool.uv]
+# Force pandas 3 in the lock file; modin's own pandas<2.4 constraint is ignored during resolution
+override-dependencies = [
+    "pandas>=3.0.0,<4.0.0 ; python_version >= '3.11'",
+    "pandas>=2.0.0,<3.0.0 ; python_version < '3.11'",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
