@@ -8,7 +8,6 @@ import logging
 from typing import Any, Tuple, cast
 
 import pyarrow as pa
-import pytz
 
 import awswrangler.pandas as pd
 from awswrangler._data_types import athena2pyarrow
@@ -80,7 +79,7 @@ def _apply_timezone(df: pd.DataFrame, metadata: dict[str, Any]) -> pd.DataFrame:
                 if hasattr(df[col_name].dt, "tz") is False or df[col_name].dt.tz is None:
                     df[col_name] = df[col_name].dt.tz_localize(tz="UTC")
 
-                if timezone is not None and timezone != pytz.UTC and hasattr(df[col_name].dt, "tz_convert"):
+                if timezone is not None and str(timezone) != "UTC" and hasattr(df[col_name].dt, "tz_convert"):
                     df[col_name] = df[col_name].dt.tz_convert(tz=timezone)
 
     return df
