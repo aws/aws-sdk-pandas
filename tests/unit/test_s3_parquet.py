@@ -403,7 +403,10 @@ def test_index_and_timezone(path, use_threads):
     df.index = df.index.astype("string")
     wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, partition_cols=["par"])
     df2 = wr.s3.read_parquet(path, use_threads=use_threads, dataset=True)
-    assert_pandas_equals(df[["c0", "c1"]], df2[["c0", "c1"]])
+    # Pandas 3 defaults to datetime64[us] while pandas 2 used datetime64[ns].
+    # Parquet write coerces timestamps to ms (for Spark compatibility), so the
+    # round-trip resolution differs from the input on both versions. Only compare values.
+    assert_pandas_equals(df[["c0", "c1"]], df2[["c0", "c1"]], check_dtype=False)
 
 
 @pytest.mark.xfail(
