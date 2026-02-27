@@ -400,10 +400,10 @@ def s3_table_bucket():
     suffix = uuid.uuid4().hex[:8]
     bucket_name = f"test-s3tables-{suffix}"
     print(f"S3 Table bucket: {bucket_name}")
-    bucket_arn = wr.s3.tables.create_table_bucket(name=bucket_name)
+    bucket_arn = wr.s3.create_table_bucket(name=bucket_name)
     yield bucket_arn
     try:
-        wr.s3.tables.delete_table_bucket(table_bucket_arn=bucket_arn)
+        wr.s3.delete_table_bucket(table_bucket_arn=bucket_arn)
     except botocore.exceptions.ClientError:
         pass
 
@@ -412,7 +412,7 @@ def s3_table_bucket():
 def s3_table_namespace(s3_table_bucket):
     namespace = f"ns_{uuid.uuid4().hex[:8]}"
     print(f"S3 Tables namespace: {namespace}")
-    wr.s3.tables.create_namespace(table_bucket_arn=s3_table_bucket, namespace=namespace)
+    wr.s3.create_namespace(table_bucket_arn=s3_table_bucket, namespace=namespace)
     yield s3_table_bucket, namespace
     try:
         # Clean up tables in the namespace
@@ -420,15 +420,13 @@ def s3_table_namespace(s3_table_bucket):
         resp = s3tables_client.list_tables(tableBucketARN=s3_table_bucket, namespace=namespace)
         for table in resp.get("tables", []):
             try:
-                wr.s3.tables.delete_table(
-                    table_bucket_arn=s3_table_bucket, namespace=namespace, table_name=table["name"]
-                )
+                wr.s3.delete_table(table_bucket_arn=s3_table_bucket, namespace=namespace, table_name=table["name"])
             except botocore.exceptions.ClientError:
                 pass
     except botocore.exceptions.ClientError:
         pass
     try:
-        wr.s3.tables.delete_namespace(table_bucket_arn=s3_table_bucket, namespace=namespace)
+        wr.s3.delete_namespace(table_bucket_arn=s3_table_bucket, namespace=namespace)
     except botocore.exceptions.ClientError:
         pass
 

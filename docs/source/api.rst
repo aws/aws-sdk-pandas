@@ -319,7 +319,7 @@ DynamoDB
 Amazon S3 Tables
 -----------------
 
-.. currentmodule:: awswrangler.s3.tables
+.. currentmodule:: awswrangler.s3
 
 .. autosummary::
     :toctree: stubs

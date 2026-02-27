@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 import awswrangler as wr
-from awswrangler.s3.tables._catalog import _build_catalog_properties, _extract_region_from_arn
+from awswrangler.s3._s3_tables_catalog import _build_catalog_properties, _extract_region_from_arn
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -58,14 +58,14 @@ def test_write_and_read(s3_table_namespace):
     bucket_arn, namespace = s3_table_namespace
     df = pd.DataFrame({"col_int": [1, 2, 3], "col_str": ["a", "b", "c"]})
 
-    wr.s3.tables.to_iceberg(
+    wr.s3.to_iceberg(
         df=df,
         table_bucket_arn=bucket_arn,
         namespace=namespace,
         table_name="test_rw",
     )
 
-    df_out = wr.s3.tables.from_iceberg(
+    df_out = wr.s3.from_iceberg(
         table_bucket_arn=bucket_arn,
         namespace=namespace,
         table_name="test_rw",
@@ -79,12 +79,10 @@ def test_write_append(s3_table_namespace):
     df1 = pd.DataFrame({"id": [1, 2], "val": [10.0, 20.0]})
     df2 = pd.DataFrame({"id": [3], "val": [30.0]})
 
-    wr.s3.tables.to_iceberg(df=df1, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_append")
-    wr.s3.tables.to_iceberg(
-        df=df2, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_append", mode="append"
-    )
+    wr.s3.to_iceberg(df=df1, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_append")
+    wr.s3.to_iceberg(df=df2, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_append", mode="append")
 
-    df_out = wr.s3.tables.from_iceberg(table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_append")
+    df_out = wr.s3.from_iceberg(table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_append")
     assert len(df_out) == 3
 
 
@@ -93,12 +91,12 @@ def test_write_overwrite(s3_table_namespace):
     df1 = pd.DataFrame({"id": [1, 2, 3]})
     df2 = pd.DataFrame({"id": [99]})
 
-    wr.s3.tables.to_iceberg(df=df1, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_overwrite")
-    wr.s3.tables.to_iceberg(
+    wr.s3.to_iceberg(df=df1, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_overwrite")
+    wr.s3.to_iceberg(
         df=df2, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_overwrite", mode="overwrite"
     )
 
-    df_out = wr.s3.tables.from_iceberg(table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_overwrite")
+    df_out = wr.s3.from_iceberg(table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_overwrite")
     assert len(df_out) == 1
     assert df_out["id"].tolist() == [99]
 
@@ -107,9 +105,9 @@ def test_read_column_selection(s3_table_namespace):
     bucket_arn, namespace = s3_table_namespace
     df = pd.DataFrame({"a": [1], "b": [2], "c": [3]})
 
-    wr.s3.tables.to_iceberg(df=df, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_cols")
+    wr.s3.to_iceberg(df=df, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_cols")
 
-    df_out = wr.s3.tables.from_iceberg(
+    df_out = wr.s3.from_iceberg(
         table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_cols", columns=["a", "c"]
     )
     assert set(df_out.columns) == {"a", "c"}
@@ -119,9 +117,9 @@ def test_read_row_filter(s3_table_namespace):
     bucket_arn, namespace = s3_table_namespace
     df = pd.DataFrame({"x": [1, 2, 3, 4, 5]})
 
-    wr.s3.tables.to_iceberg(df=df, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_filter")
+    wr.s3.to_iceberg(df=df, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_filter")
 
-    df_out = wr.s3.tables.from_iceberg(
+    df_out = wr.s3.from_iceberg(
         table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_filter", row_filter="x > 3"
     )
     assert len(df_out) == 2
@@ -131,9 +129,7 @@ def test_read_limit(s3_table_namespace):
     bucket_arn, namespace = s3_table_namespace
     df = pd.DataFrame({"v": list(range(10))})
 
-    wr.s3.tables.to_iceberg(df=df, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_limit")
+    wr.s3.to_iceberg(df=df, table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_limit")
 
-    df_out = wr.s3.tables.from_iceberg(
-        table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_limit", limit=3
-    )
+    df_out = wr.s3.from_iceberg(table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_limit", limit=3)
     assert len(df_out) == 3
