@@ -56,7 +56,7 @@ def _build_catalog_properties(
     """
     region = _extract_region_from_arn(table_bucket_arn)
 
-    properties: dict[str, str] = {
+    return {
         "type": "rest",
         "warehouse": table_bucket_arn,
         "uri": f"https://s3tables.{region}.amazonaws.com/iceberg",
@@ -64,20 +64,6 @@ def _build_catalog_properties(
         "rest.signing-name": "s3tables",
         "rest.signing-region": region,
     }
-
-    if boto3_session is not None:
-        credentials = boto3_session.get_credentials()
-        if credentials is not None:
-            frozen = credentials.get_frozen_credentials()
-            properties["rest.signing-region"] = region
-            if frozen.access_key:
-                properties["s3tables.access-key-id"] = frozen.access_key
-            if frozen.secret_key:
-                properties["s3tables.secret-access-key"] = frozen.secret_key
-            if frozen.token:
-                properties["s3tables.session-token"] = frozen.token
-
-    return properties
 
 
 def _load_catalog(

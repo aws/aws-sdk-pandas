@@ -46,12 +46,10 @@ def test_build_catalog_properties_region_from_arn():
     assert props["rest.signing-region"] == "eu-central-1"
 
 
-def test_build_catalog_properties_no_credentials_without_custom_session():
+def test_build_catalog_properties_no_credentials():
     arn = "arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket"
     props = _build_catalog_properties(arn)
-    assert "s3tables.access-key-id" not in props
-    assert "s3tables.secret-access-key" not in props
-    assert "s3tables.session-token" not in props
+    assert not any(k for k in props if "access-key" in k or "secret" in k or "session-token" in k)
 
 
 def test_write_and_read(s3_table_namespace):
