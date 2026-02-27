@@ -10,7 +10,7 @@ import pyarrow as pa
 
 import awswrangler.pandas as pd
 from awswrangler import _data_types, _utils, exceptions
-from awswrangler._arrow import _df_to_table
+from awswrangler._arrow import _df_to_table, _table_to_df
 from awswrangler._config import apply_configs
 
 if TYPE_CHECKING:
@@ -124,7 +124,7 @@ def from_iceberg(
         dtype_backend=dtype_backend,
     )
 
-    return arrow_table.to_pandas(**arrow_kwargs)
+    return _table_to_df(table=arrow_table, kwargs=arrow_kwargs)
 
 
 @_utils.check_optional_dependency(pyiceberg, "pyiceberg")
