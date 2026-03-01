@@ -52,6 +52,7 @@ The optional modules are:
 - openpyxl
 - opensearch
 - deltalake
+- pyiceberg
 
 Calling these modules without the required dependencies raises an error prompting you to install the missing package.
 

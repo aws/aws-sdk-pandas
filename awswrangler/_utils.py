@@ -85,6 +85,7 @@ if TYPE_CHECKING:
         "s3",
         "secretsmanager",
         "sts",
+        "s3tables",
         "timestream-query",
         "timestream-write",
     ]
