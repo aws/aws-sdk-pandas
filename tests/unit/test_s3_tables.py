@@ -4,27 +4,30 @@ import pandas as pd
 import pytest
 
 import awswrangler as wr
-from awswrangler.s3._s3_tables_catalog import _build_catalog_properties, _extract_region_from_arn
+from awswrangler.s3._s3_tables_catalog import _build_catalog_properties, _parse_table_bucket_arn
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.mark.parametrize(
-    "arn,expected_region",
+    "arn,expected",
     [
-        ("arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket", "us-east-1"),
-        ("arn:aws:s3tables:eu-west-1:999999999999:bucket/test-bucket", "eu-west-1"),
-        ("arn:aws:s3tables:ap-southeast-2:111111111111:bucket/analytics", "ap-southeast-2"),
+        ("arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket", ("us-east-1", "123456789012", "my-bucket")),
+        ("arn:aws:s3tables:eu-west-1:999999999999:bucket/test-bucket", ("eu-west-1", "999999999999", "test-bucket")),
+        (
+            "arn:aws:s3tables:ap-southeast-2:111111111111:bucket/analytics",
+            ("ap-southeast-2", "111111111111", "analytics"),
+        ),
     ],
 )
-def test_extract_region_from_arn(arn, expected_region):
-    assert _extract_region_from_arn(arn) == expected_region
+def test_parse_table_bucket_arn(arn, expected):
+    assert _parse_table_bucket_arn(arn) == expected
 
 
 @pytest.mark.parametrize("bad_arn", ["not-an-arn", "arn:aws:s3:::my-bucket"])
-def test_extract_region_from_arn_invalid(bad_arn):
-    with pytest.raises(Exception, match="Cannot extract region from ARN"):
-        _extract_region_from_arn(bad_arn)
+def test_parse_table_bucket_arn_invalid(bad_arn):
+    with pytest.raises(Exception, match="Cannot parse ARN"):
+        _parse_table_bucket_arn(bad_arn)
 
 
 def test_build_catalog_properties():
@@ -50,6 +53,20 @@ def test_build_catalog_properties_no_credentials():
     arn = "arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket"
     props = _build_catalog_properties(arn)
     assert not any(k for k in props if "access-key" in k or "secret" in k or "session-token" in k)
+
+
+def test_build_catalog_properties_glue_endpoint():
+    arn = "arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket"
+    import awswrangler as wr
+
+    wr.config.s3tables_catalog_endpoint_url = "https://glue.us-east-1.amazonaws.com/iceberg"
+    try:
+        props = _build_catalog_properties(arn)
+        assert props["uri"] == "https://glue.us-east-1.amazonaws.com/iceberg"
+        assert props["rest.signing-name"] == "glue"
+        assert props["warehouse"] == "123456789012:s3tablescatalog/my-bucket"
+    finally:
+        wr.config.s3tables_catalog_endpoint_url = None
 
 
 def test_write_and_read(s3_table_namespace):

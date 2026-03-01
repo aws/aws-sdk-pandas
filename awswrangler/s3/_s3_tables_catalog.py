@@ -5,88 +5,59 @@ from __future__ import annotations
 import logging
 import re
 
-import boto3
-
-from awswrangler import exceptions
+from awswrangler import _config, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_ARN_REGION_PATTERN = re.compile(r"^arn:aws:s3tables:([a-z0-9-]+):\d{12}:bucket/.+$")
+_ARN_PATTERN = re.compile(r"^arn:aws:s3tables:([a-z0-9-]+):(\d{12}):bucket/(.+)$")
 
 
-def _extract_region_from_arn(table_bucket_arn: str) -> str:
-    """Extract the AWS region from an S3 Tables bucket ARN.
-
-    Parameters
-    ----------
-    table_bucket_arn : str
-        The ARN of the table bucket (e.g. ``arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket``).
+def _parse_table_bucket_arn(table_bucket_arn: str) -> tuple[str, str, str]:
+    """Parse region, account ID, and bucket name from an S3 Tables bucket ARN.
 
     Returns
     -------
-    str
-        The AWS region.
+    tuple[str, str, str]
+        (region, account_id, bucket_name)
     """
-    match = _ARN_REGION_PATTERN.match(table_bucket_arn)
+    match = _ARN_PATTERN.match(table_bucket_arn)
     if not match:
         raise exceptions.InvalidArgumentValue(
-            f"Cannot extract region from ARN: {table_bucket_arn}. "
-            "Expected format: arn:aws:s3tables:<region>:<account>:bucket/<name>"
+            f"Cannot parse ARN: {table_bucket_arn}. Expected format: arn:aws:s3tables:<region>:<account>:bucket/<name>"
         )
-    return match.group(1)
+    return match.group(1), match.group(2), match.group(3)
 
 
-def _build_catalog_properties(
-    table_bucket_arn: str,
-    boto3_session: boto3.Session | None = None,
-) -> dict[str, str]:
-    """Build PyIceberg REST catalog properties from a table bucket ARN and boto3 session.
+def _build_catalog_properties(table_bucket_arn: str) -> dict[str, str]:
+    """Build PyIceberg REST catalog properties for S3 Tables or Glue endpoint."""
+    region, account_id, bucket_name = _parse_table_bucket_arn(table_bucket_arn)
+    endpoint = _config.config.s3tables_catalog_endpoint_url
 
-    Parameters
-    ----------
-    table_bucket_arn : str
-        The ARN of the table bucket.
-    boto3_session : boto3.Session, optional
-        Boto3 Session. If None, the default boto3 session is used.
-
-    Returns
-    -------
-    dict[str, str]
-        Properties dictionary suitable for ``pyiceberg.catalog.rest.RestCatalog``.
-    """
-    region = _extract_region_from_arn(table_bucket_arn)
-
-    return {
+    props: dict[str, str] = {
         "type": "rest",
-        "warehouse": table_bucket_arn,
-        "uri": f"https://s3tables.{region}.amazonaws.com/iceberg",
         "rest.sigv4-enabled": "true",
-        "rest.signing-name": "s3tables",
         "rest.signing-region": region,
     }
 
+    if endpoint and "glue." in endpoint:
+        # Glue Iceberg REST endpoint: warehouse uses account:catalog/bucket format
+        props["uri"] = endpoint
+        props["warehouse"] = f"{account_id}:s3tablescatalog/{bucket_name}"
+        props["rest.signing-name"] = "glue"
+    else:
+        # S3 Tables REST endpoint (default): warehouse is the bucket ARN
+        props["uri"] = endpoint or f"https://s3tables.{region}.amazonaws.com/iceberg"
+        props["warehouse"] = table_bucket_arn
+        props["rest.signing-name"] = "s3tables"
 
-def _load_catalog(
-    table_bucket_arn: str,
-    boto3_session: boto3.Session | None = None,
-) -> "RestCatalog":  # type: ignore[name-defined]  # noqa: F821
-    """Create and return a PyIceberg RestCatalog configured for S3 Tables.
+    return props
 
-    Parameters
-    ----------
-    table_bucket_arn : str
-        The ARN of the table bucket.
-    boto3_session : boto3.Session, optional
-        Boto3 Session. If None, the default boto3 session is used.
 
-    Returns
-    -------
-    pyiceberg.catalog.rest.RestCatalog
-        A configured PyIceberg REST catalog instance.
-    """
+def _load_catalog(table_bucket_arn: str) -> "RestCatalog":  # type: ignore[name-defined]  # noqa: F821
+    """Create and return a PyIceberg RestCatalog configured for S3 Tables."""
     from pyiceberg.catalog.rest import RestCatalog  # noqa: PLC0415
 
-    properties = _build_catalog_properties(table_bucket_arn, boto3_session)
+    properties = _build_catalog_properties(table_bucket_arn)
     catalog = RestCatalog(name="s3tables", **properties)
     _logger.debug("Loaded PyIceberg REST catalog for %s", table_bucket_arn)
     return catalog

@@ -43,6 +43,14 @@ def from_iceberg(
     This function requires the ``pyiceberg`` package.
     Install it with ``pip install awswrangler[pyiceberg]``.
 
+    By default, the S3 Tables REST endpoint is used. To use the AWS Glue
+    Iceberg REST endpoint instead, set
+    ``wr.config.s3tables_catalog_endpoint_url``
+    (e.g. ``"https://glue.<region>.amazonaws.com/iceberg"``).
+    See `Integrating S3 Tables with AWS analytics services
+    <https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-aws.html>`_
+    for the required Glue Data Catalog and Lake Formation setup.
+
     Parameters
     ----------
     table_bucket_arn : str
@@ -91,13 +99,22 @@ def from_iceberg(
     ...     row_filter="amount > 50.0",
     ...     limit=100,
     ... )
+
+    Reading via the Glue Iceberg REST endpoint:
+
+    >>> wr.config.s3tables_catalog_endpoint_url = "https://glue.us-east-1.amazonaws.com/iceberg"
+    >>> df = wr.s3.from_iceberg(
+    ...     table_bucket_arn="arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket",
+    ...     namespace="my_namespace",
+    ...     table_name="my_table",
+    ... )
     """
     from pyiceberg.exceptions import NoSuchTableError, RESTError  # noqa: PLC0415
     from pyiceberg.expressions import AlwaysTrue  # noqa: PLC0415
 
     from awswrangler.s3._s3_tables_catalog import _load_catalog  # noqa: PLC0415
 
-    catalog = _load_catalog(table_bucket_arn, boto3_session)
+    catalog = _load_catalog(table_bucket_arn)
     identifier = f"{namespace}.{table_name}"
 
     try:
@@ -158,6 +175,14 @@ def to_iceberg(
     This function requires the ``pyiceberg`` package.
     Install it with ``pip install awswrangler[pyiceberg]``.
 
+    By default, the S3 Tables REST endpoint is used. To use the AWS Glue
+    Iceberg REST endpoint instead, set
+    ``wr.config.s3tables_catalog_endpoint_url``
+    (e.g. ``"https://glue.<region>.amazonaws.com/iceberg"``).
+    See `Integrating S3 Tables with AWS analytics services
+    <https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-aws.html>`_
+    for the required Glue Data Catalog and Lake Formation setup.
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -198,7 +223,7 @@ def to_iceberg(
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, index=index, ignore_cols=None, dtype=dtype)
     arrow_table: pa.Table = _df_to_table(df, schema, index, dtype)
 
-    catalog = _load_catalog(table_bucket_arn, boto3_session)
+    catalog = _load_catalog(table_bucket_arn)
     identifier = f"{namespace}.{table_name}"
 
     try:
