@@ -73,11 +73,23 @@ def from_iceberg(
 
     Examples
     --------
+    Reading an entire table:
+
     >>> import awswrangler as wr
     >>> df = wr.s3.from_iceberg(
     ...     table_bucket_arn="arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket",
     ...     namespace="my_namespace",
     ...     table_name="my_table",
+    ... )
+
+    Reading with row filtering and limit:
+
+    >>> df = wr.s3.from_iceberg(
+    ...     table_bucket_arn="arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket",
+    ...     namespace="my_namespace",
+    ...     table_name="my_table",
+    ...     row_filter="amount > 50.0",
+    ...     limit=100,
     ... )
     """
     from pyiceberg.exceptions import NoSuchTableError, RESTError  # noqa: PLC0415
