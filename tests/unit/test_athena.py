@@ -125,6 +125,119 @@ def test_read_sql_query_managed_results(glue_database, workgroup_managed):
     assert df.query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
 
 
+def test_read_sql_query_managed_results_chunked(glue_database, workgroup_managed):
+    chunks = list(
+        wr.athena.read_sql_query(
+            sql="SELECT 1 AS c",
+            database=glue_database,
+            workgroup=workgroup_managed,
+            ctas_approach=False,
+            unload_approach=False,
+            chunksize=1,
+        )
+    )
+    assert len(chunks) == 1
+    assert chunks[0]["c"].tolist() == [1]
+    assert chunks[0].query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert chunks[0].query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_read_sql_query_managed_results_empty_chunked(glue_database, workgroup_managed):
+    chunks = list(
+        wr.athena.read_sql_query(
+            sql="SELECT CAST(NULL AS BIGINT) AS c WHERE 1 = 0",
+            database=glue_database,
+            workgroup=workgroup_managed,
+            ctas_approach=False,
+            unload_approach=False,
+            chunksize=2,
+        )
+    )
+    assert len(chunks) == 1
+    assert chunks[0].empty
+    assert chunks[0].columns.tolist() == ["c"]
+    assert str(chunks[0].dtypes["c"]) == "Int64"
+    assert chunks[0].query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert chunks[0].query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_read_sql_query_managed_results_cache_hit(glue_database, workgroup_managed):
+    unique_key = get_time_str_with_random_suffix()
+    sql = f"SELECT 1 AS c, '{unique_key}' AS k"
+
+    df1 = wr.athena.read_sql_query(
+        sql=sql,
+        database=glue_database,
+        workgroup=workgroup_managed,
+        ctas_approach=False,
+        unload_approach=False,
+        athena_cache_settings={"max_cache_seconds": 300},
+    )
+    df2 = wr.athena.read_sql_query(
+        sql=sql,
+        database=glue_database,
+        workgroup=workgroup_managed,
+        ctas_approach=False,
+        unload_approach=False,
+        athena_cache_settings={"max_cache_seconds": 300},
+    )
+
+    assert pandas_equals(df1, df2)
+    assert df1.query_metadata["QueryExecutionId"] == df2.query_metadata["QueryExecutionId"]
+    assert df2.query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert df2.query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_read_sql_query_managed_results_chunksize_true(glue_database, workgroup_managed):
+    chunks = list(
+        wr.athena.read_sql_query(
+            sql="SELECT 1 AS c UNION ALL SELECT 2 AS c",
+            database=glue_database,
+            workgroup=workgroup_managed,
+            ctas_approach=False,
+            unload_approach=False,
+            chunksize=True,
+        )
+    )
+    assert len(chunks) == 1
+    assert sorted(chunks[0]["c"].tolist()) == [1, 2]
+    assert chunks[0].query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert chunks[0].query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_get_query_results_managed_results_empty_chunked(glue_database, workgroup_managed):
+    query_id = wr.athena.start_query_execution(
+        sql="SELECT CAST(NULL AS BIGINT) AS c WHERE 1 = 0",
+        database=glue_database,
+        workgroup=workgroup_managed,
+        wait=False,
+    )
+
+    chunks = list(wr.athena.get_query_results(query_execution_id=query_id, chunksize=2))
+    assert len(chunks) == 1
+    assert chunks[0].empty
+    assert chunks[0].columns.tolist() == ["c"]
+    assert str(chunks[0].dtypes["c"]) == "Int64"
+    assert chunks[0].query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert chunks[0].query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_read_sql_query_managed_results_dtype_backend_pyarrow(glue_database, workgroup_managed):
+    df = wr.athena.read_sql_query(
+        sql="SELECT 1 AS c, 'x' AS s",
+        database=glue_database,
+        workgroup=workgroup_managed,
+        ctas_approach=False,
+        unload_approach=False,
+        dtype_backend="pyarrow",
+    )
+    assert df["c"].tolist() == [1]
+    assert df["s"].tolist() == ["x"]
+    assert any("[pyarrow]" in str(dtype) for dtype in df.dtypes.to_list())
+    assert df.query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert df.query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
 def test_workgroup_config_with_managed_results_enabled():
     with patch(
         "awswrangler.athena._utils.get_work_group",
@@ -321,6 +434,39 @@ def test_fetch_api_result_reads_rows_for_managed_results_chunked():
         chunks = list(dfs)
     assert [df["c"].tolist() for df in chunks] == [[1, 2], [3]]
     assert all(df.query_metadata == {"QueryExecutionId": "query-1"} for df in chunks)
+
+
+def test_fetch_api_result_reads_empty_rows_for_managed_results_chunked():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={"c": "Int64"},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location=None,
+        raw_payload={"QueryExecutionId": "query-1"},
+    )
+    pages = [
+        {
+            "ResultSet": {
+                "ResultSetMetadata": {"ColumnInfo": [{"Name": "c"}]},
+                "Rows": [{"Data": [{"VarCharValue": "c"}]}],
+            }
+        }
+    ]
+    mock_client = MagicMock()
+    mock_client.get_paginator.return_value.paginate.return_value = pages
+    with patch("awswrangler.athena._read._utils.client", return_value=mock_client):
+        dfs = wr.athena._read._fetch_api_result(query_metadata=query_metadata, chunksize=2, boto3_session=None)
+        chunks = list(dfs)
+    assert len(chunks) == 1
+    assert chunks[0].empty
+    assert chunks[0].columns.tolist() == ["c"]
+    assert str(chunks[0].dtypes["c"]) == "Int64"
+    assert chunks[0].query_metadata == {"QueryExecutionId": "query-1"}
 
 
 def test_get_query_results_uses_api_fetch_for_managed_results():

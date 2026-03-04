@@ -299,6 +299,27 @@ def _rows_to_dataframe(
     return pd.read_csv(buffer, **pandas_kwargs)
 
 
+def _build_api_dataframe(
+    rows: _ParsedRows,
+    columns: list[str],
+    query_metadata: _QueryMetadata,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
+) -> pd.DataFrame:
+    df = _rows_to_dataframe(
+        rows=rows,
+        columns=columns,
+        query_metadata=query_metadata,
+        dtype_backend=dtype_backend,
+    )
+    df = _fix_csv_types(
+        df=df,
+        parse_dates=query_metadata.parse_dates,
+        binaries=query_metadata.binaries,
+        parse_geometry=query_metadata.parse_geometry,
+    )
+    return _apply_query_metadata(df=df, query_metadata=query_metadata)
+
+
 def _fetch_api_result(
     query_metadata: _QueryMetadata,
     chunksize: int | bool | None,
@@ -326,25 +347,19 @@ def _fetch_api_result(
             rows.extend(_parse_api_result_rows(rows=page_rows, num_cols=len(columns)))
         if not columns:
             return _empty_dataframe_response(chunked=False, query_metadata=query_metadata)
-        df = _rows_to_dataframe(
+        return _build_api_dataframe(
             rows=rows,
             columns=columns,
             query_metadata=query_metadata,
             dtype_backend=dtype_backend,
         )
-        df = _fix_csv_types(
-            df=df,
-            parse_dates=query_metadata.parse_dates,
-            binaries=query_metadata.binaries,
-            parse_geometry=query_metadata.parse_geometry,
-        )
-        return _apply_query_metadata(df=df, query_metadata=query_metadata)
 
     chunk_size: int = _chunksize
 
     def _generator() -> Iterator[pd.DataFrame]:
         columns: list[str] = []
         batch: _ParsedRows = []
+        has_rows = False
         first_page = True
         for page in paginator.paginate(QueryExecutionId=query_metadata.execution_id):
             typed_page = cast("GetQueryResultsOutputTypeDef", page)
@@ -356,36 +371,30 @@ def _fetch_api_result(
                 page_rows = page_rows[1:] if page_rows else []
                 first_page = False
             for row in _parse_api_result_rows(rows=page_rows, num_cols=len(columns)):
+                has_rows = True
                 batch.append(row)
                 if len(batch) == chunk_size:
-                    df = _rows_to_dataframe(
+                    yield _build_api_dataframe(
                         rows=batch,
                         columns=columns,
                         query_metadata=query_metadata,
                         dtype_backend=dtype_backend,
                     )
-                    df = _fix_csv_types(
-                        df=df,
-                        parse_dates=query_metadata.parse_dates,
-                        binaries=query_metadata.binaries,
-                        parse_geometry=query_metadata.parse_geometry,
-                    )
-                    yield _apply_query_metadata(df=df, query_metadata=query_metadata)
                     batch = []
         if batch:
-            df = _rows_to_dataframe(
+            yield _build_api_dataframe(
                 rows=batch,
                 columns=columns,
                 query_metadata=query_metadata,
                 dtype_backend=dtype_backend,
             )
-            df = _fix_csv_types(
-                df=df,
-                parse_dates=query_metadata.parse_dates,
-                binaries=query_metadata.binaries,
-                parse_geometry=query_metadata.parse_geometry,
+        elif columns and not has_rows:
+            yield _build_api_dataframe(
+                rows=[],
+                columns=columns,
+                query_metadata=query_metadata,
+                dtype_backend=dtype_backend,
             )
-            yield _apply_query_metadata(df=df, query_metadata=query_metadata)
 
     return _generator()
 
