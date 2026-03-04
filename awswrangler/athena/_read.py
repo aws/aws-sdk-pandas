@@ -432,8 +432,9 @@ def _resolve_query_without_cache_regular(
     client_request_token: str | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
-    s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
-    s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
+    if not wg_config.managed_results:
+        s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
+        s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
     _logger.debug("Executing sql: %s", sql)
     query_id: str = _start_query_execution(
         sql=sql,
@@ -933,6 +934,8 @@ def read_sql_query(
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
     s3_output
         Amazon S3 path.
+        Not required for the regular query path (`ctas_approach=False`, `unload_approach=False`) when
+        the workgroup uses managed query results. Still used for CTAS/UNLOAD paths.
     workgroup
         Athena workgroup. Primary by default.
     encryption

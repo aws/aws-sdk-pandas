@@ -112,6 +112,154 @@ def test_read_sql_query_with_result_reuse_configuration_error(glue_database):
         )
 
 
+def test_workgroup_config_with_managed_results_enabled():
+    with patch(
+        "awswrangler.athena._utils.get_work_group",
+        return_value={
+            "WorkGroup": {
+                "Configuration": {
+                    "EnforceWorkGroupConfiguration": True,
+                    "ResultConfiguration": {"OutputLocation": "s3://bucket/prefix/"},
+                    "ManagedQueryResultsConfiguration": {"Enabled": True},
+                }
+            }
+        },
+    ):
+        wg_config = wr.athena._utils._get_workgroup_config(workgroup="managed-wg")
+    assert wg_config.managed_results is True
+
+
+def test_workgroup_config_with_managed_results_disabled():
+    with patch(
+        "awswrangler.athena._utils.get_work_group",
+        return_value={
+            "WorkGroup": {
+                "Configuration": {
+                    "EnforceWorkGroupConfiguration": False,
+                    "ResultConfiguration": {"OutputLocation": "s3://bucket/prefix/"},
+                    "ManagedQueryResultsConfiguration": {"Enabled": False},
+                }
+            }
+        },
+    ):
+        wg_config = wr.athena._utils._get_workgroup_config(workgroup="managed-wg")
+    assert wg_config.managed_results is False
+
+
+def test_workgroup_config_without_managed_results():
+    with patch(
+        "awswrangler.athena._utils.get_work_group",
+        return_value={
+            "WorkGroup": {
+                "Configuration": {
+                    "EnforceWorkGroupConfiguration": False,
+                    "ResultConfiguration": {"OutputLocation": "s3://bucket/prefix/"},
+                }
+            }
+        },
+    ):
+        wg_config = wr.athena._utils._get_workgroup_config(workgroup="managed-wg")
+    assert wg_config.managed_results is False
+
+
+def test_start_query_execution_skips_result_config_for_managed_results():
+    wg_config = wr.athena._utils._WorkGroupConfig(
+        enforced=False, s3_output=None, encryption=None, kms_key=None, managed_results=True
+    )
+    with patch("awswrangler.athena._utils._utils.client") as mock_client:
+        mock_client.return_value.start_query_execution.return_value = {"QueryExecutionId": "query-1"}
+        with patch("awswrangler.athena._utils._utils.try_it", return_value={"QueryExecutionId": "query-1"}) as mock_try:
+            wr.athena._utils._start_query_execution(sql="SELECT 1", wg_config=wg_config, workgroup="managed-wg")
+    assert "ResultConfiguration" not in mock_try.call_args.kwargs
+
+
+def test_start_query_execution_includes_result_config_without_managed_results():
+    wg_config = wr.athena._utils._WorkGroupConfig(
+        enforced=False, s3_output=None, encryption=None, kms_key=None, managed_results=False
+    )
+    with patch("awswrangler.athena._utils._get_s3_output", return_value="s3://bucket/output/"):
+        with patch("awswrangler.athena._utils._utils.client") as mock_client:
+            mock_client.return_value.start_query_execution.return_value = {"QueryExecutionId": "query-1"}
+            with patch(
+                "awswrangler.athena._utils._utils.try_it", return_value={"QueryExecutionId": "query-1"}
+            ) as mock_try:
+                wr.athena._utils._start_query_execution(sql="SELECT 1", wg_config=wg_config, workgroup="regular-wg")
+    assert "ResultConfiguration" in mock_try.call_args.kwargs
+    assert mock_try.call_args.kwargs["ResultConfiguration"] == {"OutputLocation": "s3://bucket/output/"}
+
+
+def test_get_s3_output_not_called_for_managed_results():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location="s3://bucket/output.csv",
+        manifest_location=None,
+        raw_payload={},
+    )
+    with patch(
+        "awswrangler.athena._read._get_workgroup_config",
+        return_value=wr.athena._utils._WorkGroupConfig(
+            enforced=False, s3_output=None, encryption=None, kms_key=None, managed_results=True
+        ),
+    ):
+        with patch("awswrangler.athena._read._get_s3_output") as mock_get_s3_output:
+            with patch("awswrangler.athena._read._start_query_execution", return_value="query-1"):
+                with patch("awswrangler.athena._read._get_query_metadata", return_value=query_metadata):
+                    with patch("awswrangler.athena._read._fetch_csv_result", return_value=pd.DataFrame()) as mock_fetch:
+                        wr.athena._read._resolve_query_without_cache_regular(
+                            sql="SELECT 1",
+                            database="my_db",
+                            data_source=None,
+                            s3_output=None,
+                            keep_files=True,
+                            chunksize=None,
+                            categories=None,
+                            encryption=None,
+                            workgroup="managed-wg",
+                            kms_key=None,
+                            use_threads=False,
+                            athena_query_wait_polling_delay=0.1,
+                            s3_additional_kwargs=None,
+                            boto3_session=None,
+                            execution_params=None,
+                            result_reuse_configuration=None,
+                            dtype_backend="numpy_nullable",
+                            client_request_token=None,
+                        )
+    mock_get_s3_output.assert_not_called()
+    mock_fetch.assert_called_once()
+
+
+def test_result_reuse_rejected_with_managed_results():
+    with patch(
+        "awswrangler.athena._executions._check_for_cached_results",
+        return_value=wr.athena._executions._CacheInfo(has_valid_cache=False),
+    ):
+        with patch(
+            "awswrangler.athena._executions._get_workgroup_config",
+            return_value=wr.athena._utils._WorkGroupConfig(
+                enforced=False, s3_output=None, encryption=None, kms_key=None, managed_results=True
+            ),
+        ):
+            with pytest.raises(
+                wr.exceptions.InvalidArgumentCombination,
+                match="not supported with managed query results workgroups",
+            ):
+                wr.athena.start_query_execution(
+                    sql="SELECT 1",
+                    database="my_db",
+                    workgroup="managed-wg",
+                    result_reuse_configuration={
+                        "ResultReuseByAgeConfiguration": {"Enabled": True, "MaxAgeInMinutes": 1}
+                    },
+                )
+
+
 def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, glue_ctas_database, kms_key):
     df = get_df_list()
     columns_types, partitions_types = wr.catalog.extract_athena_types(df=df, partition_cols=["par0", "par1"])
