@@ -2,7 +2,7 @@ import datetime
 import logging
 import string
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import boto3
 import botocore
@@ -197,7 +197,7 @@ def test_get_s3_output_not_called_for_managed_results():
         parse_geometry=[],
         converters={},
         binaries=[],
-        output_location="s3://bucket/output.csv",
+        output_location=None,
         manifest_location=None,
         raw_payload={},
     )
@@ -210,7 +210,7 @@ def test_get_s3_output_not_called_for_managed_results():
         with patch("awswrangler.athena._read._get_s3_output") as mock_get_s3_output:
             with patch("awswrangler.athena._read._start_query_execution", return_value="query-1"):
                 with patch("awswrangler.athena._read._get_query_metadata", return_value=query_metadata):
-                    with patch("awswrangler.athena._read._fetch_csv_result", return_value=pd.DataFrame()) as mock_fetch:
+                    with patch("awswrangler.athena._read._fetch_api_result", return_value=pd.DataFrame()) as mock_fetch:
                         wr.athena._read._resolve_query_without_cache_regular(
                             sql="SELECT 1",
                             database="my_db",
@@ -233,6 +233,133 @@ def test_get_s3_output_not_called_for_managed_results():
                         )
     mock_get_s3_output.assert_not_called()
     mock_fetch.assert_called_once()
+
+
+def test_fetch_api_result_reads_rows_for_managed_results():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={"c": "Int64"},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location=None,
+        raw_payload={"QueryExecutionId": "query-1"},
+    )
+    pages = [
+        {
+            "ResultSet": {
+                "ResultSetMetadata": {"ColumnInfo": [{"Name": "c"}]},
+                "Rows": [
+                    {"Data": [{"VarCharValue": "c"}]},
+                    {"Data": [{"VarCharValue": "3"}]},
+                ],
+            }
+        }
+    ]
+    mock_client = MagicMock()
+    mock_client.get_paginator.return_value.paginate.return_value = pages
+    with patch("awswrangler.athena._read._utils.client", return_value=mock_client):
+        df = wr.athena._read._fetch_api_result(query_metadata=query_metadata, chunksize=None, boto3_session=None)
+    assert df["c"].tolist() == [3]
+    assert str(df.dtypes["c"]) == "Int64"
+    assert df.query_metadata == {"QueryExecutionId": "query-1"}
+
+
+def test_fetch_api_result_reads_rows_for_managed_results_chunked():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={"c": "Int64"},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location=None,
+        raw_payload={"QueryExecutionId": "query-1"},
+    )
+    pages = [
+        {
+            "ResultSet": {
+                "ResultSetMetadata": {"ColumnInfo": [{"Name": "c"}]},
+                "Rows": [
+                    {"Data": [{"VarCharValue": "c"}]},
+                    {"Data": [{"VarCharValue": "1"}]},
+                    {"Data": [{"VarCharValue": "2"}]},
+                ],
+            }
+        },
+        {
+            "ResultSet": {
+                "ResultSetMetadata": {"ColumnInfo": [{"Name": "c"}]},
+                "Rows": [
+                    {"Data": [{"VarCharValue": "3"}]},
+                ],
+            }
+        },
+    ]
+    mock_client = MagicMock()
+    mock_client.get_paginator.return_value.paginate.return_value = pages
+    with patch("awswrangler.athena._read._utils.client", return_value=mock_client):
+        dfs = wr.athena._read._fetch_api_result(query_metadata=query_metadata, chunksize=2, boto3_session=None)
+        chunks = list(dfs)
+    assert [df["c"].tolist() for df in chunks] == [[1, 2], [3]]
+    assert all(df.query_metadata == {"QueryExecutionId": "query-1"} for df in chunks)
+
+
+def test_get_query_results_uses_api_fetch_for_managed_results():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location=None,
+        raw_payload={},
+    )
+    mock_client = MagicMock()
+    mock_client.get_query_execution.return_value = {"QueryExecution": {"StatementType": "DML", "Query": "SELECT 1"}}
+    with patch("awswrangler.athena._read._get_query_metadata", return_value=query_metadata):
+        with patch("awswrangler.athena._read._utils.client", return_value=mock_client):
+            with patch("awswrangler.athena._read._fetch_api_result", return_value=pd.DataFrame()) as mock_fetch_api:
+                with patch("awswrangler.athena._read._fetch_csv_result") as mock_fetch_csv:
+                    wr.athena.get_query_results(query_execution_id="query-1")
+    mock_fetch_api.assert_called_once()
+    mock_fetch_csv.assert_not_called()
+
+
+def test_get_query_results_uses_parquet_for_ctas_without_output_location():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location="s3://bucket/query-manifest.csv",
+        raw_payload={},
+    )
+    mock_client = MagicMock()
+    mock_client.get_query_execution.return_value = {
+        "QueryExecution": {"StatementType": "DDL", "Query": "CREATE TABLE foo AS SELECT 1"}
+    }
+    with patch("awswrangler.athena._read._get_query_metadata", return_value=query_metadata):
+        with patch("awswrangler.athena._read._utils.client", return_value=mock_client):
+            with patch("awswrangler.athena._read._fetch_parquet_result", return_value=pd.DataFrame()) as mock_parquet:
+                with patch("awswrangler.athena._read._fetch_api_result") as mock_fetch_api:
+                    with patch("awswrangler.athena._read._fetch_csv_result") as mock_fetch_csv:
+                        wr.athena.get_query_results(query_execution_id="query-1")
+    mock_parquet.assert_called_once()
+    mock_fetch_api.assert_not_called()
+    mock_fetch_csv.assert_not_called()
 
 
 def test_result_reuse_rejected_with_managed_results():
