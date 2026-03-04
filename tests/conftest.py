@@ -144,6 +144,19 @@ def workgroup3(bucket, kms_key):
 
 
 @pytest.fixture(scope="session")
+def workgroup_managed():
+    return create_workgroup(
+        wkg_name="aws_sdk_pandas_managed",
+        config={
+            "ManagedQueryResultsConfiguration": {"Enabled": True},
+            "EnforceWorkGroupConfiguration": True,
+            "PublishCloudWatchMetricsEnabled": True,
+            "RequesterPaysEnabled": False,
+        },
+    )
+
+
+@pytest.fixture(scope="session")
 def databases_parameters(cloudformation_outputs, db_password):
     parameters = dict(
         postgresql={},

@@ -112,6 +112,19 @@ def test_read_sql_query_with_result_reuse_configuration_error(glue_database):
         )
 
 
+def test_read_sql_query_managed_results(glue_database, workgroup_managed):
+    df = wr.athena.read_sql_query(
+        sql="SELECT 1 AS c",
+        database=glue_database,
+        workgroup=workgroup_managed,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+    assert df["c"].tolist() == [1]
+    assert df.query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert df.query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
 def test_workgroup_config_with_managed_results_enabled():
     with patch(
         "awswrangler.athena._utils.get_work_group",
