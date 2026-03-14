@@ -1787,7 +1787,5 @@ def test_athena_date_recovery(path, glue_database, glue_table):
         database=glue_database,
         ctas_approach=False,
     )
-    # Pandas 3 defaults to datetime64[us] while pandas 2 used datetime64[ns].
-    # The Athena CSV read path parses date strings, inheriting the pandas default resolution,
-    # so the round-trip dtype may differ from the input. Only compare values.
-    assert_pandas_equals(df, df2, check_dtype=False)
+    # Round-trip dtype/resolution may differ (e.g. datetime64[ns] vs [us]) depending on pandas version.
+    assert_pandas_equals(df, df2, check_dtype=False, check_datetimelike_compat=True)

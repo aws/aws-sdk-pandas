@@ -568,14 +568,17 @@ def pandas_equals(df1: pd.DataFrame | pd.Series, df2: pd.DataFrame | pd.Series) 
 
 
 def assert_pandas_equals(
-    df1: pd.DataFrame | pd.Series, df2: pd.DataFrame | pd.Series, check_dtype: bool = True
+    df1: pd.DataFrame | pd.Series,
+    df2: pd.DataFrame | pd.Series,
+    check_dtype: bool = True,
+    check_datetimelike_compat: bool = False,
 ) -> None:
     df1, df2 = to_pandas(df1), to_pandas(df2)
 
     if isinstance(df1, PandasDataFrame):
-        assert_frame_equal(df1, df2, check_dtype=check_dtype)
+        assert_frame_equal(df1, df2, check_dtype=check_dtype, check_datetimelike_compat=check_datetimelike_compat)
     elif isinstance(df1, PandasSeries):
-        assert_series_equal(df1, df2, check_dtype=check_dtype)
+        assert_series_equal(df1, df2, check_dtype=check_dtype, check_datetimelike_compat=check_datetimelike_compat)
     else:
         raise ValueError(f"Unsupported type {type(df1)}")
 
