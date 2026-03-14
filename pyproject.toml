@@ -129,8 +129,9 @@ override-dependencies = [
     "pandas>=3.0.0,<4.0.0 ; python_version >= '3.11'",
     "pandas>=2.0.0,<3.0.0 ; python_version < '3.11'",
 ]
-# Pin pyproj to 3.7.1 — 3.7.2 has no pre-built wheel for AL2
-constraint-dependencies = ["pyproj<3.7.2"]
+# Pin packages without pre-built wheels for AL2 — temporary fix until CI migrated to AL2023.
+# Only affects local resolution (uv.lock), not published package metadata — users are not impacted.
+constraint-dependencies = ["pyproj<3.7.2", "numpy<2.4"]
 
 [build-system]
 requires = ["hatchling"]
