@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource
-from ray.data.datasource.file_meta_provider import FastFileMetadataProvider
 
 from awswrangler import _data_types
 from awswrangler.distributed.ray.datasources import ArrowORCDatasource
@@ -39,7 +38,6 @@ def _read_orc_distributed(
         use_threads=use_threads,
         schema=schema,
         arrow_orc_args={"columns": columns},
-        meta_provider=FastFileMetadataProvider(),
     )
     ray_dataset = read_datasource(
         datasource,

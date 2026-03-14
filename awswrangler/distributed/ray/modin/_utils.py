@@ -37,7 +37,7 @@ def _ray_dataset_from_df(df: pd.DataFrame | modin_pd.DataFrame) -> Dataset:
     if isinstance(df, modin_pd.DataFrame):
         return from_modin(df)  # type: ignore[no-any-return]
     if isinstance(df, pd.DataFrame):
-        return from_pandas(df)  # type: ignore[no-any-return]
+        return from_pandas(df)
     raise ValueError(f"Unknown DataFrame type: {type(df)}")
 
 
@@ -85,7 +85,7 @@ def _arrow_refs_to_df(
         )
 
     ref_rows: list[bool] = ray_get([_is_not_empty(arrow_ref) for arrow_ref in arrow_refs])
-    refs: list[Callable[..., Any]] = [ref for ref_rows, ref in zip(ref_rows, arrow_refs) if ref_rows]
+    refs: list[ObjectRef[Any]] = [ref for ref_rows, ref in zip(ref_rows, arrow_refs) if ref_rows]  # type: ignore[misc]
     return _to_modin(
         dataset=ray.data.from_arrow_refs(refs) if len(refs) > 0 else ray.data.from_arrow([pa.Table.from_arrays([])]),
         to_pandas_kwargs=kwargs,

@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, TypedDict
 import modin.pandas as pd
 from pyarrow import csv
 from ray.data import read_datasource
-from ray.data.datasource.file_meta_provider import FastFileMetadataProvider
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import (
@@ -169,7 +168,6 @@ def _read_text_distributed(
             version_ids=version_ids,
             s3_additional_kwargs=s3_additional_kwargs,
             pandas_kwargs=pandas_kwargs,
-            meta_provider=FastFileMetadataProvider(),
             **configuration,
         ),
         override_num_blocks=override_num_blocks,
