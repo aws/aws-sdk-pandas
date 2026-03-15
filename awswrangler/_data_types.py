@@ -531,7 +531,7 @@ def pyarrow_types_from_pandas(  # noqa: PLR0912,PLR0915
             cols_dtypes[name] = pa.float32()
         elif dtype_str == "float64":
             cols_dtypes[name] = pa.float64()
-        elif dtype_str == "string":
+        elif dtype_str in ("string", "str"):
             cols_dtypes[name] = pa.string()
         elif dtype_str == "boolean":
             cols_dtypes[name] = pa.bool_()
