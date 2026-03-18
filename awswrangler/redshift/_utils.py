@@ -71,9 +71,9 @@ def _begin_transaction(cursor: "redshift_connector.Cursor") -> None:
 
 
 def _drop_table(cursor: "redshift_connector.Cursor", schema: str | None, table: str, cascade: bool = False) -> None:
-    schema_str = f'"{schema}".' if schema else ""
+    schema_str = f"{_identifier(schema)}." if schema else ""
     cascade_str = " CASCADE" if cascade else ""
-    sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"{cascade_str}'
+    sql = f"DROP TABLE IF EXISTS {schema_str}{_identifier(table)}{cascade_str}"
     _logger.debug("Executing drop table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -97,22 +97,15 @@ def _delete_all(cursor: "redshift_connector.Cursor", schema: str | None, table: 
 
 
 def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: str) -> list[str]:
-    sql = f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'"
-    _logger.debug("Executing select query:\n%s", sql)
-    cursor.execute(sql)
-    result: str = cursor.fetchall()[0][0]
-    rfields: list[str] = result.split("(")[1].strip(")").split(",")
-    fields: list[str] = [field.strip().strip('"') for field in rfields]
-    return fields
+    _logger.debug("Getting primary keys for %s.%s", schema, table)
+    result = cursor.get_primary_keys(schema=schema, table=table)
+    return [row[3] for row in result]
 
 
 def _get_table_columns(cursor: "redshift_connector.Cursor", schema: str, table: str) -> list[str]:
-    sql = f"SELECT column_name FROM svv_columns\n WHERE table_schema = '{schema}' AND table_name = '{table}'"
-    _logger.debug("Executing select query:\n%s", sql)
-    cursor.execute(sql)
-    result: tuple[list[str]] = cursor.fetchall()
-    columns = ["".join(lst) for lst in result]
-    return columns
+    _logger.debug("Getting columns for %s.%s", schema, table)
+    result = cursor.get_columns(schema_pattern=schema, tablename_pattern=table)
+    return [row[3] for row in result]
 
 
 def _add_table_columns(
@@ -128,13 +121,9 @@ def _add_table_columns(
 
 
 def _does_table_exist(cursor: "redshift_connector.Cursor", schema: str | None, table: str) -> bool:
-    schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
-    sql = (
-        f"SELECT true WHERE EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE {schema_str} TABLE_NAME = '{table}');"
-    )
-    _logger.debug("Executing select query:\n%s", sql)
-    cursor.execute(sql)
-    return len(cursor.fetchall()) > 0
+    _logger.debug("Checking if table %s.%s exists", schema, table)
+    result = cursor.get_tables(schema_pattern=schema, table_name_pattern=table)
+    return len(result) > 0
 
 
 def _get_paths_from_manifest(path: str, boto3_session: boto3.Session | None = None) -> list[str]:
@@ -183,14 +172,15 @@ def _upsert(
     _logger.debug("primary_keys: %s", primary_keys)
     if not primary_keys:
         raise exceptions.InvalidRedshiftPrimaryKeys()
-    equals_clause: str = f"{_identifier(table)}.%s = {_identifier(temp_table)}.%s"
-    join_clause: str = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
+    join_clause: str = " AND ".join(
+        [f"{_identifier(table)}.{_identifier(pk)} = {_identifier(temp_table)}.{_identifier(pk)}" for pk in primary_keys]
+    )
     if precombine_key:
         delete_from_target_filter: str = (
-            f"AND {_identifier(table)}.{precombine_key} <= {_identifier(temp_table)}.{precombine_key}"
+            f"AND {_identifier(table)}.{_identifier(precombine_key)} <= {_identifier(temp_table)}.{_identifier(precombine_key)}"
         )
         delete_from_temp_filter: str = (
-            f"AND {_identifier(table)}.{precombine_key} > {_identifier(temp_table)}.{precombine_key}"
+            f"AND {_identifier(table)}.{_identifier(precombine_key)} > {_identifier(temp_table)}.{_identifier(precombine_key)}"
         )
         target_del_sql: str = f"DELETE FROM {_identifier(schema)}.{_identifier(table)} USING {_identifier(temp_table)} WHERE {join_clause} {delete_from_target_filter}"
         _logger.debug("Executing delete query:\n%s", target_del_sql)
@@ -203,7 +193,7 @@ def _upsert(
         _logger.debug("Executing delete query:\n%s", sql)
         cursor.execute(sql)
     if column_names:
-        column_names_str = ",".join(column_names)
+        column_names_str = ",".join([_identifier(col) for col in column_names])
         insert_sql = f"INSERT INTO {_identifier(schema)}.{_identifier(table)}({column_names_str}) SELECT {column_names_str} FROM {_identifier(temp_table)}"
     else:
         insert_sql = f"INSERT INTO {_identifier(schema)}.{_identifier(table)} SELECT * FROM {_identifier(temp_table)}"
@@ -440,7 +430,7 @@ def _create_table(  # noqa: PLR0913
         if mode == "upsert":
             guid: str = uuid.uuid4().hex
             temp_table: str = f"temp_redshift_{guid}"
-            sql: str = f"CREATE TEMPORARY TABLE {temp_table} (LIKE {_identifier(schema)}.{_identifier(table)})"
+            sql: str = f"CREATE TEMPORARY TABLE {_identifier(temp_table)} (LIKE {_identifier(schema)}.{_identifier(table)})"
             _logger.debug("Executing create temporary table query:\n%s", sql)
             cursor.execute(sql)
             return temp_table, None
@@ -473,12 +463,12 @@ def _create_table(  # noqa: PLR0913
         sortkey=sortkey,
         primary_keys=primary_keys,
     )
-    cols_str: str = "".join([f'"{k}" {v},\n' for k, v in redshift_types.items()])[:-2]
+    cols_str: str = "".join([f"{_identifier(k)} {v},\n" for k, v in redshift_types.items()])[:-2]
     primary_keys_str: str = (
-        ",\nPRIMARY KEY ({})".format(", ".join('"' + pk + '"' for pk in primary_keys)) if primary_keys else ""
+        ",\nPRIMARY KEY ({})".format(", ".join(_identifier(pk) for pk in primary_keys)) if primary_keys else ""
     )
-    distkey_str: str = f"\nDISTKEY({distkey})" if distkey and diststyle == "KEY" else ""
-    sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})" if sortkey else ""
+    distkey_str: str = f"\nDISTKEY({_identifier(distkey)})" if distkey and diststyle == "KEY" else ""
+    sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(_identifier(k) for k in sortkey)})" if sortkey else ""
     sql = (
         f"CREATE TABLE IF NOT EXISTS {_identifier(schema)}.{_identifier(table)} (\n"
         f"{cols_str}"

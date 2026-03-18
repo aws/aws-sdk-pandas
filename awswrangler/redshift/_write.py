@@ -18,6 +18,7 @@ from ._utils import (
     _create_table,
     _does_table_exist,
     _get_rsh_columns_types,
+    _identifier,
     _make_s3_auth_string,
     _upsert,
 )
@@ -56,9 +57,9 @@ def _copy(
     column_names: list[str] | None = None,
 ) -> None:
     if schema is None:
-        table_name: str = f'"{table}"'
+        table_name: str = _identifier(table)
     else:
-        table_name = f'"{schema}"."{table}"'
+        table_name = f"{_identifier(schema)}.{_identifier(table)}"
 
     if data_format not in ["parquet", "orc"] and serialize_to_json:
         raise exceptions.InvalidArgumentCombination(
@@ -73,7 +74,7 @@ def _copy(
         boto3_session=boto3_session,
     )
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
-    column_names_str: str = f"({','.join(column_names)})" if column_names else ""
+    column_names_str: str = f"({','.join(_identifier(col) for col in column_names)})" if column_names else ""
     sql = (
         f"COPY {table_name} {column_names_str}\nFROM '{path}' {auth_str}\nFORMAT AS {data_format.upper()}{ser_json_str}"
     )
@@ -236,17 +237,17 @@ def to_sql(
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            column_names = [f'"{column}"' for column in df.columns]
+            column_names = list(df.columns)
             column_placeholders: str = ", ".join(["%s"] * len(column_names))
-            schema_str = f'"{created_schema}".' if created_schema else ""
+            schema_str = f"{_identifier(created_schema)}." if created_schema else ""
             insertion_columns = ""
             if use_column_names:
-                insertion_columns = f"({', '.join(column_names)})"
+                insertion_columns = f"({', '.join(_identifier(col) for col in column_names)})"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
             for placeholders, parameters in placeholder_parameter_pair_generator:
-                sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES {placeholders}'
+                sql: str = f"INSERT INTO {schema_str}{_identifier(created_table)} {insertion_columns} VALUES {placeholders}"
                 _logger.debug("Executing insert query:\n%s", sql)
                 cursor.executemany(sql, (parameters,))
             if table != created_table:  # upsert
@@ -700,7 +701,7 @@ def copy(  # noqa: PLR0913
     """
     path = path[:-1] if path.endswith("*") else path
     path = path if path.endswith("/") else f"{path}/"
-    column_names = [f'"{column}"' for column in df.columns] if use_column_names else []
+    column_names = list(df.columns) if use_column_names else []
     if s3.list_objects(path=path, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs):
         raise exceptions.InvalidArgument(
             f"The received S3 path ({path}) is not empty. "
