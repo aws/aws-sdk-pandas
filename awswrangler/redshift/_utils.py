@@ -176,12 +176,8 @@ def _upsert(
         [f"{_identifier(table)}.{_identifier(pk)} = {_identifier(temp_table)}.{_identifier(pk)}" for pk in primary_keys]
     )
     if precombine_key:
-        delete_from_target_filter: str = (
-            f"AND {_identifier(table)}.{_identifier(precombine_key)} <= {_identifier(temp_table)}.{_identifier(precombine_key)}"
-        )
-        delete_from_temp_filter: str = (
-            f"AND {_identifier(table)}.{_identifier(precombine_key)} > {_identifier(temp_table)}.{_identifier(precombine_key)}"
-        )
+        delete_from_target_filter: str = f"AND {_identifier(table)}.{_identifier(precombine_key)} <= {_identifier(temp_table)}.{_identifier(precombine_key)}"
+        delete_from_temp_filter: str = f"AND {_identifier(table)}.{_identifier(precombine_key)} > {_identifier(temp_table)}.{_identifier(precombine_key)}"
         target_del_sql: str = f"DELETE FROM {_identifier(schema)}.{_identifier(table)} USING {_identifier(temp_table)} WHERE {join_clause} {delete_from_target_filter}"
         _logger.debug("Executing delete query:\n%s", target_del_sql)
         cursor.execute(target_del_sql)
@@ -430,7 +426,9 @@ def _create_table(  # noqa: PLR0913
         if mode == "upsert":
             guid: str = uuid.uuid4().hex
             temp_table: str = f"temp_redshift_{guid}"
-            sql: str = f"CREATE TEMPORARY TABLE {_identifier(temp_table)} (LIKE {_identifier(schema)}.{_identifier(table)})"
+            sql: str = (
+                f"CREATE TEMPORARY TABLE {_identifier(temp_table)} (LIKE {_identifier(schema)}.{_identifier(table)})"
+            )
             _logger.debug("Executing create temporary table query:\n%s", sql)
             cursor.execute(sql)
             return temp_table, None

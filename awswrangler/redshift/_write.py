@@ -247,7 +247,9 @@ def to_sql(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
             for placeholders, parameters in placeholder_parameter_pair_generator:
-                sql: str = f"INSERT INTO {schema_str}{_identifier(created_table)} {insertion_columns} VALUES {placeholders}"
+                sql: str = (
+                    f"INSERT INTO {schema_str}{_identifier(created_table)} {insertion_columns} VALUES {placeholders}"
+                )
                 _logger.debug("Executing insert query:\n%s", sql)
                 cursor.executemany(sql, (parameters,))
             if table != created_table:  # upsert
