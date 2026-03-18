@@ -97,15 +97,22 @@ def _delete_all(cursor: "redshift_connector.Cursor", schema: str | None, table: 
 
 
 def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: str) -> list[str]:
-    _logger.debug("Getting primary keys for %s.%s", schema, table)
-    result = cursor.get_primary_keys(schema=schema, table=table)
-    return [row[3] for row in result]
+    sql = "SELECT indexdef FROM pg_indexes WHERE schemaname = %s AND tablename = %s"
+    _logger.debug("Executing select query:\n%s", sql)
+    cursor.execute(sql, (schema, table))
+    result: str = cursor.fetchall()[0][0]
+    rfields: list[str] = result.split("(")[1].strip(")").split(",")
+    fields: list[str] = [field.strip().strip('"') for field in rfields]
+    return fields
 
 
 def _get_table_columns(cursor: "redshift_connector.Cursor", schema: str, table: str) -> list[str]:
-    _logger.debug("Getting columns for %s.%s", schema, table)
-    result = cursor.get_columns(schema_pattern=schema, tablename_pattern=table)
-    return [row[3] for row in result]
+    sql = "SELECT column_name FROM svv_columns WHERE table_schema = %s AND table_name = %s"
+    _logger.debug("Executing select query:\n%s", sql)
+    cursor.execute(sql, (schema, table))
+    result: tuple[list[str]] = cursor.fetchall()
+    columns = ["".join(lst) for lst in result]
+    return columns
 
 
 def _add_table_columns(
@@ -121,9 +128,15 @@ def _add_table_columns(
 
 
 def _does_table_exist(cursor: "redshift_connector.Cursor", schema: str | None, table: str) -> bool:
-    _logger.debug("Checking if table %s.%s exists", schema, table)
-    result = cursor.get_tables(schema_pattern=schema, table_name_pattern=table)
-    return len(result) > 0
+    if schema:
+        sql = "SELECT true WHERE EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s);"
+        params: tuple[str, ...] = (schema, table)
+    else:
+        sql = "SELECT true WHERE EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = %s);"
+        params = (table,)
+    _logger.debug("Executing select query:\n%s", sql)
+    cursor.execute(sql, params)
+    return len(cursor.fetchall()) > 0
 
 
 def _get_paths_from_manifest(path: str, boto3_session: boto3.Session | None = None) -> list[str]:
