@@ -22,40 +22,42 @@ Meanwhile, the project already runs linting, static analysis, and minimal unit t
 
 ## Decision
 
-Migrate CI orchestration from standalone CodeBuild webhooks to GitHub Actions workflows that trigger a single CodeBuild project via `aws-actions/aws-codebuild-run-build`.
+Migrate CI to GitHub Actions using [CodeBuild-hosted GitHub Actions runners](https://docs.aws.amazon.com/codebuild/latest/userguide/action-runner.html). A single CodeBuild project acts as a self-hosted runner for GitHub Actions — workflow steps execute directly on CodeBuild infrastructure inside the VPC.
 
 ### Architecture
 
 ```
-GitHub Actions (orchestration)          AWS CodeBuild (execution)
+GitHub Actions                          AWS CodeBuild
 ┌─────────────────────────┐             ┌──────────────────────┐
-│ .github/workflows/      │  OIDC +     │ Single project:      │
-│                         │  StartBuild │ "integration-tests"  │
-│ integration-tests.yml   │────────────>│                      │
-│   matrix:               │             │ - VPC + DB sec group │
-│     python: [3.10..14]  │             │ - IAM test role      │
-│     type: [unit, dist]  │             │ - AL2023 image       │
-│                         │             │ - Buildspec override  │
-│ deploy-test-infra.yml   │             │   per invocation     │
-│   on push to main       │             └──────────────────────┘
+│ .github/workflows/      │  WORKFLOW_  │ Runner project:      │
+│                         │  JOB_QUEUED │ "integration-tests"  │
+│ integration-tests.yml   │ (webhook)  │                      │
+│   runs-on: codebuild-.. │────────────>│ - VPC + DB sec group │
+│   matrix:               │             │ - IAM test role      │
+│     python: [3.10..14]  │             │ - AL2023 image       │
+│     type: [unit, dist]  │             │ - Ephemeral runner   │
+│                         │             │   per job            │
+│ deploy-test-infra.yml   │             └──────────────────────┘
+│   on push to main       │
 │   paths: test_infra/**  │
 └─────────────────────────┘
 ```
 
-- **GitHub Actions** handles triggers (PR, push, manual), the Python version matrix, concurrency, status reporting, and artifact collection.
-- **CodeBuild** handles execution inside the VPC with access to private databases (RDS, Redshift, Neptune, OpenSearch). It runs a buildspec overridden per invocation — no webhooks, no batch builds.
+- **GitHub Actions** defines the workflow: triggers, Python version matrix, steps (`actions/checkout`, `setup-python`, `uv sync`, `pytest`). Workflow steps execute directly on the CodeBuild runner — no buildspecs, no separate execution model.
+- **CodeBuild** provides the runner environment: VPC networking, security group for database access, IAM role, and compute. It registers as an ephemeral self-hosted runner via a `WORKFLOW_JOB_QUEUED` webhook, executes one job, and terminates.
 - **CDK stacks** for the CodeBuild project, IAM roles, and Ray load test infrastructure move into `./test_infra/`, alongside the existing test resource stacks. The private repository is retired.
 
 ### What changes
 
 | Before | After |
 |--------|-------|
-| 5 CodeBuild projects with webhooks | 1 CodeBuild project, no webhooks |
+| 5 CodeBuild projects with PR/push webhooks | 1 CodeBuild runner project with `WORKFLOW_JOB_QUEUED` webhook |
+| Buildspecs define test execution | GitHub Actions workflow steps run directly on runner |
 | Custom AL2 Docker image in ECR | Standard AL2023 CodeBuild image |
 | Batch builds for Python matrix | GitHub Actions `strategy.matrix` |
 | S3 artifacts bucket + KMS CMK | GitHub Actions artifacts |
-| GitHub OAuth token in Secrets Manager | GitHub OIDC (no long-lived secrets) |
-| SAR app for PR log links | Native GitHub PR checks |
+| GitHub OAuth token in Secrets Manager | CodeBuild GitHub connection (for webhook) |
+| SAR app for PR log links | Native GitHub PR checks (logs in GitHub Actions) |
 | Slack notification Lambda | GitHub Actions Slack integration |
 | Separate private repository | New stack in `test_infra/` in main repo |
 | Internal CI deploys all infrastructure | GitHub Actions `deploy-test-infra.yml` workflow |
@@ -95,29 +97,21 @@ Integration tests continue to run inside CodeBuild containers, not on GitHub-hos
 
 - **Network isolation** — the project runs inside the VPC with a specific security group. No database ports are exposed to the internet.
 - **Ephemeral containers** — each build runs in a fresh container that is destroyed after completion. No persistent state between builds.
-- **Buildspec from repo** — the buildspec is read from the base branch of the repository, not from the PR branch. An attacker submitting a fork PR cannot modify the build commands executed by CodeBuild.
 
-### GitHub Actions role is narrowly scoped
+### No broad IAM role exposed to GitHub Actions
 
-The OIDC role assumed by GitHub Actions only has permission to:
+Unlike the `aws-actions/aws-codebuild-run-build` approach, the CodeBuild-hosted runner model does not require GitHub Actions to assume any AWS role to trigger builds. The CodeBuild project is activated by a webhook — GitHub Actions never holds AWS credentials for the test account. The test IAM role is only available inside the CodeBuild runner environment.
 
-- `codebuild:StartBuild` and `codebuild:BatchGetBuilds` — scoped to the single integration-tests project.
-- `logs:GetLogEvents` — scoped to the project's log group.
-
-It **cannot** access databases, S3 test buckets, Secrets Manager, or any other test resource. It can only start a build and read its logs.
-
-### Test role stays on CodeBuild
-
-The broad test permissions (Glue, Athena, S3, DynamoDB, Redshift, etc.) are attached to an IAM role that only CodeBuild's service role can assume. GitHub Actions never holds these credentials.
+The only OIDC role needed is for infrastructure deployment (`deploy-test-infra.yml`), which is scoped to CDK/CloudFormation permissions and gated by a GitHub Environment requiring manual approval.
 
 ### Fork PR protections
 
-| Concern | Before (CodeBuild webhooks) | After (GitHub Actions + CodeBuild) |
+| Concern | Before (CodeBuild webhooks) | After (CodeBuild-hosted runner) |
 |---------|----------------------------|-----------------------------------|
 | Fork PR triggers build | Yes — webhook fires on `PULL_REQUEST_CREATED` / `PULL_REQUEST_UPDATED` | Controlled by workflow trigger — can use `pull_request_target` + environment approval |
-| Attacker modifies build commands | Cannot — buildspec is in S3, not in PR | Cannot — `aws-codebuild-run-build` passes the buildspec path, CodeBuild reads it from the checked-out base branch |
+| Attacker modifies build commands | Cannot — buildspec is in S3, not in PR | Cannot — `pull_request_target` runs the workflow definition from the base branch, not the fork |
 | Attacker modifies workflow | N/A — no workflows involved | Cannot affect credentialed jobs if using `pull_request_target` (workflow definition comes from base branch) |
-| Credentials exposed in logs | CodeBuild masks env vars | Same — CodeBuild still executes, plus GitHub Actions masks OIDC tokens |
+| Credentials exposed in logs | CodeBuild masks env vars | Same — CodeBuild still executes, GitHub Actions also masks secrets |
 
 ### CDK stack moves from private to public repository
 
@@ -132,33 +126,35 @@ The CI CDK code is currently in a private repository. Moving it into the public 
 
 ### Comparison with prior art
 
-AWS Powertools for Lambda (Python) — a comparable AWS open-source project — uses GitHub Actions with OIDC for all CI, including e2e tests that deploy to AWS. They additionally enforce SHA-pinned actions via a dedicated workflow. We adopt the same practices: OIDC federation, SHA-pinned actions, repo origin checks, and environment-gated approvals for sensitive jobs.
+AWS Powertools for Lambda (Python) — a comparable AWS open-source project — uses GitHub Actions with OIDC for all CI, including e2e tests that deploy to AWS. They additionally enforce SHA-pinned actions via a dedicated workflow. We adopt the same practices: SHA-pinned actions, repo origin checks, and environment-gated approvals for sensitive jobs.
 
 ### Removed attack surface
 
 The migration actually **removes** some attack surface present in the current setup:
 
-- **GitHub OAuth token** — currently stored in Secrets Manager and used by CodeBuild's GitHub source credentials. Replaced by OIDC (no long-lived token).
+- **GitHub OAuth token** — currently stored in Secrets Manager and used by CodeBuild's GitHub source credentials. No longer needed.
 - **S3 artifacts bucket + KMS CMK** — no longer needed. Fewer resources to manage and secure.
 - **Multiple CodeBuild service roles** — consolidated into one, reducing IAM sprawl.
+- **Buildspecs** — eliminated entirely. Workflow steps are defined in `.github/workflows/` and are subject to PR review, branch protection, and `pull_request_target` controls.
 
 ## Consequences
 
 ### Positive
 
 - Single repository for all CI configuration and test infrastructure.
-- Native PR check integration — logs, status, and artifacts visible directly in GitHub.
-- Python version matrix managed declaratively in YAML instead of CodeBuild batch builds.
+- Native PR check integration — logs, status, and artifacts visible directly in GitHub Actions.
+- Python version matrix managed declaratively in workflow YAML instead of CodeBuild batch builds.
 - AL2 dependency eliminated (standard AL2023 CodeBuild image).
-- Simpler IAM: one CodeBuild project, one service role, one test role, one OIDC role.
+- Simpler IAM: one CodeBuild project, one service role, one test role. No OIDC role needed for test triggering.
+- No buildspecs — workflow steps run directly on the CodeBuild runner, using standard GitHub Actions (`actions/checkout`, `setup-python`, etc.).
 - Infrastructure deployment via GitHub Actions workflow with environment approval gates.
 
 ### Negative
 
 - CodeBuild is still required for VPC database tests — full elimination would require self-hosted runners inside the VPC, which introduces fleet management overhead and a wider security surface.
-- ~1–2 minute overhead per job for the GitHub Actions → CodeBuild handoff (OIDC token exchange, StartBuild API call, log streaming).
+- CodeBuild-hosted runner is a newer AWS feature with less community adoption than `aws-actions/aws-codebuild-run-build`.
 
 ### Future opportunities
 
-- **Split tests by VPC requirement** — ~40 test files (~300+ test functions) only need public AWS API access (S3, Glue, Athena, DynamoDB, Timestream, etc.) and could run directly on GitHub Actions runners via OIDC, without CodeBuild. Only ~8 test files (~185 test functions) require VPC database connectivity. This split would further reduce CodeBuild usage and speed up the majority of the test suite.
+- **Split tests by VPC requirement** — ~40 test files (~300+ test functions) only need public AWS API access (S3, Glue, Athena, DynamoDB, Timestream, etc.) and could run directly on GitHub-hosted runners via OIDC, without CodeBuild. Only ~8 test files (~185 test functions) require VPC database connectivity. This split would further reduce CodeBuild usage and speed up the majority of the test suite.
 - **Self-hosted runners** — if VPC database tests are eventually moved to self-hosted GitHub Actions runners, CodeBuild can be fully retired.
