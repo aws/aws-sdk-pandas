@@ -30,8 +30,8 @@ def _create_dqdl(
     """Create DQDL from pandas data frame."""
     rules = []
     for rule_type, parameter, expression in df_rules.itertuples(index=False):
-        parameter_str = f" {parameter} " if parameter else " "
-        expression_str = expression if expression else ""
+        parameter_str = f" {parameter} " if pd.notna(parameter) else " "
+        expression_str = expression if pd.notna(expression) else ""
         rules.append(f"{rule_type}{parameter_str}{expression_str}")
     return "Rules = [ " + ", ".join(rules) + " ]"
 

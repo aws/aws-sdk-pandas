@@ -21,7 +21,7 @@ classifiers = [
 dependencies = [
     "boto3>=1.20.32,<2",
     "botocore>=1.23.32,<2",
-    "pandas>=1.2.0,<3.0.0",
+    "pandas>=1.2.0,<4.0.0",
     "numpy>=1.26,<3.0",
     "pyarrow>=8.0.0,<23.0.0",
     "typing-extensions>=4.4.0,<5",
@@ -123,6 +123,16 @@ exclude = [
     "DS_Store",
     "__pycache__",
 ]
+
+[tool.uv]
+# Force pandas 3 in the lock file; modin's own pandas<2.4 constraint is ignored during resolution
+override-dependencies = [
+    "pandas>=3.0.0,<4.0.0 ; python_version >= '3.11'",
+    "pandas>=2.0.0,<3.0.0 ; python_version < '3.11'",
+]
+# Pin packages without pre-built wheels for AL2 — temporary fix until CI migrated to AL2023.
+# Only affects local resolution (uv.lock), not published package metadata — users are not impacted.
+constraint-dependencies = ["pyproj<3.7.2", "numpy<2.3 ; python_version < '3.14'"]
 
 [build-system]
 requires = ["hatchling"]
