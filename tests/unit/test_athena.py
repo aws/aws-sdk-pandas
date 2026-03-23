@@ -1774,7 +1774,7 @@ def test_athena_date_recovery(path, glue_database, glue_table):
             "date3": [datetime.date(3099, 1, 3), datetime.date(3099, 1, 4), datetime.date(4080, 1, 5)],
         }
     )
-    df["date1"] = df["date1"].astype("datetime64[ns]")
+    df["date1"] = pd.to_datetime(df["date1"])
     wr.s3.to_parquet(
         df=df,
         path=path,
@@ -1787,4 +1787,5 @@ def test_athena_date_recovery(path, glue_database, glue_table):
         database=glue_database,
         ctas_approach=False,
     )
-    assert pandas_equals(df, df2)
+    # Round-trip dtype/resolution may differ (e.g. datetime64[ns] vs [us]) depending on pandas version.
+    assert_pandas_equals(df, df2, check_dtype=False, check_datetimelike_compat=True)

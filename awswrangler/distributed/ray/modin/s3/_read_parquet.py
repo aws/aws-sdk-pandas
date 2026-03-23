@@ -8,7 +8,6 @@ import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource
 from ray.data._internal.datasource.parquet_datasource import ParquetDatasource
-from ray.data.datasource.file_meta_provider import FastFileMetadataProvider
 
 from awswrangler.distributed.ray.datasources import ArrowParquetBaseDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
@@ -21,7 +20,6 @@ def _resolve_datasource_parameters(bulk_read: bool, *args: Any, **kwargs: Any) -
     if bulk_read:
         return {
             "datasource": ArrowParquetBaseDatasource(*args, **kwargs),
-            "meta_provider": FastFileMetadataProvider(),
         }
     else:
         kwargs.pop("path_root")
