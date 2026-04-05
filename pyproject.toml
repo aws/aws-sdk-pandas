@@ -22,7 +22,7 @@ dependencies = [
     "botocore>=1.23.32,<2",
     "pandas>=1.2.0,<4.0.0",
     "numpy>=1.26,<3.0",
-    "pyarrow>=8.0.0,<23.0.0",
+    "pyarrow>=8.0.0,<24.0.0",
     "typing-extensions>=4.4.0,<5",
     "packaging>=21.1,<27.0",
     "setuptools ; python_version >= '3.12'",
@@ -52,7 +52,7 @@ opensearch = [
 ]
 openpyxl = ["openpyxl>=3.0.0,<4"]
 progressbar = ["progressbar2>=4.0.0,<5"]
-deltalake = ["deltalake>=0.18.0,<1.4.0"]
+deltalake = ["deltalake>=0.18.0,<1.6.0"]
 pyiceberg = ["pyiceberg[pyarrow]>=0.7.0,<1"]
 geopandas = ["geopandas>=1.0.0,<2", "pyproj>=3.6,<3.7.2"]
 modin = ["modin>=0.31,<0.38"]
