@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10, <4.0"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -417,7 +417,7 @@ wheels = [
 
 [[package]]
 name = "awswrangler"
-version = "3.15.1"
+version = "3.16.0"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
@@ -529,7 +529,7 @@ requires-dist = [
     { name = "async-timeout", marker = "extra == 'gremlin'", specifier = ">=4.0.3,<6.0.0" },
     { name = "boto3", specifier = ">=1.20.32,<2" },
     { name = "botocore", specifier = ">=1.23.32,<2" },
-    { name = "deltalake", marker = "extra == 'deltalake'", specifier = ">=0.18.0,<1.4.0" },
+    { name = "deltalake", marker = "extra == 'deltalake'", specifier = ">=0.18.0,<1.6.0" },
     { name = "geopandas", marker = "extra == 'geopandas'", specifier = ">=1.0.0,<2" },
     { name = "gremlinpython", marker = "extra == 'gremlin'", specifier = ">=3.7.1,<4" },
     { name = "jsonpath-ng", marker = "extra == 'opensearch'", specifier = ">=1.5.3,<2" },
@@ -542,16 +542,16 @@ requires-dist = [
     { name = "pandas", specifier = ">=1.2.0,<4.0.0" },
     { name = "pg8000", marker = "extra == 'postgres'", specifier = ">=1.29.0,<2" },
     { name = "progressbar2", marker = "extra == 'progressbar'", specifier = ">=4.0.0,<5" },
-    { name = "pyarrow", specifier = ">=8.0.0,<23.0.0" },
+    { name = "pyarrow", specifier = ">=8.0.0,<24.0.0" },
     { name = "pyiceberg", extras = ["pyarrow"], marker = "extra == 'pyiceberg'", specifier = ">=0.7.0,<1" },
     { name = "pymysql", marker = "extra == 'mysql'", specifier = ">=1.0.0,<2" },
     { name = "pyodbc", marker = "extra == 'sqlserver'", specifier = ">=4,<6" },
     { name = "pyproj", marker = "extra == 'geopandas'", specifier = ">=3.6,<3.7.2" },
     { name = "ray", extras = ["default", "data"], marker = "extra == 'ray'", specifier = ">=2.53.0,<3" },
     { name = "redshift-connector", marker = "extra == 'redshift'", specifier = ">=2.0.0,<3" },
-    { name = "requests", marker = "extra == 'gremlin'", specifier = ">=2.0.0,<3" },
-    { name = "requests", marker = "extra == 'opencypher'", specifier = ">=2.0.0,<3" },
-    { name = "requests", marker = "extra == 'sparql'", specifier = ">=2.0.0,<3" },
+    { name = "requests", marker = "extra == 'gremlin'", specifier = ">=2.33.0,<3" },
+    { name = "requests", marker = "extra == 'opencypher'", specifier = ">=2.33.0,<3" },
+    { name = "requests", marker = "extra == 'sparql'", specifier = ">=2.33.0,<3" },
     { name = "requests-aws4auth", marker = "extra == 'opensearch'", specifier = ">=1.1.1,<2" },
     { name = "setuptools", marker = "python_full_version >= '3.12'" },
     { name = "sparqlwrapper", marker = "extra == 'sparql'", specifier = ">=2.0.0,<3" },
