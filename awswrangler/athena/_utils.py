@@ -69,6 +69,7 @@ class _WorkGroupConfig(NamedTuple):
     s3_output: str | None
     encryption: str | None
     kms_key: str | None
+    managed_results: bool
 
 
 def _get_s3_output(
@@ -99,21 +100,22 @@ def _start_query_execution(
 ) -> str:
     args: dict[str, Any] = {"QueryString": sql}
 
-    # s3_output
-    args["ResultConfiguration"] = {
-        "OutputLocation": _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
-    }
+    if not wg_config.managed_results:
+        # s3_output
+        args["ResultConfiguration"] = {
+            "OutputLocation": _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
+        }
 
-    # encryption
-    if wg_config.enforced is True:
-        if wg_config.encryption is not None:
-            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": wg_config.encryption}
-            if wg_config.kms_key is not None:
-                args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = wg_config.kms_key
-    elif encryption is not None:
-        args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
-        if kms_key is not None:
-            args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
+        # encryption
+        if wg_config.enforced is True:
+            if wg_config.encryption is not None:
+                args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": wg_config.encryption}
+                if wg_config.kms_key is not None:
+                    args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = wg_config.kms_key
+        elif encryption is not None:
+            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
+            if kms_key is not None:
+                args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
 
     # database
     if database is not None:
@@ -132,6 +134,10 @@ def _start_query_execution(
         args["ExecutionParameters"] = execution_params
 
     if result_reuse_configuration:
+        if wg_config.managed_results:
+            raise exceptions.InvalidArgumentCombination(
+                "Using `result_reuse_configuration` is not supported with managed query results workgroups."
+            )
         args["ResultReuseConfiguration"] = result_reuse_configuration
 
     client_athena = _utils.client(service_name="athena", session=boto3_session)
@@ -152,8 +158,9 @@ def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str =
     wg_s3_output: str | None
     wg_encryption: str | None
     wg_kms_key: str | None
+    wg_managed_results: bool
 
-    enforced, wg_s3_output, wg_encryption, wg_kms_key = False, None, None, None
+    enforced, wg_s3_output, wg_encryption, wg_kms_key, wg_managed_results = False, None, None, None, False
     if workgroup is not None:
         res = get_work_group(workgroup=workgroup, boto3_session=session)
         enforced = res["WorkGroup"]["Configuration"]["EnforceWorkGroupConfiguration"]
@@ -163,8 +170,16 @@ def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str =
             encrypt_config: dict[str, str] | None = config.get("EncryptionConfiguration")
             wg_encryption = None if encrypt_config is None else encrypt_config.get("EncryptionOption")
             wg_kms_key = None if encrypt_config is None else encrypt_config.get("KmsKey")
+        managed_config: dict[str, Any] | None = res["WorkGroup"]["Configuration"].get(
+            "ManagedQueryResultsConfiguration"
+        )
+        wg_managed_results = managed_config is not None and managed_config.get("Enabled", False)
     wg_config: _WorkGroupConfig = _WorkGroupConfig(
-        enforced=enforced, s3_output=wg_s3_output, encryption=wg_encryption, kms_key=wg_kms_key
+        enforced=enforced,
+        s3_output=wg_s3_output,
+        encryption=wg_encryption,
+        kms_key=wg_kms_key,
+        managed_results=wg_managed_results,
     )
     _logger.debug("Workgroup config:\n%s", wg_config)
     return wg_config

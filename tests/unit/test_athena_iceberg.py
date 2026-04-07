@@ -1380,3 +1380,50 @@ def test_athena_to_iceberg_alter_schema(
     )
 
     assert_pandas_equals(df, df_actual)
+
+
+# ---- Pure unit tests for partition ordering helpers ----
+
+
+def test_extract_column_from_partition_transform_plain() -> None:
+    from awswrangler.athena._write_iceberg import _extract_column_from_partition_transform
+
+    assert _extract_column_from_partition_transform("name") == "name"
+
+
+def test_extract_column_from_partition_transform_day() -> None:
+    from awswrangler.athena._write_iceberg import _extract_column_from_partition_transform
+
+    assert _extract_column_from_partition_transform("day(ts)") == "ts"
+
+
+def test_extract_column_from_partition_transform_truncate() -> None:
+    from awswrangler.athena._write_iceberg import _extract_column_from_partition_transform
+
+    assert _extract_column_from_partition_transform("truncate(10, col_name)") == "col_name"
+
+
+def test_build_order_by_clause_none() -> None:
+    from awswrangler.athena._write_iceberg import _build_order_by_clause
+
+    assert _build_order_by_clause(None) == ""
+
+
+def test_build_order_by_clause_empty() -> None:
+    from awswrangler.athena._write_iceberg import _build_order_by_clause
+
+    assert _build_order_by_clause([]) == ""
+
+
+def test_build_order_by_clause_simple() -> None:
+    from awswrangler.athena._write_iceberg import _build_order_by_clause
+
+    result = _build_order_by_clause(["name"])
+    assert result == 'ORDER BY "name"'
+
+
+def test_build_order_by_clause_multiple() -> None:
+    from awswrangler.athena._write_iceberg import _build_order_by_clause
+
+    result = _build_order_by_clause(["name", "day(ts)"])
+    assert result == 'ORDER BY "name", "ts"'

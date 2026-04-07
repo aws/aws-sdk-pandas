@@ -1,6 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -14,7 +14,6 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
     schedule:
       interval: "weekly"
       time: "09:00"

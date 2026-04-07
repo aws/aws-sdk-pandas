@@ -2,7 +2,7 @@ import datetime
 import logging
 import string
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import boto3
 import botocore
@@ -110,6 +110,440 @@ def test_read_sql_query_with_result_reuse_configuration_error(glue_database):
             unload_approach=True,
             result_reuse_configuration={"ResultReuseByAgeConfiguration": {"Enabled": True, "MaxAgeInMinutes": 1}},
         )
+
+
+def test_read_sql_query_managed_results(glue_database, workgroup_managed):
+    df = wr.athena.read_sql_query(
+        sql="SELECT 1 AS c",
+        database=glue_database,
+        workgroup=workgroup_managed,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+    assert df["c"].tolist() == [1]
+    assert df.query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert df.query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_read_sql_query_managed_results_chunked(glue_database, workgroup_managed):
+    chunks = list(
+        wr.athena.read_sql_query(
+            sql="SELECT 1 AS c",
+            database=glue_database,
+            workgroup=workgroup_managed,
+            ctas_approach=False,
+            unload_approach=False,
+            chunksize=1,
+        )
+    )
+    assert len(chunks) == 1
+    assert chunks[0]["c"].tolist() == [1]
+    assert chunks[0].query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert chunks[0].query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_read_sql_query_managed_results_empty_chunked(glue_database, workgroup_managed):
+    chunks = list(
+        wr.athena.read_sql_query(
+            sql="SELECT CAST(NULL AS BIGINT) AS c WHERE 1 = 0",
+            database=glue_database,
+            workgroup=workgroup_managed,
+            ctas_approach=False,
+            unload_approach=False,
+            chunksize=2,
+        )
+    )
+    assert len(chunks) == 1
+    assert chunks[0].empty
+    assert chunks[0].columns.tolist() == ["c"]
+    assert str(chunks[0].dtypes["c"]) == "Int64"
+    assert chunks[0].query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert chunks[0].query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_read_sql_query_managed_results_cache_hit(glue_database, workgroup_managed):
+    unique_key = get_time_str_with_random_suffix()
+    sql = f"SELECT 1 AS c, '{unique_key}' AS k"
+
+    df1 = wr.athena.read_sql_query(
+        sql=sql,
+        database=glue_database,
+        workgroup=workgroup_managed,
+        ctas_approach=False,
+        unload_approach=False,
+        athena_cache_settings={"max_cache_seconds": 300},
+    )
+    df2 = wr.athena.read_sql_query(
+        sql=sql,
+        database=glue_database,
+        workgroup=workgroup_managed,
+        ctas_approach=False,
+        unload_approach=False,
+        athena_cache_settings={"max_cache_seconds": 300},
+    )
+
+    assert pandas_equals(df1, df2)
+    assert df1.query_metadata["QueryExecutionId"] == df2.query_metadata["QueryExecutionId"]
+    assert df2.query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert df2.query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_read_sql_query_managed_results_chunksize_true(glue_database, workgroup_managed):
+    chunks = list(
+        wr.athena.read_sql_query(
+            sql="SELECT 1 AS c UNION ALL SELECT 2 AS c",
+            database=glue_database,
+            workgroup=workgroup_managed,
+            ctas_approach=False,
+            unload_approach=False,
+            chunksize=True,
+        )
+    )
+    assert len(chunks) == 1
+    assert sorted(chunks[0]["c"].tolist()) == [1, 2]
+    assert chunks[0].query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert chunks[0].query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_get_query_results_managed_results_empty_chunked(glue_database, workgroup_managed):
+    query_id = wr.athena.start_query_execution(
+        sql="SELECT CAST(NULL AS BIGINT) AS c WHERE 1 = 0",
+        database=glue_database,
+        workgroup=workgroup_managed,
+        wait=False,
+    )
+
+    chunks = list(wr.athena.get_query_results(query_execution_id=query_id, chunksize=2))
+    assert len(chunks) == 1
+    assert chunks[0].empty
+    assert chunks[0].columns.tolist() == ["c"]
+    assert str(chunks[0].dtypes["c"]) == "Int64"
+    assert chunks[0].query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert chunks[0].query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_read_sql_query_managed_results_dtype_backend_pyarrow(glue_database, workgroup_managed):
+    df = wr.athena.read_sql_query(
+        sql="SELECT 1 AS c, 'x' AS s",
+        database=glue_database,
+        workgroup=workgroup_managed,
+        ctas_approach=False,
+        unload_approach=False,
+        dtype_backend="pyarrow",
+    )
+    assert df["c"].tolist() == [1]
+    assert df["s"].tolist() == ["x"]
+    assert any("[pyarrow]" in str(dtype) for dtype in df.dtypes.to_list())
+    assert df.query_metadata["Status"]["State"] == "SUCCEEDED"
+    assert df.query_metadata.get("ResultConfiguration", {}).get("OutputLocation") is None
+
+
+def test_workgroup_config_with_managed_results_enabled():
+    with patch(
+        "awswrangler.athena._utils.get_work_group",
+        return_value={
+            "WorkGroup": {
+                "Configuration": {
+                    "EnforceWorkGroupConfiguration": True,
+                    "ResultConfiguration": {"OutputLocation": "s3://bucket/prefix/"},
+                    "ManagedQueryResultsConfiguration": {"Enabled": True},
+                }
+            }
+        },
+    ):
+        wg_config = wr.athena._utils._get_workgroup_config(workgroup="managed-wg")
+    assert wg_config.managed_results is True
+
+
+def test_workgroup_config_with_managed_results_disabled():
+    with patch(
+        "awswrangler.athena._utils.get_work_group",
+        return_value={
+            "WorkGroup": {
+                "Configuration": {
+                    "EnforceWorkGroupConfiguration": False,
+                    "ResultConfiguration": {"OutputLocation": "s3://bucket/prefix/"},
+                    "ManagedQueryResultsConfiguration": {"Enabled": False},
+                }
+            }
+        },
+    ):
+        wg_config = wr.athena._utils._get_workgroup_config(workgroup="managed-wg")
+    assert wg_config.managed_results is False
+
+
+def test_workgroup_config_without_managed_results():
+    with patch(
+        "awswrangler.athena._utils.get_work_group",
+        return_value={
+            "WorkGroup": {
+                "Configuration": {
+                    "EnforceWorkGroupConfiguration": False,
+                    "ResultConfiguration": {"OutputLocation": "s3://bucket/prefix/"},
+                }
+            }
+        },
+    ):
+        wg_config = wr.athena._utils._get_workgroup_config(workgroup="managed-wg")
+    assert wg_config.managed_results is False
+
+
+def test_start_query_execution_skips_result_config_for_managed_results():
+    wg_config = wr.athena._utils._WorkGroupConfig(
+        enforced=False, s3_output=None, encryption=None, kms_key=None, managed_results=True
+    )
+    with patch("awswrangler.athena._utils._utils.client") as mock_client:
+        mock_client.return_value.start_query_execution.return_value = {"QueryExecutionId": "query-1"}
+        with patch("awswrangler.athena._utils._utils.try_it", return_value={"QueryExecutionId": "query-1"}) as mock_try:
+            wr.athena._utils._start_query_execution(sql="SELECT 1", wg_config=wg_config, workgroup="managed-wg")
+    assert "ResultConfiguration" not in mock_try.call_args.kwargs
+
+
+def test_start_query_execution_includes_result_config_without_managed_results():
+    wg_config = wr.athena._utils._WorkGroupConfig(
+        enforced=False, s3_output=None, encryption=None, kms_key=None, managed_results=False
+    )
+    with patch("awswrangler.athena._utils._get_s3_output", return_value="s3://bucket/output/"):
+        with patch("awswrangler.athena._utils._utils.client") as mock_client:
+            mock_client.return_value.start_query_execution.return_value = {"QueryExecutionId": "query-1"}
+            with patch(
+                "awswrangler.athena._utils._utils.try_it", return_value={"QueryExecutionId": "query-1"}
+            ) as mock_try:
+                wr.athena._utils._start_query_execution(sql="SELECT 1", wg_config=wg_config, workgroup="regular-wg")
+    assert "ResultConfiguration" in mock_try.call_args.kwargs
+    assert mock_try.call_args.kwargs["ResultConfiguration"] == {"OutputLocation": "s3://bucket/output/"}
+
+
+def test_get_s3_output_not_called_for_managed_results():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location=None,
+        raw_payload={},
+    )
+    with patch(
+        "awswrangler.athena._read._get_workgroup_config",
+        return_value=wr.athena._utils._WorkGroupConfig(
+            enforced=False, s3_output=None, encryption=None, kms_key=None, managed_results=True
+        ),
+    ):
+        with patch("awswrangler.athena._read._get_s3_output") as mock_get_s3_output:
+            with patch("awswrangler.athena._read._start_query_execution", return_value="query-1"):
+                with patch("awswrangler.athena._read._get_query_metadata", return_value=query_metadata):
+                    with patch("awswrangler.athena._read._fetch_api_result", return_value=pd.DataFrame()) as mock_fetch:
+                        wr.athena._read._resolve_query_without_cache_regular(
+                            sql="SELECT 1",
+                            database="my_db",
+                            data_source=None,
+                            s3_output=None,
+                            keep_files=True,
+                            chunksize=None,
+                            categories=None,
+                            encryption=None,
+                            workgroup="managed-wg",
+                            kms_key=None,
+                            use_threads=False,
+                            athena_query_wait_polling_delay=0.1,
+                            s3_additional_kwargs=None,
+                            boto3_session=None,
+                            execution_params=None,
+                            result_reuse_configuration=None,
+                            dtype_backend="numpy_nullable",
+                            client_request_token=None,
+                        )
+    mock_get_s3_output.assert_not_called()
+    mock_fetch.assert_called_once()
+
+
+def test_fetch_api_result_reads_rows_for_managed_results():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={"c": "Int64"},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location=None,
+        raw_payload={"QueryExecutionId": "query-1"},
+    )
+    pages = [
+        {
+            "ResultSet": {
+                "ResultSetMetadata": {"ColumnInfo": [{"Name": "c"}]},
+                "Rows": [
+                    {"Data": [{"VarCharValue": "c"}]},
+                    {"Data": [{"VarCharValue": "3"}]},
+                ],
+            }
+        }
+    ]
+    mock_client = MagicMock()
+    mock_client.get_paginator.return_value.paginate.return_value = pages
+    with patch("awswrangler.athena._read._utils.client", return_value=mock_client):
+        df = wr.athena._read._fetch_api_result(query_metadata=query_metadata, chunksize=None, boto3_session=None)
+    assert df["c"].tolist() == [3]
+    assert str(df.dtypes["c"]) == "Int64"
+    assert df.query_metadata == {"QueryExecutionId": "query-1"}
+
+
+def test_fetch_api_result_reads_rows_for_managed_results_chunked():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={"c": "Int64"},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location=None,
+        raw_payload={"QueryExecutionId": "query-1"},
+    )
+    pages = [
+        {
+            "ResultSet": {
+                "ResultSetMetadata": {"ColumnInfo": [{"Name": "c"}]},
+                "Rows": [
+                    {"Data": [{"VarCharValue": "c"}]},
+                    {"Data": [{"VarCharValue": "1"}]},
+                    {"Data": [{"VarCharValue": "2"}]},
+                ],
+            }
+        },
+        {
+            "ResultSet": {
+                "ResultSetMetadata": {"ColumnInfo": [{"Name": "c"}]},
+                "Rows": [
+                    {"Data": [{"VarCharValue": "3"}]},
+                ],
+            }
+        },
+    ]
+    mock_client = MagicMock()
+    mock_client.get_paginator.return_value.paginate.return_value = pages
+    with patch("awswrangler.athena._read._utils.client", return_value=mock_client):
+        dfs = wr.athena._read._fetch_api_result(query_metadata=query_metadata, chunksize=2, boto3_session=None)
+        chunks = list(dfs)
+    assert [df["c"].tolist() for df in chunks] == [[1, 2], [3]]
+    assert all(df.query_metadata == {"QueryExecutionId": "query-1"} for df in chunks)
+
+
+def test_fetch_api_result_reads_empty_rows_for_managed_results_chunked():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={"c": "Int64"},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location=None,
+        raw_payload={"QueryExecutionId": "query-1"},
+    )
+    pages = [
+        {
+            "ResultSet": {
+                "ResultSetMetadata": {"ColumnInfo": [{"Name": "c"}]},
+                "Rows": [{"Data": [{"VarCharValue": "c"}]}],
+            }
+        }
+    ]
+    mock_client = MagicMock()
+    mock_client.get_paginator.return_value.paginate.return_value = pages
+    with patch("awswrangler.athena._read._utils.client", return_value=mock_client):
+        dfs = wr.athena._read._fetch_api_result(query_metadata=query_metadata, chunksize=2, boto3_session=None)
+        chunks = list(dfs)
+    assert len(chunks) == 1
+    assert chunks[0].empty
+    assert chunks[0].columns.tolist() == ["c"]
+    assert str(chunks[0].dtypes["c"]) == "Int64"
+    assert chunks[0].query_metadata == {"QueryExecutionId": "query-1"}
+
+
+def test_get_query_results_uses_api_fetch_for_managed_results():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location=None,
+        raw_payload={},
+    )
+    mock_client = MagicMock()
+    mock_client.get_query_execution.return_value = {"QueryExecution": {"StatementType": "DML", "Query": "SELECT 1"}}
+    with patch("awswrangler.athena._read._get_query_metadata", return_value=query_metadata):
+        with patch("awswrangler.athena._read._utils.client", return_value=mock_client):
+            with patch("awswrangler.athena._read._fetch_api_result", return_value=pd.DataFrame()) as mock_fetch_api:
+                with patch("awswrangler.athena._read._fetch_csv_result") as mock_fetch_csv:
+                    wr.athena.get_query_results(query_execution_id="query-1")
+    mock_fetch_api.assert_called_once()
+    mock_fetch_csv.assert_not_called()
+
+
+def test_get_query_results_uses_parquet_for_ctas_without_output_location():
+    query_metadata = wr.athena._utils._QueryMetadata(
+        execution_id="query-1",
+        dtype={},
+        parse_timestamps=[],
+        parse_dates=[],
+        parse_geometry=[],
+        converters={},
+        binaries=[],
+        output_location=None,
+        manifest_location="s3://bucket/query-manifest.csv",
+        raw_payload={},
+    )
+    mock_client = MagicMock()
+    mock_client.get_query_execution.return_value = {
+        "QueryExecution": {"StatementType": "DDL", "Query": "CREATE TABLE foo AS SELECT 1"}
+    }
+    with patch("awswrangler.athena._read._get_query_metadata", return_value=query_metadata):
+        with patch("awswrangler.athena._read._utils.client", return_value=mock_client):
+            with patch("awswrangler.athena._read._fetch_parquet_result", return_value=pd.DataFrame()) as mock_parquet:
+                with patch("awswrangler.athena._read._fetch_api_result") as mock_fetch_api:
+                    with patch("awswrangler.athena._read._fetch_csv_result") as mock_fetch_csv:
+                        wr.athena.get_query_results(query_execution_id="query-1")
+    mock_parquet.assert_called_once()
+    mock_fetch_api.assert_not_called()
+    mock_fetch_csv.assert_not_called()
+
+
+def test_result_reuse_rejected_with_managed_results():
+    with patch(
+        "awswrangler.athena._executions._check_for_cached_results",
+        return_value=wr.athena._executions._CacheInfo(has_valid_cache=False),
+    ):
+        with patch(
+            "awswrangler.athena._executions._get_workgroup_config",
+            return_value=wr.athena._utils._WorkGroupConfig(
+                enforced=False, s3_output=None, encryption=None, kms_key=None, managed_results=True
+            ),
+        ):
+            with pytest.raises(
+                wr.exceptions.InvalidArgumentCombination,
+                match="not supported with managed query results workgroups",
+            ):
+                wr.athena.start_query_execution(
+                    sql="SELECT 1",
+                    database="my_db",
+                    workgroup="managed-wg",
+                    result_reuse_configuration={
+                        "ResultReuseByAgeConfiguration": {"Enabled": True, "MaxAgeInMinutes": 1}
+                    },
+                )
 
 
 def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, glue_ctas_database, kms_key):
@@ -1774,7 +2208,7 @@ def test_athena_date_recovery(path, glue_database, glue_table):
             "date3": [datetime.date(3099, 1, 3), datetime.date(3099, 1, 4), datetime.date(4080, 1, 5)],
         }
     )
-    df["date1"] = df["date1"].astype("datetime64[ns]")
+    df["date1"] = pd.to_datetime(df["date1"])
     wr.s3.to_parquet(
         df=df,
         path=path,
@@ -1787,4 +2221,5 @@ def test_athena_date_recovery(path, glue_database, glue_table):
         database=glue_database,
         ctas_approach=False,
     )
-    assert pandas_equals(df, df2)
+    # Round-trip dtype/resolution may differ (e.g. datetime64[ns] vs [us]) depending on pandas version.
+    assert_pandas_equals(df, df2, check_dtype=False, check_datetimelike_compat=True)
