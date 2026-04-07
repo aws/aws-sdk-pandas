@@ -245,6 +245,34 @@ def _validate_args(
         )
 
 
+def _extract_column_from_partition_transform(col: str) -> str:
+    """Extract the raw column name from a partition transform expression.
+
+    For example, 'day(ts)' returns 'ts', 'truncate(10, col_name)' returns 'col_name',
+    and 'name' returns 'name'.
+    """
+    pattern = r"[A-Za-z0-9_]+\((.+)\)"
+    match = re.match(pattern, col)
+    if match:
+        # For transforms like truncate(10, col_name), take the last argument
+        args = match.group(1).split(",")
+        return args[-1].strip()
+    return col
+
+
+def _build_order_by_clause(partition_cols: list[str] | None) -> str:
+    """Build an ORDER BY clause from partition columns.
+
+    Sorting by partition columns allows Iceberg to close partition writers
+    sequentially, preventing ICEBERG_TOO_MANY_OPEN_PARTITIONS errors.
+    """
+    if not partition_cols:
+        return ""
+
+    order_cols = [f'"{_extract_column_from_partition_transform(col)}"' for col in partition_cols]
+    return f"ORDER BY {', '.join(order_cols)}"
+
+
 def _merge_iceberg(
     df: pd.DataFrame,
     database: str,
@@ -253,6 +281,7 @@ def _merge_iceberg(
     merge_cols: list[str] | None = None,
     merge_condition: Literal["update", "ignore"] = "update",
     merge_match_nulls: bool = False,
+    partition_cols: list[str] | None = None,
     kms_key: str | None = None,
     boto3_session: boto3.Session | None = None,
     s3_output: str | None = None,
@@ -285,6 +314,10 @@ def _merge_iceberg(
         The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore'].
     merge_match_nulls: bool, optional
         Instruct whether to have nulls in the merge condition match other nulls
+    partition_cols: List[str], optional
+        List of partition column names. When provided, the INSERT query will ORDER BY
+        these columns so that Iceberg can close partition writers sequentially, avoiding
+        ICEBERG_TOO_MANY_OPEN_PARTITIONS errors.
     kms_key : str, optional
         For SSE-KMS, this is the KMS key ARN or ID.
     boto3_session : boto3.Session(), optional
@@ -328,10 +361,12 @@ def _merge_iceberg(
                 VALUES ({", ".join([f'source."{x}"' for x in df.columns])})
         """
     else:
+        order_by_clause = _build_order_by_clause(partition_cols)
         sql_statement = f"""
         INSERT INTO "{database}"."{table}" ({", ".join([f'"{x}"' for x in df.columns])})
         SELECT {", ".join([f'"{x}"' for x in df.columns])}
           FROM "{database}"."{source_table}"
+          {order_by_clause}
         """
 
     query_execution_id: str = _start_query_execution(
@@ -626,6 +661,7 @@ def to_iceberg(  # noqa: PLR0913
             merge_cols=merge_cols,
             merge_condition=merge_condition,
             merge_match_nulls=merge_match_nulls,
+            partition_cols=partition_cols,
             kms_key=kms_key,
             boto3_session=boto3_session,
             s3_output=s3_output,

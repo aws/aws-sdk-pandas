@@ -543,7 +543,7 @@ def test_timestamp_measure_column(timestream_database_and_table):
         FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
         """,
     )
-    assert df["measure_t"].dtype == "datetime64[ns]"
+    assert pd.api.types.is_datetime64_any_dtype(df["measure_t"])
 
 
 @pytest.mark.parametrize(

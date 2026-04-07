@@ -64,6 +64,7 @@ _CONFIG_ARGS: dict[str, _ConfigArg] = {
     "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "timestream_query_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "timestream_write_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "s3tables_catalog_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     # Botocore config
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
     "verify": _ConfigArg(dtype=str, nullable=True, loaded=True),
@@ -528,6 +529,25 @@ class _Config:
     @timestream_write_endpoint_url.setter
     def timestream_write_endpoint_url(self, value: str | None) -> None:
         self._set_config_value(key="timestream_write_endpoint_url", value=value)
+
+    @property
+    def s3tables_catalog_endpoint_url(self) -> str | None:
+        """REST catalog endpoint URL for S3 Tables read/write operations.
+
+        When ``None`` (default), the S3 Tables endpoint is used
+        (``https://s3tables.<region>.amazonaws.com/iceberg``).
+        Set to a Glue Iceberg REST endpoint
+        (e.g. ``https://glue.<region>.amazonaws.com/iceberg``)
+        to route through the AWS Glue Data Catalog instead.
+        This requires the table bucket to be integrated with Glue and
+        Lake Formation. See
+        https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-aws.html
+        """
+        return cast(Optional[str], self["s3tables_catalog_endpoint_url"])
+
+    @s3tables_catalog_endpoint_url.setter
+    def s3tables_catalog_endpoint_url(self, value: str | None) -> None:
+        self._set_config_value(key="s3tables_catalog_endpoint_url", value=value)
 
     @property
     def botocore_config(self) -> botocore.config.Config | None:
