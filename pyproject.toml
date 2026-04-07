@@ -1,6 +1,6 @@
 [project]
 name = "awswrangler"
-version = "3.15.1"
+version = "3.16.0"
 description = "Pandas on AWS."
 authors = [{ name = "Amazon Web Services" }]
 requires-python = ">=3.10, <4.0"
@@ -22,7 +22,7 @@ dependencies = [
     "botocore>=1.23.32,<2",
     "pandas>=1.2.0,<4.0.0",
     "numpy>=1.26,<3.0",
-    "pyarrow>=8.0.0,<23.0.0",
+    "pyarrow>=8.0.0,<24.0.0",
     "typing-extensions>=4.4.0,<5",
     "packaging>=21.1,<27.0",
     "setuptools ; python_version >= '3.12'",
@@ -36,15 +36,15 @@ sqlserver = ["pyodbc>=4,<6"]
 oracle = ["oracledb>=1,<4"]
 gremlin = [
     "gremlinpython>=3.7.1,<4",
-    "requests>=2.0.0,<3",
+    "requests>=2.33.0,<3",
     "aiohttp>=3.12.14,<4",
     "async-timeout>=4.0.3,<6.0.0",
 ]
 sparql = [
     "SPARQLWrapper>=2.0.0,<3",
-    "requests>=2.0.0,<3",
+    "requests>=2.33.0,<3",
 ]
-opencypher = ["requests>=2.0.0,<3"]
+opencypher = ["requests>=2.33.0,<3"]
 opensearch = [
     "opensearch-py>=2.0.0,<4",
     "jsonpath-ng>=1.5.3,<2",
@@ -52,7 +52,7 @@ opensearch = [
 ]
 openpyxl = ["openpyxl>=3.0.0,<4"]
 progressbar = ["progressbar2>=4.0.0,<5"]
-deltalake = ["deltalake>=0.18.0,<1.4.0"]
+deltalake = ["deltalake>=0.18.0,<1.6.0"]
 pyiceberg = ["pyiceberg[pyarrow]>=0.7.0,<1"]
 geopandas = ["geopandas>=1.0.0,<2", "pyproj>=3.6,<3.7.2"]
 modin = ["modin>=0.31,<0.38"]
