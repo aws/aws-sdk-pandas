@@ -53,6 +53,7 @@ def start_query_execution(
     Note
     ----
     Create the default Athena bucket if it doesn't exist and s3_output is None.
+    Not required when the workgroup uses managed query results.
     (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
 
     Parameters
@@ -62,7 +63,7 @@ def start_query_execution(
     database
         AWS Glue/Athena database name.
     s3_output
-        AWS S3 path.
+        AWS S3 path. Not required when the workgroup uses managed query results.
     workgroup
         Athena workgroup. Primary by default.
     encryption

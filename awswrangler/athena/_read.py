@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import csv
+import io
 import logging
 import sys
 import uuid
 from datetime import date
-from typing import Any, Iterator, cast
+from typing import TYPE_CHECKING, Any, Iterator, cast
 
 import boto3
 import botocore.exceptions
@@ -33,10 +34,16 @@ from awswrangler.athena._utils import (
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results
 
+if TYPE_CHECKING:
+    from mypy_boto3_athena.type_defs import GetQueryResultsOutputTypeDef, RowTypeDef
+
 shapely_wkt = _utils.import_optional_dependency("shapely.wkt")
 geopandas = _utils.import_optional_dependency("geopandas")
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+_ParsedRow = list[str | None]
+_ParsedRows = list[_ParsedRow]
 
 
 @_utils.check_optional_dependency(shapely_wkt, "shapely")
@@ -252,6 +259,146 @@ def _fetch_csv_result(
     return dfs
 
 
+def _parse_api_result_rows(rows: list["RowTypeDef"], num_cols: int) -> _ParsedRows:
+    """Convert Athena API rows into fixed-width value lists, padding missing cells with ``None``."""
+    parsed_rows: _ParsedRows = []
+    for row in rows:
+        data: list[dict[str, Any]] = row.get("Data", [])
+        parsed_rows.append([data[i].get("VarCharValue") if i < len(data) else None for i in range(num_cols)])
+    return parsed_rows
+
+
+def _rows_to_dataframe(
+    rows: _ParsedRows,
+    columns: list[str],
+    query_metadata: _QueryMetadata,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
+) -> pd.DataFrame:
+    """Build a DataFrame from Athena API rows using the same parsing semantics as S3 CSV reads.
+
+    We intentionally serialize API rows to an in-memory CSV buffer and parse them with ``pandas.read_csv``
+    configured exactly like ``_fetch_csv_result``. This keeps dtype/date/decimal/null handling aligned across
+    regular S3-backed and managed-results code paths, reducing behavior drift and regression risk.
+    """
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, quoting=csv.QUOTE_ALL)
+    writer.writerow(columns)
+    writer.writerows(tuple("" if value is None else value for value in row) for row in rows)
+    buffer.seek(0)
+    pandas_kwargs: dict[str, Any] = {
+        "dtype": query_metadata.dtype,
+        "parse_dates": query_metadata.parse_timestamps,
+        "converters": query_metadata.converters,
+        "quoting": csv.QUOTE_ALL,
+        "keep_default_na": False,
+        "na_values": ["", "NaN"],
+        "skip_blank_lines": False,
+    }
+    if dtype_backend != "numpy_nullable":
+        pandas_kwargs["dtype_backend"] = dtype_backend
+    return pd.read_csv(buffer, **pandas_kwargs)
+
+
+def _build_api_dataframe(
+    rows: _ParsedRows,
+    columns: list[str],
+    query_metadata: _QueryMetadata,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
+) -> pd.DataFrame:
+    df = _rows_to_dataframe(
+        rows=rows,
+        columns=columns,
+        query_metadata=query_metadata,
+        dtype_backend=dtype_backend,
+    )
+    df = _fix_csv_types(
+        df=df,
+        parse_dates=query_metadata.parse_dates,
+        binaries=query_metadata.binaries,
+        parse_geometry=query_metadata.parse_geometry,
+    )
+    return _apply_query_metadata(df=df, query_metadata=query_metadata)
+
+
+def _fetch_api_result(
+    query_metadata: _QueryMetadata,
+    chunksize: int | bool | None,
+    boto3_session: boto3.Session | None,
+    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
+    """Fetch query results via Athena ``GetQueryResults`` pagination for managed-results executions."""
+    _chunksize: int | None = chunksize if isinstance(chunksize, int) else None
+    _logger.debug("Chunksize: %s", _chunksize)
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
+    paginator = client_athena.get_paginator("get_query_results")
+    if _chunksize is None:
+        columns: list[str] = []
+        rows: _ParsedRows = []
+        first_page = True
+        for page in paginator.paginate(QueryExecutionId=query_metadata.execution_id):
+            typed_page = cast("GetQueryResultsOutputTypeDef", page)
+            result_set = typed_page.get("ResultSet", {})
+            if not columns:
+                columns = [col["Name"] for col in result_set.get("ResultSetMetadata", {}).get("ColumnInfo", [])]
+            page_rows: list["RowTypeDef"] = result_set.get("Rows", [])
+            if first_page:
+                page_rows = page_rows[1:] if page_rows else []
+                first_page = False
+            rows.extend(_parse_api_result_rows(rows=page_rows, num_cols=len(columns)))
+        if not columns:
+            return _empty_dataframe_response(chunked=False, query_metadata=query_metadata)
+        return _build_api_dataframe(
+            rows=rows,
+            columns=columns,
+            query_metadata=query_metadata,
+            dtype_backend=dtype_backend,
+        )
+
+    chunk_size: int = _chunksize
+
+    def _generator() -> Iterator[pd.DataFrame]:
+        columns: list[str] = []
+        batch: _ParsedRows = []
+        has_rows = False
+        first_page = True
+        for page in paginator.paginate(QueryExecutionId=query_metadata.execution_id):
+            typed_page = cast("GetQueryResultsOutputTypeDef", page)
+            result_set = typed_page.get("ResultSet", {})
+            if not columns:
+                columns = [col["Name"] for col in result_set.get("ResultSetMetadata", {}).get("ColumnInfo", [])]
+            page_rows: list["RowTypeDef"] = result_set.get("Rows", [])
+            if first_page:
+                page_rows = page_rows[1:] if page_rows else []
+                first_page = False
+            for row in _parse_api_result_rows(rows=page_rows, num_cols=len(columns)):
+                has_rows = True
+                batch.append(row)
+                if len(batch) == chunk_size:
+                    yield _build_api_dataframe(
+                        rows=batch,
+                        columns=columns,
+                        query_metadata=query_metadata,
+                        dtype_backend=dtype_backend,
+                    )
+                    batch = []
+        if batch:
+            yield _build_api_dataframe(
+                rows=batch,
+                columns=columns,
+                query_metadata=query_metadata,
+                dtype_backend=dtype_backend,
+            )
+        elif columns and not has_rows:
+            yield _build_api_dataframe(
+                rows=[],
+                columns=columns,
+                query_metadata=query_metadata,
+                dtype_backend=dtype_backend,
+            )
+
+    return _generator()
+
+
 def _resolve_query_with_cache(
     cache_info: _CacheInfo,
     categories: list[str] | None,
@@ -288,6 +435,13 @@ def _resolve_query_with_cache(
             dtype_backend=dtype_backend,
         )
     if cache_info.file_format == "csv":
+        if query_metadata.output_location is None:
+            return _fetch_api_result(
+                query_metadata=query_metadata,
+                chunksize=chunksize,
+                boto3_session=session,
+                dtype_backend=dtype_backend,
+            )
         return _fetch_csv_result(
             query_metadata=query_metadata,
             keep_files=True,
@@ -432,8 +586,9 @@ def _resolve_query_without_cache_regular(
     client_request_token: str | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
-    s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
-    s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
+    if not wg_config.managed_results:
+        s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
+        s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
     _logger.debug("Executing sql: %s", sql)
     query_id: str = _start_query_execution(
         sql=sql,
@@ -458,6 +613,13 @@ def _resolve_query_without_cache_regular(
         athena_query_wait_polling_delay=athena_query_wait_polling_delay,
         dtype_backend=dtype_backend,
     )
+    if wg_config.managed_results:
+        return _fetch_api_result(
+            query_metadata=query_metadata,
+            chunksize=chunksize,
+            boto3_session=boto3_session,
+            dtype_backend=dtype_backend,
+        )
     return _fetch_csv_result(
         query_metadata=query_metadata,
         keep_files=keep_files,
@@ -751,6 +913,13 @@ def get_query_results(
             dtype_backend=dtype_backend,
         )
     if statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
+        if query_metadata.output_location is None:
+            return _fetch_api_result(
+                query_metadata=query_metadata,
+                chunksize=chunksize,
+                boto3_session=boto3_session,
+                dtype_backend=dtype_backend,
+            )
         return _fetch_csv_result(
             query_metadata=query_metadata,
             keep_files=True,
@@ -933,6 +1102,8 @@ def read_sql_query(
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows equal the received INTEGER.
     s3_output
         Amazon S3 path.
+        Not required for the regular query path (`ctas_approach=False`, `unload_approach=False`) when
+        the workgroup uses managed query results. Still used for CTAS/UNLOAD paths.
     workgroup
         Athena workgroup. Primary by default.
     encryption
