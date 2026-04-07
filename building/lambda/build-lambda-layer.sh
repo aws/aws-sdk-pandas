@@ -97,10 +97,19 @@ find python -name '*.so' -type f -exec strip "{}" \;
 find python -wholename "*/tests/*" -type f -delete
 find python -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 
-zip -r9 "${FILENAME}" ./python
+# Bundle system shared libraries needed at runtime (e.g. libxslt for lxml)
+# Lambda extracts layers to /opt/ and /opt/lib is in LD_LIBRARY_PATH
+mkdir -p lib
+for libfile in libxslt.so.1 libexslt.so.0; do
+  if [ -f "/usr/lib64/${libfile}" ]; then
+    cp "/usr/lib64/${libfile}" lib/
+  fi
+done
+
+zip -r9 "${FILENAME}" ./python ./lib
 mv "${FILENAME}" dist/
 
-rm -rf python dist/pyarrow_files "${FILENAME}"
+rm -rf python lib dist/pyarrow_files "${FILENAME}"
 
 popd
 
