@@ -1351,7 +1351,7 @@ def test_build_partition_delete_sql_transform() -> None:
         partition_cols=["day(ts)"],
     )
     # The transform must be applied on both sides of the join.
-    assert "(day(target.\"ts\") = day(source.\"ts\"))" in sql
+    assert '(day(target."ts") = day(source."ts"))' in sql
     # The bug: the previous implementation produced 'target."day(ts)" = source."day(ts)"',
     # which Athena rejects because there is no literal column with that name.
     assert 'target."day(ts)"' not in sql
