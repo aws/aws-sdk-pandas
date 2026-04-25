@@ -20,6 +20,7 @@ from ._utils import _make_s3_auth_string
 if TYPE_CHECKING:
     try:
         import redshift_connector
+        from redshift_connector.core import Connection
     except ImportError:
         pass
 else:
@@ -63,7 +64,7 @@ def _read_parquet_iterator(
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def read_sql_query(
     sql: str,
-    con: "redshift_connector.Connection",
+    con: "Connection",
     index_col: str | list[str] | None = None,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
@@ -142,7 +143,7 @@ def read_sql_query(
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def read_sql_table(
     table: str,
-    con: "redshift_connector.Connection",
+    con: "Connection",
     schema: str | None = None,
     index_col: str | list[str] | None = None,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = None,
@@ -229,7 +230,7 @@ def read_sql_table(
 def unload_to_files(
     sql: str,
     path: str,
-    con: "redshift_connector.Connection",
+    con: "Connection",
     iam_role: str | None = None,
     aws_access_key_id: str | None = None,
     aws_secret_access_key: str | None = None,
@@ -391,7 +392,7 @@ def unload_to_files(
 def unload(
     sql: str,
     path: str,
-    con: "redshift_connector.Connection",
+    con: "Connection",
     iam_role: str | None = None,
     aws_access_key_id: str | None = None,
     aws_secret_access_key: str | None = None,
