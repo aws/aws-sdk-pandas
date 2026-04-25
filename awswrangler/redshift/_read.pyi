@@ -6,14 +6,14 @@ import pyarrow as pa
 
 if TYPE_CHECKING:
     try:
-        from redshift_connector import Connection
+        import redshift_connector
     except ImportError:
         pass
 
 @overload
 def read_sql_query(
     sql: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     index_col: str | list[str] | None = ...,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = ...,
@@ -25,7 +25,7 @@ def read_sql_query(
 @overload
 def read_sql_query(
     sql: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     *,
     index_col: str | list[str] | None = ...,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
@@ -38,7 +38,7 @@ def read_sql_query(
 @overload
 def read_sql_query(
     sql: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     *,
     index_col: str | list[str] | None = ...,
     params: list[Any] | tuple[Any, ...] | dict[Any, Any] | None = ...,
@@ -51,7 +51,7 @@ def read_sql_query(
 @overload
 def read_sql_table(
     table: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     *,
     schema: str | None = None,
     index_col: str | list[str] | None = ...,
@@ -65,7 +65,7 @@ def read_sql_table(
 @overload
 def read_sql_table(
     table: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     *,
     schema: str | None = None,
     index_col: str | list[str] | None = ...,
@@ -79,7 +79,7 @@ def read_sql_table(
 @overload
 def read_sql_table(
     table: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     *,
     schema: str | None = None,
     index_col: str | list[str] | None = ...,
@@ -93,7 +93,7 @@ def read_sql_table(
 def unload_to_files(
     sql: str,
     path: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     iam_role: str | None = ...,
     aws_access_key_id: str | None = ...,
     aws_secret_access_key: str | None = ...,
@@ -111,7 +111,7 @@ def unload_to_files(
 def unload(
     sql: str,
     path: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     iam_role: str | None = ...,
     aws_access_key_id: str | None = ...,
     aws_secret_access_key: str | None = ...,
@@ -132,7 +132,7 @@ def unload(
 def unload(
     sql: str,
     path: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     *,
     iam_role: str | None = ...,
     aws_access_key_id: str | None = ...,
@@ -154,7 +154,7 @@ def unload(
 def unload(
     sql: str,
     path: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     *,
     iam_role: str | None = ...,
     aws_access_key_id: str | None = ...,
@@ -176,7 +176,7 @@ def unload(
 def unload(
     sql: str,
     path: str,
-    con: "Connection",
+    con: "redshift_connector.Connection",
     *,
     iam_role: str | None = ...,
     aws_access_key_id: str | None = ...,

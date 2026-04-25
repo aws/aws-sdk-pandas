@@ -11,14 +11,14 @@ from awswrangler import _utils, exceptions
 
 if TYPE_CHECKING:
     try:
-        from redshift_connector import Connection
+        import redshift_connector
     except ImportError:
         pass
 else:
     redshift_connector = _utils.import_optional_dependency("redshift_connector")
 
 
-def _validate_connection(con: Connection) -> None:
+def _validate_connection(con: "redshift_connector.Connection") -> None:
     if not isinstance(con, redshift_connector.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -39,7 +39,7 @@ def connect(
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
     **kwargs: Any,
-) -> Connection:
+) -> "redshift_connector.Connection":
     """Return a redshift_connector connection from a Glue Catalog or Secret Manager.
 
     Note
@@ -150,7 +150,7 @@ def connect_temp(
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
     **kwargs: Any,
-) -> Connection:
+) -> "redshift_connector.Connection":
     """Return a redshift_connector temporary connection (No password required).
 
     https://github.com/aws/amazon-redshift-python-driver

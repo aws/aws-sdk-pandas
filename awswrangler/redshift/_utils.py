@@ -15,8 +15,7 @@ from awswrangler import _data_types, _sql_utils, _utils, exceptions, s3
 
 if TYPE_CHECKING:
     try:
-        from redshift_connector import Connection
-        from redshift_connector.cursor import Cursor
+        import redshift_connector
     except ImportError:
         pass
 else:
@@ -64,13 +63,13 @@ def _make_s3_auth_string(
     return auth_str
 
 
-def _begin_transaction(cursor: Cursor) -> None:
+def _begin_transaction(cursor: "redshift_connector.Cursor") -> None:
     sql = "BEGIN TRANSACTION"
     _logger.debug("Executing begin transaction query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _drop_table(cursor: Cursor, schema: str | None, table: str, cascade: bool = False) -> None:
+def _drop_table(cursor: "redshift_connector.Cursor", schema: str | None, table: str, cascade: bool = False) -> None:
     schema_str = f"{_identifier(schema)}." if schema else ""
     cascade_str = " CASCADE" if cascade else ""
     sql = f"DROP TABLE IF EXISTS {schema_str}{_identifier(table)}{cascade_str}"
@@ -78,7 +77,7 @@ def _drop_table(cursor: Cursor, schema: str | None, table: str, cascade: bool = 
     cursor.execute(sql)
 
 
-def _truncate_table(cursor: Cursor, schema: str | None, table: str) -> None:
+def _truncate_table(cursor: "redshift_connector.Cursor", schema: str | None, table: str) -> None:
     if schema:
         sql = f"TRUNCATE TABLE {_identifier(schema)}.{_identifier(table)}"
     else:
@@ -87,7 +86,7 @@ def _truncate_table(cursor: Cursor, schema: str | None, table: str) -> None:
     cursor.execute(sql)
 
 
-def _delete_all(cursor: Cursor, schema: str | None, table: str) -> None:
+def _delete_all(cursor: "redshift_connector.Cursor", schema: str | None, table: str) -> None:
     if schema:
         sql = f"DELETE FROM {_identifier(schema)}.{_identifier(table)}"
     else:
@@ -96,7 +95,7 @@ def _delete_all(cursor: Cursor, schema: str | None, table: str) -> None:
     cursor.execute(sql)
 
 
-def _get_primary_keys(cursor: Cursor, schema: str, table: str) -> list[str]:
+def _get_primary_keys(cursor: "redshift_connector.Cursor", schema: str, table: str) -> list[str]:
     sql = "SELECT indexdef FROM pg_indexes WHERE schemaname = %s AND tablename = %s"
     _logger.debug("Executing select query:\n%s", sql)
     cursor.execute(sql, (schema, table))
@@ -106,7 +105,7 @@ def _get_primary_keys(cursor: Cursor, schema: str, table: str) -> list[str]:
     return fields
 
 
-def _get_table_columns(cursor: Cursor, schema: str, table: str) -> list[str]:
+def _get_table_columns(cursor: "redshift_connector.Cursor", schema: str, table: str) -> list[str]:
     sql = "SELECT column_name FROM svv_columns WHERE table_schema = %s AND table_name = %s"
     _logger.debug("Executing select query:\n%s", sql)
     cursor.execute(sql, (schema, table))
@@ -115,7 +114,9 @@ def _get_table_columns(cursor: Cursor, schema: str, table: str) -> list[str]:
     return columns
 
 
-def _add_table_columns(cursor: Cursor, schema: str, table: str, new_columns: dict[str, str]) -> None:
+def _add_table_columns(
+    cursor: "redshift_connector.Cursor", schema: str, table: str, new_columns: dict[str, str]
+) -> None:
     for column_name, column_type in new_columns.items():
         sql = (
             f"ALTER TABLE {_identifier(schema)}.{_identifier(table)}"
@@ -125,7 +126,7 @@ def _add_table_columns(cursor: Cursor, schema: str, table: str, new_columns: dic
         cursor.execute(sql)
 
 
-def _does_table_exist(cursor: Cursor, schema: str | None, table: str) -> bool:
+def _does_table_exist(cursor: "redshift_connector.Cursor", schema: str | None, table: str) -> bool:
     if schema:
         sql = "SELECT true WHERE EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s);"
         params: tuple[str, ...] = (schema, table)
@@ -146,7 +147,7 @@ def _get_paths_from_manifest(path: str, boto3_session: boto3.Session | None = No
     return paths
 
 
-def _get_parameter_setting(cursor: Cursor, parameter_name: str) -> str:
+def _get_parameter_setting(cursor: "redshift_connector.Cursor", parameter_name: str) -> str:
     sql = f"SHOW {parameter_name}"
     _logger.debug("Executing select query:\n%s", sql)
     cursor.execute(sql)
@@ -157,7 +158,7 @@ def _get_parameter_setting(cursor: Cursor, parameter_name: str) -> str:
 
 
 def _lock(
-    cursor: Cursor,
+    cursor: "redshift_connector.Cursor",
     table_names: list[str],
     schema: str | None = None,
 ) -> None:
@@ -170,7 +171,7 @@ def _lock(
 
 
 def _upsert(
-    cursor: Cursor,
+    cursor: "redshift_connector.Cursor",
     table: str,
     temp_table: str,
     schema: str,
@@ -355,7 +356,9 @@ def _get_rsh_columns_types(
     return redshift_types
 
 
-def _add_new_table_columns(cursor: Cursor, schema: str, table: str, redshift_columns_types: dict[str, str]) -> None:
+def _add_new_table_columns(
+    cursor: "redshift_connector.Cursor", schema: str, table: str, redshift_columns_types: dict[str, str]
+) -> None:
     # Check if Redshift is configured as case sensitive or not
     is_case_sensitive = False
     if _get_parameter_setting(cursor=cursor, parameter_name="enable_case_sensitive_identifier").lower() in [
@@ -376,8 +379,8 @@ def _add_new_table_columns(cursor: Cursor, schema: str, table: str, redshift_col
 def _create_table(  # noqa: PLR0913
     df: pd.DataFrame | None,
     path: str | list[str] | None,
-    con: Connection,
-    cursor: Cursor,
+    con: "redshift_connector.Connection",
+    cursor: "redshift_connector.Cursor",
     table: str,
     schema: str,
     mode: str,
