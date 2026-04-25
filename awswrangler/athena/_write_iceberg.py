@@ -260,6 +260,42 @@ def _extract_column_from_partition_transform(col: str) -> str:
     return col
 
 
+def _apply_partition_transform_to_side(col: str, side_alias: str) -> str:
+    """Rewrite a partition expression so it references a specific table alias.
+
+    For a plain column ``"name"`` and ``side_alias="target"`` this returns
+    ``target."name"``. For a transform such as ``"day(ts)"`` it returns
+    ``day(target."ts")``, and for ``"truncate(10, col_name)"`` it returns
+    ``truncate(10, target."col_name")``. This allows the same partition
+    expression supplied as ``partition_cols`` to be used inside MERGE INTO
+    conditions on either the ``target`` or ``source`` side of the join.
+    """
+    pattern = r"([A-Za-z0-9_]+)\((.+)\)"
+    match = re.match(pattern, col)
+    if match:
+        func_name = match.group(1)
+        args = [arg.strip() for arg in match.group(2).split(",")]
+        # Last argument is the column reference; preceding args (if any) are literals
+        column_arg = args[-1]
+        prefix_args = args[:-1]
+        rendered_args = prefix_args + [f'{side_alias}."{column_arg}"']
+        return f"{func_name}({', '.join(rendered_args)})"
+    return f'{side_alias}."{col}"'
+
+
+def _build_partition_merge_conditions(partition_cols: list[str]) -> list[str]:
+    """Build the ON-clause equality fragments used to delete matching partitions.
+
+    Each partition expression is applied to both sides of the join so transform
+    functions such as ``day(ts)`` line up correctly between the target Iceberg
+    table and the source temporary table (which still stores raw columns).
+    """
+    return [
+        f"({_apply_partition_transform_to_side(col, 'target')} = {_apply_partition_transform_to_side(col, 'source')})"
+        for col in partition_cols
+    ]
+
+
 def _build_order_by_clause(partition_cols: list[str] | None) -> str:
     """Build an ORDER BY clause from partition columns.
 
@@ -271,6 +307,119 @@ def _build_order_by_clause(partition_cols: list[str] | None) -> str:
 
     order_cols = [f'"{_extract_column_from_partition_transform(col)}"' for col in partition_cols]
     return f"ORDER BY {', '.join(order_cols)}"
+
+
+def _build_partition_delete_sql(database: str, table: str, source_table: str, partition_cols: list[str]) -> str:
+    """Build the MERGE INTO ... DELETE statement that removes matched partitions.
+
+    Applies the partition transform expressions on both sides of the join so
+    transforms such as ``day(ts)`` are handled correctly. The source table is
+    expected to expose the underlying raw columns referenced by each partition
+    expression.
+    """
+    on_conditions = _build_partition_merge_conditions(partition_cols)
+    return f"""
+        MERGE INTO "{database}"."{table}" target
+        USING "{database}"."{source_table}" source
+        ON {" AND ".join(on_conditions)}
+        WHEN MATCHED THEN
+            DELETE
+    """
+
+
+def _delete_partitions_from_iceberg(
+    df: pd.DataFrame,
+    database: str,
+    table: str,
+    partition_cols: list[str],
+    wg_config: _WorkGroupConfig,
+    temp_path: str | None,
+    data_source: str | None,
+    workgroup: str,
+    s3_output: str | None,
+    encryption: str | None,
+    kms_key: str | None,
+    boto3_session: boto3.Session | None,
+    s3_additional_kwargs: dict[str, Any] | None,
+    catalog_id: str | None,
+) -> None:
+    """Delete partitions from an Iceberg table that match values present in ``df``.
+
+    Unlike :func:`delete_from_iceberg_table`, this helper accepts ``partition_cols``
+    that may contain Iceberg partition transform expressions such as ``day(ts)``
+    or ``truncate(10, col_name)``. It writes the underlying raw columns to a
+    temporary table and issues a ``MERGE INTO ... DELETE`` whose ON clause
+    re-applies the partition transform on both sides of the join.
+    """
+    if not partition_cols:
+        raise exceptions.InvalidArgumentValue("partition_cols must be specified.")
+
+    # Extract the underlying raw column names referenced by the partition expressions,
+    # deduplicating while preserving order so we can project them out of the DataFrame.
+    raw_cols: list[str] = []
+    seen: set[str] = set()
+    for col in partition_cols:
+        raw = _extract_column_from_partition_transform(col)
+        if raw not in seen:
+            raw_cols.append(raw)
+            seen.add(raw)
+
+    missing = [c for c in raw_cols if c not in df.columns]
+    if missing:
+        raise exceptions.InvalidArgumentValue(
+            f"Partition columns {missing} are not present in the DataFrame. "
+            "When using partition transforms (e.g. 'day(ts)'), the DataFrame must "
+            "contain the underlying raw column ('ts')."
+        )
+
+    temp_table: str = f"temp_table_{uuid.uuid4().hex}"
+    df_partitions = df[raw_cols].drop_duplicates(ignore_index=True)
+
+    try:
+        s3.to_parquet(
+            df=df_partitions,
+            path=temp_path or wg_config.s3_output,
+            dataset=True,
+            database=database,
+            table=temp_table,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            catalog_id=catalog_id,
+            index=False,
+        )
+
+        sql_statement = _build_partition_delete_sql(
+            database=database,
+            table=table,
+            source_table=temp_table,
+            partition_cols=partition_cols,
+        )
+
+        query_execution_id: str = _start_query_execution(
+            sql=sql_statement,
+            workgroup=workgroup,
+            wg_config=wg_config,
+            database=database,
+            data_source=data_source,
+            s3_output=s3_output,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=boto3_session,
+        )
+        wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
+
+    finally:
+        catalog.delete_table_if_exists(
+            database=database, table=temp_table, boto3_session=boto3_session, catalog_id=catalog_id
+        )
+
+        # Always remove the temp parquet objects we just wrote; keep_files only
+        # applies to the user-facing data write, not these internal staging files.
+        s3.delete_objects(
+            path=temp_path or wg_config.s3_output,  # type: ignore[arg-type]
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
 
 
 def _merge_iceberg(
@@ -603,15 +752,19 @@ def to_iceberg(  # noqa: PLR0913
                 boto3_session=boto3_session,
             )
 
-        # if mode == "overwrite_partitions", drop matched partitions
+        # if mode == "overwrite_partitions", drop matched partitions.
+        # Routed through a dedicated helper (rather than delete_from_iceberg_table)
+        # so that partition transform expressions like 'day(ts)' or
+        # 'truncate(10, col_name)' are applied on both sides of the MERGE join,
+        # while the temp staging table only stores the underlying raw columns.
         if mode == "overwrite_partitions":
-            delete_from_iceberg_table(
+            _delete_partitions_from_iceberg(
                 df=df,
                 database=database,
                 table=table,
-                merge_cols=partition_cols,  # type: ignore[arg-type]
+                partition_cols=partition_cols,  # type: ignore[arg-type]
+                wg_config=wg_config,
                 temp_path=temp_path,
-                keep_files=False,
                 data_source=data_source,
                 workgroup=workgroup,
                 s3_output=s3_output,
