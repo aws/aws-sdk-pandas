@@ -128,6 +128,7 @@ exclude = [
 override-dependencies = [
     "pandas>=3.0.0,<4.0.0 ; python_version >= '3.11'",
     "pandas>=2.0.0,<3.0.0 ; python_version < '3.11'",
+    "lxml>=6.1.0",  # CVE-2026-41066: override redshift-connector's <=6.0.2 cap
 ]
 # Pin packages without pre-built wheels for AL2 — temporary fix until CI migrated to AL2023.
 # Only affects local resolution (uv.lock), not published package metadata — users are not impacted.

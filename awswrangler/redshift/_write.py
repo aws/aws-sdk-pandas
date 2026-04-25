@@ -26,6 +26,8 @@ from ._utils import (
 if TYPE_CHECKING:
     try:
         import redshift_connector
+        from redshift_connector.core import Connection
+        from redshift_connector.cursor import Cursor
     except ImportError:
         pass
 else:
@@ -41,7 +43,7 @@ _CopyFromFilesDataFormatLiteral = Literal["parquet", "orc", "csv"]
 
 
 def _copy(
-    cursor: "redshift_connector.Cursor",
+    cursor: "Cursor",
     path: str,
     table: str,
     serialize_to_json: bool,
@@ -91,7 +93,7 @@ def _copy(
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: "redshift_connector.Connection",
+    con: "Connection",
     table: str,
     schema: str,
     mode: _ToSqlModeLiteral = "append",
@@ -275,7 +277,7 @@ def to_sql(
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
 def copy_from_files(  # noqa: PLR0913
     path: str,
-    con: "redshift_connector.Connection",
+    con: "Connection",
     table: str,
     schema: str,
     iam_role: str | None = None,
@@ -542,7 +544,7 @@ def copy_from_files(  # noqa: PLR0913
 def copy(  # noqa: PLR0913
     df: pd.DataFrame,
     path: str,
-    con: "redshift_connector.Connection",
+    con: "Connection",
     table: str,
     schema: str,
     iam_role: str | None = None,
