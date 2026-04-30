@@ -9,7 +9,7 @@ jobs:
     steps:
     - name: Fetch Dependabot metadata
       id: dependabot-metadata
-      uses: dependabot/fetch-metadata@v2
+      uses: dependabot/fetch-metadata@v3
       with:
         alert-lookup: true
         compat-lookup: true
