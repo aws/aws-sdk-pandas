@@ -74,6 +74,15 @@ def _get_s3_output(
         return s3_output
     if wg_config.s3_output is not None:
         return wg_config.s3_output
+    warnings.warn(
+        "No `s3_output` was provided and the workgroup has no ResultConfiguration set. "
+        "Falling back to the default bucket `aws-athena-query-results-{account}-{region}`. "
+        "Because S3 bucket names are global, relying on this predictable default is "
+        "discouraged: pass an explicit `s3_output`, or configure a workgroup with "
+        "EnforceWorkGroupConfiguration=true and a ResultConfiguration.",
+        UserWarning,
+        stacklevel=2,
+    )
     return create_athena_bucket(boto3_session=boto3_session)
 
 
@@ -452,6 +461,13 @@ def get_query_columns_types(query_execution_id: str, boto3_session: boto3.Sessio
 def create_athena_bucket(boto3_session: boto3.Session | None = None) -> str:
     """Create the default Athena bucket if it doesn't exist.
 
+    The bucket name is derived from the caller's account ID and region
+    (``aws-athena-query-results-{account_id}-{region}``). Because S3 bucket
+    names are global, this function verifies that the bucket is owned by the
+    caller's account before returning; if another account owns it, a
+    :class:`~awswrangler.exceptions.InvalidArgumentValue` is raised to prevent
+    query results from being written to a bucket controlled by a third party.
+
     Parameters
     ----------
     boto3_session
@@ -476,12 +492,33 @@ def create_athena_bucket(boto3_session: boto3.Session | None = None) -> str:
     args = {} if region_name == "us-east-1" else {"CreateBucketConfiguration": {"LocationConstraint": region_name}}
     try:
         client_s3.create_bucket(Bucket=bucket_name, **args)  # type: ignore[arg-type]
-    except (client_s3.exceptions.BucketAlreadyExists, client_s3.exceptions.BucketAlreadyOwnedByYou):
-        _logger.debug("Bucket %s already exists.", bucket_name)
+    except client_s3.exceptions.BucketAlreadyOwnedByYou:
+        _logger.debug("Bucket %s already exists in this account.", bucket_name)
+    except client_s3.exceptions.BucketAlreadyExists as ex:
+        raise exceptions.InvalidArgumentValue(
+            f"Default Athena results bucket '{bucket_name}' exists but is not owned by "
+            f"account {account_id}. Refusing to use it to prevent cross-account data leakage. "
+            f"Pass an explicit `s3_output` or configure a workgroup ResultConfiguration."
+        ) from ex
     except botocore.exceptions.ClientError as err:
         if err.response["Error"]["Code"] == "OperationAborted":
             _logger.debug("A conflicting conditional operation is currently in progress against this resource.")
     client_s3.get_waiter("bucket_exists").wait(Bucket=bucket_name)
+    # Defence in depth: the above may race (BucketAlreadyOwnedByYou can be returned
+    # by S3 even when the actual owner is a different account under certain conditions,
+    # and a squatter may appear between create_bucket and the first query). Verify
+    # ownership explicitly using ExpectedBucketOwner, which returns 403 on mismatch.
+    try:
+        client_s3.head_bucket(Bucket=bucket_name, ExpectedBucketOwner=account_id)
+    except botocore.exceptions.ClientError as err:
+        code = err.response.get("Error", {}).get("Code")
+        if code in ("403", "AccessDenied", "Forbidden"):
+            raise exceptions.InvalidArgumentValue(
+                f"Default Athena results bucket '{bucket_name}' is not owned by "
+                f"account {account_id}. Refusing to use it to prevent cross-account data leakage. "
+                f"Pass an explicit `s3_output` or configure a workgroup ResultConfiguration."
+            ) from err
+        raise
     return path
 
 

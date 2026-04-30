@@ -720,3 +720,43 @@ def test_data_api_rds_read_sql_no_results():
     mock_data_api_connector(con, has_result_set=False)
     dataframe = wr.data_api.rds.read_sql_query("DROP TABLE test", con=con)
     assert dataframe.empty is True
+
+
+def test_create_athena_bucket_owned_by_caller_succeed(moto_aws) -> None:
+    region = "us-east-1"
+    session = boto3.Session(region_name=region)
+    account_id = boto3.client("sts", region_name=region).get_caller_identity()["Account"]
+
+    path = wr.athena.create_athena_bucket(boto3_session=session)
+
+    assert path == f"s3://aws-athena-query-results-{account_id}-{region}/"
+    # The bucket must exist and be owned by the caller (moto's default account).
+    s3 = session.client("s3")
+    s3.head_bucket(Bucket=f"aws-athena-query-results-{account_id}-{region}", ExpectedBucketOwner=account_id)
+
+
+def test_extract_ctas_manifest_paths_same_bucket_succeed(moto_s3_client: "S3Client") -> None:
+    from awswrangler.athena._read import _extract_ctas_manifest_paths
+
+    manifest_key = "manifest.csv"
+    manifest_body = "s3://bucket/results/part-0.parquet\ns3://bucket/results/part-1.parquet\n"
+    moto_s3_client.put_object(Bucket="bucket", Key=manifest_key, Body=manifest_body.encode("utf-8"))
+
+    paths = _extract_ctas_manifest_paths(path=f"s3://bucket/{manifest_key}")
+
+    assert paths == [
+        "s3://bucket/results/part-0.parquet",
+        "s3://bucket/results/part-1.parquet",
+    ]
+
+
+def test_extract_ctas_manifest_paths_cross_bucket_raises(moto_s3_client: "S3Client") -> None:
+    """A manifest that redirects reads to another bucket must be rejected."""
+    from awswrangler.athena._read import _extract_ctas_manifest_paths
+
+    manifest_key = "manifest.csv"
+    manifest_body = "s3://attacker-bucket/poison/part-0.parquet\n"
+    moto_s3_client.put_object(Bucket="bucket", Key=manifest_key, Body=manifest_body.encode("utf-8"))
+
+    with pytest.raises(InvalidArgumentValue, match="unexpected bucket"):
+        _extract_ctas_manifest_paths(path=f"s3://bucket/{manifest_key}")
