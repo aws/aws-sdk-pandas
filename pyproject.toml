@@ -56,7 +56,7 @@ deltalake = ["deltalake>=0.18.0,<1.6.0"]
 pyiceberg = ["pyiceberg[pyarrow]>=0.7.0,<1"]
 geopandas = ["geopandas>=1.0.0,<2", "pyproj>=3.6,<3.7.2"]
 modin = ["modin>=0.31,<0.38"]
-ray = ["ray[default, data]>=2.53.0,<3"]
+ray = ["ray[default, data]>=2.55.0,<3"]
 
 [project.urls]
 Homepage = "https://aws-sdk-pandas.readthedocs.io/"
@@ -180,7 +180,7 @@ max-returns=6  # Maximum number of return / yield for function / method body.
 max-statements=50  # Maximum number of statements in function / method body.
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 strict = true
 ignore_missing_imports = true
 warn_unused_ignores = true

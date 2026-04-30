@@ -18,8 +18,8 @@ def _estimate_avail_cpus(cur_pg: PlacementGroup | None) -> int:
     Args:
         cur_pg: The current placement group, if any.
     """
-    cluster_cpus = int(ray.cluster_resources().get("CPU", 1))
-    cluster_gpus = int(ray.cluster_resources().get("GPU", 0))
+    cluster_cpus = int(ray.cluster_resources().get("CPU", 1))  # type: ignore[no-untyped-call]
+    cluster_gpus = int(ray.cluster_resources().get("GPU", 0))  # type: ignore[no-untyped-call]
 
     # If we're in a placement group, we shouldn't assume the entire cluster's
     # resources are available for us to use. Estimate an upper bound on what's
