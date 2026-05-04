@@ -662,7 +662,7 @@ def chunkify(
     if not lst:
         return []
     n: int = num_chunks if max_length is None else int(math.ceil(float(len(lst)) / float(max_length)))
-    np_chunks = np.array_split(lst, n)
+    np_chunks: list[np.ndarray[Any, Any]] = np.array_split(np.asarray(lst, dtype=object), n)
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 
