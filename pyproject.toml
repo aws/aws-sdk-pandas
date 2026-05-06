@@ -185,6 +185,11 @@ strict = true
 ignore_missing_imports = true
 warn_unused_ignores = true
 
+# pyarrow 24+ ships placeholder stubs that break strict mypy on our submodule usage
+[[tool.mypy.overrides]]
+module = "pyarrow.*"
+follow_imports = "skip"
+
 [tool.pytest.ini_options]
 log_cli = false
 filterwarnings = "ignore::DeprecationWarning"
