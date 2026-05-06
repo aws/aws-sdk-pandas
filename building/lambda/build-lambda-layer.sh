@@ -79,11 +79,13 @@ python3 setup.py build_ext \
 
 pip3 install dist/pyarrow-*.whl -t /aws-sdk-pandas/dist/pyarrow_files
 
+PYARROW_WHEEL_DIR=$(pwd)/dist
+
 popd
 
 pushd /aws-sdk-pandas
 
-pip3 install . --no-binary numpy,pandas -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]"
+pip3 install . --no-binary numpy,pandas --find-links="${PYARROW_WHEEL_DIR}" -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]"
 
 rm -rf python/pyarrow*
 rm -rf python/boto*
