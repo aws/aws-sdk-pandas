@@ -8,6 +8,7 @@ RUN dnf install -y \
     jemalloc-devel \
     libxml2-devel \
     libxslt-devel \
+    libicu \
     libatomic \
     bison \
     make \

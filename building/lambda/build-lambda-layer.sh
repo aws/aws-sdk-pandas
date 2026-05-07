@@ -111,7 +111,7 @@ find python -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 # is on LD_LIBRARY_PATH. Search ldconfig cache first, then fall back to a
 # filesystem search (libatomic under gcc10 lives in /usr/lib/gcc/*).
 mkdir -p lib
-for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1; do
+for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1 libicudata.so.67 libicui18n.so.67 libicuuc.so.67; do
   src=$(ldconfig -p 2>/dev/null | awk -v lib="${libfile}" '$1 == lib { print $NF; exit }')
   if [ -z "${src}" ] || [ ! -e "${src}" ]; then
     src=$(find /usr/lib /usr/lib64 -name "${libfile}" -print -quit 2>/dev/null)
