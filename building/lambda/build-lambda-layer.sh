@@ -87,6 +87,11 @@ pushd /aws-sdk-pandas
 
 pip3 install . --no-binary numpy,pandas --find-links="${PYARROW_WHEEL_DIR}" -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]" "pyarrow==${ARROW_VERSION}"
 
+# CVE-2026-41066: upgrade lxml past redshift-connector's <=6.0.2 cap.
+# pyproject.toml's [tool.uv] override-dependencies only applies to uv, not pip,
+# so the Lambda layer needs this force-upgrade.
+pip3 install --no-deps --upgrade -t ./python "lxml>=6.1.0"
+
 rm -rf python/pyarrow*
 rm -rf python/boto*
 rm -rf python/urllib3*
