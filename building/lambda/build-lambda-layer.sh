@@ -106,13 +106,19 @@ find python -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 
 # Bundle system shared libraries needed at runtime (e.g. libxslt for lxml,
 # libatomic for pyarrow 22+). Lambda extracts layers to /opt/ and /opt/lib
-# is on LD_LIBRARY_PATH. Resolve via `ldconfig -p` so we follow symlinks
-# from /usr/lib64 into /usr/lib/gcc* when needed.
+# is on LD_LIBRARY_PATH. Search ldconfig cache first, then fall back to a
+# filesystem search (libatomic under gcc10 lives in /usr/lib/gcc/*).
 mkdir -p lib
 for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1; do
-  src=$(ldconfig -p | awk -v lib="${libfile}" '$1 == lib { print $NF; exit }')
-  if [ -n "${src}" ] && [ -f "${src}" ]; then
+  src=$(ldconfig -p 2>/dev/null | awk -v lib="${libfile}" '$1 == lib { print $NF; exit }')
+  if [ -z "${src}" ] || [ ! -e "${src}" ]; then
+    src=$(find /usr/lib /usr/lib64 -name "${libfile}" -print -quit 2>/dev/null)
+  fi
+  if [ -n "${src}" ] && [ -e "${src}" ]; then
     cp -L "${src}" "lib/${libfile}"
+    echo "bundled ${libfile} from ${src}"
+  else
+    echo "WARNING: ${libfile} not found on this image"
   fi
 done
 
