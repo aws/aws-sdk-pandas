@@ -104,12 +104,15 @@ find python -name '*.so' -type f -exec strip "{}" \;
 find python -wholename "*/tests/*" -type f -delete
 find python -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 
-# Bundle system shared libraries needed at runtime (e.g. libxslt for lxml)
-# Lambda extracts layers to /opt/ and /opt/lib is in LD_LIBRARY_PATH
+# Bundle system shared libraries needed at runtime (e.g. libxslt for lxml,
+# libatomic for pyarrow 22+). Lambda extracts layers to /opt/ and /opt/lib
+# is on LD_LIBRARY_PATH. Resolve via `ldconfig -p` so we follow symlinks
+# from /usr/lib64 into /usr/lib/gcc* when needed.
 mkdir -p lib
-for libfile in libxslt.so.1 libexslt.so.0; do
-  if [ -f "/usr/lib64/${libfile}" ]; then
-    cp "/usr/lib64/${libfile}" lib/
+for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1; do
+  src=$(ldconfig -p | awk -v lib="${libfile}" '$1 == lib { print $NF; exit }')
+  if [ -n "${src}" ] && [ -f "${src}" ]; then
+    cp -L "${src}" "lib/${libfile}"
   fi
 done
 
