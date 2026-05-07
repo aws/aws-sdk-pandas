@@ -8,6 +8,7 @@ RUN yum install -y \
     jemalloc-devel \
     libxml2-devel \
     libxslt-devel \
+    libatomic \
     bison \
     make \
     gcc10 \
