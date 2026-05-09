@@ -67,6 +67,7 @@ if TYPE_CHECKING:
 
     ServiceName = Literal[
         "athena",
+        "bedrock-runtime",
         "cleanrooms",
         "dynamodb",
         "ec2",
@@ -85,6 +86,7 @@ if TYPE_CHECKING:
         "secretsmanager",
         "sts",
         "s3tables",
+        "s3vectors",
         "timestream-query",
         "timestream-write",
     ]

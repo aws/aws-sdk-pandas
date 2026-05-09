@@ -21,6 +21,22 @@ from awswrangler.s3._s3_tables_mgmt import (
 )
 from awswrangler.s3._select import select_query
 from awswrangler.s3._upload import upload
+from awswrangler.s3._vectors import (
+    create_vector_bucket,
+    create_vector_index,
+    delete_vector_bucket,
+    delete_vector_index,
+    delete_vectors,
+    get_vector_bucket,
+    get_vector_index,
+    get_vectors,
+    list_vector_buckets,
+    list_vector_indexes,
+    list_vectors,
+    put_vectors,
+    put_vectors_from_df,
+    query_vectors,
+)
 from awswrangler.s3._wait import wait_objects_exist, wait_objects_not_exist
 from awswrangler.s3._write_deltalake import to_deltalake, to_deltalake_streaming
 from awswrangler.s3._write_excel import to_excel
@@ -71,4 +87,18 @@ __all__ = [
     "delete_table",
     "from_iceberg",
     "to_iceberg",
+    "create_vector_bucket",
+    "delete_vector_bucket",
+    "list_vector_buckets",
+    "get_vector_bucket",
+    "create_vector_index",
+    "delete_vector_index",
+    "list_vector_indexes",
+    "get_vector_index",
+    "put_vectors",
+    "put_vectors_from_df",
+    "get_vectors",
+    "delete_vectors",
+    "list_vectors",
+    "query_vectors",
 ]
