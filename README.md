@@ -153,6 +153,7 @@ Read our [docs](https://aws-sdk-pandas.readthedocs.io/en/3.16.1/scale.html) or h
   - [039 - Athena Iceberg](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/039%20-%20Athena%20Iceberg.ipynb)
   - [040 - EMR Serverless](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/040%20-%20EMR%20Serverless.ipynb)
   - [041 - Apache Spark on Amazon Athena](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/041%20-%20Apache%20Spark%20on%20Amazon%20Athena.ipynb)
+  - [043 - Amazon S3 Vectors](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/043%20-%20Amazon%20S3%20Vectors.ipynb)
 - [**API Reference**](https://aws-sdk-pandas.readthedocs.io/en/3.16.1/api.html)
   - [Amazon S3](https://aws-sdk-pandas.readthedocs.io/en/3.16.1/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-sdk-pandas.readthedocs.io/en/3.16.1/api.html#aws-glue-catalog)
