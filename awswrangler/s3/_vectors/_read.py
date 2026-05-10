@@ -169,7 +169,7 @@ def list_vectors(
 @apply_configs
 def query_vectors(
     *,
-    query_vector: list[float] | np.ndarray | None = None,
+    query_vector: list[float] | np.ndarray[Any, Any] | None = None,
     query_text: str | None = None,
     top_k: int = 10,
     filter: dict[str, Any] | None = None,
