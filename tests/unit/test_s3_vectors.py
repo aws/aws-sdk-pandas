@@ -140,7 +140,7 @@ def test_query_with_metadata_filter(vector_index: tuple[str, str]) -> None:
 def test_get_and_delete_vectors(vector_index: tuple[str, str]) -> None:
     bucket, index = vector_index
     keys = [f"k{i}" for i in range(5)]
-    vectors = [{"key": k, "data": [float(i) / 10, 0.0, 0.0, 0.0], "metadata": {"i": i}} for i, k in enumerate(keys)]
+    vectors = [{"key": k, "data": [float(i + 1) / 10, 0.0, 0.0, 0.0], "metadata": {"i": i}} for i, k in enumerate(keys)]
     wr.s3.put_vectors(vectors=vectors, vector_bucket=bucket, index=index, use_threads=False)
 
     fetched = wr.s3.get_vectors(
@@ -162,7 +162,7 @@ def test_get_and_delete_vectors(vector_index: tuple[str, str]) -> None:
 def test_list_vectors_returns_all_with_parallel_segments(vector_index: tuple[str, str]) -> None:
     bucket, index = vector_index
     keys = [f"row-{i}" for i in range(20)]
-    vectors = [{"key": k, "data": [float(i), 0.0, 0.0, 0.0]} for i, k in enumerate(keys)]
+    vectors = [{"key": k, "data": [float(i + 1), 0.0, 0.0, 0.0]} for i, k in enumerate(keys)]
     wr.s3.put_vectors(vectors=vectors, vector_bucket=bucket, index=index, use_threads=False)
     _wait_for_indexed(bucket, index, set(keys))
 
@@ -174,7 +174,7 @@ def test_list_vectors_returns_all_with_parallel_segments(vector_index: tuple[str
 def test_put_vectors_chunks_above_api_limit(vector_index: tuple[str, str], use_threads: bool) -> None:
     bucket, index = vector_index
     n = 1100  # > 500 (API limit) so awswrangler must chunk.
-    vectors = [{"key": f"bulk-{i}", "data": [float(i), 0.0, 0.0, 0.0]} for i in range(n)]
+    vectors = [{"key": f"bulk-{i}", "data": [float(i + 1), 0.0, 0.0, 0.0]} for i in range(n)]
     wr.s3.put_vectors(vectors=vectors, vector_bucket=bucket, index=index, use_threads=use_threads)
     fetched = wr.s3.get_vectors(
         keys=[f"bulk-{i}" for i in range(n)],
