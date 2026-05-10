@@ -459,7 +459,7 @@ def vector_bucket():
 
 @pytest.fixture(scope="function")
 def vector_index(vector_bucket):
-    index_name = f"idx_{uuid.uuid4().hex[:8]}"
+    index_name = f"idx-{uuid.uuid4().hex[:8]}"
     print(f"S3 Vector index: {index_name}")
     wr.s3.create_vector_index(
         vector_bucket=vector_bucket,
