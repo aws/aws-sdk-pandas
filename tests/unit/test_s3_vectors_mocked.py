@@ -409,6 +409,63 @@ def test_list_vectors_max_items_truncates() -> None:
     assert len(df) == 3
 
 
+def test_list_vectors_chunked_true_yields_one_frame_per_page() -> None:
+    client = MagicMock()
+    client.list_vectors.side_effect = [
+        {"vectors": [{"key": "k1"}, {"key": "k2"}], "nextToken": "tok"},
+        {"vectors": [{"key": "k3"}]},
+    ]
+    with _patch_client(client):
+        it = wr.s3.list_vectors(vector_bucket="b", index="i", chunked=True, use_threads=8)
+        frames = list(it)
+    # Chunked forces single-segment sequential streaming regardless of use_threads.
+    for call in client.list_vectors.call_args_list:
+        assert "segmentCount" not in call.kwargs
+        assert "segmentIndex" not in call.kwargs
+    assert [f["key"].tolist() for f in frames] == [["k1", "k2"], ["k3"]]
+
+
+def test_list_vectors_chunked_integer_yields_fixed_size_frames() -> None:
+    client = MagicMock()
+    client.list_vectors.side_effect = [
+        {"vectors": [{"key": f"k{i}"} for i in range(3)], "nextToken": "tok"},
+        {"vectors": [{"key": f"k{i}"} for i in range(3, 7)]},
+    ]
+    with _patch_client(client):
+        it = wr.s3.list_vectors(vector_bucket="b", index="i", chunked=2)
+        frames = list(it)
+    assert [len(f) for f in frames] == [2, 2, 2, 1]
+    assert [k for f in frames for k in f["key"].tolist()] == [f"k{i}" for i in range(7)]
+
+
+def test_list_vectors_chunked_is_lazy() -> None:
+    client = MagicMock()
+    client.list_vectors.side_effect = [
+        {"vectors": [{"key": "k1"}], "nextToken": "tok"},
+        {"vectors": [{"key": "k2"}]},
+    ]
+    with _patch_client(client):
+        it = wr.s3.list_vectors(vector_bucket="b", index="i", chunked=True)
+        # No API call should have happened yet.
+        assert client.list_vectors.call_count == 0
+        next(it)
+        assert client.list_vectors.call_count == 1
+        next(it)
+        assert client.list_vectors.call_count == 2
+
+
+def test_list_vectors_chunked_respects_max_items() -> None:
+    client = MagicMock()
+    client.list_vectors.side_effect = [
+        {"vectors": [{"key": f"k{i}"} for i in range(4)], "nextToken": "tok"},
+        {"vectors": [{"key": f"k{i}"} for i in range(4, 8)]},
+    ]
+    with _patch_client(client):
+        frames = list(wr.s3.list_vectors(vector_bucket="b", index="i", chunked=True, max_items=5))
+    keys = [k for f in frames for k in f["key"].tolist()]
+    assert keys == ["k0", "k1", "k2", "k3", "k4"]
+
+
 # ---------------------------------------------------------------------------
 # query_vectors
 # ---------------------------------------------------------------------------

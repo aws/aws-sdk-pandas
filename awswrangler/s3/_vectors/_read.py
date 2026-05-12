@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterator
 
 import boto3
 import numpy as np
@@ -86,7 +86,7 @@ def get_vectors(
     )
 
 
-def _list_segment(
+def _iter_list_pages(
     client: "BaseClient",
     target: dict[str, str],
     return_data: bool,
@@ -94,9 +94,10 @@ def _list_segment(
     segment_count: int | None,
     segment_index: int | None,
     max_items: int | None,
-) -> list[dict[str, Any]]:
-    items: list[dict[str, Any]] = []
+) -> Iterator[list[dict[str, Any]]]:
+    """Yield one page of raw vector records per call, honouring ``max_items`` across pages."""
     next_token: str | None = None
+    emitted = 0
     while True:
         kwargs: dict[str, Any] = {
             **target,
@@ -110,13 +111,63 @@ def _list_segment(
         if next_token:
             kwargs["nextToken"] = next_token
         response = client.list_vectors(**kwargs)  # type: ignore[attr-defined]
-        items.extend(response.get("vectors", []))
-        if max_items is not None and len(items) >= max_items:
-            return items[:max_items]
+        page = list(response.get("vectors", []))
+        if max_items is not None and emitted + len(page) >= max_items:
+            yield page[: max_items - emitted]
+            return
+        emitted += len(page)
+        if page:
+            yield page
         next_token = response.get("nextToken")
         if not next_token:
-            break
-    return items
+            return
+
+
+def _list_segment(
+    client: "BaseClient",
+    target: dict[str, str],
+    return_data: bool,
+    return_metadata: bool,
+    segment_count: int | None,
+    segment_index: int | None,
+    max_items: int | None,
+) -> list[dict[str, Any]]:
+    return list(
+        itertools.chain.from_iterable(
+            _iter_list_pages(client, target, return_data, return_metadata, segment_count, segment_index, max_items)
+        )
+    )
+
+
+def _iter_list_vectors_chunked(
+    client: "BaseClient",
+    target: dict[str, str],
+    return_data: bool,
+    return_metadata: bool,
+    max_items: int | None,
+    chunksize: int | None,
+) -> Iterator[pd.DataFrame]:
+    """Stream list_vectors results as DataFrames.
+
+    ``chunksize=None`` emits one frame per API page; otherwise emits frames of exactly
+    ``chunksize`` rows (final frame may be shorter).
+    """
+    pages = _iter_list_pages(client, target, return_data, return_metadata, None, None, max_items)
+    if chunksize is None:
+        for page in pages:
+            yield _vectors_response_to_df(page, include_data=return_data, include_metadata=return_metadata)
+        return
+
+    buffer: list[dict[str, Any]] = []
+    for page in pages:
+        buffer.extend(page)
+        while len(buffer) >= chunksize:
+            yield _vectors_response_to_df(
+                buffer[:chunksize], include_data=return_data, include_metadata=return_metadata
+            )
+            buffer = buffer[chunksize:]
+    if buffer:
+        yield _vectors_response_to_df(buffer, include_data=return_data, include_metadata=return_metadata)
 
 
 @apply_configs
@@ -125,21 +176,49 @@ def list_vectors(
     return_data: bool = False,
     return_metadata: bool = False,
     max_items: int | None = None,
+    chunked: bool | int = False,
     vector_bucket: str | None = None,
     vector_bucket_arn: str | None = None,
     index: str | None = None,
     index_arn: str | None = None,
     use_threads: bool | int = True,
     boto3_session: boto3.Session | None = None,
-) -> pd.DataFrame:
+) -> pd.DataFrame | Iterator[pd.DataFrame]:
     """List all vectors in an index. Uses parallel segments (up to 16) when ``use_threads`` enables it.
 
-    Returns a DataFrame with columns ``key`` and (optionally) ``vector``, ``metadata``.
+    Parameters
+    ----------
+    return_data, return_metadata
+        Whether to include each vector's data and metadata.
+    max_items
+        Optional cap on total vectors returned across all pages/segments.
+    chunked
+        Batching (memory-friendly). Returns an iterator of DataFrames instead of one frame:
+
+        - ``True`` — yield one DataFrame per underlying API page.
+        - ``INTEGER`` — yield DataFrames of exactly this many rows (final frame may be shorter).
+
+        Chunked streaming is single-segment (sequential) regardless of ``use_threads``.
+    vector_bucket / vector_bucket_arn / index / index_arn
+        Target index.
+    use_threads
+        Concurrency for parallel-segment listing. Ignored when ``chunked`` is truthy.
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+
+    Returns
+    -------
+        DataFrame with columns ``key`` and (optionally) ``vector``, ``metadata`` — or an iterator of such DataFrames when ``chunked`` is truthy.
     """
     target = _resolve_target(
         vector_bucket=vector_bucket, vector_bucket_arn=vector_bucket_arn, index=index, index_arn=index_arn
     )
     client = _utils.client(service_name="s3vectors", session=boto3_session)
+
+    if chunked:
+        chunksize = chunked if isinstance(chunked, int) and not isinstance(chunked, bool) else None
+        return _iter_list_vectors_chunked(client, target, return_data, return_metadata, max_items, chunksize)
+
     n_segments = min(_MAX_LIST_SEGMENTS, _utils.ensure_worker_or_thread_count(use_threads=use_threads))
 
     if n_segments <= 1:
