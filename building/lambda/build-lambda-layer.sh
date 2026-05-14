@@ -110,8 +110,10 @@ find python -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 # libatomic for pyarrow 22+). Lambda extracts layers to /opt/ and /opt/lib
 # is on LD_LIBRARY_PATH. Search ldconfig cache first, then fall back to a
 # filesystem search (libatomic under gcc10 lives in /usr/lib/gcc/*).
+# Note: libicu is intentionally excluded — Arrow is built without ICU support
+# to keep the layer small. ICU-dependent compute functions are optional.
 mkdir -p lib
-for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1 libicudata.so.67 libicui18n.so.67 libicuuc.so.67; do
+for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1; do
   src=$(ldconfig -p 2>/dev/null | awk -v lib="${libfile}" '$1 == lib { print $NF; exit }')
   if [ -z "${src}" ] || [ ! -e "${src}" ]; then
     src=$(find /usr/lib /usr/lib64 -name "${libfile}" -print -quit 2>/dev/null)
@@ -123,6 +125,9 @@ for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1 libicudata.so.67 libicu
     echo "WARNING: ${libfile} not found on this image"
   fi
 done
+
+# Strip debug symbols from bundled system libraries to reduce layer size
+find lib -name '*.so*' -type f -exec strip --strip-unneeded "{}" \; 2>/dev/null || true
 
 zip -r9 "${FILENAME}" ./python ./lib
 mv "${FILENAME}" dist/
