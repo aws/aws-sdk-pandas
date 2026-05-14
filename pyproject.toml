@@ -33,7 +33,7 @@ redshift = ["redshift-connector>=2.0.0,<3"]
 mysql = ["pymysql>=1.0.0,<2"]
 postgres = ["pg8000>=1.29.0,<2"]
 sqlserver = ["pyodbc>=4,<6"]
-oracle = ["oracledb>=1,<4"]
+oracle = ["oracledb>=1,<5"]
 gremlin = [
     "gremlinpython>=3.7.1,<4",
     "requests>=2.33.0,<3",
