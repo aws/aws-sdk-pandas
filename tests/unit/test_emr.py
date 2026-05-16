@@ -185,3 +185,99 @@ def test_docker(bucket, cloudformation_outputs, emr_security_configuration):
 )
 def test_get_emr_integer_version(version, result):
     assert wr.emr._get_emr_classification_lib(version) == result
+
+
+def test_build_bootstrap_actions_paths_only():
+    """Strings remain backward compatible: produce {Name, ScriptBootstrapAction:{Path}}."""
+    actions = wr.emr._build_bootstrap_actions(["s3://bucket/a.sh", "s3://bucket/b.sh"])
+    assert actions == [
+        {"Name": "s3://bucket/a.sh", "ScriptBootstrapAction": {"Path": "s3://bucket/a.sh"}},
+        {"Name": "s3://bucket/b.sh", "ScriptBootstrapAction": {"Path": "s3://bucket/b.sh"}},
+    ]
+
+
+def test_build_bootstrap_actions_dicts_with_args():
+    """Dict entries pass through args and accept an optional name."""
+    actions = wr.emr._build_bootstrap_actions(
+        [
+            {"path": "s3://bucket/a.sh", "args": ["--flag", "value"], "name": "install"},
+            {"path": "s3://bucket/b.sh"},
+        ]
+    )
+    assert actions == [
+        {
+            "Name": "install",
+            "ScriptBootstrapAction": {"Path": "s3://bucket/a.sh", "Args": ["--flag", "value"]},
+        },
+        {
+            "Name": "s3://bucket/b.sh",
+            "ScriptBootstrapAction": {"Path": "s3://bucket/b.sh"},
+        },
+    ]
+
+
+def test_build_bootstrap_actions_mixed_str_and_dict():
+    """A list may freely mix legacy strings and new dict entries."""
+    actions = wr.emr._build_bootstrap_actions(
+        ["s3://bucket/legacy.sh", {"path": "s3://bucket/new.sh", "args": ["--x"]}]
+    )
+    assert actions == [
+        {"Name": "s3://bucket/legacy.sh", "ScriptBootstrapAction": {"Path": "s3://bucket/legacy.sh"}},
+        {"Name": "s3://bucket/new.sh", "ScriptBootstrapAction": {"Path": "s3://bucket/new.sh", "Args": ["--x"]}},
+    ]
+
+
+def test_build_bootstrap_actions_invalid_type():
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.emr._build_bootstrap_actions([123])  # type: ignore[list-item]
+
+
+def test_build_bootstrap_actions_missing_path():
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.emr._build_bootstrap_actions([{"args": ["--x"]}])
+
+
+def test_build_bootstrap_actions_invalid_args():
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.emr._build_bootstrap_actions([{"path": "s3://bucket/a.sh", "args": "not-a-list"}])
+
+
+def test_build_bootstrap_actions_accepts_capitalized_keys():
+    """Allow the boto3-style keys (Path/Args/Name) to be passed straight through."""
+    actions = wr.emr._build_bootstrap_actions([{"Path": "s3://bucket/a.sh", "Args": ["--x"], "Name": "boto-style"}])
+    assert actions == [
+        {"Name": "boto-style", "ScriptBootstrapAction": {"Path": "s3://bucket/a.sh", "Args": ["--x"]}},
+    ]
+
+
+def test_create_cluster_passes_bootstrap_args_to_run_job_flow():
+    """End-to-end: ensure ``BootstrapActions`` are forwarded to ``run_job_flow`` with Args."""
+    import boto3
+    import moto
+
+    with moto.mock_aws():
+        ec2 = boto3.client("ec2", region_name="us-east-1")
+        vpc_id = ec2.create_vpc(CidrBlock="10.0.0.0/16")["Vpc"]["VpcId"]
+        subnet_id = ec2.create_subnet(VpcId=vpc_id, CidrBlock="10.0.0.0/24", AvailabilityZone="us-east-1a")["Subnet"][
+            "SubnetId"
+        ]
+        session = boto3.Session(region_name="us-east-1")
+        cluster_id = wr.emr.create_cluster(
+            subnet_id=subnet_id,
+            bootstraps_paths=[
+                "s3://bucket/legacy.sh",
+                {"path": "s3://bucket/new.sh", "args": ["--flag", "v"], "name": "with-args"},
+            ],
+            boto3_session=session,
+        )
+
+        emr_client = session.client("emr")
+        described = emr_client.describe_cluster(ClusterId=cluster_id)
+        assert described["Cluster"]["Id"] == cluster_id
+
+        bootstrap_response = emr_client.list_bootstrap_actions(ClusterId=cluster_id)
+        actions = {a["Name"]: a for a in bootstrap_response["BootstrapActions"]}
+        assert actions["s3://bucket/legacy.sh"]["ScriptPath"] == "s3://bucket/legacy.sh"
+        assert actions["s3://bucket/legacy.sh"].get("Args", []) == []
+        assert actions["with-args"]["ScriptPath"] == "s3://bucket/new.sh"
+        assert actions["with-args"]["Args"] == ["--flag", "v"]
