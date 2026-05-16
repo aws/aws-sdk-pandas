@@ -715,6 +715,7 @@ def copy(  # noqa: PLR0913
         s3.to_parquet(
             df=df,
             path=path,
+            pyarrow_additional_kwargs={"flavor": None},
             index=index,
             dataset=True,
             mode="append",
