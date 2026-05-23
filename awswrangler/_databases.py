@@ -1,7 +1,7 @@
 """Databases Utilities."""
 
 from __future__ import annotations
-
+import uuid
 import importlib.util
 import logging
 import ssl
@@ -146,6 +146,13 @@ def _should_handle_oracle_objects(dtype: pa.DataType) -> bool:
         or dtype == pa.large_binary()
     )
 
+def _coerce_pg8000_types(col_values: tuple[Any, ...]) -> tuple[Any, ...]:
+    
+    if col_values and isinstance(next((v for v in col_values if v is not None), None), uuid.UUID):
+        return tuple(str(v) if v is not None else None for v in col_values)
+    return col_values
+
+
 
 def _records2df(
     records: list[tuple[Any]],
@@ -161,6 +168,7 @@ def _records2df(
         if (dtype is None) or (col_name not in dtype):
             if _oracledb_found:
                 col_values = oracle.handle_oracle_objects(col_values, col_name)  # type: ignore[arg-type,assignment]  # noqa: PLW2901
+            col_values = _coerce_pg8000_types(col_values)
             try:
                 array: pa.Array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
             except pa.ArrowInvalid as ex:
