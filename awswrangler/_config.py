@@ -43,6 +43,8 @@ _CONFIG_ARGS: dict[str, _ConfigArg] = {
     "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "athena_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "athena_workgroup_config_ttl": _ConfigArg(dtype=int, nullable=False, default=0),
+    "athena_workgroup_config_ttl": _ConfigArg(dtype=int, nullable=False),
     "cloudwatch_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "neptune_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "timestream_batch_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
@@ -656,6 +658,15 @@ class _Config:
     @gpu_count.setter
     def gpu_count(self, value: int) -> None:
         self._set_config_value(key="gpu_count", value=value)
+
+    @property
+    def athena_workgroup_config_ttl(self) -> int:
+        """Property athena_workgroup_config_ttl."""
+        return cast(int, self["athena_workgroup_config_ttl"])
+
+    @athena_workgroup_config_ttl.setter
+    def athena_workgroup_config_ttl(self, value: int) -> None:
+        self._set_config_value(key="athena_workgroup_config_ttl", value=value)
 
 
 def _insert_str(text: str, token: str, insert: str) -> str:
