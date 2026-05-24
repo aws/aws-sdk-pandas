@@ -15,6 +15,7 @@ then
     --pull \
     --tag awswrangler-build-py39 \
     --build-arg base_image=public.ecr.aws/lambda/python:3.9 \
+    --file Dockerfile.al2023 \
     .
 fi
 
@@ -25,6 +26,7 @@ then
     --pull \
     --tag awswrangler-build-py310 \
     --build-arg base_image=public.ecr.aws/lambda/python:3.10 \
+    --file Dockerfile.al2023 \
     .
 fi
 
@@ -35,6 +37,7 @@ then
     --pull \
     --tag awswrangler-build-py311 \
     --build-arg base_image=public.ecr.aws/lambda/python:3.11 \
+    --file Dockerfile.al2023 \
     .
 fi
 
