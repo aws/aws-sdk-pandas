@@ -1,10 +1,17 @@
 import logging
-
+from unittest.mock import patch
 import pandas as pd
 import pytest
 
 import awswrangler as wr
-from awswrangler.s3._s3_tables_catalog import _build_catalog_properties, _parse_table_bucket_arn
+
+from awswrangler.s3._s3_tables_catalog import (
+    _FSSPEC_IO_IMPL,
+    _PYARROW_IO_IMPL,
+    _build_catalog_properties,
+    _parse_table_bucket_arn,
+    _preferred_io_impl,
+)
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
