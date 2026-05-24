@@ -46,6 +46,7 @@ cmake \
     -DARROW_WITH_ZSTD=OFF \
     -DARROW_WITH_LZ4=OFF \
     -DARROW_WITH_BROTLI=OFF \
+    -DARROW_WITH_UTF8PROC=OFF \
     -DARROW_BUILD_TESTS=OFF \
     -GNinja \
     ..
