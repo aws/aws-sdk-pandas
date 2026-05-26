@@ -1657,3 +1657,32 @@ def test_copy_serialize_to_json_super(
     df_res["text"] = df_res["text"].apply(json.loads)
 
     assert_pandas_equals(df, df_res)
+
+def test_copy_sanitize_column_names(
+    path: str,
+    redshift_table: str,
+    redshift_con: "redshift_connector.Connection",
+    databases_parameters: dict[str, Any],
+) -> None:
+    """Test that sanitize_column_names=False preserves column names with spaces."""
+    df = pd.DataFrame({
+        "my col": [1, 2, 3],
+        "another col": ["a", "b", "c"],
+    })
+    wr.redshift.copy(
+        df=df,
+        path=path,
+        con=redshift_con,
+        table=redshift_table,
+        schema="public",
+        mode="overwrite",
+        iam_role=databases_parameters["redshift"]["role"],
+        sanitize_column_names=False,
+    )
+    result = wr.redshift.read_sql_table(
+        table=redshift_table,
+        schema="public",
+        con=redshift_con,
+    )
+    assert list(result.columns) == ["my col", "another col"]
+    assert len(result) == 3
