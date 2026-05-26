@@ -1658,6 +1658,7 @@ def test_copy_serialize_to_json_super(
 
     assert_pandas_equals(df, df_res)
 
+
 def test_copy_sanitize_column_names(
     path: str,
     redshift_table: str,
