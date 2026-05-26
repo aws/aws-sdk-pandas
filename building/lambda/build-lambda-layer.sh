@@ -126,6 +126,8 @@ for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1; do
     echo "WARNING: ${libfile} not found on this image"
   fi
 done
+
+# Strip symbol tables and debug info to reduce binary size
 find lib -name '*.so*' -type f -exec strip "{}" \;
 
 zip -r9 "${FILENAME}" ./python ./lib
