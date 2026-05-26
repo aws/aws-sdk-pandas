@@ -1666,10 +1666,7 @@ def test_copy_sanitize_column_names(
     databases_parameters: dict[str, Any],
 ) -> None:
     """Test that sanitize_column_names=False preserves column names with spaces."""
-    df = pd.DataFrame({
-        "my col": [1, 2, 3],
-        "another col": ["a", "b", "c"],
-    })
+    df = pd.DataFrame({"my col": [1, 2, 3], "another col": ["a", "b", "c"]})
     wr.redshift.copy(
         df=df,
         path=path,
@@ -1680,10 +1677,6 @@ def test_copy_sanitize_column_names(
         iam_role=databases_parameters["redshift"]["role"],
         sanitize_column_names=False,
     )
-    result = wr.redshift.read_sql_table(
-        table=redshift_table,
-        schema="public",
-        con=redshift_con,
-    )
+    result = wr.redshift.read_sql_table(table=redshift_table, schema="public", con=redshift_con)
     assert list(result.columns) == ["my col", "another col"]
     assert len(result) == 3
