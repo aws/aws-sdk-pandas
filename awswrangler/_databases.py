@@ -1,10 +1,11 @@
 """Databases Utilities."""
 
 from __future__ import annotations
-import uuid
+
 import importlib.util
 import logging
 import ssl
+import uuid
 from typing import Any, Generator, Iterator, List, NamedTuple, Tuple, cast, overload
 
 import boto3
@@ -147,7 +148,14 @@ def _should_handle_oracle_objects(dtype: pa.DataType) -> bool:
     )
 
 def _coerce_pg8000_types(col_values: tuple[Any, ...]) -> tuple[Any, ...]:
-    
+    """Coerce pg8000-specific Python types that PyArrow cannot infer safely.
+
+    PyArrow >= 19 infers uuid.UUID objects as extension<arrow.uuid>. When
+    table.to_pandas() is called with a types_mapper, this extension type
+    causes a KeyError in pyarrow's pandas_compat.py because no pandas
+    extension type is registered for it. Casting to str avoids this.
+    See: https://github.com/aws/aws-sdk-pandas/issues/3338
+    """
     if col_values and isinstance(next((v for v in col_values if v is not None), None), uuid.UUID):
         return tuple(str(v) if v is not None else None for v in col_values)
     return col_values
