@@ -692,7 +692,7 @@ def copy(  # noqa: PLR0913
         If True (default), column names are sanitized by pyarrow (spaces replaced with
         underscores) to maintain backward compatibility.
         If False, original column names are preserved including spaces.
-        
+
     Examples
     --------
     >>> import awswrangler as wr
