@@ -17,51 +17,6 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _ActionOnFailureLiteral = Literal["TERMINATE_JOB_FLOW", "TERMINATE_CLUSTER", "CANCEL_AND_WAIT", "CONTINUE"]
 
 
-def _normalize_bootstrap_actions(bootstraps_paths: list[str | dict[str, Any]] | None = None) -> list[dict[str, Any]] | None:
-    if not bootstraps_paths:
-        return None
-
-    actions: list[dict[str, Any]] = []
-    for bootstrap in bootstraps_paths:
-        if isinstance(bootstrap, str):
-            actions.append({"Name": bootstrap, "ScriptBootstrapAction": {"Path": bootstrap}})
-            continue
-
-        if not isinstance(bootstrap, dict):
-            raise exceptions.InvalidArgumentValue(
-                "Each bootstrap action must be either a string path or a dictionary with script metadata."
-            )
-
-        if "ScriptBootstrapAction" in bootstrap:
-            script_bootstrap_action: dict[str, Any] = cast(dict[str, Any], bootstrap["ScriptBootstrapAction"])
-            path: str | None = cast(str | None, script_bootstrap_action.get("Path"))
-            if path is None:
-                raise exceptions.InvalidArgumentValue(
-                    "Bootstrap action dictionaries must include ScriptBootstrapAction.Path."
-                )
-            action_name = cast(str, bootstrap.get("Name", path))
-            action: dict[str, Any] = {"Name": action_name, "ScriptBootstrapAction": {"Path": path}}
-            args: list[str] | None = cast(list[str] | None, script_bootstrap_action.get("Args"))
-            if args is not None:
-                action["ScriptBootstrapAction"]["Args"] = args
-            actions.append(action)
-            continue
-
-        path = cast(str | None, bootstrap.get("Path"))
-        if path is None:
-            raise exceptions.InvalidArgumentValue(
-                "Bootstrap action dictionaries must include either ScriptBootstrapAction.Path or Path."
-            )
-        action_name = cast(str, bootstrap.get("Name", path))
-        action = {"Name": action_name, "ScriptBootstrapAction": {"Path": path}}
-        args = cast(list[str] | None, bootstrap.get("Args"))
-        if args is not None:
-            action["ScriptBootstrapAction"]["Args"] = args
-        actions.append(action)
-
-    return actions
-
-
 def _get_ecr_credentials_refresh_content(region: str) -> str:
     return f"""
 import subprocess
@@ -339,9 +294,8 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
         args["Applications"] = [{"Name": x} for x in pars["applications"]]
 
     # Bootstraps
-    bootstrap_actions: list[dict[str, Any]] | None = _normalize_bootstrap_actions(pars["bootstraps_paths"])
-    if bootstrap_actions is not None:
-        args["BootstrapActions"] = bootstrap_actions
+    if pars["bootstraps_paths"]:
+        args["BootstrapActions"] = [{"Name": x, "ScriptBootstrapAction": {"Path": x}} for x in pars["bootstraps_paths"]]
 
     # Debugging and Steps
     if (pars["debugging"] is True) or (pars["steps"] is not None):
@@ -515,7 +469,7 @@ def create_cluster(  # noqa: PLR0913
     consistent_view_retry_seconds: int = 10,
     consistent_view_retry_count: int = 5,
     consistent_view_table_name: str = "EmrFSMetadata",
-    bootstraps_paths: list[str | dict[str, Any]] | None = None,
+    bootstraps_paths: list[str] | None = None,
     debugging: bool = True,
     applications: list[str] | None = None,
     visible_to_all_users: bool = True,
@@ -640,9 +594,7 @@ def create_cluster(  # noqa: PLR0913
     consistent_view_table_name
         Name of the DynamoDB table to store the consistent view data.
     bootstraps_paths
-        Bootstrap actions.
-        You can pass script paths (e.g. ["s3://BUCKET_NAME/script.sh"]) or dictionaries with arguments
-        (e.g. [{"Name": "install-deps", "Path": "s3://BUCKET_NAME/script.sh", "Args": ["--foo", "bar"]}]).
+        Bootstraps paths (e.g ["s3://BUCKET_NAME/script.sh"]).
     debugging
         Debugging enabled?
     applications
