@@ -17,7 +17,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _ActionOnFailureLiteral = Literal["TERMINATE_JOB_FLOW", "TERMINATE_CLUSTER", "CANCEL_AND_WAIT", "CONTINUE"]
 
 
-def _normalize_bootstrap_actions(bootstraps_paths: list[str | dict[str, Any]] | None = None) -> list[dict[str, Any]] | None:
+def _normalize_bootstrap_actions(
+    bootstraps_paths: list[str | dict[str, Any]] | None = None,
+) -> list[dict[str, Any]] | None:
     if not bootstraps_paths:
         return None
 
