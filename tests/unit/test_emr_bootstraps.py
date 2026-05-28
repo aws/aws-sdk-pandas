@@ -1,8 +1,10 @@
 # tests/unit/test_emr_bootstraps.py
 
 from __future__ import annotations
+
 import pytest
 from unittest import mock
+
 import awswrangler as wr
 
 
