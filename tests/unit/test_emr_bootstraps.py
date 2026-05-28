@@ -1,6 +1,8 @@
+# tests/unit/test_emr_bootstraps.py
+
 from __future__ import annotations
-from unittest import mock
 import pytest
+from unittest import mock
 import awswrangler as wr
 
 
@@ -15,15 +17,13 @@ class _FakeEmrClient:
 
 def _create_cluster_with_bootstraps(bootstraps_paths):
     fake_emr_client = _FakeEmrClient()
-    with (
-        mock.patch("awswrangler.emr._utils.client", return_value=fake_emr_client),
-        mock.patch("awswrangler.emr.sts.get_account_id", return_value="123456789012"),
-        mock.patch("awswrangler.emr._utils.get_region_from_session", return_value="us-east-1"),
-    ):
-        wr.emr.create_cluster(
-            subnet_id="subnet-12345678",
-            bootstraps_paths=bootstraps_paths,
-        )
+    with mock.patch("awswrangler.emr._utils.client", return_value=fake_emr_client):
+        with mock.patch("awswrangler.emr.sts.get_account_id", return_value="123456789012"):
+            with mock.patch("awswrangler.emr._utils.get_region_from_session", return_value="us-east-1"):
+                wr.emr.create_cluster(
+                    subnet_id="subnet-12345678",
+                    bootstraps_paths=bootstraps_paths,
+                )
     return fake_emr_client.run_job_flow_args
 
 
