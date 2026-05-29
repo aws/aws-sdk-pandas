@@ -2223,3 +2223,42 @@ def test_athena_date_recovery(path, glue_database, glue_table):
     )
     # Round-trip dtype/resolution may differ (e.g. datetime64[ns] vs [us]) depending on pandas version.
     assert_pandas_equals(df, df2, check_dtype=False, check_datetimelike_compat=True)
+
+
+def test_athena_workgroup_config_ttl_default_and_caching() -> None:
+    """TTL defaults to 0 and cache is only used when TTL is positive."""
+    from unittest.mock import patch
+    import awswrangler as wr
+    from awswrangler.athena._utils import _get_workgroup_config, _WORKGROUP_CONFIG_CACHE
+
+    # 1. Default must be 0
+    assert wr.config.athena_workgroup_config_ttl == 0
+
+    mock_response = {
+        "WorkGroup": {
+            "Configuration": {
+                "EnforceWorkGroupConfiguration": False,
+                "ResultConfiguration": {"OutputLocation": "s3://bucket/prefix/"},
+            }
+        }
+    }
+
+    # 2. TTL=0 → no caching, GetWorkgroup called every time
+    _WORKGROUP_CONFIG_CACHE.clear()
+    with patch("awswrangler.athena._utils.get_work_group", return_value=mock_response) as mock_get:
+        wr.config.athena_workgroup_config_ttl = 0
+        _get_workgroup_config(workgroup="primary")
+        _get_workgroup_config(workgroup="primary")
+        assert mock_get.call_count == 2
+
+    # 3. TTL>0 → second call served from cache, GetWorkgroup called only once
+    _WORKGROUP_CONFIG_CACHE.clear()
+    with patch("awswrangler.athena._utils.get_work_group", return_value=mock_response) as mock_get:
+        wr.config.athena_workgroup_config_ttl = 60
+        _get_workgroup_config(workgroup="primary")
+        _get_workgroup_config(workgroup="primary")
+        assert mock_get.call_count == 1
+
+    # cleanup
+    wr.config.athena_workgroup_config_ttl = 0
+    _WORKGROUP_CONFIG_CACHE.clear()

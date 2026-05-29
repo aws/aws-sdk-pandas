@@ -44,7 +44,6 @@ _CONFIG_ARGS: dict[str, _ConfigArg] = {
     "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "athena_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "athena_workgroup_config_ttl": _ConfigArg(dtype=int, nullable=False, default=0),
-    "athena_workgroup_config_ttl": _ConfigArg(dtype=int, nullable=False),
     "cloudwatch_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "neptune_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "timestream_batch_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
