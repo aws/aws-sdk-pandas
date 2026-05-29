@@ -444,6 +444,36 @@ def s3_table_namespace(s3_table_bucket):
         pass
 
 
+@pytest.fixture(scope="session")
+def vector_bucket():
+    suffix = uuid.uuid4().hex[:8]
+    bucket_name = f"test-s3vectors-{suffix}"
+    print(f"S3 Vector bucket: {bucket_name}")
+    wr.s3.create_vector_bucket(name=bucket_name)
+    yield bucket_name
+    try:
+        wr.s3.delete_vector_bucket(name=bucket_name)
+    except botocore.exceptions.ClientError:
+        pass
+
+
+@pytest.fixture(scope="function")
+def vector_index(vector_bucket):
+    index_name = f"idx-{uuid.uuid4().hex[:8]}"
+    print(f"S3 Vector index: {index_name}")
+    wr.s3.create_vector_index(
+        vector_bucket=vector_bucket,
+        name=index_name,
+        dimension=4,
+        distance_metric="cosine",
+    )
+    yield vector_bucket, index_name
+    try:
+        wr.s3.delete_vector_index(name=index_name, vector_bucket=vector_bucket)
+    except botocore.exceptions.ClientError:
+        pass
+
+
 @pytest.fixture(scope="function")
 def timestream_database():
     name = f"tbl_{get_time_str_with_random_suffix()}"

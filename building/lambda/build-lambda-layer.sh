@@ -11,7 +11,7 @@ popd
 rm -rf dist arrow
 
 export ARROW_HOME=$(pwd)/dist
-export ARROW_VERSION=20.0.0
+export ARROW_VERSION=22.0.0
 export LD_LIBRARY_PATH=$(pwd)/dist/lib:$LD_LIBRARY_PATH
 export CMAKE_PREFIX_PATH=$ARROW_HOME:$CMAKE_PREFIX_PATH
 export SETUPTOOLS_SCM_PRETEND_VERSION=$ARROW_VERSION
@@ -79,11 +79,20 @@ python3 setup.py build_ext \
 
 pip3 install dist/pyarrow-*.whl -t /aws-sdk-pandas/dist/pyarrow_files
 
+PYARROW_WHEEL_DIR=$(pwd)/dist
+
 popd
 
 pushd /aws-sdk-pandas
 
-pip3 install . --no-binary numpy,pandas -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]"
+pip3 install . --no-binary numpy,pandas --find-links="${PYARROW_WHEEL_DIR}" -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]" "pyarrow==${ARROW_VERSION}"
+
+# CVE-2026-41066: upgrade lxml past redshift-connector's <=6.0.2 cap.
+# pyproject.toml's [tool.uv] override-dependencies only applies to uv, not pip,
+# so the Lambda layer needs this force-upgrade. Remove the capped install
+# first — pip -t doesn't clean old dist-info, so scanners would see both versions.
+rm -rf python/lxml python/lxml-*.dist-info
+pip3 install --no-deps -t ./python "lxml>=6.1.0"
 
 rm -rf python/pyarrow*
 rm -rf python/boto*
@@ -97,12 +106,21 @@ find python -name '*.so' -type f -exec strip "{}" \;
 find python -wholename "*/tests/*" -type f -delete
 find python -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 
-# Bundle system shared libraries needed at runtime (e.g. libxslt for lxml)
-# Lambda extracts layers to /opt/ and /opt/lib is in LD_LIBRARY_PATH
+# Bundle system shared libraries needed at runtime (e.g. libxslt for lxml,
+# libatomic for pyarrow 22+). Lambda extracts layers to /opt/ and /opt/lib
+# is on LD_LIBRARY_PATH. Search ldconfig cache first, then fall back to a
+# filesystem search (libatomic under gcc10 lives in /usr/lib/gcc/*).
 mkdir -p lib
-for libfile in libxslt.so.1 libexslt.so.0; do
-  if [ -f "/usr/lib64/${libfile}" ]; then
-    cp "/usr/lib64/${libfile}" lib/
+for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1 libicudata.so.67 libicui18n.so.67 libicuuc.so.67; do
+  src=$(ldconfig -p 2>/dev/null | awk -v lib="${libfile}" '$1 == lib { print $NF; exit }')
+  if [ -z "${src}" ] || [ ! -e "${src}" ]; then
+    src=$(find /usr/lib /usr/lib64 -name "${libfile}" -print -quit 2>/dev/null)
+  fi
+  if [ -n "${src}" ] && [ -e "${src}" ]; then
+    cp -L "${src}" "lib/${libfile}"
+    echo "bundled ${libfile} from ${src}"
+  else
+    echo "WARNING: ${libfile} not found on this image"
   fi
 done
 

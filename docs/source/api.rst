@@ -3,6 +3,7 @@ API Reference
 
 * `Amazon S3`_
 * `Amazon S3 Tables`_
+* `Amazon S3 Vectors`_
 * `AWS Glue Catalog`_
 * `Amazon Athena`_
 * `Amazon Redshift`_
@@ -332,6 +333,29 @@ Amazon S3 Tables
     delete_table
     from_iceberg
     to_iceberg
+
+Amazon S3 Vectors
+-----------------
+
+.. currentmodule:: awswrangler.s3
+
+.. autosummary::
+    :toctree: stubs
+
+    create_vector_bucket
+    delete_vector_bucket
+    list_vector_buckets
+    get_vector_bucket
+    create_vector_index
+    delete_vector_index
+    list_vector_indexes
+    get_vector_index
+    put_vectors
+    put_vectors_from_df
+    get_vectors
+    delete_vectors
+    list_vectors
+    query_vectors
 
 Amazon Timestream
 -----------------
