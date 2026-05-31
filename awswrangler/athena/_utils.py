@@ -162,7 +162,7 @@ def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str =
 
     ttl: int = wr_config.athena_workgroup_config_ttl
     primitives = boto3_to_primitives(session)
-    cache_key = (primitives.get("region_name"), primitives.get("profile_name"), workgroup or "primary")
+    cache_key = (primitives.get("region_name"), primitives.get("profile_name"), workgroup)
 
     if ttl > 0:
         cached = _WORKGROUP_CONFIG_CACHE.get(cache_key)

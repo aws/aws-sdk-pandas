@@ -2259,6 +2259,18 @@ def test_athena_workgroup_config_ttl_default_and_caching() -> None:
         _get_workgroup_config(workgroup="primary")
         assert mock_get.call_count == 1
 
+    # 4. workgroup=None and workgroup="primary" must have separate cache entries
+    _WORKGROUP_CONFIG_CACHE.clear()
+    with patch("awswrangler.athena._utils.get_work_group", return_value=mock_response) as mock_get:
+        wr.config.athena_workgroup_config_ttl = 60
+        result_none = _get_workgroup_config(workgroup=None)
+        assert mock_get.call_count == 0  # workgroup=None skips API entirely
+
+        result_primary = _get_workgroup_config(workgroup="primary")
+        assert mock_get.call_count == 1  # must not use None's cache entry
+        assert result_primary.s3_output == "s3://bucket/prefix/"
+        assert result_none.s3_output is None
+
     # cleanup
     wr.config.athena_workgroup_config_ttl = 0
     _WORKGROUP_CONFIG_CACHE.clear()
