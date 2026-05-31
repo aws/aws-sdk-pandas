@@ -16,13 +16,24 @@ _FSSPEC_IO_IMPL = "pyiceberg.io.fsspec.FsspecFileIO"
 _PYARROW_IO_IMPL = "pyiceberg.io.pyarrow.PyArrowFileIO"
 
 def _preferred_io_impl() -> str:
+    """Return the PyIceberg IO implementation class string for S3 Tables.
+
+    S3 Tables requires FsspecFileIO (aiobotocore/aiohttp) because PyArrowFileIO
+    unconditionally adds an 'Expect: 100-continue' header that S3 Tables rejects
+    with HTTP 400 S3TablesUnsupportedHeader.
+
+    Raises
+    ------
+    exceptions.MissingDependency
+        When 's3fs' is not installed, since there is no safe fallback for S3 Tables.
+    """
     if importlib.util.find_spec("s3fs") is not None:
         return _FSSPEC_IO_IMPL
-    _logger.warning(
-        "Package 's3fs' is not installed.  PyArrow's S3FileSystem will be used "
-        "instead, which sends an 'Expect: 100-continue' header that S3 Tables "
-        "does not support and may cause write failures.  Install 's3fs' to avoid "
-        "this issue: pip install 's3fs'."
+    raise exceptions.MissingDependency(
+        "Package 's3fs' is required for writing to S3 Tables. "
+        "PyArrow's default IO sends an 'Expect: 100-continue' header that "
+        "S3 Tables rejects (HTTP 400 S3TablesUnsupportedHeader). "
+        "Install it with: pip install 's3fs'"
     )
     return _PYARROW_IO_IMPL
 

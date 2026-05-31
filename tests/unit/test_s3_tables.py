@@ -155,3 +155,26 @@ def test_read_limit(s3_table_namespace):
 
     df_out = wr.s3.from_iceberg(table_bucket_arn=bucket_arn, namespace=namespace, table_name="test_limit", limit=3)
     assert len(df_out) == 3
+
+
+def test_preferred_io_impl_returns_fsspec_when_s3fs_installed():
+    """When s3fs is installed, _preferred_io_impl must return FsspecFileIO."""
+    with patch("importlib.util.find_spec", return_value=object()):
+        result = _preferred_io_impl()
+    assert result == _FSSPEC_IO_IMPL
+
+
+def test_preferred_io_impl_raises_when_s3fs_missing():
+    """When s3fs is absent, _preferred_io_impl must raise, not silently fall back."""
+    with patch("importlib.util.find_spec", return_value=None):
+        with pytest.raises(Exception, match="s3fs"):
+            _preferred_io_impl()
+
+
+def test_build_catalog_properties_contains_py_io_impl():
+    """_build_catalog_properties must include py-io-impl key pointing to FsspecFileIO."""
+    arn = "arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket"
+    with patch("importlib.util.find_spec", return_value=object()):
+        props = _build_catalog_properties(arn)
+    assert "py-io-impl" in props
+    assert props["py-io-impl"] == _FSSPEC_IO_IMPL
