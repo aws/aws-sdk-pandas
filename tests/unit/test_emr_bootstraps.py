@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest import mock
 
+import pytest
 import awswrangler as wr
 
 
