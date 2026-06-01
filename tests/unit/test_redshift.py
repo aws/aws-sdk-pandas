@@ -1657,3 +1657,34 @@ def test_copy_serialize_to_json_super(
     df_res["text"] = df_res["text"].apply(json.loads)
 
     assert_pandas_equals(df, df_res)
+
+def test_copy_preserves_column_names_with_spaces() -> None:
+    """wr.redshift.copy() must pass flavor=None so column names with spaces
+    are not sanitized by pyarrow before writing to the Redshift staging path.
+    See: https://github.com/aws/aws-sdk-pandas/issues/3293
+    """
+    from unittest.mock import MagicMock, call, patch
+
+    df = pd.DataFrame({"my col": [1, 2, 3], "other col": ["a", "b", "c"]})
+
+    with patch("awswrangler.redshift._write.s3.to_parquet") as mock_to_parquet, \
+         patch("awswrangler.redshift._write.copy_from_files"), \
+         patch("awswrangler.redshift._write.s3.delete_objects"), \
+         patch("awswrangler.redshift._write.s3.list_objects", return_value=[]):
+
+        try:
+            wr.redshift.copy(
+                df=df,
+                path="s3://fake-bucket/fake-path/",
+                con=MagicMock(),
+                table="test_table",
+                schema="public",
+                iam_role="arn:aws:iam::123456789012:role/fake-role",
+            )
+        except Exception:
+            pass
+
+        assert mock_to_parquet.called
+        kwargs = mock_to_parquet.call_args.kwargs
+        assert "pyarrow_additional_kwargs" in kwargs
+        assert kwargs["pyarrow_additional_kwargs"].get("flavor") is None

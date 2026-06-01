@@ -724,9 +724,7 @@ def copy(  # noqa: PLR0913
             s3_additional_kwargs=s3_additional_kwargs,
             max_rows_by_file=max_rows_by_file,
             pyarrow_additional_kwargs={"flavor": None},
-
-
-)
+        )
         copy_from_files(
             path=path,
             con=con,
