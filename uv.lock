@@ -5090,7 +5090,7 @@ wheels = [
 
 [[package]]
 name = "redshift-connector"
-version = "2.1.13"
+version = "2.1.14"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -5104,7 +5104,7 @@ dependencies = [
     { name = "setuptools" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/10/34/70b2a5e47c246955e06aae93071112c8ce5a2d58ea72160478e9a544ea52/redshift_connector-2.1.13-py3-none-any.whl", hash = "sha256:f9bffcd359d7205964355e571963daa99e81fc9fdcca5e360076dbaabac838e4", size = 156887, upload-time = "2026-03-31T00:49:00.757Z" },
+    { url = "https://files.pythonhosted.org/packages/21/ac/2df7f48b0d5eb963d59ef3cce794267d47c362095bcf2f6a89fddd993e1a/redshift_connector-2.1.14-py3-none-any.whl", hash = "sha256:986fd6b6a09a828025a43e44a7b6f5c6ec3f41a47ce23bf075b7be324de484b3", size = 157063, upload-time = "2026-05-18T20:16:50.988Z" },
 ]
 
 [[package]]
