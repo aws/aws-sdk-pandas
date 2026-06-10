@@ -1098,3 +1098,32 @@ def test_save_dataframe_with_ms_units(path, glue_database, glue_table, use_threa
     )
     df_out = wr.s3.read_parquet_table(table=glue_table, database=glue_database)
     assert df_out.shape == (8, 1)
+
+
+def test_parquet_timestamp_us_no_overflow(path):
+    """Timestamps outside the ns range must survive a write/read round-trip without corruption.
+
+    With the spark Parquet flavour, PyArrow would previously use INT96 encoding by default.
+    Reading INT96 back with the default ns coercion caused int64 overflow for dates outside
+    the nanosecond-representable range (~1677-09-21 to ~2262-04-11), producing silently
+    corrupted values (e.g. '1000-01-01' would come back as '2169-02-09').
+    """
+    ts_values = [
+        pd.Timestamp("1000-01-01 12:00:00"),
+        pd.Timestamp("1500-06-15 08:30:00"),
+        pd.Timestamp("2023-03-21 00:00:00"),
+        pd.Timestamp("3000-12-31 23:59:59"),
+    ]
+    df = pd.DataFrame({"ts": pd.array(ts_values, dtype="datetime64[us]")})
+
+    wr.s3.to_parquet(df, path + "ts_overflow.parquet")
+    df2 = wr.s3.read_parquet(path + "ts_overflow.parquet")
+
+    assert df2.shape == df.shape
+    for orig, recovered in zip(ts_values, df2["ts"].tolist()):
+        assert pd.Timestamp(recovered).year == orig.year
+        assert pd.Timestamp(recovered).month == orig.month
+        assert pd.Timestamp(recovered).day == orig.day
+        assert pd.Timestamp(recovered).hour == orig.hour
+        assert pd.Timestamp(recovered).minute == orig.minute
+        assert pd.Timestamp(recovered).second == orig.second

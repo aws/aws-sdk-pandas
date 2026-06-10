@@ -61,6 +61,12 @@ def _new_writer(
         pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
     if "flavor" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["flavor"] = "spark"
+    if "use_deprecated_int96_timestamps" not in pyarrow_additional_kwargs:
+        # Disable INT96 encoding by default to prevent nanosecond overflow when reading
+        # timestamps outside the ns range (pre-1677 or post-2262) with pandas >= 3.0.
+        # The spark flavor otherwise implicitly enables INT96, which maps to ns on read
+        # and overflows int64 for dates outside that range.
+        pyarrow_additional_kwargs["use_deprecated_int96_timestamps"] = False
     if "version" not in pyarrow_additional_kwargs:
         # By default, use version 1.0 logical type set to maximize compatibility
         pyarrow_additional_kwargs["version"] = "1.0"
@@ -715,6 +721,8 @@ def to_parquet(
         pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
     if "flavor" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["flavor"] = "spark"
+    if "use_deprecated_int96_timestamps" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["use_deprecated_int96_timestamps"] = False
 
     strategy = _S3ParquetWriteStrategy()
     return strategy.write(
