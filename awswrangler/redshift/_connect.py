@@ -1,34 +1,25 @@
-"""Amazon Redshift Connect Module (PRIVATE)."""
+"""Amazon Redshift Connect Module."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import importlib.util
+import logging
+from typing import Any
 
 import boto3
 
-from awswrangler import _databases as _db_utils
+import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
+from awswrangler._databases import ConnectionAttributes, _get_connection_attributes
 
-if TYPE_CHECKING:
-    try:
-        import redshift_connector
-        from redshift_connector.core import Connection
-    except ImportError:
-        pass
-else:
-    redshift_connector = _utils.import_optional_dependency("redshift_connector")
+_redshift_connector_found = importlib.util.find_spec("redshift_connector")
+if _redshift_connector_found:
+    import redshift_connector
+
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _validate_connection(con: "Connection") -> None:
-    if not isinstance(con, redshift_connector.Connection):  # type: ignore[attr-defined]
-        raise exceptions.InvalidConnection(
-            "Invalid 'conn' argument, please pass a "
-            "redshift_connector.Connection object. Use redshift_connector.connect() to use "
-            "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog."
-        )
-
-
-@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
+@_utils.check_optional_dependency(_redshift_connector_found, "redshift_connector")
 def connect(
     connection: str | None = None,
     secret_id: str | None = None,
@@ -39,63 +30,92 @@ def connect(
     timeout: int | None = None,
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
+    idp_token: str | None = None,
+    idp_token_type: str | None = None,
+    idc_region: str | None = None,
+    issuer_url: str | None = None,
+    listen_port: int | None = None,
+    idc_client_display_name: str | None = None,
+    idp_response_timeout: int | None = None,
     **kwargs: Any,
-) -> "Connection":
+) -> "redshift_connector.Connection":
     """Return a redshift_connector connection from a Glue Catalog or Secret Manager.
 
     Note
     ----
-    You MUST pass a `connection` OR `secret_id`.
+    You MUST pass a connection OR secret_id.
     Here is an example of the secret structure in Secrets Manager:
-    {
-    "host":"my-host.us-east-1.redshift.amazonaws.com",
-    "username":"test",
-    "password":"test",
-    "engine":"redshift",
-    "port":"5439",
-    "dbname": "mydb"
-    }
-
+    { "host":"my-host.us-east-1.redshift.amazonaws.com", "username":"test",
+      "password":"test", "engine":"redshift", "port":"5439", "dbname": "mydb" }
 
     https://github.com/aws/amazon-redshift-python-driver
 
     Parameters
     ----------
-    connection
+    connection : str, optional
         Glue Catalog Connection name.
-    secret_id
+    secret_id : str, optional
         Specifies the secret containing the connection details that you want to retrieve.
-        You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
-    catalog_id
-        The ID of the Data Catalog.
-        If none is provided, the AWS account ID is used by default.
-    dbname
-        Optional database name to overwrite the stored one.
-    boto3_session
-        The default boto3 session will be used if **boto3_session** is ``None``.
-    ssl
-        This governs SSL encryption for TCP/IP sockets.
-        This parameter is forward to redshift_connector.
-        https://github.com/aws/amazon-redshift-python-driver
-    timeout
-        This is the time in seconds before the connection to the server will time out.
-        The default is None which means no timeout.
-        This parameter is forward to redshift_connector.
-        https://github.com/aws/amazon-redshift-python-driver
-    max_prepared_statements
-        This parameter is forward to redshift_connector.
-        https://github.com/aws/amazon-redshift-python-driver
-    tcp_keepalive
+    catalog_id : str, optional
+        The ID of the Data Catalog. If none is provided, the AWS account ID is used by default.
+    dbname : str, optional
+        Optional database name to override the one found in the connection details.
+    boto3_session : boto3.Session, optional
+        The default boto3 session will be used if boto3_session is None.
+    ssl : bool
+        True to enable ssl, False to disable ssl. Default is True.
+    timeout : int, optional
+        Connection timeout in seconds.
+    max_prepared_statements : int
+        The maximum number of prepared statements. Default is 1000.
+    tcp_keepalive : bool
         If True then use TCP keepalive. The default is True.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    **kwargs
+    idp_token : str, optional
+        An AWS IAM Identity Center vended access token or an OpenID Connect (OIDC) JSON
+        Web Token (JWT) from a web identity provider connected with AWS IAM Identity Center.
+        When provided, ``IdpTokenAuthPlugin`` is used for Trusted Identity Propagation
+        so that Redshift applies per-user permissions instead of the IAM role of the runtime.
+        Requires ``idp_token_type`` to also be set.
+        See: https://docs.aws.amazon.com/redshift/latest/mgmt/redshift-iam-access-control-idp-connect-oauth.html
+    idp_token_type : str, optional
+        The type of token supplied in ``idp_token``. Accepted values:
+
+        * ``"ACCESS_TOKEN"`` – Use when ``idp_token`` is an AWS IAM Identity Center
+          vended access token.
+        * ``"EXT_JWT"`` – Use when ``idp_token`` is an OpenID Connect (OIDC) JSON Web
+          Token (JWT) from an external web identity provider connected to IAM Identity Center.
+
+        Required when ``idp_token`` is set.
+    idc_region : str, optional
+        The AWS Region where the AWS IAM Identity Center instance is located
+        (e.g. ``"us-east-1"``). Used when ``BrowserIdcAuthPlugin`` authentication is
+        requested via ``credentials_provider="BrowserIdcAuthPlugin"`` in **kwargs.
+    issuer_url : str, optional
+        The AWS IAM Identity Center server instance endpoint URL. Required when using
+        ``BrowserIdcAuthPlugin`` (i.e. ``credentials_provider="BrowserIdcAuthPlugin"``
+        in **kwargs).
+        Example: ``"https://identitycenter.amazonaws.com/ssoins-g5j2k70sn4yc5nsc"``
+    listen_port : int, optional
+        The port that the Redshift driver uses to receive the ``auth_code`` response from
+        AWS IAM Identity Center through the browser redirect. Only relevant for
+        ``BrowserIdcAuthPlugin``.
+    idc_client_display_name : str, optional
+        The display name the IAM Identity Center client uses for the application in the
+        IAM Identity Center single sign-on consent popup. Only relevant for
+        ``BrowserIdcAuthPlugin``.
+    idp_response_timeout : int, optional
+        The amount of time in seconds that the Redshift driver waits for the
+        authentication flow to complete. Only relevant for ``BrowserIdcAuthPlugin``.
+    **kwargs : Any
         Forwarded to redshift_connector.connect.
-        e.g. ``is_serverless=True, serverless_acct_id='...', serverless_work_group='...'``
+        e.g. is_serverless=True, serverless_acct_id='...', serverless_work_group='...'
 
     Returns
     -------
-        ``redshift_connector`` connection.
+    redshift_connector.Connection
+        Connection to Redshift.
 
     Examples
     --------
@@ -113,125 +133,84 @@ def connect(
     >>> with wr.redshift.connect(secret_id="MY_SECRET") as con:
     ...     with con.cursor() as cursor:
     ...         cursor.execute("SELECT 1")
-    ...         print(cursor.fetchall())
 
-    """
-    attrs: _db_utils.ConnectionAttributes = _db_utils.get_connection_attributes(
-        connection=connection, secret_id=secret_id, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
-    )
-    if attrs.kind != "redshift":
-        raise exceptions.InvalidDatabaseType(
-            f"Invalid connection type ({attrs.kind}. It must be a redshift connection.)"
-        )
-    return redshift_connector.connect(
-        user=attrs.user,
-        database=attrs.database,
-        password=attrs.password,
-        port=int(attrs.port),
-        host=attrs.host,
-        ssl=ssl,
-        timeout=timeout,
-        max_prepared_statements=max_prepared_statements,
-        tcp_keepalive=tcp_keepalive,
-        **kwargs,
-    )
+    Using IAM Trusted Identity Propagation via IdpTokenAuthPlugin
 
-
-@_utils.check_optional_dependency(redshift_connector, "redshift_connector")
-def connect_temp(
-    cluster_identifier: str,
-    user: str,
-    database: str | None = None,
-    duration: int = 900,
-    auto_create: bool = True,
-    db_groups: list[str] | None = None,
-    boto3_session: boto3.Session | None = None,
-    ssl: bool = True,
-    timeout: int | None = None,
-    max_prepared_statements: int = 1000,
-    tcp_keepalive: bool = True,
-    **kwargs: Any,
-) -> "Connection":
-    """Return a redshift_connector temporary connection (No password required).
-
-    https://github.com/aws/amazon-redshift-python-driver
-
-    Parameters
-    ----------
-    cluster_identifier
-        The unique identifier of a cluster.
-        This parameter is case sensitive.
-    user
-        The name of a database user.
-    database
-        Database name. If None, the default Database is used.
-    duration
-        The number of seconds until the returned temporary password expires.
-        Constraint: minimum 900, maximum 3600.
-        Default: 900
-    auto_create
-        Create a database user with the name specified for the user named in user if one does not exist.
-    db_groups
-        A list of the names of existing database groups that the user named in user will join for the current session,
-        in addition to any group memberships for an existing user. If not specified, a new user is added only to PUBLIC.
-    boto3_session
-        The default boto3 session will be used if **boto3_session** is ``None``.
-    ssl
-        This governs SSL encryption for TCP/IP sockets.
-        This parameter is forward to redshift_connector.
-        https://github.com/aws/amazon-redshift-python-driver
-    timeout
-        This is the time in seconds before the connection to the server will time out.
-        The default is None which means no timeout.
-        This parameter is forward to redshift_connector.
-        https://github.com/aws/amazon-redshift-python-driver
-    max_prepared_statements
-        This parameter is forward to redshift_connector.
-        https://github.com/aws/amazon-redshift-python-driver
-    tcp_keepalive
-        If True then use TCP keepalive. The default is True.
-        This parameter is forward to redshift_connector.
-        https://github.com/aws/amazon-redshift-python-driver
-    **kwargs
-        Forwarded to redshift_connector.connect.
-        e.g. is_serverless=True, serverless_acct_id='...', serverless_work_group='...'
-
-    Returns
-    -------
-        ``redshift_connector`` connection.
-
-    Examples
-    --------
     >>> import awswrangler as wr
-    >>> with wr.redshift.connect_temp(cluster_identifier="my-cluster", user="test") as con:
-    ...     with con.cursor() as cursor:
-    ...         cursor.execute("SELECT 1")
-    ...         print(cursor.fetchall())
+    >>> con = wr.redshift.connect(
+    ...     connection="MY_GLUE_CONNECTION",
+    ...     idp_token="<iam-idc-access-token-or-oidc-jwt>",
+    ...     idp_token_type="ACCESS_TOKEN",
+    ... )
+
+    Using BrowserIdcAuthPlugin for interactive SSO
+
+    >>> import awswrangler as wr
+    >>> con = wr.redshift.connect(
+    ...     connection="MY_GLUE_CONNECTION",
+    ...     credentials_provider="BrowserIdcAuthPlugin",
+    ...     idc_region="us-east-1",
+    ...     issuer_url="https://identitycenter.amazonaws.com/ssoins-xxx",
+    ... )
 
     """
-    client_redshift = _utils.client(service_name="redshift", session=boto3_session)
-    args: dict[str, Any] = {
-        "DbUser": user,
-        "ClusterIdentifier": cluster_identifier,
-        "DurationSeconds": duration,
-        "AutoCreate": auto_create,
-    }
-    if db_groups is not None:
-        args["DbGroups"] = db_groups
-    else:
-        db_groups = []
-    res = client_redshift.get_cluster_credentials(**args)
-    cluster = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
-    return redshift_connector.connect(
-        user=res["DbUser"],
-        database=database if database else cluster["DBName"],
-        password=res["DbPassword"],
-        port=cluster["Endpoint"]["Port"],
-        host=cluster["Endpoint"]["Address"],
-        ssl=ssl,
-        timeout=timeout,
-        max_prepared_statements=max_prepared_statements,
-        tcp_keepalive=tcp_keepalive,
-        db_groups=db_groups,
-        **kwargs,
+    attrs: ConnectionAttributes = _get_connection_attributes(
+        connection=connection,
+        secret_id=secret_id,
+        catalog_id=catalog_id,
+        dbname=dbname,
+        boto3_session=boto3_session,
     )
+    connect_kwargs: dict[str, Any] = {
+        "host": attrs.host,
+        "database": attrs.database,
+        "port": attrs.port,
+        "ssl": ssl,
+        "timeout": timeout,
+        "max_prepared_statements": max_prepared_statements,
+        "tcp_keepalive": tcp_keepalive,
+        **kwargs,
+    }
+
+    if idp_token is not None:
+        # --- Trusted Identity Propagation via IdpTokenAuthPlugin ---
+        if idp_token_type is None:
+            raise exceptions.InvalidArgumentCombination(
+                "idp_token_type must be set when idp_token is provided. "
+                "Accepted values: 'ACCESS_TOKEN' or 'EXT_JWT'."
+            )
+        _valid_token_types = {"ACCESS_TOKEN", "EXT_JWT"}
+        if idp_token_type.upper() not in _valid_token_types:
+            raise exceptions.InvalidArgumentValue(
+                f"idp_token_type must be one of {_valid_token_types}, got '{idp_token_type}'."
+            )
+        _logger.debug("Using IdpTokenAuthPlugin for Trusted Identity Propagation.")
+        connect_kwargs["credentials_provider"] = "IdpTokenAuthPlugin"
+        connect_kwargs["token"] = idp_token
+        connect_kwargs["token_type"] = idp_token_type.upper()
+        connect_kwargs.setdefault("user", "")
+        connect_kwargs.setdefault("password", "")
+    elif kwargs.get("credentials_provider") == "BrowserIdcAuthPlugin":
+        # --- BrowserIdcAuthPlugin: inject supplemental IDC parameters ---
+        _logger.debug("Enriching BrowserIdcAuthPlugin parameters for Trusted Identity Propagation.")
+        if idc_region is not None:
+            connect_kwargs["idc_region"] = idc_region
+        if issuer_url is not None:
+            connect_kwargs["issuer_url"] = issuer_url
+        if listen_port is not None:
+            connect_kwargs["listen_port"] = listen_port
+        if idc_client_display_name is not None:
+            connect_kwargs["idc_client_display_name"] = idc_client_display_name
+        if idp_response_timeout is not None:
+            connect_kwargs["idp_response_timeout"] = idp_response_timeout
+        connect_kwargs.setdefault("user", "")
+        connect_kwargs.setdefault("password", "")
+    else:
+        # --- Standard authentication path (username + password) ---
+        connect_kwargs["user"] = attrs.user
+        connect_kwargs["password"] = attrs.password
+
+    if attrs.ssl_context is not None:
+        connect_kwargs["ssl_context"] = attrs.ssl_context
+    _logger.debug("connect_kwargs: %s", {k: v for k, v in connect_kwargs.items() if k != "password"})
+    return redshift_connector.connect(**connect_kwargs)
