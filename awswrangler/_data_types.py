@@ -59,6 +59,8 @@ def pyarrow2athena(  # noqa: PLR0911,PLR0912
         )
     if pa.types.is_map(dtype):
         return f"map<{pyarrow2athena(dtype=dtype.key_type, ignore_null=ignore_null)},{pyarrow2athena(dtype=dtype.item_type, ignore_null=ignore_null)}>"
+    if isinstance(dtype, getattr(pa, "BaseExtensionType", pa.ExtensionType)):
+        return pyarrow2athena(dtype=dtype.storage_type, ignore_null=ignore_null)
     if dtype == pa.null():
         if ignore_null:
             return ""
