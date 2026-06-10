@@ -58,12 +58,13 @@ def _new_writer(
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
     if "coerce_timestamps" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+        pyarrow_additional_kwargs["coerce_timestamps"] = "us"
     if "flavor" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["flavor"] = "spark"
+        pyarrow_additional_kwargs["flavor"] = None
     if "version" not in pyarrow_additional_kwargs:
-        # By default, use version 1.0 logical type set to maximize compatibility
-        pyarrow_additional_kwargs["version"] = "1.0"
+        # Use version 2.6 to store timestamps as typed values (not INT96)
+        # preserving microsecond resolution for pandas 3.0+ datetime64[us]
+        pyarrow_additional_kwargs["version"] = "2.6"
     if "use_dictionary" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["use_dictionary"] = True
     if "write_statistics" not in pyarrow_additional_kwargs:
@@ -712,9 +713,9 @@ def to_parquet(
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
     if "coerce_timestamps" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+        pyarrow_additional_kwargs["coerce_timestamps"] = "us"
     if "flavor" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["flavor"] = "spark"
+        pyarrow_additional_kwargs["flavor"] = None
 
     strategy = _S3ParquetWriteStrategy()
     return strategy.write(
