@@ -84,6 +84,42 @@ def test_read_parquet_metadata_large_dtype(path):
     assert columns_types.get("c1") == "string"
 
 
+def test_pyarrow2athena_uuid_extension_type():
+    from awswrangler._data_types import pyarrow2athena
+
+    assert pyarrow2athena(pa.uuid()) == "binary"
+
+
+def test_pyarrow2athena_custom_extension_type():
+    from awswrangler._data_types import pyarrow2athena
+
+    class _TestExtType(pa.ExtensionType):
+        def __init__(self):
+            super().__init__(pa.int64(), "test.custom_ext")
+
+        def __arrow_ext_serialize__(self):
+            return b""
+
+        @classmethod
+        def __arrow_ext_deserialize__(cls, storage_type, serialized):
+            return cls()
+
+    assert pyarrow2athena(_TestExtType()) == "bigint"
+
+
+def test_athena_types_from_pyarrow_schema_with_extension():
+    from awswrangler._data_types import athena_types_from_pyarrow_schema
+
+    schema = pa.schema(
+        [
+            pa.field("id", pa.uuid()),
+            pa.field("value", pa.int64()),
+        ]
+    )
+    result = athena_types_from_pyarrow_schema(schema)
+    assert result == {"id": "binary", "value": "bigint"}
+
+
 @pytest.mark.parametrize(
     "partition_cols",
     [
