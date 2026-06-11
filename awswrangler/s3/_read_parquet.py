@@ -212,7 +212,32 @@ def _read_parquet_file(
             path=path,
             path_root=path_root,
         )
+ def _strip_pandas_metadata(schema: "pa.Schema") -> "pa.Schema":
 
+    """Return schema with the b'pandas' metadata key removed.
+
+
+    Parquet files written by pandas embed a full-file RangeIndex in
+
+    schema metadata. When reading in chunks each batch is only a slice
+
+    of the file, so applying the full-file index to a smaller table
+
+    raises ValueError. Removing the key lets PyArrow use a default
+
+    per-chunk RangeIndex instead.
+
+    """
+
+    existing = schema.metadata or {}
+
+    if b"pandas" not in existing:
+
+        return schema
+
+    filtered = {k: v for k, v in existing.items() if k != b"pandas"}
+
+    return schema.with_metadata(filtered)
 
 def _read_parquet_chunked(
     s3_client: "S3Client" | None,
@@ -252,6 +277,7 @@ def _read_parquet_chunked(
             schema = metadata.schema.to_arrow_schema()
             if columns:
                 schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
+                schema = _strip_pandas_metadata(schema)
 
             use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
             table_kwargs = {"path": path, "path_root": path_root}
