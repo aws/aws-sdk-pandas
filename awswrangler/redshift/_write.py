@@ -574,7 +574,7 @@ def copy(  # noqa: PLR0913
     precombine_key: str | None = None,
     use_column_names: bool = False,
     add_new_columns: bool = False,
-    sanitize_column_names: bool = True,
+    pyarrow_additional_kwargs: dict[str, str] | None = None,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -688,10 +688,9 @@ def copy(  # noqa: PLR0913
         inserted into the database columns `col1` and `col3`.
     add_new_columns
         If True, it automatically adds the new DataFrame columns into the target table.
-    sanitize_column_names
-        If True (default), column names are sanitized by pyarrow (spaces replaced with
-        underscores) to maintain backward compatibility.
-        If False, original column names are preserved including spaces.
+    pyarrow_additional_kwargs
+        Forwarded to pyarrow.
+        e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'us', 'allow_truncated_timestamps': False}
 
     Examples
     --------
@@ -720,7 +719,7 @@ def copy(  # noqa: PLR0913
         s3.to_parquet(
             df=df,
             path=path,
-            pyarrow_additional_kwargs={"flavor": None} if not sanitize_column_names else {},
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs or {},
             index=index,
             dataset=True,
             mode="append",
