@@ -1659,13 +1659,13 @@ def test_copy_serialize_to_json_super(
     assert_pandas_equals(df, df_res)
 
 
-def test_copy_sanitize_column_names(
+def test_copy_preserve_column_names_with_spaces(
     path: str,
     redshift_table: str,
     redshift_con: "redshift_connector.Connection",
     databases_parameters: dict[str, Any],
 ) -> None:
-    """Test that sanitize_column_names=False preserves column names with spaces."""
+    """Test that pyarrow_additional_kwargs={'flavor': None} preserves column names with spaces."""
     df = pd.DataFrame({"my col": [1, 2, 3], "another col": ["a", "b", "c"]})
     wr.redshift.copy(
         df=df,
@@ -1675,7 +1675,7 @@ def test_copy_sanitize_column_names(
         schema="public",
         mode="overwrite",
         iam_role=databases_parameters["redshift"]["role"],
-        sanitize_column_names=False,
+        pyarrow_additional_kwargs={"flavor": None},
     )
     result = wr.redshift.read_sql_table(table=redshift_table, schema="public", con=redshift_con)
     assert list(result.columns) == ["my col", "another col"]
