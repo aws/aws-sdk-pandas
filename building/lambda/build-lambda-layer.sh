@@ -47,6 +47,7 @@ cmake \
     -DARROW_WITH_LZ4=OFF \
     -DARROW_WITH_BROTLI=OFF \
     -DARROW_BUILD_TESTS=OFF \
+    -DARROW_WITH_ICU=OFF \
     -GNinja \
     ..
 
@@ -110,8 +111,10 @@ find python -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 # libatomic for pyarrow 22+). Lambda extracts layers to /opt/ and /opt/lib
 # is on LD_LIBRARY_PATH. Search ldconfig cache first, then fall back to a
 # filesystem search (libatomic under gcc10 lives in /usr/lib/gcc/*).
+# ICU libraries are intentionally excluded: Arrow is built with -DARROW_WITH_ICU=OFF
+# so pyarrow has no ICU dependency, keeping the layer size minimal.
 mkdir -p lib
-for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1 libicudata.so.67 libicui18n.so.67 libicuuc.so.67; do
+for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1; do
   src=$(ldconfig -p 2>/dev/null | awk -v lib="${libfile}" '$1 == lib { print $NF; exit }')
   if [ -z "${src}" ] || [ ! -e "${src}" ]; then
     src=$(find /usr/lib /usr/lib64 -name "${libfile}" -print -quit 2>/dev/null)
@@ -123,6 +126,9 @@ for libfile in libxslt.so.1 libexslt.so.0 libatomic.so.1 libicudata.so.67 libicu
     echo "WARNING: ${libfile} not found on this image"
   fi
 done
+
+# Strip symbol tables and debug info to reduce binary size
+find lib -name '*.so*' -type f -exec strip "{}" \;
 
 zip -r9 "${FILENAME}" ./python ./lib
 mv "${FILENAME}" dist/
