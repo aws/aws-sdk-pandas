@@ -60,7 +60,7 @@ def _to_text(
         file_path = path
     else:
         raise RuntimeError("path and path_root received at the same time.")
-    
+
     pandas_write_mode = pandas_kwargs.pop("mode", None)
     mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
     with open_s3_object(
