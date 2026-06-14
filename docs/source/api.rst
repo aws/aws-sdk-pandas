@@ -6,6 +6,7 @@ API Reference
 * `Amazon S3 Vectors`_
 * `AWS Glue Catalog`_
 * `Amazon Athena`_
+* `Amazon Bedrock`_
 * `Amazon Redshift`_
 * `PostgreSQL`_
 * `MySQL`_
@@ -152,6 +153,17 @@ Amazon Athena
     create_prepared_statement
     list_prepared_statements
     delete_prepared_statement
+
+Amazon Bedrock
+--------------
+
+.. currentmodule:: awswrangler.bedrock
+
+.. autosummary::
+    :toctree: stubs
+
+    invoke_batch
+    wait_invoke_batch
 
 Amazon Redshift
 ---------------

@@ -67,6 +67,7 @@ if TYPE_CHECKING:
 
     ServiceName = Literal[
         "athena",
+        "bedrock",
         "bedrock-runtime",
         "cleanrooms",
         "dynamodb",
