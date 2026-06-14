@@ -552,6 +552,10 @@ def read_items(  # noqa: PLR0912, PLR0915
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
+    key_schema
+        Key schema of the table (e.g. `[{"AttributeName": "key", "KeyType": "HASH"}]`).
+        If provided, the library will bypass the `DescribeTable` API call, which can
+        reduce network latency and prevent API throttling. Defaults to None.
 
     Raises
     ------
