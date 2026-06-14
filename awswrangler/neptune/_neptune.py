@@ -203,6 +203,24 @@ def to_property_graph(
     return _run_gremlin_insert(client, g)
 
 
+# SPARQL 1.1 IRIREF grammar: '<' ([^<>"{}|^`\]-[#x00-#x20])* '>'
+# A cell value spliced between '<' and '>' must contain only the characters allowed
+# inside the IRIREF token. Anything else can close the token and inject arbitrary
+# SPARQL UPDATE syntax (DELETE / DROP / LOAD / ...).
+_IRIREF_INNER_RE = re.compile(r"^[^\x00-\x20<>\"{}|^`\\]*$")
+
+
+def _validate_iriref_cell(value: Any, column: str, row_index: int) -> str:
+    text = str(value)
+    if not _IRIREF_INNER_RE.match(text):
+        raise exceptions.InvalidArgumentValue(
+            f"Value in column {column!r} at row index {row_index} is not a valid IRI: "
+            f"{text!r}. Cells written by `to_rdf_graph` must conform to the SPARQL "
+            'IRIREF grammar (no whitespace, control characters, or any of <>"{}|^`\\).'
+        )
+    return text
+
+
 @_utils.check_optional_dependency(sparql, "SPARQLWrapper")
 def to_rdf_graph(
     client: NeptuneClient,
@@ -267,14 +285,18 @@ def to_rdf_graph(
     query = ""
     # Loop through items in the DF
     for i, (_, row) in enumerate(df.iterrows()):
+        subject = _validate_iriref_cell(row[subject_column], subject_column, i)
+        predicate = _validate_iriref_cell(row[predicate_column], predicate_column, i)
+        obj = _validate_iriref_cell(row[object_column], object_column, i)
         # build up a query
         if is_quads:
-            insert = f"""INSERT DATA {{ GRAPH <{row[graph_column]}> {{<{row[subject_column]}>
-                    <{str(row[predicate_column])}> <{row[object_column]}> . }} }}; """
+            graph = _validate_iriref_cell(row[graph_column], graph_column, i)
+            insert = f"""INSERT DATA {{ GRAPH <{graph}> {{<{subject}>
+                    <{predicate}> <{obj}> . }} }}; """
             query = query + insert
         else:
-            insert = f"""INSERT DATA {{ <{row[subject_column]}> <{str(row[predicate_column])}>
-                    <{row[object_column]}> . }}; """
+            insert = f"""INSERT DATA {{ <{subject}> <{predicate}>
+                    <{obj}> . }}; """
             query = query + insert
         # run the query
         if i > 0 and i % batch_size == 0:
