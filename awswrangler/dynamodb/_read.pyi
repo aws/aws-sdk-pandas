@@ -68,6 +68,7 @@ def read_items(
     use_threads: bool | int = ...,
     boto3_session: boto3.Session | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    key_schema: list[dict[str, str]] | None = ...,
 ) -> pd.DataFrame: ...
 @overload
 def read_items(
@@ -90,6 +91,7 @@ def read_items(
     use_threads: bool | int = ...,
     boto3_session: boto3.Session | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    key_schema: list[dict[str, str]] | None = ...,
 ) -> Iterator[pd.DataFrame]: ...
 @overload
 def read_items(
@@ -112,6 +114,7 @@ def read_items(
     use_threads: bool | int = ...,
     boto3_session: boto3.Session | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    key_schema: list[dict[str, str]] | None = ...,
 ) -> _ItemsListType: ...
 @overload
 def read_items(
@@ -134,6 +137,7 @@ def read_items(
     use_threads: bool | int = ...,
     boto3_session: boto3.Session | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    key_schema: list[dict[str, str]] | None = ...,
 ) -> Iterator[_ItemsListType]: ...
 @overload
 def read_items(
@@ -156,6 +160,7 @@ def read_items(
     use_threads: bool | int = ...,
     boto3_session: boto3.Session | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    key_schema: list[dict[str, str]] | None = ...,
 ) -> pd.DataFrame | _ItemsListType: ...
 @overload
 def read_items(
@@ -178,6 +183,7 @@ def read_items(
     use_threads: bool | int = ...,
     boto3_session: boto3.Session | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    key_schema: list[dict[str, str]] | None = ...,
 ) -> Iterator[pd.DataFrame] | Iterator[_ItemsListType]: ...
 @overload
 def read_items(
@@ -200,6 +206,7 @@ def read_items(
     use_threads: bool | int = ...,
     boto3_session: boto3.Session | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    key_schema: list[dict[str, str]] | None = ...,
 ) -> pd.DataFrame | Iterator[pd.DataFrame]: ...
 @overload
 def read_items(
@@ -222,6 +229,7 @@ def read_items(
     use_threads: bool | int = ...,
     boto3_session: boto3.Session | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    key_schema: list[dict[str, str]] | None = ...,
 ) -> _ItemsListType | Iterator[_ItemsListType]: ...
 @overload
 def read_items(
@@ -244,4 +252,5 @@ def read_items(
     use_threads: bool | int = ...,
     boto3_session: boto3.Session | None = ...,
     pyarrow_additional_kwargs: dict[str, Any] | None = ...,
+    key_schema: list[dict[str, str]] | None = ...,
 ) -> pd.DataFrame | Iterator[pd.DataFrame] | _ItemsListType | Iterator[_ItemsListType]: ...
