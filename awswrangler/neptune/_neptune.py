@@ -170,7 +170,7 @@ def to_property_graph(
     ... )
     """
     # check if ~id and ~label column exist and if not throw error
-    g = gremlin.traversal().withGraph(gremlin.Graph())
+    g = gremlin.Graph().traversal()
     is_edge_df = False
     is_update_df = True
     if "~id" in df.columns:
