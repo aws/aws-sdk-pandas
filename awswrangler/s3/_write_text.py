@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import io
 import uuid
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -16,7 +17,7 @@ from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._utils import copy_df_shallow
 from awswrangler.s3._delete import delete_objects
-from awswrangler.s3._fs import open_s3_object
+from awswrangler.s3._fs import _S3ObjectBase, open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 from awswrangler.typing import BucketingInfoTuple, GlueTableSettings, _S3WriteDataReturnValue
@@ -83,7 +84,9 @@ def _to_text(
                         s3_additional_kwargs=s3_additional_kwargs,
                         encoding=encoding,
                     ) as existing:
-                        f.write(cast(str, existing.read()))
+                        assert isinstance(existing, io.TextIOWrapper)
+                        assert isinstance(f, io.TextIOWrapper)
+                        f.write(existing.read())
                 else:
                     with open_s3_object(
                         path=file_path,
@@ -92,7 +95,10 @@ def _to_text(
                         s3_additional_kwargs=s3_additional_kwargs,
                         encoding=encoding,
                     ) as existing:
-                        f.write(cast(bytes, existing.read()))
+                        assert isinstance(existing, _S3ObjectBase)
+                        data = existing.read()
+                        if isinstance(data, (bytes, bytearray)):
+                            f.write(data)  # type: ignore[arg-type]
             except Exception:
                 pass  # File does not exist yet — first write, nothing to prepend.
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
