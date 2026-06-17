@@ -170,7 +170,7 @@ def to_property_graph(
     ... )
     """
     # check if ~id and ~label column exist and if not throw error
-    g = gremlin.Graph().traversal()
+    g = gremlin.local_traversal_source()
     is_edge_df = False
     is_update_df = True
     if "~id" in df.columns:
@@ -198,7 +198,7 @@ def to_property_graph(
         if index > 0 and index + 1 % batch_size == 0:
             res = _run_gremlin_insert(client, g)
             if res:
-                g = gremlin.Graph().traversal()
+                g = gremlin.local_traversal_source()
 
     return _run_gremlin_insert(client, g)
 
