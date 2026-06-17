@@ -83,7 +83,8 @@ def _to_text(
                         s3_additional_kwargs=s3_additional_kwargs,
                         encoding=encoding,
                     ) as existing:
-                        f.write(existing.read())
+                        content: str = existing.read()
+                        f.write(content)
                 else:
                     with open_s3_object(
                         path=file_path,
@@ -92,7 +93,8 @@ def _to_text(
                         s3_additional_kwargs=s3_additional_kwargs,
                         encoding=encoding,
                     ) as existing:
-                        f.write(existing.read())
+                        binary_content: bytes = existing.read()
+                        f.write(binary_content)
             except Exception:
                 pass  # File does not exist yet — first write, nothing to prepend.
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)

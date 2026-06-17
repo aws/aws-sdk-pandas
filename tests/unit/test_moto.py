@@ -760,3 +760,56 @@ def test_extract_ctas_manifest_paths_cross_bucket_raises(moto_s3_client: "S3Clie
 
     with pytest.raises(InvalidArgumentValue, match="unexpected bucket"):
         _extract_ctas_manifest_paths(path=f"s3://bucket/{manifest_key}")
+
+
+def test_dynamodb_read_items_with_key_schema(moto_dynamodb_client, moto_dynamodb_table) -> None:
+    # Insert items
+    items = [{"key": 1, "value": "A"}, {"key": 2, "value": "B"}]
+    wr.dynamodb.put_items(items=items, table_name=moto_dynamodb_table)
+
+    # 1. Verify read_items works with key_schema passed
+    key_schema = [{"AttributeName": "key", "KeyType": "HASH"}]
+    df = wr.dynamodb.read_items(
+        table_name=moto_dynamodb_table,
+        key_schema=key_schema,
+        allow_full_scan=True,
+    )
+    assert len(df) == 2
+    assert set(df["value"]) == {"A", "B"}
+
+    # 2. Assert DescribeTable is NOT called when key_schema is provided
+    call = botocore.client.BaseClient._make_api_call
+    describe_table_calls = 0
+
+    def mock_make_api_call(self, operation_name, kwarg):
+        nonlocal describe_table_calls
+        if operation_name == "DescribeTable":
+            describe_table_calls += 1
+        return call(self, operation_name, kwarg)
+
+    with mock.patch("botocore.client.BaseClient._make_api_call", new=mock_make_api_call):
+        # Call read_items with key_schema
+        wr.dynamodb.read_items(
+            table_name=moto_dynamodb_table,
+            key_schema=key_schema,
+            allow_full_scan=True,
+        )
+        assert describe_table_calls == 0
+
+        # Call read_items WITHOUT key_schema
+        wr.dynamodb.read_items(
+            table_name=moto_dynamodb_table,
+            allow_full_scan=True,
+        )
+        assert describe_table_calls == 1
+
+
+def test_csv_pandas_mode_append(moto_s3_client: "S3Client") -> None:
+    path = "s3://bucket/test_append.csv"
+    df1 = pd.DataFrame({"col": [1, 2, 3]})
+    df2 = pd.DataFrame({"col": [4, 5, 6]})
+    wr.s3.to_csv(df=df1, path=path, index=False)
+    wr.s3.to_csv(df=df2, path=path, index=False, pandas_mode="a", header=False)
+    result = wr.s3.read_csv(path=path)
+    assert len(result) == 6
+    assert list(result["col"]) == [1, 2, 3, 4, 5, 6]
