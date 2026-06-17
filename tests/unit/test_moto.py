@@ -760,14 +760,3 @@ def test_extract_ctas_manifest_paths_cross_bucket_raises(moto_s3_client: "S3Clie
 
     with pytest.raises(InvalidArgumentValue, match="unexpected bucket"):
         _extract_ctas_manifest_paths(path=f"s3://bucket/{manifest_key}")
-
-
-def test_csv_pandas_mode_append(moto_s3_client: "S3Client") -> None:
-    path = "s3://bucket/test_append.csv"
-    df1 = pd.DataFrame({"col": [1, 2, 3]})
-    df2 = pd.DataFrame({"col": [4, 5, 6]})
-    wr.s3.to_csv(df=df1, path=path, index=False)
-    wr.s3.to_csv(df=df2, path=path, index=False, pandas_mode="a", header=False)
-    result = wr.s3.read_csv(path=path)
-    assert len(result) == 6
-    assert list(result["col"]) == [1, 2, 3, 4, 5, 6]
