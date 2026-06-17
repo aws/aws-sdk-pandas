@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import boto3
 import pandas as pd
@@ -83,8 +83,7 @@ def _to_text(
                         s3_additional_kwargs=s3_additional_kwargs,
                         encoding=encoding,
                     ) as existing:
-                        content: str = existing.read()
-                        f.write(content)
+                        f.write(cast(str, existing.read()))
                 else:
                     with open_s3_object(
                         path=file_path,
@@ -93,8 +92,7 @@ def _to_text(
                         s3_additional_kwargs=s3_additional_kwargs,
                         encoding=encoding,
                     ) as existing:
-                        binary_content: bytes = existing.read()
-                        f.write(binary_content)
+                        f.write(cast(bytes, existing.read()))
             except Exception:
                 pass  # File does not exist yet — first write, nothing to prepend.
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
