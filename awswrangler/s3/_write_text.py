@@ -75,14 +75,24 @@ def _to_text(
         if pandas_write_mode == "a":
             # S3 has no native append — read existing content and write it first.
             try:
-                with open_s3_object(
-                    path=file_path,
-                    mode="r" if pandas_kwargs.get("compression") is None else "rb",
-                    s3_client=s3_client,
-                    s3_additional_kwargs=s3_additional_kwargs,
-                    encoding=encoding,
-                ) as existing:
-                    f.write(existing.read())
+                if pandas_kwargs.get("compression") is None:
+                    with open_s3_object(
+                        path=file_path,
+                        mode="r",
+                        s3_client=s3_client,
+                        s3_additional_kwargs=s3_additional_kwargs,
+                        encoding=encoding,
+                    ) as existing:
+                        f.write(existing.read())
+                else:
+                    with open_s3_object(
+                        path=file_path,
+                        mode="rb",
+                        s3_client=s3_client,
+                        s3_additional_kwargs=s3_additional_kwargs,
+                        encoding=encoding,
+                    ) as existing:
+                        f.write(existing.read())
             except Exception:
                 pass  # File does not exist yet — first write, nothing to prepend.
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
