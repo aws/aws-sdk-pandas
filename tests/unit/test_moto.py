@@ -802,3 +802,45 @@ def test_dynamodb_read_items_with_key_schema(moto_dynamodb_client, moto_dynamodb
             allow_full_scan=True,
         )
         assert describe_table_calls == 1
+
+
+def test_create_iceberg_table_escapes_single_quotes_in_columns_comments() -> None:
+    # Single quotes in caller-supplied columns_comments / additional_table_properties
+    # values must be doubled so they cannot terminate the surrounding 'literal' and
+    # change the structure of the generated DDL.
+    from awswrangler.athena import _write_iceberg
+
+    captured: list[str] = []
+
+    def fake_start(*, sql: str, **_) -> str:
+        captured.append(sql)
+        return "qid"
+
+    df = pd.DataFrame({"id": pd.Series(dtype="int64"), "user_name": pd.Series(dtype="string")})
+    wg_config = mock.MagicMock()
+    wg_config.enforce_workgroup_location = False
+
+    with mock.patch.object(_write_iceberg, "_start_query_execution", side_effect=fake_start), mock.patch.object(
+        _write_iceberg, "wait_query"
+    ):
+        _write_iceberg._create_iceberg_table(
+            df=df,
+            database="db",
+            table="t",
+            path="s3://intended/output/",
+            wg_config=wg_config,
+            partition_cols=None,
+            additional_table_properties={"prop": "val') LOCATION 's3://other/' --"},
+            index=False,
+            boto3_session=mock.MagicMock(),
+            columns_comments={"user_name": "') LOCATION 's3://other/' TBLPROPERTIES ('x'='y"},
+        )
+
+    sql = captured[0]
+    # Quotes were doubled in both splices, so unescaped caller content stays inside the
+    # COMMENT / TBLPROPERTIES string literals and does not open a new DDL clause.
+    assert "COMMENT ''') LOCATION ''s3://other/'' TBLPROPERTIES (''x''=''y'" in sql
+    assert "'prop'='val'') LOCATION ''s3://other/'' --'" in sql
+    # The intended LOCATION (un-doubled quotes) is the only top-level clause.
+    assert "LOCATION 's3://intended/output/'" in sql
+    assert "LOCATION 's3://other/'" not in sql
