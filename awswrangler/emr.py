@@ -104,6 +104,36 @@ def _get_emr_classification_lib(emr_version: str) -> str:
     return "spark-log4j2" if number > 670 else "spark-log4j"
 
 
+def _build_bootstrap_actions(bootstraps_paths: list[str | dict[str, Any]]) -> list[dict[str, Any]]:
+    """Normalize ``bootstraps_paths`` into the boto3 ``BootstrapActions`` shape.
+
+    Each entry may be either:
+    - a ``str`` path (legacy) — converted to ``{Name, ScriptBootstrapAction: {Path}}``
+    - a ``dict`` with ``path`` (required), optional ``args`` (list[str]), and optional ``name``
+    """
+    actions: list[dict[str, Any]] = []
+    for entry in bootstraps_paths:
+        if isinstance(entry, str):
+            actions.append({"Name": entry, "ScriptBootstrapAction": {"Path": entry}})
+            continue
+        if not isinstance(entry, dict):
+            raise exceptions.InvalidArgumentValue(
+                f"bootstraps_paths entries must be a str or a dict, got {type(entry).__name__}."
+            )
+        path = entry.get("path") or entry.get("Path")
+        if not path:
+            raise exceptions.InvalidArgumentValue("bootstraps_paths dict entries must include a 'path' key.")
+        name = entry.get("name") or entry.get("Name") or path
+        script: dict[str, Any] = {"Path": path}
+        args = entry.get("args", entry.get("Args"))
+        if args is not None:
+            if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
+                raise exceptions.InvalidArgumentValue("bootstraps_paths 'args' must be a list of strings.")
+            script["Args"] = args
+        actions.append({"Name": name, "ScriptBootstrapAction": script})
+    return actions
+
+
 def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
     account_id: str = sts.get_account_id(boto3_session=pars["boto3_session"])
     region: str = _utils.get_region_from_session(boto3_session=pars["boto3_session"])
@@ -295,7 +325,7 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
 
     # Bootstraps
     if pars["bootstraps_paths"]:
-        args["BootstrapActions"] = [{"Name": x, "ScriptBootstrapAction": {"Path": x}} for x in pars["bootstraps_paths"]]
+        args["BootstrapActions"] = _build_bootstrap_actions(pars["bootstraps_paths"])
 
     # Debugging and Steps
     if (pars["debugging"] is True) or (pars["steps"] is not None):
@@ -469,7 +499,7 @@ def create_cluster(  # noqa: PLR0913
     consistent_view_retry_seconds: int = 10,
     consistent_view_retry_count: int = 5,
     consistent_view_table_name: str = "EmrFSMetadata",
-    bootstraps_paths: list[str] | None = None,
+    bootstraps_paths: list[str | dict[str, Any]] | None = None,
     debugging: bool = True,
     applications: list[str] | None = None,
     visible_to_all_users: bool = True,
@@ -594,7 +624,14 @@ def create_cluster(  # noqa: PLR0913
     consistent_view_table_name
         Name of the DynamoDB table to store the consistent view data.
     bootstraps_paths
-        Bootstraps paths (e.g ["s3://BUCKET_NAME/script.sh"]).
+        Bootstrap actions for the cluster. Accepts either a list of script paths or
+        a list of dicts that map to the boto3 ``ScriptBootstrapAction`` shape.
+
+        Path-only form (back-compat): ``["s3://BUCKET_NAME/script.sh"]``
+
+        Dict form (allows arguments): ``[{"path": "s3://BUCKET_NAME/script.sh",
+        "args": ["--flag", "value"], "name": "my-bootstrap"}]``. Only ``path`` is
+        required; ``name`` defaults to the path and ``args`` is optional.
     debugging
         Debugging enabled?
     applications
