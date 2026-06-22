@@ -488,11 +488,11 @@ wheels = [
 
 [[package]]
 name = "async-timeout"
-version = "5.0.1"
+version = "4.0.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a5/ae/136395dfbfe00dfc94da3f3e136d0b13f394cba8f4841120e34226265780/async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3", size = 9274, upload-time = "2024-11-06T16:41:39.6Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/87/d6/21b30a550dafea84b1b8eee21b5e23fa16d010ae006011221f33dcd8d7f8/async-timeout-4.0.3.tar.gz", hash = "sha256:4640d96be84d82d02ed59ea2b7105a0f7b33abe8703703cd0ab0bf87c427522f", size = 8345, upload-time = "2023-08-10T16:35:56.907Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/ba/e2081de779ca30d473f21f5b30e0e737c438205440784c7dfc81efc2b029/async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c", size = 6233, upload-time = "2024-11-06T16:41:37.9Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/fa/e01228c2938de91d47b307831c62ab9e4001e747789d0b05baf779a6488c/async_timeout-4.0.3-py3-none-any.whl", hash = "sha256:7405140ff1230c310e51dc27b3145b9092d659ce68ff733fb0cefe3ee42be028", size = 5721, upload-time = "2023-08-10T16:35:55.203Z" },
 ]
 
 [[package]]
@@ -1712,18 +1712,18 @@ wheels = [
 
 [[package]]
 name = "gremlinpython"
-version = "3.7.2"
+version = "3.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aenum" },
     { name = "aiohttp" },
+    { name = "async-timeout" },
     { name = "isodate" },
     { name = "nest-asyncio" },
-    { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c9/3f/798d17661a13d2da2721038e2c3602c33225b482da76a6bf2cbe23a034d7/gremlinpython-3.7.2.tar.gz", hash = "sha256:58d12e4af81210d7770d54da8f1f586de816bc00858e095f76326d338ea34acd", size = 52153, upload-time = "2024-04-15T17:17:49.214Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5d/56/8867126fc3383ba2aea606e54079353d15568508cf7c60255f727780be8c/gremlinpython-3.8.1.tar.gz", hash = "sha256:23ad0ed694d63ef57611a04d3c648cc6bf05e86678959b6b6d921e83c48fd1f8", size = 53968, upload-time = "2026-04-07T00:22:20.144Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/20/35/f70c50cf76419ed2f16d66d1362043796580ff357c2664eca7c023f8ca2d/gremlinpython-3.7.2-py2.py3-none-any.whl", hash = "sha256:ff925632f70fc5afff6864627fa69de8df577090a6eea63f10f0fed7194f98bf", size = 78094, upload-time = "2024-04-15T17:17:46.591Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/55/f6adf83dd74563aca7721d456b1d33d7656448e29cc79a6aede3bb6ffa5b/gremlinpython-3.8.1-py3-none-any.whl", hash = "sha256:2e8136f9ea8cd771f9cc6f86f4ce73130595aed414a363534e1a4e18bfa81427", size = 75457, upload-time = "2026-04-07T00:22:18.776Z" },
 ]
 
 [[package]]
