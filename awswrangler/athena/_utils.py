@@ -44,6 +44,13 @@ _QUERY_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+class _MergeClause(TypedDict, total=False):
+    when: Literal["MATCHED", "NOT MATCHED", "NOT MATCHED BY SOURCE"]
+    condition: str | None
+    action: Literal["UPDATE", "DELETE", "INSERT"]
+    columns: list[str] | None
+
+
 class _QueryMetadata(NamedTuple):
     execution_id: str
     dtype: dict[str, str]
