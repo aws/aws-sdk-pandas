@@ -1270,3 +1270,142 @@ def test_build_order_by_clause_multiple() -> None:
 
     result = _build_order_by_clause(["name", "day(ts)"])
     assert result == 'ORDER BY "name", "ts"'
+
+
+# ---- Pure unit tests for partition transform handling in overwrite_partitions ----
+# These cover the fix for https://github.com/aws/aws-sdk-pandas/issues/2845, where
+# `to_iceberg(mode='overwrite_partitions')` failed when partition_cols contained
+# transform expressions like `day(ts)` because the underlying delete path treated
+# them as plain column names.
+
+
+def test_apply_partition_transform_to_side_plain() -> None:
+    from awswrangler.athena._write_iceberg import _apply_partition_transform_to_side
+
+    assert _apply_partition_transform_to_side("name", "target") == 'target."name"'
+    assert _apply_partition_transform_to_side("name", "source") == 'source."name"'
+
+
+def test_apply_partition_transform_to_side_simple_transform() -> None:
+    from awswrangler.athena._write_iceberg import _apply_partition_transform_to_side
+
+    assert _apply_partition_transform_to_side("day(ts)", "target") == 'day(target."ts")'
+    assert _apply_partition_transform_to_side("hour(ts)", "source") == 'hour(source."ts")'
+
+
+def test_apply_partition_transform_to_side_truncate() -> None:
+    from awswrangler.athena._write_iceberg import _apply_partition_transform_to_side
+
+    # truncate(10, col_name) should keep the literal width and qualify the column
+    assert _apply_partition_transform_to_side("truncate(10, col_name)", "target") == 'truncate(10, target."col_name")'
+
+
+def test_apply_partition_transform_to_side_bucket() -> None:
+    from awswrangler.athena._write_iceberg import _apply_partition_transform_to_side
+
+    assert _apply_partition_transform_to_side("bucket(16, user_id)", "source") == 'bucket(16, source."user_id")'
+
+
+def test_build_partition_merge_conditions_plain_only() -> None:
+    from awswrangler.athena._write_iceberg import _build_partition_merge_conditions
+
+    conditions = _build_partition_merge_conditions(["name"])
+    assert conditions == ['(target."name" = source."name")']
+
+
+def test_build_partition_merge_conditions_mixed() -> None:
+    from awswrangler.athena._write_iceberg import _build_partition_merge_conditions
+
+    conditions = _build_partition_merge_conditions(["name", "day(ts)", "truncate(10, col_name)"])
+    assert conditions == [
+        '(target."name" = source."name")',
+        '(day(target."ts") = day(source."ts"))',
+        '(truncate(10, target."col_name") = truncate(10, source."col_name"))',
+    ]
+
+
+def test_build_partition_delete_sql_plain() -> None:
+    from awswrangler.athena._write_iceberg import _build_partition_delete_sql
+
+    sql = _build_partition_delete_sql(
+        database="db",
+        table="t",
+        source_table="src",
+        partition_cols=["name"],
+    )
+    # MERGE INTO uses both target and source aliases, with the equality on the plain column.
+    assert 'MERGE INTO "db"."t" target' in sql
+    assert 'USING "db"."src" source' in sql
+    assert 'ON (target."name" = source."name")' in sql
+    assert "WHEN MATCHED THEN" in sql
+    assert "DELETE" in sql
+
+
+def test_build_partition_delete_sql_transform() -> None:
+    from awswrangler.athena._write_iceberg import _build_partition_delete_sql
+
+    sql = _build_partition_delete_sql(
+        database="db",
+        table="t",
+        source_table="src",
+        partition_cols=["day(ts)"],
+    )
+    # The transform must be applied on both sides of the join.
+    assert '(day(target."ts") = day(source."ts"))' in sql
+    # The bug: the previous implementation produced 'target."day(ts)" = source."day(ts)"',
+    # which Athena rejects because there is no literal column with that name.
+    assert 'target."day(ts)"' not in sql
+    assert 'source."day(ts)"' not in sql
+
+
+def test_build_partition_delete_sql_multi_transform() -> None:
+    from awswrangler.athena._write_iceberg import _build_partition_delete_sql
+
+    sql = _build_partition_delete_sql(
+        database="db",
+        table="t",
+        source_table="src",
+        partition_cols=["name", "hour(ts)", "truncate(10, col_name)"],
+    )
+    assert '(target."name" = source."name")' in sql
+    assert '(hour(target."ts") = hour(source."ts"))' in sql
+    assert '(truncate(10, target."col_name") = truncate(10, source."col_name"))' in sql
+    # All three conditions are AND-ed together
+    assert sql.count(" AND ") == 2
+
+
+def test_delete_partitions_from_iceberg_rejects_missing_underlying_column() -> None:
+    """When a partition transform references a column not present in the DataFrame,
+    the helper must raise InvalidArgumentValue with a clear message rather than
+    failing deep inside `df[merge_cols]` with a confusing KeyError."""
+    import pandas as _pd
+
+    from awswrangler import exceptions
+    from awswrangler.athena._write_iceberg import _delete_partitions_from_iceberg
+
+    # DataFrame has only 'id' and 'day' columns; the partition expression references
+    # the raw column 'ts' (used by `hour(ts)`), which does not exist in the frame.
+    df = _pd.DataFrame({"id": [1, 2], "day": ["1", "2"]})
+
+    class _DummyWg:
+        s3_output: str | None = "s3://placeholder/"
+
+    with pytest.raises(exceptions.InvalidArgumentValue) as excinfo:
+        _delete_partitions_from_iceberg(
+            df=df,
+            database="db",
+            table="t",
+            partition_cols=["hour(ts)"],
+            wg_config=_DummyWg(),  # type: ignore[arg-type]
+            temp_path="s3://placeholder/",
+            data_source=None,
+            workgroup="primary",
+            s3_output=None,
+            encryption=None,
+            kms_key=None,
+            boto3_session=None,
+            s3_additional_kwargs=None,
+            catalog_id=None,
+        )
+
+    assert "ts" in str(excinfo.value)
