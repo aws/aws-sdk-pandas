@@ -26,6 +26,7 @@ ENV CXX=/usr/bin/gcc10-c++
 ENV LD=/usr/bin/gcc10-gcc
 
 RUN ln -s /usr/bin/gcc10-gcc /usr/bin/gcc
+RUN ln -s /usr/bin/gcc10-gcc /usr/bin/cc
 RUN ln -s /usr/bin/gcc10-g++ /usr/bin/g++
 RUN ln -s /usr/bin/gcc10-nm /usr/bin/nm
 RUN ln -s /usr/bin/gcc10-ar /usr/bin/ar
