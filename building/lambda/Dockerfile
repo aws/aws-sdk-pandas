@@ -35,14 +35,15 @@ RUN ln -s /usr/bin/gcc10-ld /usr/bin/ld
 FROM ${python_version}
 COPY pyproject.toml uv.lock ./
 
-# Setuptools is a build dependency of arrow and runtime dependency of some of our dependencies (mainly redshift-connector).
-# Remove when arrow version shipped with lambda layers and dependencies are updated.
+# Setuptools is a runtime dependency of some of our dependencies (mainly redshift-connector).
 RUN pip3 install --upgrade pip wheel setuptools>=78.1.1 setuptools_scm>=8
 RUN pip3 install --upgrade urllib3==1.26.16  # temporary to avoid https://github.com/urllib3/urllib3/issues/2168 (TODO remove when the AL2 image updates to support OpenSSL 1.1.1+)
-# In new CMake 4, compatibility with CMake < 3.5 has been removed. 
+# In new CMake 4, compatibility with CMake < 3.5 has been removed.
 # Unpin CMake when arrow version shipped with lambda layers is updated.
 RUN pip3 install --upgrade cmake==3.31.6
-RUN pip3 install --upgrade six cython hypothesis uv
+# pyarrow 24+ build deps: scikit-build-core replaces setuptools; cython>=3.1 and
+# libcst (used for build-time stub docstring extraction) are required.
+RUN pip3 install --upgrade six "cython>=3.1" hypothesis uv build scikit-build-core "libcst>=1.8.6"
 
 ENV PIP_NO_BINARY="numpy,pandas"
 ENV UV_PROJECT_ENVIRONMENT="/var/lang"
