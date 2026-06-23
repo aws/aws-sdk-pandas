@@ -41,6 +41,13 @@ RUN pip3 install --upgrade urllib3==1.26.16  # temporary to avoid https://github
 # In new CMake 4, compatibility with CMake < 3.5 has been removed.
 # Unpin CMake when arrow version shipped with lambda layers is updated.
 RUN pip3 install --upgrade cmake==3.31.6
+# libcst (a pyarrow 24+ build dep, used for build-time stub docstring extraction)
+# only ships manylinux_2_28 aarch64 wheels and falls back to a Rust build on AL2's
+# glibc 2.26. Install rustup so cargo is on PATH for that source build.
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --profile minimal --default-toolchain stable
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 # pyarrow 24+ build deps: scikit-build-core replaces setuptools; cython>=3.1 and
 # libcst (used for build-time stub docstring extraction) are required.
 RUN pip3 install --upgrade six "cython>=3.1" hypothesis uv build scikit-build-core "libcst>=1.8.6"
