@@ -11,7 +11,7 @@ popd
 rm -rf dist arrow
 
 export ARROW_HOME=$(pwd)/dist
-export ARROW_VERSION=22.0.0
+export ARROW_VERSION=24.0.0
 export LD_LIBRARY_PATH=$(pwd)/dist/lib:$LD_LIBRARY_PATH
 export CMAKE_PREFIX_PATH=$ARROW_HOME:$CMAKE_PREFIX_PATH
 export SETUPTOOLS_SCM_PRETEND_VERSION=$ARROW_VERSION
@@ -59,24 +59,20 @@ popd
 pushd arrow/python
 
 export CMAKE_PREFIX_PATH=${ARROW_HOME}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}
-export ARROW_PRE_0_15_IPC_FORMAT=0
+export PYARROW_BUNDLE_ARROW_CPP=ON
 export PYARROW_WITH_HDFS=0
 export PYARROW_WITH_FLIGHT=0
 export PYARROW_WITH_GANDIVA=0
 export PYARROW_WITH_ORC=0
 export PYARROW_WITH_CUDA=0
-export PYARROW_WITH_PLASMA=0
 export PYARROW_WITH_PARQUET=1
 export PYARROW_WITH_DATASET=1
-export PYARROW_WITH_FILESYSTEM=1
-export PYARROW_WITH_CSV=1
-export PYARROW_WITH_JSON=1
-export PYARROW_WITH_COMPUTE=1
 
-python3 setup.py build_ext \
-  --build-type=release \
-  --bundle-arrow-cpp \
-  bdist_wheel
+# pyarrow 24+ dropped setup.py in favour of scikit-build-core via pyproject.toml.
+# --no-isolation reuses build deps already installed in the image (scikit-build-core,
+# cython>=3.1, libcst, setuptools_scm, numpy) instead of pip resolving them again.
+python3 -m build --wheel . --no-isolation \
+  -C cmake.build-type=Release
 
 pip3 install dist/pyarrow-*.whl -t /aws-sdk-pandas/dist/pyarrow_files
 
