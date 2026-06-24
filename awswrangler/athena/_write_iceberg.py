@@ -24,6 +24,21 @@ from awswrangler.typing import GlueTableSettings
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _escape_athena_string_literal(value: Any) -> str:
+    # Used for caller-supplied values spliced inside SQL string literals, e.g.
+    # COMMENT '<value>' or TBLPROPERTIES ('<key>'='<value>').
+    #
+    # The wrapping single quotes around the splice site are *delimiters* — they tell
+    # Athena "this is a string literal" and are part of the DDL grammar, not escaping.
+    # A naive splice f"'{value}'" lets a value containing ' close the literal and
+    # append arbitrary DDL (e.g. LOCATION '...').
+    #
+    # Athena/Trino string literals have exactly one escape mechanism: a single quote
+    # inside the literal must be doubled. Pre-doubling caller quotes here means the
+    # whole value parses as one literal regardless of what it contains.
+    return str(value).replace("'", "''")
+
+
 def _create_iceberg_table(
     df: pd.DataFrame,
     database: str,
@@ -50,13 +65,19 @@ def _create_iceberg_table(
         [
             f"{k} {v}"
             if (columns_comments is None or columns_comments.get(k) is None)
-            else f"{k} {v} COMMENT '{columns_comments[k]}'"
+            else f"{k} {v} COMMENT '{_escape_athena_string_literal(columns_comments[k])}'"
             for k, v in columns_types.items()
         ]
     )
     partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
     table_properties_str: str = (
-        ", " + ", ".join([f"'{key}'='{value}'" for key, value in additional_table_properties.items()])
+        ", "
+        + ", ".join(
+            [
+                f"'{_escape_athena_string_literal(key)}'='{_escape_athena_string_literal(value)}'"
+                for key, value in additional_table_properties.items()
+            ]
+        )
         if additional_table_properties
         else ""
     )
