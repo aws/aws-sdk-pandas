@@ -26,9 +26,16 @@ mkdir $ARROW_HOME
 mkdir arrow/cpp/build
 pushd arrow/cpp/build
 
+# -Wl,--as-needed drops DT_NEEDED entries for libraries whose symbols are never
+# referenced. On AL2023, boost-devel pulls libicu into the linker's library
+# path; without --as-needed, libparquet.so picks up libicudata/libicui18n/
+# libicuuc as DT_NEEDED even though Arrow uses zero ICU symbols. Lambda's
+# AL2023 runtime doesn't ship libicu, so the resulting layer fails to import.
 cmake \
     -DCMAKE_INSTALL_PREFIX=$ARROW_HOME \
     -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--as-needed" \
+    -DCMAKE_EXE_LINKER_FLAGS="-Wl,--as-needed" \
     -DARROW_PYTHON=ON \
     -DARROW_PARQUET=ON \
     -DARROW_DATASET=ON \
