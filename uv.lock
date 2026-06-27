@@ -488,11 +488,11 @@ wheels = [
 
 [[package]]
 name = "async-timeout"
-version = "4.0.3"
+version = "5.0.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/87/d6/21b30a550dafea84b1b8eee21b5e23fa16d010ae006011221f33dcd8d7f8/async-timeout-4.0.3.tar.gz", hash = "sha256:4640d96be84d82d02ed59ea2b7105a0f7b33abe8703703cd0ab0bf87c427522f", size = 8345, upload-time = "2023-08-10T16:35:56.907Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a5/ae/136395dfbfe00dfc94da3f3e136d0b13f394cba8f4841120e34226265780/async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3", size = 9274, upload-time = "2024-11-06T16:41:39.6Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/fa/e01228c2938de91d47b307831c62ab9e4001e747789d0b05baf779a6488c/async_timeout-4.0.3-py3-none-any.whl", hash = "sha256:7405140ff1230c310e51dc27b3145b9092d659ce68ff733fb0cefe3ee42be028", size = 5721, upload-time = "2023-08-10T16:35:55.203Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/ba/e2081de779ca30d473f21f5b30e0e737c438205440784c7dfc81efc2b029/async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c", size = 6233, upload-time = "2024-11-06T16:41:37.9Z" },
 ]
 
 [[package]]
@@ -506,7 +506,7 @@ wheels = [
 
 [[package]]
 name = "awswrangler"
-version = "3.16.1"
+version = "3.17.0"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
@@ -1384,20 +1384,19 @@ wheels = [
 
 [[package]]
 name = "deltalake"
-version = "1.6.0"
+version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "arro3-core" },
     { name = "deprecated" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/e1/b26c473480347ba82ffe4abde5452d4aa36313cc267e08d9a8ae9c7083fd/deltalake-1.6.0-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:e980c834c3657d0476a0e98763a7f6c6934717175d3ef86208dd974eceb35b15", size = 40940249, upload-time = "2026-05-18T14:25:43.718Z" },
-    { url = "https://files.pythonhosted.org/packages/e4/22/ae4148a1d4a0b3cfaea1eed627610a96b79f3d25443237a26af1acb43a67/deltalake-1.6.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:d15cdc95a816dc1744fb208da54bb8dd57548ac4635c1b955727d57123a2e599", size = 37520755, upload-time = "2026-05-18T14:30:38.908Z" },
-    { url = "https://files.pythonhosted.org/packages/0f/5d/a9fa27de555540fc11e83bd9e3de5c356f3e9e1019694f9ce32340b9e09f/deltalake-1.6.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cd22cf2301c8a3d06819813726ba3ecf68ac16ba12a7c4ac4b1c9b7177461da7", size = 41804855, upload-time = "2026-05-18T13:56:40.982Z" },
-    { url = "https://files.pythonhosted.org/packages/f1/bc/e09d13df887783018580d2383765cbd3aaf10c45ab428dd38e9c91053b75/deltalake-1.6.0-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:6780a3702f501c902fa7deecd7501a4f0e52d69321835bf6f87d72b13679bfd4", size = 40545361, upload-time = "2026-05-18T17:52:57.876Z" },
-    { url = "https://files.pythonhosted.org/packages/4f/08/30720d394ecc394465c74ca2342cc51f9fe6f1867985b3df5cec3b6e8c63/deltalake-1.6.0-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:a2da86d4964cfd1db988158248cdf46acaea2d5ac7cc0eccee04bff565265153", size = 40538718, upload-time = "2026-05-18T13:46:27.813Z" },
-    { url = "https://files.pythonhosted.org/packages/68/d0/9e0c87894641ce9b921e4d3f576ccedce68907cc55ba5004fc4291260289/deltalake-1.6.0-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:5fc975a93a043619175b86fbdf0951bf15ec4ac6e499d981dfc8c9024748d831", size = 41806788, upload-time = "2026-05-18T13:57:09.396Z" },
-    { url = "https://files.pythonhosted.org/packages/0a/5b/a1e6d8d35e5b2f8460e45e9171af50c461283c7390c3977f4b7f623193b1/deltalake-1.6.0-cp310-abi3-win_amd64.whl", hash = "sha256:cdc15e2ad80376363ad4d13f475b00c23e4192b5e65e8e421b8aa7cf9df533fa", size = 44143517, upload-time = "2026-05-18T14:23:12.694Z" },
+    { url = "https://files.pythonhosted.org/packages/51/9b/cb8c10528466901112d37f7afa67646263a229277983e70e5d780d58c2b2/deltalake-1.6.1-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:f5f22371ed5ac3977839d7a09c0a9ccdbbdac79437bbb977f6b57c7c35d7fa34", size = 48475216, upload-time = "2026-06-24T14:34:48.557Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/92/8cda3756b12f4b5879ec8a9be9101a55f280c5fcd6426be17f401d470df0/deltalake-1.6.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:e0bd4f3bbc9a53e53c103d6733f09b1538a75e7e69b5ecbca9a865f68bd70656", size = 44765839, upload-time = "2026-06-24T14:31:07.226Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/50/0c7fd4779f1492da3c86cfcfa2ad25322355ea7c6eb3e7feeb16c7de6f07/deltalake-1.6.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:46a13abc2d7abc072375faeb718443be61ec1162d1708b1c67a76aff4e0187a5", size = 49541493, upload-time = "2026-06-24T13:49:56.143Z" },
+    { url = "https://files.pythonhosted.org/packages/b7/52/8387621a228d3b3df1c251acfef50fa7e34be05b058d316ab2c69bf8d0f1/deltalake-1.6.1-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:d5ba7bbea9d61948ba7caaaa1562bb9997bdf2398ba30d60e99006451098fb01", size = 48804908, upload-time = "2026-06-24T13:36:02.508Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/fc/c6abee2eb3d6a2729ff81cc4c8502342a9f0fcf3fccfec9decbd5780b010/deltalake-1.6.1-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:89c68fef155215a2e8cd7d93762cadc3be99d6aa42486a30e88a236b4edc7140", size = 48817739, upload-time = "2026-06-24T13:35:28.359Z" },
+    { url = "https://files.pythonhosted.org/packages/34/76/6723168656063c5cfd37b9941df4d3d68e8b57b93641c026e345c22f5c29/deltalake-1.6.1-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:91d8c064ce04cdd06bbdd66614df7050c1082871ca60054cc5b5074d0e3fc345", size = 49571850, upload-time = "2026-06-24T13:48:32.232Z" },
 ]
 
 [[package]]
@@ -1652,7 +1651,7 @@ wheels = [
 
 [[package]]
 name = "geopandas"
-version = "1.1.3"
+version = "1.1.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
@@ -1664,9 +1663,9 @@ dependencies = [
     { name = "pyproj" },
     { name = "shapely" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/85/ba/8e6b2091878e99e86a36a814dcaeff652ed48bdb03d53e78e15aaa63a914/geopandas-1.1.3.tar.gz", hash = "sha256:91a31989b6f566012838d21d5f8033f37dce882079ccb7cfdc40d5ccce7f284f", size = 336718, upload-time = "2026-03-09T21:49:09.545Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/a9/0478b74a33aea66827c10baaf6025cb2a17e44b1c117533eecd3e977bb75/geopandas-1.1.4.tar.gz", hash = "sha256:06f2890a07e1a239047daa14b486a7c6ae5ce82dcf7405e13c46bf31f5d0dd66", size = 337445, upload-time = "2026-06-26T17:23:54.497Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3c/78/6a04792ace63a93e162f1305392d500ae8ddcb620e7eb88a22fd622b35bb/geopandas-1.1.3-py3-none-any.whl", hash = "sha256:90d62a64f95eaa3be2ccc115c5f3d6e24208bb11983b390fdc0621a3eccd0230", size = 342514, upload-time = "2026-03-09T21:49:07.973Z" },
+    { url = "https://files.pythonhosted.org/packages/59/a8/bd530cc264e62ddbc1d1bb7225823992e6f2432c664693e9281bb6b9c359/geopandas-1.1.4-py3-none-any.whl", hash = "sha256:1a0c459cbdb1537cd154dafe6174be20d1760844b7f1c967dc8520b180f2e773", size = 343292, upload-time = "2026-06-26T17:23:53.112Z" },
 ]
 
 [[package]]
@@ -1712,18 +1711,18 @@ wheels = [
 
 [[package]]
 name = "gremlinpython"
-version = "3.8.1"
+version = "3.7.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aenum" },
     { name = "aiohttp" },
-    { name = "async-timeout" },
     { name = "isodate" },
     { name = "nest-asyncio" },
+    { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5d/56/8867126fc3383ba2aea606e54079353d15568508cf7c60255f727780be8c/gremlinpython-3.8.1.tar.gz", hash = "sha256:23ad0ed694d63ef57611a04d3c648cc6bf05e86678959b6b6d921e83c48fd1f8", size = 53968, upload-time = "2026-04-07T00:22:20.144Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/3f/798d17661a13d2da2721038e2c3602c33225b482da76a6bf2cbe23a034d7/gremlinpython-3.7.2.tar.gz", hash = "sha256:58d12e4af81210d7770d54da8f1f586de816bc00858e095f76326d338ea34acd", size = 52153, upload-time = "2024-04-15T17:17:49.214Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/55/f6adf83dd74563aca7721d456b1d33d7656448e29cc79a6aede3bb6ffa5b/gremlinpython-3.8.1-py3-none-any.whl", hash = "sha256:2e8136f9ea8cd771f9cc6f86f4ce73130595aed414a363534e1a4e18bfa81427", size = 75457, upload-time = "2026-04-07T00:22:18.776Z" },
+    { url = "https://files.pythonhosted.org/packages/20/35/f70c50cf76419ed2f16d66d1362043796580ff357c2664eca7c023f8ca2d/gremlinpython-3.7.2-py2.py3-none-any.whl", hash = "sha256:ff925632f70fc5afff6864627fa69de8df577090a6eea63f10f0fed7194f98bf", size = 78094, upload-time = "2024-04-15T17:17:46.591Z" },
 ]
 
 [[package]]
