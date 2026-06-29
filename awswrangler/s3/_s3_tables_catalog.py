@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import re
 
@@ -10,6 +11,31 @@ from awswrangler import _config, exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _ARN_PATTERN = re.compile(r"^arn:aws:s3tables:([a-z0-9-]+):(\d{12}):bucket/(.+)$")
+
+_FSSPEC_IO_IMPL = "pyiceberg.io.fsspec.FsspecFileIO"
+_PYARROW_IO_IMPL = "pyiceberg.io.pyarrow.PyArrowFileIO"
+
+def _preferred_io_impl() -> str:
+    """Return the PyIceberg IO implementation class string for S3 Tables.
+
+    S3 Tables requires FsspecFileIO (aiobotocore/aiohttp) because PyArrowFileIO
+    unconditionally adds an 'Expect: 100-continue' header that S3 Tables rejects
+    with HTTP 400 S3TablesUnsupportedHeader.
+
+    Raises
+    ------
+    exceptions.MissingDependency
+        When 's3fs' is not installed, since there is no safe fallback for S3 Tables.
+    """
+    if importlib.util.find_spec("s3fs") is not None:
+        return _FSSPEC_IO_IMPL
+    raise exceptions.MissingDependency(
+        "Package 's3fs' is required for writing to S3 Tables. "
+        "PyArrow's default IO sends an 'Expect: 100-continue' header that "
+        "S3 Tables rejects (HTTP 400 S3TablesUnsupportedHeader). "
+        "Install it with: pip install 's3fs'"
+    )
+    return _PYARROW_IO_IMPL
 
 
 def _parse_table_bucket_arn(table_bucket_arn: str) -> tuple[str, str, str]:
@@ -37,6 +63,7 @@ def _build_catalog_properties(table_bucket_arn: str) -> dict[str, str]:
         "type": "rest",
         "rest.sigv4-enabled": "true",
         "rest.signing-region": region,
+        "py-io-impl": _preferred_io_impl(),
     }
 
     if endpoint and "glue." in endpoint:
