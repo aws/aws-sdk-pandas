@@ -555,3 +555,37 @@ def test_column_with_reserved_keyword(postgresql_table: str, postgresql_con: pg8
 
     df2 = wr.postgresql.read_sql_table(con=postgresql_con, table=postgresql_table, schema="public")
     assert (df.columns == df2.columns).all()
+
+
+@pytest.mark.skipif(
+    version.parse(pa.__version__) < version.parse("19.0.0"),
+    reason="extension<arrow.uuid> inference only in pyarrow >= 19",
+)
+def test_uuid_column_no_keyerror(postgresql_table: str, postgresql_con: pg8000.Connection) -> None:
+    """Regression test for #3338.
+
+    pg8000 returns uuid.UUID objects for Postgres UUID columns (OID 2950).
+    PyArrow >= 19 infers these as extension<arrow.uuid>, which caused a
+    KeyError in pandas_compat.py when table.to_pandas(types_mapper=...) ran.
+    """
+    import uuid as _uuid
+
+    from awswrangler._databases import _records2df
+
+    uid1 = _uuid.UUID("12345678-1234-5678-1234-567812345678")
+    uid2 = _uuid.UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+
+    records = [(uid1, "alice"), (uid2, "bob"), (None, "carol")]
+    df = _records2df(
+        records=records,
+        cols_names=["user_id", "name"],
+        index=None,
+        safe=True,
+        dtype=None,
+        timestamp_as_object=False,
+        dtype_backend="numpy_nullable",
+    )
+
+    assert df["user_id"].iloc[0] == str(uid1)
+    assert df["user_id"].iloc[1] == str(uid2)
+    assert pd.isna(df["user_id"].iloc[2])
