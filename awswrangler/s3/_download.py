@@ -11,6 +11,11 @@ from awswrangler.s3._fs import open_s3_object
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
+# Size of the chunks read from S3 and written to the local file. Streaming the object in fixed
+# size chunks (instead of reading the whole object into memory at once) keeps memory usage bounded
+# and independent of the file size.
+_S3_DOWNLOAD_BLOCK_SIZE: int = 8 * 1024 * 1024  # 8 MB
+
 
 def download(
     path: str,
@@ -69,14 +74,23 @@ def download(
         mode="rb",
         use_threads=use_threads,
         version_id=version_id,
-        s3_block_size=-1,  # One shot download
+        s3_block_size=_S3_DOWNLOAD_BLOCK_SIZE,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as s3_f:
         if isinstance(local_file, str):
             _logger.debug("Downloading local_file: %s", local_file)
             with open(file=local_file, mode="wb") as local_f:
-                local_f.write(cast(bytes, s3_f.read()))
+                _copy_in_chunks(s3_f, local_f)
         else:
             _logger.debug("Downloading file-like object.")
-            local_file.write(s3_f.read())
+            _copy_in_chunks(s3_f, local_file)
+
+
+def _copy_in_chunks(s3_f: Any, local_f: Any) -> None:
+    """Stream data from the S3 file-like object to the local file in fixed size chunks."""
+    while True:
+        chunk = cast(bytes, s3_f.read(_S3_DOWNLOAD_BLOCK_SIZE))
+        if not chunk:
+            break
+        local_f.write(chunk)
