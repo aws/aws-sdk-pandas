@@ -89,7 +89,18 @@ popd
 
 pushd /aws-sdk-pandas
 
-pip3 install . --no-binary numpy,pandas --find-links="${PYARROW_WHEEL_DIR}" -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]" "pyarrow==${ARROW_VERSION}"
+# Building numpy/pandas from source on AL2023 without pinning the build-time
+# numpy to the runtime numpy produces an ABI-mismatched pandas binary that
+# SIGSEGVs on datetime64 construction (issue #3393). AL2023's glibc 2.34
+# satisfies the manylinux_2_28 tag that PyPI ships numpy/pandas wheels under,
+# so use those wheels. AL2 (glibc 2.26) is too old to load manylinux_2_28,
+# so keep forcing source builds there.
+NO_BINARY_FLAG=""
+if [ -r /etc/os-release ] && grep -q '^VERSION_ID="2"' /etc/os-release; then
+  NO_BINARY_FLAG="--no-binary numpy,pandas"
+fi
+
+pip3 install . ${NO_BINARY_FLAG} --find-links="${PYARROW_WHEEL_DIR}" -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]" "pyarrow==${ARROW_VERSION}"
 
 # CVE-2026-41066: upgrade lxml past redshift-connector's <=6.0.2 cap.
 # pyproject.toml's [tool.uv] override-dependencies only applies to uv, not pip,

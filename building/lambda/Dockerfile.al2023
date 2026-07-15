@@ -33,11 +33,14 @@ RUN pip3 install --upgrade cmake==3.31.6
 # libcst (used for build-time stub docstring extraction) are required.
 RUN pip3 install --upgrade six "cython>=3.1" hypothesis uv build scikit-build-core "libcst>=1.8.6"
 
-ENV PIP_NO_BINARY="numpy,pandas"
+# AL2023 has glibc 2.34, which satisfies the manylinux_2_28 tag that PyPI
+# ships numpy/pandas wheels under. Building numpy/pandas from source here
+# without locking the build-time numpy to the runtime numpy produces an
+# ABI-mismatched pandas binary that SIGSEGVs on datetime64 construction
+# (issue #3393). The AL2-based Dockerfile still forces source builds because
+# AL2's glibc 2.26 can't load manylinux_2_28 wheels.
 ENV UV_PROJECT_ENVIRONMENT="/var/lang"
-RUN uv sync --frozen --inexact --no-dev --no-install-project \
-    --no-binary-package numpy \
-    --no-binary-package pandas
+RUN uv sync --frozen --inexact --no-dev --no-install-project
 
 RUN rm -f pyproject.toml uv.lock
 
