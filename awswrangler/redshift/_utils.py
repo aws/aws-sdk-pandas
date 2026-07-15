@@ -335,7 +335,7 @@ def _get_rsh_columns_types(
         if data_format in ["parquet", "orc"]:
             redshift_types = _redshift_types_from_path(
                 path=path,
-                data_format=data_format,  # type: ignore[arg-type]
+                data_format=data_format,
                 varchar_lengths_default=varchar_lengths_default,
                 varchar_lengths=varchar_lengths,
                 parquet_infer_sampling=parquet_infer_sampling,
