@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import base64
 import csv
 import json
@@ -63,7 +64,7 @@ class _WorkGroupConfig(NamedTuple):
     encryption: str | None
     kms_key: str | None
     managed_results: bool
-
+_WORKGROUP_CONFIG_CACHE: dict[tuple[str | None, str | None, str], tuple[_WorkGroupConfig, float]] = {}
 
 def _get_s3_output(
     s3_output: str | None, wg_config: _WorkGroupConfig, boto3_session: boto3.Session | None = None
@@ -156,16 +157,25 @@ def _start_query_execution(
 
 
 def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str = "primary") -> _WorkGroupConfig:
-    enforced: bool
-    wg_s3_output: str | None
-    wg_encryption: str | None
-    wg_kms_key: str | None
-    wg_managed_results: bool
+    from awswrangler._config import config as wr_config
+    from awswrangler._utils import boto3_to_primitives
+
+    ttl: int = wr_config.athena_workgroup_config_ttl
+    primitives = boto3_to_primitives(session)
+    cache_key = (primitives.get("region_name"), primitives.get("profile_name"), workgroup)
+
+    if ttl > 0:
+        cached = _WORKGROUP_CONFIG_CACHE.get(cache_key)
+        if cached is not None:
+            wg_config, expiry = cached
+            if time.monotonic() < expiry:
+                _logger.debug("Returning cached workgroup config for %s", workgroup)
+                return wg_config
 
     enforced, wg_s3_output, wg_encryption, wg_kms_key, wg_managed_results = False, None, None, None, False
     if workgroup is not None:
         res = get_work_group(workgroup=workgroup, boto3_session=session)
-        enforced = res["WorkGroup"]["Configuration"]["EnforceWorkGroupConfiguration"]
+        enforced = res["WorkGroup"]["Configuration"].get("EnforceWorkGroupConfiguration", False)
         config: dict[str, Any] = res["WorkGroup"]["Configuration"].get("ResultConfiguration")
         if config is not None:
             wg_s3_output = config.get("OutputLocation")
@@ -183,6 +193,8 @@ def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str =
         kms_key=wg_kms_key,
         managed_results=wg_managed_results,
     )
+    if ttl > 0:
+        _WORKGROUP_CONFIG_CACHE[cache_key] = (wg_config, time.monotonic() + ttl)
     _logger.debug("Workgroup config:\n%s", wg_config)
     return wg_config
 
