@@ -676,7 +676,7 @@ def test_batch_load(timestream_database_and_table, path, path2, time_unit, keep_
 def test_time_unit_precision(timestream_database_and_table, time_unit, precision):
     df_write = pd.DataFrame(
         {
-            "time": [datetime.now()] * 3,
+            "time": [datetime.now().replace(microsecond=123456)] * 3,
             "dim0": ["foo", "boo", "bar"],
             "dim1": [1, 2, 3],
             "measure0": ["a", "b", "c"],
