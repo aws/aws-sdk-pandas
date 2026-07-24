@@ -58,7 +58,7 @@ def _new_writer(
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
     if "coerce_timestamps" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+        pyarrow_additional_kwargs["coerce_timestamps"] = "us"
     if "flavor" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["flavor"] = "spark"
     if "version" not in pyarrow_additional_kwargs:
@@ -712,7 +712,7 @@ def to_parquet(
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
     if "coerce_timestamps" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+        pyarrow_additional_kwargs["coerce_timestamps"] = "us"
     if "flavor" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["flavor"] = "spark"
 
