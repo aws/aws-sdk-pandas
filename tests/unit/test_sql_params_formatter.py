@@ -4,7 +4,13 @@ from dataclasses import dataclass
 
 import pytest
 
-from awswrangler._sql_formatter import _Engine, _format_parameters, _HiveEngine, _PrestoEngine
+from awswrangler._sql_formatter import (
+    _Engine,
+    _format_parameters,
+    _HiveEngine,
+    _PrestoEngine,
+    _process_sql_params,
+)
 
 _hive_engine_param = pytest.param(_HiveEngine(), id="hive")
 _presto_engine_param = pytest.param(_PrestoEngine(), id="presto")
@@ -118,3 +124,11 @@ def test_invalid_parameter_type(engine: _Engine) -> None:
             {"point": Point(7, 1)},
             engine=engine,
         )
+
+
+def test_process_sql_params_double_colon_cast() -> None:
+    sql = "SELECT col::text, col::timestamp FROM table WHERE id = :id AND status = :text"
+    params = {"id": 1, "text": "active"}
+    processed_sql = _process_sql_params(sql, params)
+    expected_sql = "SELECT col::text, col::timestamp FROM table WHERE id = 1 AND status = 'active'"
+    assert processed_sql == expected_sql
