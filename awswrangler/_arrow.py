@@ -20,7 +20,7 @@ def _extract_partitions_from_path(path_root: str, path: str) -> dict[str, str]:
     if path_root not in path:
         raise Exception(f"Object {path} is not under the root path ({path_root}).")
     path_wo_filename: str = path.rpartition("/")[0] + "/"
-    path_wo_prefix: str = path_wo_filename.replace(f"{path_root}/", "")
+    path_wo_prefix: str = path_wo_filename.removeprefix(path_root)
     dirs: tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if x and (x.count("=") > 0))
     if not dirs:
         return {}

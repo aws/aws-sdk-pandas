@@ -525,7 +525,7 @@ def test_s3_dataset_empty_table(moto_s3_client: "S3Client") -> None:
             path=f"{s3_key}/part{i}.parquet",
         )
 
-    result_df = wr.s3.read_parquet(path=s3_key, dataset=True)
+    result_df = wr.s3.read_parquet(path="s3://bucket/", dataset=True)
     pd.testing.assert_frame_equal(result_df, r_df, check_dtype=True)
 
 
@@ -844,3 +844,13 @@ def test_create_iceberg_table_escapes_single_quotes_in_columns_comments() -> Non
     # The intended LOCATION (un-doubled quotes) is the only top-level clause.
     assert "LOCATION 's3://intended/output/'" in sql
     assert "LOCATION 's3://other/'" not in sql
+
+
+def test_parquet_partition_path_root_with_equals(moto_s3_client: "S3Client") -> None:
+    path = "s3://bucket/env=dev/dataset/"
+    df_src = pd.DataFrame({"id": [1, 2], "val": ["a", "b"], "par0": ["x", "y"]})
+    wr.s3.to_parquet(df=df_src, path=path, index=False, dataset=True, partition_cols=["par0"])
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    assert "env" not in df.columns
+    assert set(df.columns) == {"id", "val", "par0"}
+    assert len(df) == 2
