@@ -844,3 +844,20 @@ def test_create_iceberg_table_escapes_single_quotes_in_columns_comments() -> Non
     # The intended LOCATION (un-doubled quotes) is the only top-level clause.
     assert "LOCATION 's3://intended/output/'" in sql
     assert "LOCATION 's3://other/'" not in sql
+
+
+def test_open_s3_object_empty_file_write(moto_s3_client: "S3Client") -> None:
+    from awswrangler.s3._fs import open_s3_object
+
+    path_new = "s3://bucket/empty_new.txt"
+    with open_s3_object(path_new, mode="wb") as s3obj:
+        pass
+    assert wr.s3.does_object_exist(path_new) is True
+    assert moto_s3_client.get_object(Bucket="bucket", Key="empty_new.txt")["ContentLength"] == 0
+
+    path_existing = "s3://bucket/empty_existing.txt"
+    moto_s3_client.put_object(Bucket="bucket", Key="empty_existing.txt", Body=b"previous data")
+    with open_s3_object(path_existing, mode="w") as s3obj:
+        s3obj.write("")
+    assert moto_s3_client.get_object(Bucket="bucket", Key="empty_existing.txt")["ContentLength"] == 0
+    assert moto_s3_client.get_object(Bucket="bucket", Key="empty_existing.txt")["Body"].read() == b""

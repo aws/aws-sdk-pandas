@@ -483,7 +483,7 @@ class _S3ObjectBase(io.RawIOBase):
                     ),
                 )
                 _logger.debug("complete_multipart_upload done!")
-            elif self._buffer.tell() > 0:
+            else:
                 _logger.debug("put_object")
                 _utils.try_it(
                     f=self._client.put_object,
