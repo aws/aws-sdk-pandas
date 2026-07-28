@@ -325,6 +325,27 @@ def test_download_fileobj(moto_s3_client: "S3Client", tmp_path: str) -> None:
     assert local_file.read_bytes() == content
 
 
+def test_download_file_chunked(moto_s3_client: "S3Client", tmp_path: str) -> None:
+    # Force a small block size so the object is streamed over several chunks instead of
+    # being read into memory in a single call, exercising the chunked download path.
+    small_block_size = 5
+    with mock.patch("awswrangler.s3._download._S3_DOWNLOAD_BLOCK_SIZE", small_block_size):
+        bucket = "bucket"
+        key = "foo.tmp"
+        content = os.urandom(small_block_size * 4 + 3)  # Not an exact multiple of the block size
+
+        moto_s3_client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=content,
+        )
+
+        path = f"s3://{bucket}/{key}"
+        local_file = tmp_path / key
+        wr.s3.download(path=path, local_file=str(local_file))
+        assert local_file.read_bytes() == content
+
+
 def test_upload_file(moto_s3_client: "S3Client", tmp_path: str) -> None:
     bucket = "bucket"
     key = "foo.tmp"
