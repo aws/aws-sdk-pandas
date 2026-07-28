@@ -1270,3 +1270,46 @@ def test_build_order_by_clause_multiple() -> None:
 
     result = _build_order_by_clause(["name", "day(ts)"])
     assert result == 'ORDER BY "name", "ts"'
+
+
+def test_split_partition_transform_plain() -> None:
+    from awswrangler.athena._write_iceberg import _split_partition_transform
+
+    assert _split_partition_transform("name") == (None, [], "name")
+
+
+def test_split_partition_transform_day() -> None:
+    from awswrangler.athena._write_iceberg import _split_partition_transform
+
+    assert _split_partition_transform("day(ts)") == ("day", [], "ts")
+
+
+def test_split_partition_transform_truncate() -> None:
+    from awswrangler.athena._write_iceberg import _split_partition_transform
+
+    assert _split_partition_transform("truncate(10, col_name)") == ("truncate", ["10"], "col_name")
+
+
+def test_render_partition_transform_plain() -> None:
+    from awswrangler.athena._write_iceberg import _render_partition_transform
+
+    assert _render_partition_transform("id", "target") == 'target."id"'
+
+
+def test_render_partition_transform_day() -> None:
+    from awswrangler.athena._write_iceberg import _render_partition_transform
+
+    assert _render_partition_transform("day(ts)", "target") == 'day(target."ts")'
+    assert _render_partition_transform("day(ts)", "source") == 'day(source."ts")'
+
+
+def test_render_partition_transform_truncate() -> None:
+    from awswrangler.athena._write_iceberg import _render_partition_transform
+
+    assert _render_partition_transform("truncate(10, col_name)", "target") == 'truncate(10, target."col_name")'
+
+
+def test_render_partition_transform_bucket() -> None:
+    from awswrangler.athena._write_iceberg import _render_partition_transform
+
+    assert _render_partition_transform("bucket(16, id)", "source") == 'bucket(16, source."id")'

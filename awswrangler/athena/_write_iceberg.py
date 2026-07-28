@@ -266,19 +266,46 @@ def _validate_args(
         )
 
 
+def _split_partition_transform(col: str) -> tuple[str | None, list[str], str]:
+    """Split a partition specification into its transform, literal args and column name.
+
+    Iceberg partition transforms are written as ``func(args..., column)``. The final
+    argument is always the source column; any preceding arguments are literals (e.g. the
+    width of ``truncate`` / ``bucket``).
+
+    For example, 'day(ts)' returns ('day', [], 'ts'), 'truncate(10, col_name)' returns
+    ('truncate', ['10'], 'col_name'), and a plain 'name' returns (None, [], 'name').
+    """
+    match = re.match(r"([A-Za-z0-9_]+)\((.+)\)", col)
+    if not match:
+        return None, [], col
+    func = match.group(1)
+    args = [arg.strip() for arg in match.group(2).split(",")]
+    return func, args[:-1], args[-1]
+
+
 def _extract_column_from_partition_transform(col: str) -> str:
     """Extract the raw column name from a partition transform expression.
 
     For example, 'day(ts)' returns 'ts', 'truncate(10, col_name)' returns 'col_name',
     and 'name' returns 'name'.
     """
-    pattern = r"[A-Za-z0-9_]+\((.+)\)"
-    match = re.match(pattern, col)
-    if match:
-        # For transforms like truncate(10, col_name), take the last argument
-        args = match.group(1).split(",")
-        return args[-1].strip()
-    return col
+    return _split_partition_transform(col)[2]
+
+
+def _render_partition_transform(col: str, alias: str) -> str:
+    """Render a partition specification as an SQL expression qualified by a table alias.
+
+    The underlying column is quoted and prefixed with ``alias``, and any transform is
+    reapplied around it. For example, ('day(ts)', 'target') returns 'day(target."ts")',
+    ('truncate(10, c)', 'source') returns 'truncate(10, source."c")', and a plain
+    ('id', 'target') returns 'target."id"'.
+    """
+    func, literal_args, column = _split_partition_transform(col)
+    qualified = f'{alias}."{column}"'
+    if func is None:
+        return qualified
+    return f"{func}({', '.join([*literal_args, qualified])})"
 
 
 def _build_order_by_clause(partition_cols: list[str] | None) -> str:
@@ -812,7 +839,11 @@ def delete_from_iceberg_table(
     if not catalog.does_table_exist(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id):
         raise exceptions.InvalidTable(f"Table {table} does not exist in database {database}.")
 
-    df = df[merge_cols].drop_duplicates(ignore_index=True)
+    # merge_cols may contain partition transform expressions (e.g. "day(ts)") when called
+    # from the "overwrite_partitions" path. Stage the underlying columns, de-duplicated in
+    # case several transforms reference the same source column (e.g. "year(ts)", "day(ts)").
+    raw_cols = list(dict.fromkeys(_extract_column_from_partition_transform(col) for col in merge_cols))
+    df = df[raw_cols].drop_duplicates(ignore_index=True)
 
     try:
         # Create temporary external table, write the results
@@ -832,7 +863,7 @@ def delete_from_iceberg_table(
         sql_statement = f"""
             MERGE INTO "{database}"."{table}" target
             USING "{database}"."{temp_table}" source
-            ON {" AND ".join([f'target."{x}" = source."{x}"' for x in merge_cols])}
+            ON {" AND ".join([f"{_render_partition_transform(x, 'target')} = {_render_partition_transform(x, 'source')}" for x in merge_cols])}
             WHEN MATCHED THEN
                 DELETE
         """
