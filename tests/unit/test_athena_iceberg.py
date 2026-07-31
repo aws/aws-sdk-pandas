@@ -1272,12 +1272,12 @@ def test_build_order_by_clause_multiple() -> None:
     assert result == 'ORDER BY "name", "ts"'
 
 
-def test_escape_athena_identifier_doubles_quotes() -> None:
-    from awswrangler.athena._write_iceberg import _escape_athena_identifier
+def test_escape_athena_dml_identifier_doubles_quotes() -> None:
+    from awswrangler.athena._write_iceberg import _escape_athena_dml_identifier
 
-    assert _escape_athena_identifier("name") == "name"
-    assert _escape_athena_identifier('a"b') == 'a""b'
-    assert _escape_athena_identifier('x") DROP TABLE t --') == 'x"") DROP TABLE t --'
+    assert _escape_athena_dml_identifier("name") == "name"
+    assert _escape_athena_dml_identifier('a"b') == 'a""b'
+    assert _escape_athena_dml_identifier('x") DROP TABLE t --') == 'x"") DROP TABLE t --'
 
 
 def test_build_order_by_clause_escapes_identifier() -> None:
@@ -1362,9 +1362,9 @@ def test_create_iceberg_table_escapes_ddl_identifiers() -> None:
 
 def test_delete_from_iceberg_overwrite_escapes_table() -> None:
     """The DELETE FROM issued for mode='overwrite' must quote/escape the table name."""
-    from awswrangler.athena._write_iceberg import _escape_athena_identifier
+    from awswrangler.athena._write_iceberg import _escape_athena_dml_identifier
 
     # Mirrors the splice in to_iceberg's overwrite branch.
     table = 'v" ; DROP TABLE x --'
-    stmt = f'DELETE FROM "{_escape_athena_identifier(table)}"'
+    stmt = f'DELETE FROM "{_escape_athena_dml_identifier(table)}"'
     assert stmt == 'DELETE FROM "v"" ; DROP TABLE x --"'

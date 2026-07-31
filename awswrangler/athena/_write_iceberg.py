@@ -39,7 +39,7 @@ def _escape_athena_string_literal(value: Any) -> str:
     return str(value).replace("'", "''")
 
 
-def _escape_athena_identifier(name: Any) -> str:
+def _escape_athena_dml_identifier(name: Any) -> str:
     # For identifiers (column/table names) spliced inside DOUBLE-QUOTE delimited
     # identifiers in DML statements (SELECT/INSERT/MERGE/DELETE), e.g. "<name>".
     # Column names can originate from the Glue Data Catalog during automatic schema
@@ -318,7 +318,7 @@ def _build_order_by_clause(partition_cols: list[str] | None) -> str:
         return ""
 
     order_cols = [
-        f'"{_escape_athena_identifier(_extract_column_from_partition_transform(col))}"' for col in partition_cols
+        f'"{_escape_athena_dml_identifier(_extract_column_from_partition_transform(col))}"' for col in partition_cols
     ]
     return f"ORDER BY {', '.join(order_cols)}"
 
@@ -388,14 +388,14 @@ def _merge_iceberg(
     """
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
 
-    esc_database = _escape_athena_identifier(database)
-    esc_table = _escape_athena_identifier(table)
-    esc_source_table = _escape_athena_identifier(source_table)
-    esc_columns = [_escape_athena_identifier(x) for x in df.columns]
+    esc_database = _escape_athena_dml_identifier(database)
+    esc_table = _escape_athena_dml_identifier(table)
+    esc_source_table = _escape_athena_dml_identifier(source_table)
+    esc_columns = [_escape_athena_dml_identifier(x) for x in df.columns]
 
     sql_statement: str
     if merge_cols:
-        esc_merge_cols = [_escape_athena_identifier(x) for x in merge_cols]
+        esc_merge_cols = [_escape_athena_dml_identifier(x) for x in merge_cols]
         if merge_condition == "update":
             match_condition = f"""WHEN MATCHED THEN
                 UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in esc_columns])}"""
@@ -679,7 +679,7 @@ def to_iceberg(  # noqa: PLR0913
             )
         # if mode == "overwrite", delete whole data from table (but not table itself)
         elif mode == "overwrite":
-            delete_sql_statement = f'DELETE FROM "{_escape_athena_identifier(table)}"'
+            delete_sql_statement = f'DELETE FROM "{_escape_athena_dml_identifier(table)}"'
             delete_query_execution_id: str = _start_query_execution(
                 sql=delete_sql_statement,
                 workgroup=workgroup,
@@ -864,10 +864,10 @@ def delete_from_iceberg_table(
             index=False,
         )
 
-        esc_database = _escape_athena_identifier(database)
-        esc_table = _escape_athena_identifier(table)
-        esc_temp_table = _escape_athena_identifier(temp_table)
-        esc_merge_cols = [_escape_athena_identifier(x) for x in merge_cols]
+        esc_database = _escape_athena_dml_identifier(database)
+        esc_table = _escape_athena_dml_identifier(table)
+        esc_temp_table = _escape_athena_dml_identifier(temp_table)
+        esc_merge_cols = [_escape_athena_dml_identifier(x) for x in merge_cols]
         sql_statement = f"""
             MERGE INTO "{esc_database}"."{esc_table}" target
             USING "{esc_database}"."{esc_temp_table}" source
