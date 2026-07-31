@@ -162,7 +162,7 @@ def merge_datasets(
         _logger.debug("Deleting to overwrite: %s/", target_path)
         delete_objects(path=f"{target_path}/", use_threads=use_threads, boto3_session=boto3_session)
     elif mode == "overwrite_partitions":
-        paths_wo_prefix: list[str] = [x.replace(f"{source_path}/", "") for x in paths]
+        paths_wo_prefix: list[str] = [x.removeprefix(f"{source_path}/") for x in paths]
         paths_wo_filename: list[str] = [f"{x.rpartition('/')[0]}/" for x in paths_wo_prefix]
         partitions_paths: list[str] = list(set(paths_wo_filename))
         target_partitions_paths = [f"{target_path}/{x}" for x in partitions_paths]
@@ -260,7 +260,7 @@ def copy_objects(
     batch: list[tuple[str, str]] = []
     new_objects: list[str] = []
     for path in paths:
-        path_wo_prefix: str = path.replace(f"{source_path}/", "")
+        path_wo_prefix: str = path.removeprefix(f"{source_path}/")
         path_final: str = f"{target_path}/{path_wo_prefix}"
         if replace_filenames is not None:
             parts: list[str] = path_final.rsplit(sep="/", maxsplit=1)
