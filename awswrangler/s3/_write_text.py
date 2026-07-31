@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import logging
 import uuid
 from typing import TYPE_CHECKING, Any, Literal
@@ -16,7 +17,7 @@ from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._utils import copy_df_shallow
 from awswrangler.s3._delete import delete_objects
-from awswrangler.s3._fs import open_s3_object
+from awswrangler.s3._fs import _S3ObjectBase, open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 from awswrangler.typing import BucketingInfoTuple, GlueTableSettings, _S3WriteDataReturnValue
@@ -61,6 +62,7 @@ def _to_text(
     else:
         raise RuntimeError("path and path_root received at the same time.")
 
+    pandas_write_mode = pandas_kwargs.pop("mode", None)
     mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
     with open_s3_object(
         path=file_path,
@@ -71,9 +73,37 @@ def _to_text(
         encoding=encoding,
         newline=newline,
     ) as f:
+        if pandas_write_mode == "a":
+            # S3 has no native append — read existing content and write it first.
+            try:
+                if pandas_kwargs.get("compression") is None:
+                    with open_s3_object(
+                        path=file_path,
+                        mode="r",
+                        s3_client=s3_client,
+                        s3_additional_kwargs=s3_additional_kwargs,
+                        encoding=encoding,
+                    ) as existing:
+                        assert isinstance(existing, io.TextIOWrapper)
+                        assert isinstance(f, io.TextIOWrapper)
+                        f.write(existing.read())
+                else:
+                    with open_s3_object(
+                        path=file_path,
+                        mode="rb",
+                        s3_client=s3_client,
+                        s3_additional_kwargs=s3_additional_kwargs,
+                        encoding=encoding,
+                    ) as existing:
+                        assert isinstance(existing, _S3ObjectBase)
+                        data = existing.read()
+                        if isinstance(data, (bytes, bytearray)):
+                            f.write(data)  # type: ignore[arg-type]
+            except Exception:
+                pass  # File does not exist yet — first write, nothing to prepend.
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
         if file_format == "csv":
-            df.to_csv(f, mode=mode, **pandas_kwargs)
+            df.to_csv(f, **pandas_kwargs)
         elif file_format == "json":
             df.to_json(f, **pandas_kwargs)
     return [file_path]
@@ -99,6 +129,7 @@ def to_csv(  # noqa: PLR0912,PLR0915
     bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
     mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
+    pandas_mode: str | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     dtype: dict[str, str] | None = None,
@@ -251,6 +282,10 @@ def to_csv(  # noqa: PLR0912,PLR0915
         valid Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',')
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
+    pandas_mode
+        Pandas file open mode passed to ``df.to_csv()`` (e.g. ``"a"`` to append).
+        Distinct from the ``mode`` parameter which controls dataset write behaviour.
+        Only relevant when ``dataset=False``. Defaults to ``None`` (pandas default ``"w"``).
 
     Returns
     -------
@@ -516,6 +551,8 @@ def to_csv(  # noqa: PLR0912,PLR0915
         pandas_kwargs["sep"] = sep
         pandas_kwargs["index"] = index
         pandas_kwargs["columns"] = columns
+        if pandas_mode is not None:
+            pandas_kwargs["mode"] = pandas_mode
         _to_text(
             df,
             file_format="csv",
