@@ -155,7 +155,7 @@ def _format_parameters(params: dict[str, Any], engine: _Engine) -> dict[str, Any
     return processed_params
 
 
-_PATTERN = re.compile(r":([A-Za-z0-9_]+)(?![A-Za-z0-9_])")
+_PATTERN = re.compile(r"(?<!:):([A-Za-z0-9_]+)(?![A-Za-z0-9_])")
 
 
 def _create_engine(engine_type: _EngineTypeLiteral) -> _Engine:
