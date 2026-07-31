@@ -344,7 +344,7 @@ def athena2pyarrow(dtype: str, df_type: str | None = None) -> pa.DataType:  # no
             return pa.timestamp(unit="ns")
     if dtype == "date":
         return pa.date32()
-    if dtype in ("binary" or "varbinary"):
+    if dtype in ("binary", "varbinary"):
         return pa.binary()
     if dtype.startswith("decimal") is True:
         precision, scale = dtype.replace("decimal(", "").replace(")", "").split(sep=",")
