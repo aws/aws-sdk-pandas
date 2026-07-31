@@ -1270,3 +1270,52 @@ def test_build_order_by_clause_multiple() -> None:
 
     result = _build_order_by_clause(["name", "day(ts)"])
     assert result == 'ORDER BY "name", "ts"'
+
+
+def test_escape_athena_identifier_doubles_quotes() -> None:
+    from awswrangler.athena._write_iceberg import _escape_athena_identifier
+
+    assert _escape_athena_identifier("name") == "name"
+    assert _escape_athena_identifier('a"b') == 'a""b'
+    assert _escape_athena_identifier('x") DROP TABLE t --') == 'x"") DROP TABLE t --'
+
+
+def test_build_order_by_clause_escapes_identifier() -> None:
+    from awswrangler.athena._write_iceberg import _build_order_by_clause
+
+    result = _build_order_by_clause(['a"b'])
+    assert result == 'ORDER BY "a""b"'
+
+
+def test_alter_iceberg_add_columns_escapes_identifier() -> None:
+    from awswrangler.athena._write_iceberg import _alter_iceberg_table_add_columns_sql
+
+    result = _alter_iceberg_table_add_columns_sql(table='t"1', columns_to_add={'c") x --': "bigint"})
+    assert result == ['ALTER TABLE "t""1" ADD COLUMNS ("c"") x --" bigint)']
+
+
+def test_alter_iceberg_change_columns_escapes_identifier() -> None:
+    from awswrangler.athena._write_iceberg import _alter_iceberg_table_change_columns_sql
+
+    result = _alter_iceberg_table_change_columns_sql(table='t"1', columns_to_change={'c"x': "bigint"})
+    assert result == ['ALTER TABLE "t""1" CHANGE COLUMN "c""x" "c""x" bigint']
+
+
+def test_merge_iceberg_escapes_malicious_column_name() -> None:
+    """Column names from the Glue catalog must be escaped before being spliced into SQL."""
+    from unittest import mock
+
+    from awswrangler.athena import _write_iceberg
+
+    malicious = 'id") ; DROP TABLE victim --'
+    df = pd.DataFrame({malicious: [1], "v": [2]})
+
+    with mock.patch.object(_write_iceberg, "_get_workgroup_config", return_value=mock.MagicMock()), mock.patch.object(
+        _write_iceberg, "_start_query_execution", return_value="qid"
+    ) as start, mock.patch.object(_write_iceberg, "wait_query"):
+        _write_iceberg._merge_iceberg(df=df, database="db", table="t", source_table="src")
+
+    sql = start.call_args.kwargs["sql"]
+    # The injected identifier must appear only in doubled-quote form, never as a raw closing quote.
+    assert '"id"") ; DROP TABLE victim --"' in sql
+    assert '"id") ;' not in sql
