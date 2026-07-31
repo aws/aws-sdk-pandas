@@ -1287,18 +1287,27 @@ def test_build_order_by_clause_escapes_identifier() -> None:
     assert result == 'ORDER BY "a""b"'
 
 
+def test_escape_athena_ddl_identifier_doubles_backticks() -> None:
+    from awswrangler.athena._write_iceberg import _escape_athena_ddl_identifier
+
+    assert _escape_athena_ddl_identifier("name") == "name"
+    assert _escape_athena_ddl_identifier("a`b") == "a``b"
+    assert _escape_athena_ddl_identifier("x`) DROP TABLE t --") == "x``) DROP TABLE t --"
+
+
 def test_alter_iceberg_add_columns_escapes_identifier() -> None:
+    # ALTER TABLE is Hive-based DDL: identifiers are backtick-quoted, escaped by doubling `.
     from awswrangler.athena._write_iceberg import _alter_iceberg_table_add_columns_sql
 
-    result = _alter_iceberg_table_add_columns_sql(table='t"1', columns_to_add={'c") x --': "bigint"})
-    assert result == ['ALTER TABLE "t""1" ADD COLUMNS ("c"") x --" bigint)']
+    result = _alter_iceberg_table_add_columns_sql(table="t`1", columns_to_add={"c`) x --": "bigint"})
+    assert result == ["ALTER TABLE `t``1` ADD COLUMNS (`c``) x --` bigint)"]
 
 
 def test_alter_iceberg_change_columns_escapes_identifier() -> None:
     from awswrangler.athena._write_iceberg import _alter_iceberg_table_change_columns_sql
 
-    result = _alter_iceberg_table_change_columns_sql(table='t"1', columns_to_change={'c"x': "bigint"})
-    assert result == ['ALTER TABLE "t""1" CHANGE COLUMN "c""x" "c""x" bigint']
+    result = _alter_iceberg_table_change_columns_sql(table="t`1", columns_to_change={"c`x": "bigint"})
+    assert result == ["ALTER TABLE `t``1` CHANGE COLUMN `c``x` `c``x` bigint"]
 
 
 def test_merge_iceberg_escapes_malicious_column_name() -> None:
@@ -1319,3 +1328,43 @@ def test_merge_iceberg_escapes_malicious_column_name() -> None:
     # The injected identifier must appear only in doubled-quote form, never as a raw closing quote.
     assert '"id"") ; DROP TABLE victim --"' in sql
     assert '"id") ;' not in sql
+
+
+def test_create_iceberg_table_escapes_ddl_identifiers() -> None:
+    """Table/column names spliced into CREATE TABLE DDL must be backtick-escaped."""
+    from unittest import mock
+
+    from awswrangler.athena import _write_iceberg
+
+    df = pd.DataFrame({"c`0": [1]})
+
+    with mock.patch.object(
+        _write_iceberg.catalog,
+        "extract_athena_types",
+        return_value=({"c`0": "bigint"}, {}),
+    ), mock.patch.object(_write_iceberg, "_start_query_execution", return_value="qid") as start, mock.patch.object(
+        _write_iceberg, "wait_query"
+    ):
+        _write_iceberg._create_iceberg_table(
+            df=df,
+            database="db",
+            table="t`1",
+            path="s3://bucket/t/",
+            wg_config=mock.MagicMock(),
+            partition_cols=None,
+            additional_table_properties=None,
+        )
+
+    sql = start.call_args.kwargs["sql"]
+    assert "CREATE TABLE IF NOT EXISTS `t``1`" in sql
+    assert "`c``0` bigint" in sql
+
+
+def test_delete_from_iceberg_overwrite_escapes_table() -> None:
+    """The DELETE FROM issued for mode='overwrite' must quote/escape the table name."""
+    from awswrangler.athena._write_iceberg import _escape_athena_identifier
+
+    # Mirrors the splice in to_iceberg's overwrite branch.
+    table = 'v" ; DROP TABLE x --'
+    stmt = f'DELETE FROM "{_escape_athena_identifier(table)}"'
+    assert stmt == 'DELETE FROM "v"" ; DROP TABLE x --"'

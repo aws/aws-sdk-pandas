@@ -40,13 +40,24 @@ def _escape_athena_string_literal(value: Any) -> str:
 
 
 def _escape_athena_identifier(name: Any) -> str:
-    # Used for identifiers (column/table names) spliced inside double-quote delimited
-    # identifiers, e.g. "<name>". Column names can originate from the Glue Data Catalog
-    # during automatic schema reconciliation, so they are not necessarily caller-trusted.
+    # For identifiers (column/table names) spliced inside DOUBLE-QUOTE delimited
+    # identifiers in DML statements (SELECT/INSERT/MERGE/DELETE), e.g. "<name>".
+    # Column names can originate from the Glue Data Catalog during automatic schema
+    # reconciliation, so they are not necessarily caller-trusted.
     #
-    # Trino/Athena delimited identifiers escape an embedded double-quote by doubling it.
-    # Without this, a name containing " closes the identifier and appends arbitrary SQL.
+    # Athena's Trino-based DML engine escapes an embedded double-quote in a delimited
+    # identifier by doubling it. Without this, a name containing " closes the
+    # identifier and the remainder is parsed as SQL.
     return str(name).replace('"', '""')
+
+
+def _escape_athena_ddl_identifier(name: Any) -> str:
+    # For identifiers spliced inside BACKTICK delimited identifiers in DDL statements
+    # (CREATE TABLE / ALTER TABLE), e.g. `<name>`. Athena's Hive-based DDL engine uses
+    # backticks (not double quotes) for identifier quoting and escapes an embedded
+    # backtick by doubling it. Mixing the two families is a syntax error, so DDL and
+    # DML splices use separate helpers.
+    return str(name).replace("`", "``")
 
 
 def _create_iceberg_table(
@@ -73,12 +84,14 @@ def _create_iceberg_table(
     columns_types, _ = catalog.extract_athena_types(df=df, index=index, dtype=dtype)
     cols_str: str = ", ".join(
         [
-            f"{k} {v}"
+            f"`{_escape_athena_ddl_identifier(k)}` {v}"
             if (columns_comments is None or columns_comments.get(k) is None)
-            else f"{k} {v} COMMENT '{_escape_athena_string_literal(columns_comments[k])}'"
+            else f"`{_escape_athena_ddl_identifier(k)}` {v} COMMENT '{_escape_athena_string_literal(columns_comments[k])}'"
             for k, v in columns_types.items()
         ]
     )
+    # partition_cols may be partition transform expressions (e.g. "day(ts)", "truncate(10, col)"),
+    # not plain identifiers, so they are spliced verbatim rather than quoted as identifiers.
     partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
     table_properties_str: str = (
         ", "
@@ -93,9 +106,9 @@ def _create_iceberg_table(
     )
 
     create_sql: str = (
-        f"CREATE TABLE IF NOT EXISTS `{table}` ({cols_str}) "
+        f"CREATE TABLE IF NOT EXISTS `{_escape_athena_ddl_identifier(table)}` ({cols_str}) "
         f"{partition_cols_str} "
-        f"LOCATION '{path}' "
+        f"LOCATION '{_escape_athena_string_literal(path)}' "
         f"TBLPROPERTIES ('table_type' ='ICEBERG', 'format'='parquet'{table_properties_str})"
     )
 
@@ -227,10 +240,10 @@ def _alter_iceberg_table_add_columns_sql(
     columns_to_add: dict[str, str],
 ) -> list[str]:
     add_cols_str = ", ".join(
-        [f'"{_escape_athena_identifier(col_name)}" {columns_to_add[col_name]}' for col_name in columns_to_add]
+        [f"`{_escape_athena_ddl_identifier(col_name)}` {columns_to_add[col_name]}" for col_name in columns_to_add]
     )
 
-    return [f'ALTER TABLE "{_escape_athena_identifier(table)}" ADD COLUMNS ({add_cols_str})']
+    return [f"ALTER TABLE `{_escape_athena_ddl_identifier(table)}` ADD COLUMNS ({add_cols_str})"]
 
 
 def _alter_iceberg_table_change_columns_sql(
@@ -240,9 +253,9 @@ def _alter_iceberg_table_change_columns_sql(
     sql_statements = []
 
     for col_name, col_type in columns_to_change.items():
-        escaped_table = _escape_athena_identifier(table)
-        escaped_col = _escape_athena_identifier(col_name)
-        sql_statements.append(f'ALTER TABLE "{escaped_table}" CHANGE COLUMN "{escaped_col}" "{escaped_col}" {col_type}')
+        escaped_table = _escape_athena_ddl_identifier(table)
+        escaped_col = _escape_athena_ddl_identifier(col_name)
+        sql_statements.append(f"ALTER TABLE `{escaped_table}` CHANGE COLUMN `{escaped_col}` `{escaped_col}` {col_type}")
 
     return sql_statements
 
@@ -666,7 +679,7 @@ def to_iceberg(  # noqa: PLR0913
             )
         # if mode == "overwrite", delete whole data from table (but not table itself)
         elif mode == "overwrite":
-            delete_sql_statement = f"DELETE FROM {table}"
+            delete_sql_statement = f'DELETE FROM "{_escape_athena_identifier(table)}"'
             delete_query_execution_id: str = _start_query_execution(
                 sql=delete_sql_statement,
                 workgroup=workgroup,
