@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-      - uses: hynek/build-and-inspect-python-package@v2
+      - uses: hynek/build-and-inspect-python-package@v2.18.0
 
 
   upload-to-pypi:
