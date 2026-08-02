@@ -26,13 +26,17 @@ def _path2list(
     s3_additional_kwargs: dict[str, Any] | None,
     last_modified_begin: datetime.datetime | None = None,
     last_modified_end: datetime.datetime | None = None,
-    suffix: str | list[str] | None = None,
-    ignore_suffix: str | list[str] | None = None,
+    suffix: str | Sequence[str] | None = None,
+    ignore_suffix: str | Sequence[str] | None = None,
     ignore_empty: bool = False,
 ) -> list[str]:
     """Convert Amazon S3 path to list of objects."""
-    _suffix: list[str] | None = [suffix] if isinstance(suffix, str) else suffix
-    _ignore_suffix: list[str] | None = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
+    _suffix: list[str] | None = [suffix] if isinstance(suffix, str) else (list(suffix) if suffix is not None else None)
+    _ignore_suffix: list[str] | None = (
+        [ignore_suffix]
+        if isinstance(ignore_suffix, str)
+        else (list(ignore_suffix) if ignore_suffix is not None else None)
+    )
     if isinstance(path, str):  # prefix
         paths: list[str] = [
             path
@@ -85,14 +89,18 @@ def _list_objects(
     s3_client: "S3Client",
     delimiter: str | None = None,
     s3_additional_kwargs: dict[str, Any] | None = None,
-    suffix: str | list[str] | None = None,
-    ignore_suffix: str | list[str] | None = None,
+    suffix: str | Sequence[str] | None = None,
+    ignore_suffix: str | Sequence[str] | None = None,
     last_modified_begin: datetime.datetime | None = None,
     last_modified_end: datetime.datetime | None = None,
     ignore_empty: bool = False,
 ) -> Iterator[list[str]]:
-    suffix: list[str] | None = [suffix] if isinstance(suffix, str) else suffix
-    ignore_suffix: list[str] | None = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
+    _suffix: list[str] | None = [suffix] if isinstance(suffix, str) else (list(suffix) if suffix is not None else None)
+    _ignore_suffix: list[str] | None = (
+        [ignore_suffix]
+        if isinstance(ignore_suffix, str)
+        else (list(ignore_suffix) if ignore_suffix is not None else None)
+    )
     _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
     bucket, pattern = _utils.parse_path(path=path)
     prefix: str = _prefix_cleanup(prefix=pattern)
@@ -103,8 +111,8 @@ def _list_objects(
         prefix=prefix,
         s3_client=s3_client,
         delimiter=delimiter,
-        suffix=suffix,
-        ignore_suffix=ignore_suffix,
+        suffix=_suffix,
+        ignore_suffix=_ignore_suffix,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_empty=ignore_empty,
@@ -382,7 +390,7 @@ def list_objects(
     ignore_suffix_acc = set("/")
     if isinstance(ignore_suffix, str):
         ignore_suffix_acc.add(ignore_suffix)
-    elif isinstance(ignore_suffix, list):
+    elif isinstance(ignore_suffix, (list, tuple, set, Sequence)):
         ignore_suffix_acc.update(ignore_suffix)
 
     result_iterator = _list_objects(
