@@ -1445,3 +1445,29 @@ def test_emr_create_cluster_verifies_default_logging_bucket() -> None:
                 boto3_session=session,
             )
             verify.assert_not_called()
+
+
+def test_merge_datasets_overwrite_partitions_root_files(moto_s3_client) -> None:
+    bucket = "bucket"
+    # Target has an existing file directly in target_path and in a partition
+    moto_s3_client.put_object(Bucket=bucket, Key="target/file_old.csv", Body=b"old")
+    moto_s3_client.put_object(Bucket=bucket, Key="target/part=1/file_old_p.csv", Body=b"old_p")
+
+    # Source has a new file directly in source_path and in partition part=1
+    moto_s3_client.put_object(Bucket=bucket, Key="source/file_new.csv", Body=b"new")
+    moto_s3_client.put_object(Bucket=bucket, Key="source/part=1/file_new_p.csv", Body=b"new_p")
+
+    # Merge with mode="overwrite_partitions"
+    copied = wr.s3.merge_datasets(
+        source_path=f"s3://{bucket}/source/",
+        target_path=f"s3://{bucket}/target/",
+        mode="overwrite_partitions",
+    )
+
+    assert set(copied) == {f"s3://{bucket}/target/file_new.csv", f"s3://{bucket}/target/part=1/file_new_p.csv"}
+
+    target_objects = wr.s3.list_objects(f"s3://{bucket}/target/")
+    assert set(target_objects) == {
+        f"s3://{bucket}/target/file_new.csv",
+        f"s3://{bucket}/target/part=1/file_new_p.csv",
+    }
