@@ -162,11 +162,16 @@ def merge_datasets(
         _logger.debug("Deleting to overwrite: %s/", target_path)
         delete_objects(path=f"{target_path}/", use_threads=use_threads, boto3_session=boto3_session)
     elif mode == "overwrite_partitions":
-        paths_wo_prefix: list[str] = [x.replace(f"{source_path}/", "") for x in paths]
-        paths_wo_filename: list[str] = [f"{x.rpartition('/')[0]}/" for x in paths_wo_prefix]
-        partitions_paths: list[str] = list(set(paths_wo_filename))
-        target_partitions_paths = [f"{target_path}/{x}" for x in partitions_paths]
-        for path in target_partitions_paths:
+        prefix = f"{source_path}/"
+        paths_wo_prefix: list[str] = [x[len(prefix) :] if x.startswith(prefix) else x for x in paths]
+        partitions_paths: set[str] = set()
+        for x in paths_wo_prefix:
+            folder = x.rpartition("/")[0]
+            if folder:
+                partitions_paths.add(f"{target_path}/{folder}/")
+            else:
+                partitions_paths.add(f"{target_path}/")
+        for path in partitions_paths:
             _logger.debug("Deleting to overwrite_partitions: %s", path)
             delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
     elif mode != "append":
