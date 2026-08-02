@@ -872,3 +872,32 @@ def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto
     # 5. max_items_evaluated=-1 raises InvalidArgumentValue
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
+
+
+def test_list_objects_ignore_suffix_sequence_types(moto_s3_client: "S3Client") -> None:
+    bucket = "bucket"
+    moto_s3_client.put_object(Bucket=bucket, Key="dir/file1.csv", Body=b"1")
+    moto_s3_client.put_object(Bucket=bucket, Key="dir/file2.tmp", Body=b"2")
+    moto_s3_client.put_object(Bucket=bucket, Key="dir/file3.bak", Body=b"3")
+
+    # List ignore_suffix
+    files_list = wr.s3.list_objects(f"s3://{bucket}/dir/", ignore_suffix=[".tmp", ".bak"])
+    assert files_list == [f"s3://{bucket}/dir/file1.csv"]
+
+    # Tuple ignore_suffix
+    files_tuple = wr.s3.list_objects(f"s3://{bucket}/dir/", ignore_suffix=(".tmp", ".bak"))
+    assert files_tuple == [f"s3://{bucket}/dir/file1.csv"]
+
+    # Set ignore_suffix
+    files_set = wr.s3.list_objects(f"s3://{bucket}/dir/", ignore_suffix={".tmp", ".bak"})
+    assert files_set == [f"s3://{bucket}/dir/file1.csv"]
+
+
+def test_get_path_ignore_suffix_sequence_types() -> None:
+    from awswrangler.s3._read import _get_path_ignore_suffix
+
+    assert set(_get_path_ignore_suffix((".tmp", ".bak"))) == {".tmp", ".bak", "/_SUCCESS"}
+    assert set(_get_path_ignore_suffix({".tmp", ".bak"})) == {".tmp", ".bak", "/_SUCCESS"}
+    assert _get_path_ignore_suffix(".tmp") == [".tmp", "/_SUCCESS"]
+    assert _get_path_ignore_suffix(None) == ["/_SUCCESS"]
+
