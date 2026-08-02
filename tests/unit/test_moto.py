@@ -872,3 +872,29 @@ def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto
     # 5. max_items_evaluated=-1 raises InvalidArgumentValue
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
+
+
+def test_merge_datasets_overwrite_partitions_root_files(moto_s3_client) -> None:
+    bucket = "bucket"
+    # Target has an existing file directly in target_path and in a partition
+    moto_s3_client.put_object(Bucket=bucket, Key="target/file_old.csv", Body=b"old")
+    moto_s3_client.put_object(Bucket=bucket, Key="target/part=1/file_old_p.csv", Body=b"old_p")
+
+    # Source has a new file directly in source_path and in partition part=1
+    moto_s3_client.put_object(Bucket=bucket, Key="source/file_new.csv", Body=b"new")
+    moto_s3_client.put_object(Bucket=bucket, Key="source/part=1/file_new_p.csv", Body=b"new_p")
+
+    # Merge with mode="overwrite_partitions"
+    copied = wr.s3.merge_datasets(
+        source_path=f"s3://{bucket}/source/",
+        target_path=f"s3://{bucket}/target/",
+        mode="overwrite_partitions",
+    )
+
+    assert set(copied) == {f"s3://{bucket}/target/file_new.csv", f"s3://{bucket}/target/part=1/file_new_p.csv"}
+
+    target_objects = wr.s3.list_objects(f"s3://{bucket}/target/")
+    assert set(target_objects) == {
+        f"s3://{bucket}/target/file_new.csv",
+        f"s3://{bucket}/target/part=1/file_new_p.csv",
+    }
