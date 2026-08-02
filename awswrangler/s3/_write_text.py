@@ -27,13 +27,14 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_write_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[str, str | None, str | None]:
+def _get_write_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[dict[str, Any], str, str | None, str | None]:
+    pandas_kwargs = pandas_kwargs.copy()
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
     mode: str = "w" if pandas_kwargs.get("compression") is None else "wb"
     encoding: str | None = pandas_kwargs.get("encoding", "utf-8")
     newline: str | None = pandas_kwargs.get("lineterminator", "")
-    return mode, encoding, newline
+    return pandas_kwargs, mode, encoding, newline
 
 
 @engine.dispatch_on_engine
@@ -61,7 +62,7 @@ def _to_text(
     else:
         raise RuntimeError("path and path_root received at the same time.")
 
-    mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
+    pandas_kwargs, mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
     with open_s3_object(
         path=file_path,
         mode=mode,
