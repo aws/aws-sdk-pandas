@@ -39,6 +39,27 @@ def _escape_athena_string_literal(value: Any) -> str:
     return str(value).replace("'", "''")
 
 
+def _escape_athena_dml_identifier(name: Any) -> str:
+    # For identifiers (column/table names) spliced inside DOUBLE-QUOTE delimited
+    # identifiers in DML statements (SELECT/INSERT/MERGE/DELETE), e.g. "<name>".
+    # Column names can originate from the Glue Data Catalog during automatic schema
+    # reconciliation, so they are not necessarily caller-trusted.
+    #
+    # Athena's Trino-based DML engine escapes an embedded double-quote in a delimited
+    # identifier by doubling it. Without this, a name containing " closes the
+    # identifier and the remainder is parsed as SQL.
+    return str(name).replace('"', '""')
+
+
+def _escape_athena_ddl_identifier(name: Any) -> str:
+    # For identifiers spliced inside BACKTICK delimited identifiers in DDL statements
+    # (CREATE TABLE / ALTER TABLE), e.g. `<name>`. Athena's Hive-based DDL engine uses
+    # backticks (not double quotes) for identifier quoting and escapes an embedded
+    # backtick by doubling it. Mixing the two families is a syntax error, so DDL and
+    # DML splices use separate helpers.
+    return str(name).replace("`", "``")
+
+
 def _create_iceberg_table(
     df: pd.DataFrame,
     database: str,
@@ -63,12 +84,14 @@ def _create_iceberg_table(
     columns_types, _ = catalog.extract_athena_types(df=df, index=index, dtype=dtype)
     cols_str: str = ", ".join(
         [
-            f"{k} {v}"
+            f"`{_escape_athena_ddl_identifier(k)}` {v}"
             if (columns_comments is None or columns_comments.get(k) is None)
-            else f"{k} {v} COMMENT '{_escape_athena_string_literal(columns_comments[k])}'"
+            else f"`{_escape_athena_ddl_identifier(k)}` {v} COMMENT '{_escape_athena_string_literal(columns_comments[k])}'"
             for k, v in columns_types.items()
         ]
     )
+    # partition_cols may be partition transform expressions (e.g. "day(ts)", "truncate(10, col)"),
+    # not plain identifiers, so they are spliced verbatim rather than quoted as identifiers.
     partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
     table_properties_str: str = (
         ", "
@@ -83,9 +106,9 @@ def _create_iceberg_table(
     )
 
     create_sql: str = (
-        f"CREATE TABLE IF NOT EXISTS `{table}` ({cols_str}) "
+        f"CREATE TABLE IF NOT EXISTS `{_escape_athena_ddl_identifier(table)}` ({cols_str}) "
         f"{partition_cols_str} "
-        f"LOCATION '{path}' "
+        f"LOCATION '{_escape_athena_string_literal(path)}' "
         f"TBLPROPERTIES ('table_type' ='ICEBERG', 'format'='parquet'{table_properties_str})"
     )
 
@@ -216,9 +239,11 @@ def _alter_iceberg_table_add_columns_sql(
     table: str,
     columns_to_add: dict[str, str],
 ) -> list[str]:
-    add_cols_str = ", ".join([f"{col_name} {columns_to_add[col_name]}" for col_name in columns_to_add])
+    add_cols_str = ", ".join(
+        [f"`{_escape_athena_ddl_identifier(col_name)}` {columns_to_add[col_name]}" for col_name in columns_to_add]
+    )
 
-    return [f"ALTER TABLE {table} ADD COLUMNS ({add_cols_str})"]
+    return [f"ALTER TABLE `{_escape_athena_ddl_identifier(table)}` ADD COLUMNS ({add_cols_str})"]
 
 
 def _alter_iceberg_table_change_columns_sql(
@@ -228,7 +253,9 @@ def _alter_iceberg_table_change_columns_sql(
     sql_statements = []
 
     for col_name, col_type in columns_to_change.items():
-        sql_statements.append(f"ALTER TABLE {table} CHANGE COLUMN {col_name} {col_name} {col_type}")
+        escaped_table = _escape_athena_ddl_identifier(table)
+        escaped_col = _escape_athena_ddl_identifier(col_name)
+        sql_statements.append(f"ALTER TABLE `{escaped_table}` CHANGE COLUMN `{escaped_col}` `{escaped_col}` {col_type}")
 
     return sql_statements
 
@@ -290,7 +317,9 @@ def _build_order_by_clause(partition_cols: list[str] | None) -> str:
     if not partition_cols:
         return ""
 
-    order_cols = [f'"{_extract_column_from_partition_transform(col)}"' for col in partition_cols]
+    order_cols = [
+        f'"{_escape_athena_dml_identifier(_extract_column_from_partition_transform(col))}"' for col in partition_cols
+    ]
     return f"ORDER BY {', '.join(order_cols)}"
 
 
@@ -359,34 +388,40 @@ def _merge_iceberg(
     """
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
 
+    esc_database = _escape_athena_dml_identifier(database)
+    esc_table = _escape_athena_dml_identifier(table)
+    esc_source_table = _escape_athena_dml_identifier(source_table)
+    esc_columns = [_escape_athena_dml_identifier(x) for x in df.columns]
+
     sql_statement: str
     if merge_cols:
+        esc_merge_cols = [_escape_athena_dml_identifier(x) for x in merge_cols]
         if merge_condition == "update":
             match_condition = f"""WHEN MATCHED THEN
-                UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in df.columns])}"""
+                UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in esc_columns])}"""
         else:
             match_condition = ""
 
         if merge_match_nulls:
-            merge_conditions = [f'(target."{x}" IS NOT DISTINCT FROM source."{x}")' for x in merge_cols]
+            merge_conditions = [f'(target."{x}" IS NOT DISTINCT FROM source."{x}")' for x in esc_merge_cols]
         else:
-            merge_conditions = [f'(target."{x}" = source."{x}")' for x in merge_cols]
+            merge_conditions = [f'(target."{x}" = source."{x}")' for x in esc_merge_cols]
 
         sql_statement = f"""
-            MERGE INTO "{database}"."{table}" target
-            USING "{database}"."{source_table}" source
+            MERGE INTO "{esc_database}"."{esc_table}" target
+            USING "{esc_database}"."{esc_source_table}" source
             ON {" AND ".join(merge_conditions)}
             {match_condition}
             WHEN NOT MATCHED THEN
-                INSERT ({", ".join([f'"{x}"' for x in df.columns])})
-                VALUES ({", ".join([f'source."{x}"' for x in df.columns])})
+                INSERT ({", ".join([f'"{x}"' for x in esc_columns])})
+                VALUES ({", ".join([f'source."{x}"' for x in esc_columns])})
         """
     else:
         order_by_clause = _build_order_by_clause(partition_cols)
         sql_statement = f"""
-        INSERT INTO "{database}"."{table}" ({", ".join([f'"{x}"' for x in df.columns])})
-        SELECT {", ".join([f'"{x}"' for x in df.columns])}
-          FROM "{database}"."{source_table}"
+        INSERT INTO "{esc_database}"."{esc_table}" ({", ".join([f'"{x}"' for x in esc_columns])})
+        SELECT {", ".join([f'"{x}"' for x in esc_columns])}
+          FROM "{esc_database}"."{esc_source_table}"
           {order_by_clause}
         """
 
@@ -644,7 +679,7 @@ def to_iceberg(  # noqa: PLR0913
             )
         # if mode == "overwrite", delete whole data from table (but not table itself)
         elif mode == "overwrite":
-            delete_sql_statement = f"DELETE FROM {table}"
+            delete_sql_statement = f'DELETE FROM "{_escape_athena_dml_identifier(table)}"'
             delete_query_execution_id: str = _start_query_execution(
                 sql=delete_sql_statement,
                 workgroup=workgroup,
@@ -829,10 +864,14 @@ def delete_from_iceberg_table(
             index=False,
         )
 
+        esc_database = _escape_athena_dml_identifier(database)
+        esc_table = _escape_athena_dml_identifier(table)
+        esc_temp_table = _escape_athena_dml_identifier(temp_table)
+        esc_merge_cols = [_escape_athena_dml_identifier(x) for x in merge_cols]
         sql_statement = f"""
-            MERGE INTO "{database}"."{table}" target
-            USING "{database}"."{temp_table}" source
-            ON {" AND ".join([f'target."{x}" = source."{x}"' for x in merge_cols])}
+            MERGE INTO "{esc_database}"."{esc_table}" target
+            USING "{esc_database}"."{esc_temp_table}" source
+            ON {" AND ".join([f'target."{x}" = source."{x}"' for x in esc_merge_cols])}
             WHEN MATCHED THEN
                 DELETE
         """

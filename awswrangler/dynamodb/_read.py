@@ -392,7 +392,18 @@ def _read_items(
         items = _read_batch_items(table_name, dynamodb_client, chunked, **kwargs)
 
     else:
-        if limit:
+        if limit is not None:
+            if limit < 0:
+                raise exceptions.InvalidArgumentValue("`max_items_evaluated` must be greater than or equal to 0.")
+            if limit == 0:
+                empty_items: _ItemsListType = []
+                if chunked:
+                    return _convert_items_chunked(
+                        items_iterator=iter([empty_items]),
+                        as_dataframe=as_dataframe,
+                        arrow_kwargs=arrow_kwargs,
+                    )
+                return _convert_items(items=empty_items, as_dataframe=as_dataframe, arrow_kwargs=arrow_kwargs)
             kwargs["Limit"] = limit
             _logger.debug("`max_items_evaluated` argument detected, setting use_threads to False")
             use_threads = False
@@ -744,12 +755,20 @@ def read_items(  # noqa: PLR0912, PLR0915
             **kwargs.get("ExpressionAttributeValues", {}),
             **_serialize_item(expression_attribute_values, serializer),
         }
-    if max_items_evaluated:
+    if max_items_evaluated is not None:
         kwargs["Limit"] = max_items_evaluated
 
     _logger.debug("DynamoDB scan/query kwargs: %s", kwargs)
     # If kwargs are sufficiently informative, proceed with actual read op
-    if any((partition_values, key_condition_expression, filter_expression, allow_full_scan, max_items_evaluated)):
+    if any(
+        (
+            partition_values,
+            key_condition_expression,
+            filter_expression,
+            allow_full_scan,
+            max_items_evaluated is not None,
+        )
+    ):
         return _read_items(
             table_name=table_name,
             as_dataframe=as_dataframe,

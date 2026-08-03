@@ -844,3 +844,31 @@ def test_create_iceberg_table_escapes_single_quotes_in_columns_comments() -> Non
     # The intended LOCATION (un-doubled quotes) is the only top-level clause.
     assert "LOCATION 's3://intended/output/'" in sql
     assert "LOCATION 's3://other/'" not in sql
+
+
+def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto_dynamodb_table) -> None:
+    items = [{"key": 1, "value": "A"}, {"key": 2, "value": "B"}]
+    wr.dynamodb.put_items(items=items, table_name=moto_dynamodb_table)
+
+    # 1. max_items_evaluated=0 without allow_full_scan
+    df0 = wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=0)
+    assert isinstance(df0, pd.DataFrame)
+    assert len(df0) == 0
+
+    # 2. max_items_evaluated=0 with allow_full_scan=True
+    df0_scan = wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=0, allow_full_scan=True)
+    assert isinstance(df0_scan, pd.DataFrame)
+    assert len(df0_scan) == 0
+
+    # 3. max_items_evaluated=0 as_dataframe=False
+    items0 = wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=0, as_dataframe=False)
+    assert items0 == []
+
+    # 4. max_items_evaluated=0 chunked=True
+    chunks = list(wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=0, chunked=True))
+    assert len(chunks) == 1
+    assert len(chunks[0]) == 0
+
+    # 5. max_items_evaluated=-1 raises InvalidArgumentValue
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
