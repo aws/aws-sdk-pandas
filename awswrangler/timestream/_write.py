@@ -81,7 +81,8 @@ def _sanitize_common_attributes(
     time_unit: _TimeUnitLiteral,
     measure_name: str | None,
 ) -> dict[str, Any]:
-    common_attributes = {} if not common_attributes else common_attributes
+    # Copy to avoid mutating the caller's dictionary with the defaults resolved below
+    common_attributes = {} if not common_attributes else dict(common_attributes)
     # Values in common_attributes take precedence
     common_attributes.setdefault("Version", version)
     common_attributes.setdefault("TimeUnit", _check_time_unit(common_attributes.get("TimeUnit", time_unit)))
