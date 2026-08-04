@@ -7,7 +7,7 @@ license = {text = "Apache-2.0"}
 requires-python = ">=3.9, <4.0"
 
 dependencies = [
-    "aws-cdk-lib>=2.188.0,<3",
+    "aws-cdk-lib>=2.253.0,<3",
     "aws-cdk.aws-glue-alpha>=2.188.0a0,<3",
     "aws-cdk.aws-neptune-alpha>=2.188.0a0,<3",
     "aws-cdk.aws-redshift-alpha>=2.188.0a0,<3",
