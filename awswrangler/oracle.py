@@ -469,24 +469,22 @@ def _generate_upsert_statement(
 
     non_primary_key_columns = [key for key in df.columns if key not in set(primary_keys)]
 
-    primary_keys_str = ", ".join([f"{identifier(key, sql_mode='ansi')}" for key in primary_keys])
-    columns_str = ", ".join([f"{identifier(key, sql_mode='ansi')}" for key in non_primary_key_columns])
+    placeholder_by_column = {column: f":{i + 1}" for i, column in enumerate(df.columns)}
+
+    insertion_columns_str = ", ".join([f"{identifier(column, sql_mode='ansi')}" for column in df.columns])
 
     column_placeholders: str = f"({', '.join([':' + str(i + 1) for i in range(len(df.columns))])})"
 
     primary_key_condition_str = " AND ".join(
-        [f"{identifier(key, sql_mode='ansi')} = :{i + 1}" for i, key in enumerate(primary_keys)]
+        [f"{identifier(key, sql_mode='ansi')} = {placeholder_by_column[key]}" for key in primary_keys]
     )
     assignment_str = ", ".join(
-        [
-            f"{identifier(col, sql_mode='ansi')} = :{i + len(primary_keys) + 1}"
-            for i, col in enumerate(non_primary_key_columns)
-        ]
+        [f"{identifier(col, sql_mode='ansi')} = {placeholder_by_column[col]}" for col in non_primary_key_columns]
     )
 
     return f"""
     BEGIN
-        INSERT INTO {table_identifier} ({primary_keys_str}, {columns_str})
+        INSERT INTO {table_identifier} ({insertion_columns_str})
             VALUES {column_placeholders};
         EXCEPTION
         WHEN dup_val_on_index THEN
