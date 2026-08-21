@@ -1530,11 +1530,9 @@ def test_merge_iceberg_escapes_malicious_column_name() -> None:
     malicious = 'id") ; DROP TABLE victim --'
     df = pd.DataFrame({malicious: [1], "v": [2]})
 
-    with (
-        mock.patch.object(_write_iceberg, "_get_workgroup_config", return_value=mock.MagicMock()),
-        mock.patch.object(_write_iceberg, "_start_query_execution", return_value="qid") as start,
-        mock.patch.object(_write_iceberg, "wait_query"),
-    ):
+    with mock.patch.object(_write_iceberg, "_get_workgroup_config", return_value=mock.MagicMock()), mock.patch.object(
+        _write_iceberg, "_start_query_execution", return_value="qid"
+    ) as start, mock.patch.object(_write_iceberg, "wait_query"):
         _write_iceberg._merge_iceberg(df=df, database="db", table="t", source_table="src")
 
     sql = start.call_args.kwargs["sql"]
@@ -1551,14 +1549,12 @@ def test_create_iceberg_table_escapes_ddl_identifiers() -> None:
 
     df = pd.DataFrame({"c`0": [1]})
 
-    with (
-        mock.patch.object(
-            _write_iceberg.catalog,
-            "extract_athena_types",
-            return_value=({"c`0": "bigint"}, {}),
-        ),
-        mock.patch.object(_write_iceberg, "_start_query_execution", return_value="qid") as start,
-        mock.patch.object(_write_iceberg, "wait_query"),
+    with mock.patch.object(
+        _write_iceberg.catalog,
+        "extract_athena_types",
+        return_value=({"c`0": "bigint"}, {}),
+    ), mock.patch.object(_write_iceberg, "_start_query_execution", return_value="qid") as start, mock.patch.object(
+        _write_iceberg, "wait_query"
     ):
         _write_iceberg._create_iceberg_table(
             df=df,
