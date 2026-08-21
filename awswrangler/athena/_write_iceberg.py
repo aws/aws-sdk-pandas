@@ -335,7 +335,7 @@ def _merge_iceberg(
     table: str,
     source_table: str,
     merge_cols: list[str] | None = None,
-    merge_condition: Literal["update", "ignore", "conditional_merge"] = "update",
+    merge_condition: Literal["update", "ignore", "conditional_update"] = "update",
     merge_match_nulls: bool = False,
     conditional_merge_string: str | None = None,
     partition_cols: list[str] | None = None,
