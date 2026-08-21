@@ -863,6 +863,104 @@ def test_athena_to_iceberg_no_table_location_error(
         )
 
 
+def test_to_iceberg_conditional_merge_string_conditions_truthy(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    today = datetime.datetime.now()
+    yesterday = today - datetime.timedelta(days=1)
+
+    df = pd.DataFrame(
+        {"id": [1, 2], "val": ["a", "b"], "updated_at": [yesterday, yesterday]}
+    )
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+
+    df2 = pd.DataFrame(
+        {"id": [1, 3], "val": ["c", "d"], "updated_at": [today, yesterday]}
+    )
+    wr.athena.to_iceberg(
+        df=df2,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        merge_cols=["id"],
+        merge_condition="conditional_merge",
+        conditional_merge_string="source.updated_at > target.updated_at",
+        keep_files=False,
+    )
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    expected = pd.DataFrame(
+        {
+            "id": pd.array([1, 2, 3], dtype="Int64"),
+            "val": pd.array(["c", "b", "d"], dtype="string"),
+            "updated_at": pd.array([today, yesterday, yesterday]),
+        }
+    )
+    assert_pandas_equals(expected, df_out.reset_index(drop=True))
+
+
+def test_to_iceberg_conditional_merge_string_conditions_falsy(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    today = datetime.datetime.now()
+    yesterday = today - datetime.timedelta(days=1)
+
+    df = pd.DataFrame(
+        {"id": [1, 2], "val": ["a", "b"], "updated_at": [yesterday, yesterday]}
+    )
+    wr.athena.to_iceberg(
+        df=df,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        keep_files=False,
+    )
+
+    df2 = pd.DataFrame(
+        {"id": [1, 3], "val": ["c", "d"], "updated_at": [yesterday, yesterday]}
+    )
+    wr.athena.to_iceberg(
+        df=df2,
+        database=glue_database,
+        table=glue_table,
+        table_location=path,
+        temp_path=path2,
+        merge_cols=["id"],
+        merge_condition="conditional_merge",
+        conditional_merge_string="source.updated_at > target.updated_at",
+        keep_files=False,
+    )
+    df_out = wr.athena.read_sql_query(
+        sql=f'SELECT * FROM "{glue_table}" ORDER BY id',
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=False,
+    )
+
+    expected = pd.DataFrame(
+        {
+            "id": pd.array([1, 2, 3], dtype="Int64"),
+            "val": pd.array(["a", "b", "d"], dtype="string"),
+            "updated_at": pd.array([yesterday, yesterday, yesterday]),
+        }
+    )
+    assert_pandas_equals(expected, df_out.reset_index(drop=True))
+
+
 def test_to_iceberg_conditional_merge_string_and_merge_cols_error(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
