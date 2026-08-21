@@ -24,7 +24,13 @@ pytestmark = pytest.mark.distributed
 @pytest.mark.parametrize("partition_cols", [None, ["name"], ["name", "day(ts)"]])
 @pytest.mark.parametrize(
     "additional_table_properties",
-    [None, {"write_target_data_file_size_bytes": 536870912, "optimize_rewrite_delete_file_threshold": 10}],
+    [
+        None,
+        {
+            "write_target_data_file_size_bytes": 536870912,
+            "optimize_rewrite_delete_file_threshold": 10,
+        },
+    ],
 )
 def test_athena_to_iceberg(
     path: str,
@@ -38,7 +44,11 @@ def test_athena_to_iceberg(
         {
             "id": [1, 2, 3],
             "name": ["a", "b", "c"],
-            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+            "ts": [
+                ts("2020-01-01 00:00:00.0"),
+                ts("2020-01-02 00:00:01.0"),
+                ts("2020-01-03 00:00:00.0"),
+            ],
         }
     )
     df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
@@ -178,7 +188,11 @@ def test_athena_to_iceberg_overwrite_partitions(
     df1 = pd.DataFrame(
         {
             "id": [1, 2, 3],
-            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:15:00.0")],
+            "ts": [
+                ts("2020-01-01 00:00:00.0"),
+                ts("2020-01-02 00:00:01.0"),
+                ts("2020-01-03 00:15:00.0"),
+            ],
         }
     )
     df1["id"] = df1["id"].astype("Int64")  # Cast as nullable int64 type
@@ -291,7 +305,11 @@ def test_athena_to_iceberg_overwrite_partitions_merge_cols_error(
     df1 = pd.DataFrame(
         {
             "id": [1, 2, 3],
-            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:15:00.0")],
+            "ts": [
+                ts("2020-01-01 00:00:00.0"),
+                ts("2020-01-02 00:00:01.0"),
+                ts("2020-01-03 00:15:00.0"),
+            ],
         }
     )
 
@@ -359,10 +377,16 @@ def test_athena_to_iceberg_schema_evolution_add_columns(
     )
 
     df_expected = pd.DataFrame(
-        {"c0": [0, 1, 2, 3, 4, 5], "c1": [6, 7, 8, np.nan, np.nan, np.nan], "c2": [np.nan, np.nan, np.nan, 9, 10, 11]},
+        {
+            "c0": [0, 1, 2, 3, 4, 5],
+            "c1": [6, 7, 8, np.nan, np.nan, np.nan],
+            "c2": [np.nan, np.nan, np.nan, 9, 10, 11],
+        },
         dtype="Int64",
     )
-    assert_pandas_equals(df_out.sort_values(by=["c0"]).reset_index(drop=True), df_expected)
+    assert_pandas_equals(
+        df_out.sort_values(by=["c0"]).reset_index(drop=True), df_expected
+    )
 
     df3 = pd.DataFrame({"c0": [12], "c1": [13], "c2": [14], "c3": [15]})
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
@@ -382,7 +406,12 @@ def test_athena_to_iceberg_schema_evolution_modify_columns(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
     # Version 1
-    df = pd.DataFrame({"c1": pd.Series([1.0, 2.0], dtype="float32"), "c2": pd.Series([-1, -2], dtype="int32")})
+    df = pd.DataFrame(
+        {
+            "c1": pd.Series([1.0, 2.0], dtype="float32"),
+            "c2": pd.Series([-1, -2], dtype="int32"),
+        }
+    )
 
     wr.athena.to_iceberg(
         df=df,
@@ -407,7 +436,12 @@ def test_athena_to_iceberg_schema_evolution_modify_columns(
     assert str(df_out["c2"].dtype).startswith("Int32")
 
     # Version 2
-    df2 = pd.DataFrame({"c1": pd.Series([3.0, 4.0], dtype="float64"), "c2": pd.Series([-3, -4], dtype="int64")})
+    df2 = pd.DataFrame(
+        {
+            "c1": pd.Series([3.0, 4.0], dtype="float64"),
+            "c2": pd.Series([-3, -4], dtype="int64"),
+        }
+    )
 
     wr.athena.to_iceberg(
         df=df2,
@@ -436,7 +470,9 @@ def test_athena_to_iceberg_schema_evolution_modify_columns(
 def test_athena_to_iceberg_schema_evolution_fill_missing_columns(
     path: str, path2: str, glue_database: str, glue_table: str, schema_evolution: bool
 ) -> None:
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["foo", "bar", "baz"], "c2": [10, 11, 12]})
+    df = pd.DataFrame(
+        {"c0": [0, 1, 2], "c1": ["foo", "bar", "baz"], "c2": [10, 11, 12]}
+    )
     wr.athena.to_iceberg(
         df=df,
         database=glue_database,
@@ -509,7 +545,9 @@ def test_athena_to_iceberg_schema_evolution_drop_columns_error(
         )
 
 
-def test_to_iceberg_cast(path: str, path2: str, glue_table: str, glue_database: str) -> None:
+def test_to_iceberg_cast(
+    path: str, path2: str, glue_table: str, glue_database: str
+) -> None:
     df = pd.DataFrame(
         {
             "c0": [
@@ -550,7 +588,9 @@ def test_to_iceberg_cast(path: str, path2: str, glue_table: str, glue_database: 
         temp_path=path2,
         dtype={"c0": "date"},
     )
-    df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table, ctas_approach=False)
+    df2 = wr.athena.read_sql_table(
+        database=glue_database, table=glue_table, ctas_approach=False
+    )
     assert pandas_equals(df_expected, df2.sort_values("c0").reset_index(drop=True))
 
 
@@ -581,7 +621,9 @@ def test_athena_to_iceberg_with_hyphenated_table_name(
     assert len(df.columns) == len(df_out.columns)
 
 
-def test_athena_to_iceberg_column_comments(path: str, path2: str, glue_database: str, glue_table: str) -> None:
+def test_athena_to_iceberg_column_comments(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
     column_comments = {
         "c0": "comment 0",
@@ -604,8 +646,16 @@ def test_athena_to_iceberg_column_comments(path: str, path2: str, glue_database:
     assert column_comments_actual == column_comments
 
 
-def test_athena_to_iceberg_merge_into(path: str, path2: str, glue_database: str, glue_table: str) -> None:
-    df = pd.DataFrame({"title": ["Dune", "Fargo"], "year": ["1984", "1996"], "gross": [35_000_000, 60_000_000]})
+def test_athena_to_iceberg_merge_into(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame(
+        {
+            "title": ["Dune", "Fargo"],
+            "year": ["1984", "1996"],
+            "gross": [35_000_000, 60_000_000],
+        }
+    )
     df["title"] = df["title"].astype("string")
     df["year"] = df["year"].astype("string")
     df["gross"] = df["gross"].astype("Int64")
@@ -620,7 +670,13 @@ def test_athena_to_iceberg_merge_into(path: str, path2: str, glue_database: str,
     )
 
     # Perform MERGE INTO
-    df2 = pd.DataFrame({"title": ["Dune", "Fargo"], "year": ["2021", "1996"], "gross": [400_000_000, 60_000_001]})
+    df2 = pd.DataFrame(
+        {
+            "title": ["Dune", "Fargo"],
+            "year": ["2021", "1996"],
+            "gross": [400_000_000, 60_000_001],
+        }
+    )
     df2["title"] = df2["title"].astype("string")
     df2["year"] = df2["year"].astype("string")
     df2["gross"] = df2["gross"].astype("Int64")
@@ -657,7 +713,9 @@ def test_athena_to_iceberg_merge_into(path: str, path2: str, glue_database: str,
     assert_pandas_equals(df_expected, df_out)
 
 
-def test_athena_to_iceberg_merge_into_nulls(path: str, path2: str, glue_database: str, glue_table: str) -> None:
+def test_athena_to_iceberg_merge_into_nulls(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
     df = pd.DataFrame(
         {
             "col1": ["a", "a", "a", np.nan],
@@ -726,8 +784,16 @@ def test_athena_to_iceberg_merge_into_nulls(path: str, path2: str, glue_database
     )
 
 
-def test_athena_to_iceberg_merge_into_ignore(path: str, path2: str, glue_database: str, glue_table: str) -> None:
-    df = pd.DataFrame({"title": ["Dune", "Fargo"], "year": ["1984", "1996"], "gross": [35_000_000, 60_000_000]})
+def test_athena_to_iceberg_merge_into_ignore(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
+    df = pd.DataFrame(
+        {
+            "title": ["Dune", "Fargo"],
+            "year": ["1984", "1996"],
+            "gross": [35_000_000, 60_000_000],
+        }
+    )
     df["title"] = df["title"].astype("string")
     df["year"] = df["year"].astype("string")
     df["gross"] = df["gross"].astype("Int64")
@@ -742,7 +808,13 @@ def test_athena_to_iceberg_merge_into_ignore(path: str, path2: str, glue_databas
     )
 
     # Perform MERGE INTO
-    df2 = pd.DataFrame({"title": ["Dune", "Fargo"], "year": ["2021", "1996"], "gross": [400_000_000, 60_000_001]})
+    df2 = pd.DataFrame(
+        {
+            "title": ["Dune", "Fargo"],
+            "year": ["2021", "1996"],
+            "gross": [400_000_000, 60_000_001],
+        }
+    )
     df2["title"] = df2["title"].astype("string")
     df2["year"] = df2["year"].astype("string")
     df2["gross"] = df2["gross"].astype("Int64")
@@ -780,7 +852,9 @@ def test_athena_to_iceberg_merge_into_ignore(path: str, path2: str, glue_databas
     assert_pandas_equals(df_expected, df_out)
 
 
-def test_athena_to_iceberg_cols_order(path: str, path2: str, glue_database: str, glue_table: str) -> None:
+def test_athena_to_iceberg_cols_order(
+    path: str, path2: str, glue_database: str, glue_table: str
+) -> None:
     kwargs = {
         "database": glue_database,
         "table": glue_table,
@@ -870,7 +944,11 @@ def test_to_iceberg_conditional_merge_string_conditions_truthy(
     yesterday = today - datetime.timedelta(days=1)
 
     df = pd.DataFrame(
-        {"id": [1, 2], "val": ["a", "b"], "updated_at": [yesterday, yesterday]}
+        {
+            "id": [1, 2],
+            "val": ["a", "b"],
+            "updated_at": [yesterday, yesterday],
+        }
     )
     wr.athena.to_iceberg(
         df=df,
@@ -882,7 +960,11 @@ def test_to_iceberg_conditional_merge_string_conditions_truthy(
     )
 
     df2 = pd.DataFrame(
-        {"id": [1, 3], "val": ["c", "d"], "updated_at": [today, yesterday]}
+        {
+            "id": [1, 3],
+            "val": ["c", "d"],
+            "updated_at": [today, yesterday],
+        }
     )
     wr.athena.to_iceberg(
         df=df2,
@@ -1006,7 +1088,11 @@ def test_athena_delete_from_iceberg_table(
         {
             "id": [1, 2, 3],
             "name": ["a", "b", "c"],
-            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+            "ts": [
+                ts("2020-01-01 00:00:00.0"),
+                ts("2020-01-02 00:00:01.0"),
+                ts("2020-01-03 00:00:00.0"),
+            ],
             "empty": [pd.NA, pd.NA, pd.NA],
         }
     )
@@ -1068,7 +1154,11 @@ def test_athena_delete_from_iceberg_table_no_merge_cols_error(
         {
             "id": [1, 2, 3],
             "name": ["a", "b", "c"],
-            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+            "ts": [
+                ts("2020-01-01 00:00:00.0"),
+                ts("2020-01-02 00:00:01.0"),
+                ts("2020-01-03 00:00:00.0"),
+            ],
         }
     )
     df["id"] = df["id"].astype("Int64")  # Cast as nullable int64 type
@@ -1147,7 +1237,11 @@ def test_athena_iceberg_use_partition_function(
         {
             "id": [1, 2, 3],
             "name": ["a", "b", "c"],
-            "ts": [ts("2020-01-01 00:00:00.0"), ts("2020-01-02 00:00:01.0"), ts("2020-01-03 00:00:00.0")],
+            "ts": [
+                ts("2020-01-01 00:00:00.0"),
+                ts("2020-01-02 00:00:01.0"),
+                ts("2020-01-03 00:00:00.0"),
+            ],
         }
     )
 
@@ -1360,21 +1454,29 @@ def test_athena_to_iceberg_alter_schema(
 
 
 def test_extract_column_from_partition_transform_plain() -> None:
-    from awswrangler.athena._write_iceberg import _extract_column_from_partition_transform
+    from awswrangler.athena._write_iceberg import (
+        _extract_column_from_partition_transform,
+    )
 
     assert _extract_column_from_partition_transform("name") == "name"
 
 
 def test_extract_column_from_partition_transform_day() -> None:
-    from awswrangler.athena._write_iceberg import _extract_column_from_partition_transform
+    from awswrangler.athena._write_iceberg import (
+        _extract_column_from_partition_transform,
+    )
 
     assert _extract_column_from_partition_transform("day(ts)") == "ts"
 
 
 def test_extract_column_from_partition_transform_truncate() -> None:
-    from awswrangler.athena._write_iceberg import _extract_column_from_partition_transform
+    from awswrangler.athena._write_iceberg import (
+        _extract_column_from_partition_transform,
+    )
 
-    assert _extract_column_from_partition_transform("truncate(10, col_name)") == "col_name"
+    assert (
+        _extract_column_from_partition_transform("truncate(10, col_name)") == "col_name"
+    )
 
 
 def test_build_order_by_clause_none() -> None:
@@ -1408,7 +1510,9 @@ def test_escape_athena_dml_identifier_doubles_quotes() -> None:
 
     assert _escape_athena_dml_identifier("name") == "name"
     assert _escape_athena_dml_identifier('a"b') == 'a""b'
-    assert _escape_athena_dml_identifier('x") DROP TABLE t --') == 'x"") DROP TABLE t --'
+    assert (
+        _escape_athena_dml_identifier('x") DROP TABLE t --') == 'x"") DROP TABLE t --'
+    )
 
 
 def test_build_order_by_clause_escapes_identifier() -> None:
@@ -1423,21 +1527,29 @@ def test_escape_athena_ddl_identifier_doubles_backticks() -> None:
 
     assert _escape_athena_ddl_identifier("name") == "name"
     assert _escape_athena_ddl_identifier("a`b") == "a``b"
-    assert _escape_athena_ddl_identifier("x`) DROP TABLE t --") == "x``) DROP TABLE t --"
+    assert (
+        _escape_athena_ddl_identifier("x`) DROP TABLE t --") == "x``) DROP TABLE t --"
+    )
 
 
 def test_alter_iceberg_add_columns_escapes_identifier() -> None:
     # ALTER TABLE is Hive-based DDL: identifiers are backtick-quoted, escaped by doubling `.
     from awswrangler.athena._write_iceberg import _alter_iceberg_table_add_columns_sql
 
-    result = _alter_iceberg_table_add_columns_sql(table="t`1", columns_to_add={"c`) x --": "bigint"})
+    result = _alter_iceberg_table_add_columns_sql(
+        table="t`1", columns_to_add={"c`) x --": "bigint"}
+    )
     assert result == ["ALTER TABLE `t``1` ADD COLUMNS (`c``) x --` bigint)"]
 
 
 def test_alter_iceberg_change_columns_escapes_identifier() -> None:
-    from awswrangler.athena._write_iceberg import _alter_iceberg_table_change_columns_sql
+    from awswrangler.athena._write_iceberg import (
+        _alter_iceberg_table_change_columns_sql,
+    )
 
-    result = _alter_iceberg_table_change_columns_sql(table="t`1", columns_to_change={"c`x": "bigint"})
+    result = _alter_iceberg_table_change_columns_sql(
+        table="t`1", columns_to_change={"c`x": "bigint"}
+    )
     assert result == ["ALTER TABLE `t``1` CHANGE COLUMN `c``x` `c``x` bigint"]
 
 
@@ -1450,10 +1562,18 @@ def test_merge_iceberg_escapes_malicious_column_name() -> None:
     malicious = 'id") ; DROP TABLE victim --'
     df = pd.DataFrame({malicious: [1], "v": [2]})
 
-    with mock.patch.object(_write_iceberg, "_get_workgroup_config", return_value=mock.MagicMock()), mock.patch.object(
-        _write_iceberg, "_start_query_execution", return_value="qid"
-    ) as start, mock.patch.object(_write_iceberg, "wait_query"):
-        _write_iceberg._merge_iceberg(df=df, database="db", table="t", source_table="src")
+    with (
+        mock.patch.object(
+            _write_iceberg, "_get_workgroup_config", return_value=mock.MagicMock()
+        ),
+        mock.patch.object(
+            _write_iceberg, "_start_query_execution", return_value="qid"
+        ) as start,
+        mock.patch.object(_write_iceberg, "wait_query"),
+    ):
+        _write_iceberg._merge_iceberg(
+            df=df, database="db", table="t", source_table="src"
+        )
 
     sql = start.call_args.kwargs["sql"]
     # The injected identifier must appear only in doubled-quote form, never as a raw closing quote.
@@ -1469,12 +1589,16 @@ def test_create_iceberg_table_escapes_ddl_identifiers() -> None:
 
     df = pd.DataFrame({"c`0": [1]})
 
-    with mock.patch.object(
-        _write_iceberg.catalog,
-        "extract_athena_types",
-        return_value=({"c`0": "bigint"}, {}),
-    ), mock.patch.object(_write_iceberg, "_start_query_execution", return_value="qid") as start, mock.patch.object(
-        _write_iceberg, "wait_query"
+    with (
+        mock.patch.object(
+            _write_iceberg.catalog,
+            "extract_athena_types",
+            return_value=({"c`0": "bigint"}, {}),
+        ),
+        mock.patch.object(
+            _write_iceberg, "_start_query_execution", return_value="qid"
+        ) as start,
+        mock.patch.object(_write_iceberg, "wait_query"),
     ):
         _write_iceberg._create_iceberg_table(
             df=df,
