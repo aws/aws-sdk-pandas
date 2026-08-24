@@ -20,6 +20,7 @@ import boto3
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+from packaging.version import Version
 from pandas.api.types import union_categoricals
 
 from awswrangler import _data_types, _utils, exceptions
@@ -30,6 +31,8 @@ from awswrangler.catalog._utils import _catalog_id
 from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._list import _path2list, _prefix_cleanup
 from awswrangler.typing import RaySettings
+
+PANDAS_VERSION = Version(pd.__version__)
 
 if TYPE_CHECKING:
     from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
@@ -123,7 +126,10 @@ def _concat_union_categoricals(dfs: list[pd.DataFrame], ignore_index: bool) -> p
         cat = union_categoricals([df[col] for df in dfs])
         for df in dfs:
             df[col] = pd.Categorical(df[col].values, categories=cat.categories)
-    return pd.concat(objs=dfs, sort=False, copy=False, ignore_index=ignore_index)
+    if PANDAS_VERSION < Version("3.0"):
+        return pd.concat(objs=dfs, sort=False, copy=False, ignore_index=ignore_index)
+    else:
+        return pd.concat(objs=dfs, sort=False, ignore_index=ignore_index)
 
 
 def _check_version_id(paths: list[str], version_id: str | dict[str, str] | None = None) -> dict[str, str] | None:
