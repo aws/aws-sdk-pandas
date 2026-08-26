@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 from typing import TYPE_CHECKING
@@ -483,6 +485,37 @@ def test_s3_delete_object_success(moto_s3_client: "S3Client") -> None:
     wr.s3.delete_objects(path=path)
     with pytest.raises(wr.exceptions.NoFilesFound):
         wr.s3.read_parquet(path=path, dataset=True)
+
+
+def test_s3_delete_objects_additional_kwargs(moto_s3_client: "S3Client") -> None:
+    path = "s3://bucket/test_kwargs.txt"
+    moto_s3_client.put_object(Bucket="bucket", Key="test_kwargs.txt", Body=b"test")
+
+    orig_client = wr._utils.client
+    captured_kwargs = {}
+
+    def custom_client(service_name: str, session: boto3.Session | None = None) -> "S3Client":
+        client = orig_client(service_name, session)
+        if service_name == "s3":
+            orig_delete = client.delete_objects
+
+            def mock_delete(**kwargs):
+                nonlocal captured_kwargs
+                captured_kwargs = kwargs
+                return orig_delete(**kwargs)
+
+            client.delete_objects = mock_delete
+        return client  # type: ignore[return-value]
+
+    with patch("awswrangler.s3._delete._utils.client", side_effect=custom_client):
+        wr.s3.delete_objects(
+            path=path,
+            s3_additional_kwargs={"BypassGovernanceRetention": True, "RequestPayer": "requester", "Delimiter": "/"},
+        )
+
+    assert captured_kwargs.get("BypassGovernanceRetention") is True
+    assert captured_kwargs.get("RequestPayer") == "requester"
+    assert "Delimiter" not in captured_kwargs
 
 
 @pytest.mark.parametrize("chunked", [True, False])
