@@ -631,6 +631,37 @@ def test_glue_get_partition(moto_glue):
     assert parquet_partition_value == values
 
 
+def test_glue_add_column_without_comment(moto_glue):
+    database_name = "mydb_add_col"
+    table_name = "mytable_add_col"
+
+    wr.catalog.create_database(name=database_name)
+    wr.catalog.create_parquet_table(
+        database=database_name,
+        table=table_name,
+        path="s3://bucket/prefix/",
+        columns_types={"col0": "bigint"},
+    )
+    wr.catalog.add_column(
+        database=database_name,
+        table=table_name,
+        column_name="col1",
+        column_type="string",
+    )
+    wr.catalog.add_column(
+        database=database_name,
+        table=table_name,
+        column_name="col2",
+        column_type="double",
+        column_comment="column comment",
+    )
+    dtypes = wr.catalog.get_table_types(database=database_name, table=table_name)
+    assert dtypes == {"col0": "bigint", "col1": "string", "col2": "double"}
+    comments = wr.catalog.get_columns_comments(database=database_name, table=table_name)
+    assert comments.get("col2") == "column comment"
+    assert "col1" not in comments or comments.get("col1") is None
+
+
 def test_dynamodb_basic_usage(moto_dynamodb_client, moto_dynamodb_table):
     items = [{"key": 1}, {"key": 2, "my_value": "Hello"}]
 
