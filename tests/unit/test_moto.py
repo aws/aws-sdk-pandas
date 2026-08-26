@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import logging
 import os
@@ -507,6 +509,37 @@ def test_s3_delete_object_success(moto_s3_client: "S3Client") -> None:
         wr.s3.read_parquet(path=path, dataset=True)
 
 
+def test_s3_delete_objects_additional_kwargs(moto_s3_client: "S3Client") -> None:
+    path = "s3://bucket/test_kwargs.txt"
+    moto_s3_client.put_object(Bucket="bucket", Key="test_kwargs.txt", Body=b"test")
+
+    orig_client = wr._utils.client
+    captured_kwargs = {}
+
+    def custom_client(service_name: str, session: boto3.Session | None = None) -> "S3Client":
+        client = orig_client(service_name, session)
+        if service_name == "s3":
+            orig_delete = client.delete_objects
+
+            def mock_delete(**kwargs):
+                nonlocal captured_kwargs
+                captured_kwargs = kwargs
+                return orig_delete(**kwargs)
+
+            client.delete_objects = mock_delete
+        return client  # type: ignore[return-value]
+
+    with patch("awswrangler.s3._delete._utils.client", side_effect=custom_client):
+        wr.s3.delete_objects(
+            path=path,
+            s3_additional_kwargs={"BypassGovernanceRetention": True, "RequestPayer": "requester", "Delimiter": "/"},
+        )
+
+    assert captured_kwargs.get("BypassGovernanceRetention") is True
+    assert captured_kwargs.get("RequestPayer") == "requester"
+    assert "Delimiter" not in captured_kwargs
+
+
 @pytest.mark.parametrize("chunked", [True, False])
 def test_s3_parquet_empty_table(moto_s3_client: "S3Client", chunked) -> None:
     path = "s3://bucket/file.parquet"
@@ -651,6 +684,37 @@ def test_glue_get_partition(moto_glue):
     assert partition_value == values
     parquet_partition_value = wr.catalog.get_parquet_partitions(database_name, table_name)
     assert parquet_partition_value == values
+
+
+def test_glue_add_column_without_comment(moto_glue):
+    database_name = "mydb_add_col"
+    table_name = "mytable_add_col"
+
+    wr.catalog.create_database(name=database_name)
+    wr.catalog.create_parquet_table(
+        database=database_name,
+        table=table_name,
+        path="s3://bucket/prefix/",
+        columns_types={"col0": "bigint"},
+    )
+    wr.catalog.add_column(
+        database=database_name,
+        table=table_name,
+        column_name="col1",
+        column_type="string",
+    )
+    wr.catalog.add_column(
+        database=database_name,
+        table=table_name,
+        column_name="col2",
+        column_type="double",
+        column_comment="column comment",
+    )
+    dtypes = wr.catalog.get_table_types(database=database_name, table=table_name)
+    assert dtypes == {"col0": "bigint", "col1": "string", "col2": "double"}
+    comments = wr.catalog.get_columns_comments(database=database_name, table=table_name)
+    assert comments.get("col2") == "column comment"
+    assert "col1" not in comments or comments.get("col1") is None
 
 
 def test_dynamodb_basic_usage(moto_dynamodb_client, moto_dynamodb_table):
