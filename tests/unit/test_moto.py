@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import datetime
 import logging
 import os
+import time
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, patch
@@ -82,6 +84,26 @@ def moto_dynamodb_table(moto_dynamodb_client):
         BillingMode="PAY_PER_REQUEST",
     )
     yield table_name
+
+
+@pytest.fixture(scope="function")
+def local_timezone(request):
+    """Run a test under the local timezone named by the (indirect) parameter."""
+    if not hasattr(time, "tzset"):
+        pytest.skip("Changing the local timezone requires time.tzset(), which is not available on Windows.")
+    previous_tz = os.environ.get("TZ")
+    os.environ["TZ"] = request.param
+    time.tzset()
+    try:
+        if time.localtime().tm_gmtoff == 0:
+            pytest.skip(f"The timezone database has no entry for {request.param}.")
+        yield request.param
+    finally:
+        if previous_tz is None:
+            del os.environ["TZ"]
+        else:
+            os.environ["TZ"] = previous_tz
+        time.tzset()
 
 
 def get_content_md5(desc: dict):
@@ -936,3 +958,64 @@ def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto
     # 5. max_items_evaluated=-1 raises InvalidArgumentValue
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
+
+
+# Both a timezone ahead of and behind UTC, so the assertions are meaningful either way.
+@pytest.mark.parametrize("local_timezone", ["Asia/Tokyo", "America/New_York"], indirect=True)
+def test_cloudwatch_start_query_default_end_time_is_utc_now(local_timezone) -> None:
+    # The default `end_time` must be the current UTC instant regardless of the machine's
+    # local timezone. A naive UTC datetime is interpreted as local time by
+    # `datetime.timestamp()`, which shifts the query window by the local UTC offset.
+    logs_client = mock.MagicMock()
+    logs_client.start_query.return_value = {"queryId": "query-id"}
+
+    with mock.patch("awswrangler._utils.client", return_value=logs_client):
+        wr.cloudwatch.start_query(query="fields @timestamp", log_group_names=["log-group"])
+
+    args = logs_client.start_query.call_args.kwargs
+    now_milliseconds = int(1000 * datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
+    assert abs(args["endTime"] - now_milliseconds) < 60_000
+    # The default `start_time` remains the Unix epoch.
+    assert args["startTime"] == 0
+
+
+@pytest.mark.parametrize("local_timezone", ["Asia/Tokyo", "America/New_York"], indirect=True)
+def test_cloudwatch_start_query_recent_start_time_with_default_end_time(local_timezone) -> None:
+    # A `start_time` in the recent past is valid against the default `end_time`; a local
+    # offset ahead of UTC used to push the default `end_time` before it and raise.
+    logs_client = mock.MagicMock()
+    logs_client.start_query.return_value = {"queryId": "query-id"}
+    start_time = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(minutes=5)
+
+    with mock.patch("awswrangler._utils.client", return_value=logs_client):
+        query_id = wr.cloudwatch.start_query(
+            query="fields @timestamp",
+            log_group_names=["log-group"],
+            start_time=start_time,
+        )
+
+    assert query_id == "query-id"
+    args = logs_client.start_query.call_args.kwargs
+    assert args["startTime"] == int(1000 * start_time.timestamp())
+    assert args["endTime"] > args["startTime"]
+
+
+@pytest.mark.parametrize("local_timezone", ["Asia/Tokyo"], indirect=True)
+def test_cloudwatch_start_query_explicit_times_are_preserved(local_timezone) -> None:
+    # Explicitly passed boundaries keep being converted straight to epoch milliseconds.
+    logs_client = mock.MagicMock()
+    logs_client.start_query.return_value = {"queryId": "query-id"}
+    start_time = datetime.datetime(2024, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+    end_time = datetime.datetime(2024, 1, 2, 0, 0, 0, tzinfo=datetime.timezone.utc)
+
+    with mock.patch("awswrangler._utils.client", return_value=logs_client):
+        wr.cloudwatch.start_query(
+            query="fields @timestamp",
+            log_group_names=["log-group"],
+            start_time=start_time,
+            end_time=end_time,
+        )
+
+    args = logs_client.start_query.call_args.kwargs
+    assert args["startTime"] == 1_704_067_200_000
+    assert args["endTime"] == 1_704_153_600_000
