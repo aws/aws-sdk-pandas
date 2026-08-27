@@ -117,7 +117,7 @@ def _to_text_distributed(
         write_options = None
         can_use_arrow = False
 
-    mode, encoding, newline = _get_write_details(path=path or path_root, pandas_kwargs=pandas_kwargs)  # type: ignore[arg-type]
+    pandas_kwargs, mode, encoding, newline = _get_write_details(path=path or path_root, pandas_kwargs=pandas_kwargs)  # type: ignore[arg-type]
 
     datasink: _BlockFileDatasink = _datasink_for_format(
         file_format,
