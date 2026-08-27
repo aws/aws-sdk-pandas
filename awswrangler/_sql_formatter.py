@@ -8,6 +8,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Sequence
 
+import numpy as np
 from typing_extensions import Literal
 
 from awswrangler import exceptions
@@ -26,13 +27,13 @@ class _Engine(ABC):
     def format_string(self, value: str) -> str:
         pass
 
-    def format_bool(self, value: bool) -> str:
+    def format_bool(self, value: bool | np.bool_) -> str:
         return str(value).upper()
 
-    def format_integer(self, value: int) -> str:
+    def format_integer(self, value: int | np.integer[Any]) -> str:
         return str(value)
 
-    def format_float(self, value: float) -> str:
+    def format_float(self, value: float | np.floating[Any]) -> str:
         return f"{value:f}"
 
     def format_decimal(self, value: decimal.Decimal) -> str:
@@ -68,14 +69,14 @@ class _Engine(ABC):
         )
 
     def format(self, data: Any) -> str:
-        formats_dict: dict[type[Any], Callable[[Any], str]] = {
-            bool: self.format_bool,
-            str: self.format_string,
-            int: self.format_integer,
+        formats_dict: dict[tuple[type[Any], ...] | type[Any], Callable[[Any], str]] = {
+            (bool, np.bool_): self.format_bool,
+            (str, np.str_): self.format_string,
+            (int, np.integer): self.format_integer,
             datetime.datetime: self.format_timestamp,
             datetime.date: self.format_date,
             decimal.Decimal: self.format_decimal,
-            float: self.format_float,
+            (float, np.floating): self.format_float,
             list: self.format_array,
             tuple: self.format_array,
             set: self.format_array,
@@ -96,17 +97,18 @@ class _PrestoEngine(_Engine):
     def __init__(self) -> None:
         super().__init__("presto")
 
-    def format_string(self, value: str) -> str:
-        return f"""'{value.replace("'", "''")}'"""
+    def format_string(self, value: str | np.str_) -> str:
+        return f"""'{str(value).replace("'", "''")}'"""
 
 
 class _HiveEngine(_Engine):
     def __init__(self) -> None:
         super().__init__("hive")
 
-    def format_string(self, value: str) -> str:
+    def format_string(self, value: str | np.str_) -> str:
         return "'{}'".format(
-            value.replace("\\", "\\\\")
+            str(value)
+            .replace("\\", "\\\\")
             .replace("'", "\\'")
             .replace("\r", "\\r")
             .replace("\n", "\\n")
