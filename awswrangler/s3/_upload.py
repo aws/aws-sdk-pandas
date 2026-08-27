@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import boto3
@@ -13,7 +14,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def upload(
-    local_file: str | Any,
+    local_file: str | Path | Any,
     path: str,
     use_threads: bool | int = True,
     boto3_session: boto3.Session | None = None,
@@ -72,6 +73,8 @@ def upload(
             _logger.debug("Uploading local_file: %s", local_file)
             with open(file=local_file, mode="rb") as local_f:
                 s3_f.write(local_f.read())  # type: ignore[arg-type]
+        elif isinstance(local_file, Path):
+            s3_f.write(local_file.read_bytes())  # type: ignore[arg-type]
         else:
             _logger.debug("Uploading file-like object.")
             s3_f.write(local_file.read())
