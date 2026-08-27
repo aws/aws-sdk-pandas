@@ -1,0 +1,411 @@
+/**
+ * AWS SDK for pandas — Custom Docusaurus Theme
+ *
+ * Editorial identity applied to the whole docs chrome: Fraunces display
+ * serif for headings, warm paper background, ink text, terracotta accent.
+ * Structure stays minimal (docs at root, no landing page) — the pages
+ * themselves carry the visual identity.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  --ifm-color-primary: #b5462a;
+  --ifm-color-primary-dark: #a33f26;
+  --ifm-color-primary-darker: #9a3b24;
+  --ifm-color-primary-darkest: #8a3420;
+  --ifm-color-primary-light: #c74d2e;
+  --ifm-color-primary-lighter: #cd5132;
+  --ifm-color-primary-lightest: #d9664a;
+
+  /* Warm paper surfaces */
+  --ifm-background-color: #faf7f2;
+  --ifm-background-surface-color: #f2ede4;
+  --ifm-navbar-background-color: rgba(250, 247, 242, 0.85);
+  --ifm-footer-background-color: #1a1915;
+
+  --ifm-font-color-base: #3a3731;
+  --ifm-heading-color: #1a1915;
+
+  --ifm-font-family-base: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --ifm-font-family-monospace: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ifm-heading-font-family: "Fraunces", ui-serif, Georgia, serif;
+  --ifm-heading-font-weight: 500;
+
+  --ifm-code-font-size: 88%;
+  --ifm-code-background: #f2ede4;
+  --docusaurus-highlighted-code-line-bg: rgba(181, 70, 42, 0.1);
+
+  --ifm-toc-border-color: #e4ddd0;
+  --ifm-hr-border-color: #e4ddd0;
+
+  --ifm-link-color: #b5462a;
+  --ifm-link-hover-color: #8a3420;
+
+  --ifm-menu-color: #6b675d;
+  --ifm-breadcrumb-item-background-active: rgba(181, 70, 42, 0.08);
+
+  /* Shared palette tokens */
+  --sdk-rule: #e4ddd0;
+  --sdk-ink: #1a1915;
+  --sdk-ink-muted: #6b675d;
+  --sdk-ember: #e8c5a0;
+  --sdk-terracotta: #b5462a;
+}
+
+/* Dark mode — warm night, ember accents (not gray-blue) */
+[data-theme="dark"] {
+  --ifm-color-primary: #d9664a;
+  --ifm-color-primary-dark: #d4552f;
+  --ifm-color-primary-darker: #c94f2b;
+  --ifm-color-primary-darkest: #a63e20;
+  --ifm-color-primary-light: #de7a5f;
+  --ifm-color-primary-lighter: #e1836a;
+  --ifm-color-primary-lightest: #e99f8c;
+
+  --ifm-background-color: #15140f;
+  --ifm-background-surface-color: #1f1d18;
+  --ifm-navbar-background-color: rgba(21, 20, 15, 0.85);
+  --ifm-footer-background-color: #100f0b;
+
+  --ifm-font-color-base: #d8d2c6;
+  --ifm-heading-color: #f2ede4;
+
+  --ifm-code-background: #1f1d18;
+  --docusaurus-highlighted-code-line-bg: rgba(217, 102, 74, 0.15);
+
+  --ifm-toc-border-color: #2d2a24;
+  --ifm-hr-border-color: #2d2a24;
+
+  --ifm-link-color: #d9664a;
+  --ifm-link-hover-color: #e99f8c;
+
+  --ifm-menu-color: #a8a299;
+
+  --sdk-rule: #2d2a24;
+  --sdk-ink: #f2ede4;
+  --sdk-ink-muted: #a8a299;
+}
+
+::selection {
+  background-color: var(--sdk-terracotta);
+  color: #faf7f2;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Faint radial wash, like the Semantic paper-grain */
+[data-theme="light"] .main-wrapper {
+  background-image:
+    radial-gradient(circle at 20% 0%, rgba(181, 70, 42, 0.035) 0%, transparent 50%),
+    radial-gradient(circle at 85% 10%, rgba(26, 25, 21, 0.02) 0%, transparent 55%);
+}
+
+[data-theme="dark"] .main-wrapper {
+  background-image:
+    radial-gradient(circle at 20% 0%, rgba(217, 102, 74, 0.05) 0%, transparent 50%);
+}
+
+/* ---------- Typography ---------- */
+
+.markdown h1,
+.markdown header > h1 {
+  font-variation-settings: "opsz" 96, "SOFT" 30;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  font-size: 2.6rem;
+}
+
+.markdown h2 {
+  font-variation-settings: "opsz" 72;
+  letter-spacing: -0.015em;
+  border-bottom: 1px solid var(--sdk-rule);
+  padding-bottom: 0.45rem;
+  margin-top: 2.6rem;
+}
+
+.markdown h3 {
+  font-family: var(--ifm-font-family-base);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.markdown {
+  line-height: 1.72;
+}
+
+.markdown a:not(.hash-link) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--ifm-link-color) 40%, transparent);
+  transition: text-decoration-color 150ms;
+}
+
+.markdown a:not(.hash-link):hover {
+  text-decoration-color: var(--ifm-link-hover-color);
+}
+
+/* Inline code: warm chip with terracotta text */
+.markdown code:not(.prism-code code) {
+  border: none;
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  color: var(--ifm-color-primary-darkest);
+}
+
+[data-theme="dark"] .markdown code:not(.prism-code code) {
+  color: var(--ifm-color-primary-lightest);
+}
+
+/* Code blocks.
+   Light mode: ink panel — high contrast against the paper page.
+   Dark mode: elevated warm surface, clearly lighter than the page background
+   (a near-black panel on a near-black page has no separation). */
+.prism-code {
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+[data-theme="light"] .prism-code {
+  background-color: #1a1915 !important;
+}
+
+[data-theme="light"] .theme-code-block {
+  box-shadow: 0 12px 32px -18px rgba(26, 25, 21, 0.45);
+}
+
+[data-theme="dark"] .prism-code {
+  background-color: #26231c !important;
+  border: 1px solid #3d3930;
+}
+
+div[class*="codeBlockTitle"] {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sdk-ember) !important;
+}
+
+[data-theme="light"] div[class*="codeBlockTitle"] {
+  background-color: #26241e !important;
+  border-bottom: 1px solid rgba(232, 197, 160, 0.15) !important;
+}
+
+[data-theme="dark"] div[class*="codeBlockTitle"] {
+  background-color: #2e2a22 !important;
+  border-bottom: 1px solid #3d3930 !important;
+}
+
+/* ---------- Navbar ---------- */
+
+.navbar {
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--sdk-rule);
+  box-shadow: none;
+}
+
+/* backdrop-filter hides the mobile sidebar menu (Docusaurus #6996) */
+.navbar.navbar-sidebar--show {
+  backdrop-filter: none;
+}
+
+.navbar__title {
+  font-family: "Fraunces", ui-serif, Georgia, serif;
+  font-variation-settings: "opsz" 96;
+  font-weight: 500;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.navbar__link {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.navbar__link--active {
+  color: var(--sdk-terracotta);
+}
+
+[data-theme="dark"] .navbar__link--active {
+  color: var(--ifm-color-primary-light);
+}
+
+/* ---------- Sidebar ---------- */
+
+.menu {
+  font-size: 0.88rem;
+  font-weight: 400;
+  padding: 1rem 0.75rem !important;
+}
+
+.menu__link {
+  border-radius: 6px;
+  transition: color 120ms, background 120ms;
+}
+
+.menu__link--active:not(.menu__link--sublist) {
+  background: color-mix(in srgb, var(--sdk-terracotta) 9%, transparent);
+  color: var(--ifm-color-primary-darkest);
+  font-weight: 500;
+  border-left: 3px solid var(--sdk-terracotta);
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) - 3px);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+[data-theme="dark"] .menu__link--active:not(.menu__link--sublist) {
+  color: var(--ifm-color-primary-lightest);
+}
+
+.menu__list-item-collapsible {
+  font-weight: 500;
+}
+
+/* Table of contents */
+.table-of-contents__link--active {
+  color: var(--sdk-terracotta);
+  font-weight: 500;
+}
+
+/* ---------- Content chrome ---------- */
+
+/* Per-page version badge: redundant with the navbar version dropdown */
+.theme-doc-version-badge {
+  display: none;
+}
+
+.breadcrumbs__link {
+  font-size: 0.8rem;
+}
+
+.theme-doc-toc-desktop {
+  font-size: 0.82rem;
+}
+
+/* Pagination cards */
+.pagination-nav__link {
+  border: 1px solid var(--sdk-rule);
+  border-radius: 10px;
+  transition: border-color 150ms, transform 150ms;
+}
+
+.pagination-nav__link:hover {
+  border-color: color-mix(in srgb, var(--sdk-terracotta) 45%, transparent);
+}
+
+.pagination-nav__sublabel {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--sdk-ink-muted);
+}
+
+/* Admonitions */
+.alert {
+  border-radius: 10px;
+  border-left-width: 3px;
+}
+
+.alert--info {
+  --ifm-alert-background-color: color-mix(in srgb, var(--sdk-terracotta) 5%, var(--ifm-background-color));
+  --ifm-alert-border-color: var(--sdk-terracotta);
+}
+
+/* Tables (wide ones: layer ARNs, supported APIs) */
+table {
+  display: table;
+  width: 100%;
+  font-size: 0.87rem;
+}
+
+table th {
+  font-family: var(--ifm-font-family-base);
+  font-weight: 600;
+  background: var(--ifm-background-surface-color);
+  border-bottom: 2px solid var(--sdk-rule);
+}
+
+table th,
+table td {
+  border-color: var(--sdk-rule);
+}
+
+/* Footer */
+.footer {
+  --ifm-footer-color: #a8a299;
+  --ifm-footer-link-color: #d8d2c6;
+  --ifm-footer-title-color: #f2ede4;
+}
+
+.footer__title {
+  font-family: "Fraunces", ui-serif, Georgia, serif;
+  font-weight: 500;
+}
+
+.footer a:hover {
+  color: var(--sdk-ember);
+  text-decoration: none;
+}
+
+.footer__copyright {
+  font-size: 0.78rem;
+  color: #6b675d;
+  margin-top: 1.5rem;
+}
+
+/* Search bar */
+.navbar__search-input,
+[data-theme] .DocSearch-Button {
+  border-radius: 9999px;
+  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--sdk-rule);
+  font-size: 0.85rem;
+}
+
+/* Scrollbar, dark mode */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #15140f;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #2d2a24;
+  border-radius: 4px;
+}
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 996px) {
+  .markdown h1,
+  .markdown header > h1 {
+    font-size: 2.1rem;
+  }
+
+  .menu__link {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.95rem;
+  }
+
+  .navbar-sidebar {
+    width: 85vw;
+    max-width: 360px;
+  }
+
+  .navbar-sidebar__backdrop {
+    background-color: rgba(26, 25, 21, 0.6);
+  }
+}

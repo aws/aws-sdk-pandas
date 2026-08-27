@@ -2,7 +2,7 @@
 
 *Pandas on AWS*
 
-Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, QuickSight, Chime, CloudWatchLogs, DynamoDB, EMR, SecretManager, PostgreSQL, MySQL, SQLServer and S3 (Parquet, CSV, JSON and EXCEL).
+DataFrames in and out of Amazon S3 (Parquet, ORC, CSV, JSON, Excel, Delta Lake, S3 Tables/Apache Iceberg, S3 Vectors), Athena, Glue, Redshift, DynamoDB, OpenSearch, Neptune, Timestream, EMR, Clean Rooms, QuickSight, CloudWatch Logs, Secrets Manager, PostgreSQL, MySQL, SQL Server and Oracle.
 
 ![AWS SDK for pandas](https://github.com/aws/aws-sdk-pandas/blob/main/docs/source/_static/logo2.png?raw=true "AWS SDK for pandas")
 ![tracker](https://d3tiqpr4kkkomd.cloudfront.net/img/pixel.png?asset=GVOYN2BOOQ573LTVIHEW)
@@ -45,7 +45,6 @@ Installation command: `pip install awswrangler`
 ```py3
 import awswrangler as wr
 import pandas as pd
-from datetime import datetime
 
 df = pd.DataFrame({"id": [1, 2], "value": ["foo", "boo"]})
 
@@ -64,31 +63,38 @@ df = wr.s3.read_parquet("s3://bucket/dataset/", dataset=True)
 # Retrieving the data from Amazon Athena
 df = wr.athena.read_sql_query("SELECT * FROM my_table", database="my_db")
 
-# Get a Redshift connection from Glue Catalog and retrieving data from Redshift Spectrum
+# Writing to an Apache Iceberg table with upsert (merge on id)
+wr.athena.to_iceberg(
+    df=df,
+    database="my_db",
+    table="my_iceberg_table",
+    merge_cols=["id"],
+)
+
+# Writing to a Delta Lake table (pip install 'awswrangler[deltalake]')
+wr.s3.to_deltalake(df=df, path="s3://bucket/delta/", mode="append")
+
+# Reading from a Redshift data warehouse via a Glue Catalog connection
 con = wr.redshift.connect("my-glue-connection")
 df = wr.redshift.read_sql_query("SELECT * FROM external_schema.my_table", con=con)
 con.close()
 
-# Amazon Timestream Write
-df = pd.DataFrame({
-    "time": [datetime.now(), datetime.now()],   
-    "my_dimension": ["foo", "boo"],
-    "measure": [1.0, 1.1],
-})
-rejected_records = wr.timestream.write(df,
-    database="sampleDB",
-    table="sampleTable",
-    time_col="time",
-    measure_col="measure",
-    dimensions_cols=["my_dimension"],
+# Semantic search with Amazon S3 Vectors: embed with Bedrock, write, query
+wr.s3.put_vectors_from_df(
+    df=pd.DataFrame({"id": ["a", "b"], "title": ["Dune", "Up"]}),
+    key_column="id",
+    text_column="title",
+    bedrock_model_id="amazon.titan-embed-text-v2:0",
+    vector_bucket="my-vector-bucket",
+    index="my-index",
 )
-
-# Amazon Timestream Query
-wr.timestream.query("""
-SELECT time, measure_value::double, my_dimension
-FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
-""")
-
+hits = wr.s3.query_vectors(
+    query_text="a touching story about companionship",
+    bedrock_model_id="amazon.titan-embed-text-v2:0",
+    top_k=3,
+    vector_bucket="my-vector-bucket",
+    index="my-index",
+)
 ```
 
 ## At scale
@@ -148,11 +154,13 @@ Read our [docs](https://aws-sdk-pandas.readthedocs.io/en/3.17.1/scale.html) or h
   - [033 - Amazon Neptune](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/033%20-%20Amazon%20Neptune.ipynb)
   - [034 - Distributing Calls Using Ray](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/034%20-%20Distributing%20Calls%20using%20Ray.ipynb)
   - [035 - Distributing Calls on Ray Remote Cluster](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/035%20-%20Distributing%20Calls%20on%20Ray%20Remote%20Cluster.ipynb)
+  - [036 - Distributing Calls with Glue Interactive Sessions on Ray](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/036%20-%20Distributing%20Calls%20with%20Glue%20Interactive%20Sessions%20on%20Ray.ipynb)
   - [037 - Glue Data Quality](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/037%20-%20Glue%20Data%20Quality.ipynb)
   - [038 - OpenSearch Serverless](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/038%20-%20OpenSearch%20Serverless.ipynb)
   - [039 - Athena Iceberg](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/039%20-%20Athena%20Iceberg.ipynb)
   - [040 - EMR Serverless](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/040%20-%20EMR%20Serverless.ipynb)
   - [041 - Apache Spark on Amazon Athena](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/041%20-%20Apache%20Spark%20on%20Amazon%20Athena.ipynb)
+  - [042 - Amazon S3 Tables](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/042%20-%20Amazon%20S3%20Tables.ipynb)
   - [043 - Amazon S3 Vectors](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/043%20-%20Amazon%20S3%20Vectors.ipynb)
 - [**API Reference**](https://aws-sdk-pandas.readthedocs.io/en/3.17.1/api.html)
   - [Amazon S3](https://aws-sdk-pandas.readthedocs.io/en/3.17.1/api.html#amazon-s3)

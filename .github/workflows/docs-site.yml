@@ -1,0 +1,74 @@
+name: Deploy docs site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "tutorials/**"
+      - "awswrangler/**"
+      - ".github/workflows/docs-site.yml"
+  pull_request:
+    paths:
+      - "website/**"
+      - "tutorials/**"
+      - "awswrangler/**"
+      - ".github/workflows/docs-site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-site-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install awswrangler (for API reference generation)
+        working-directory: .
+        run: pip install ".[redshift,mysql,postgres,sqlserver,oracle,gremlin,sparql,opencypher,openpyxl,opensearch,deltalake]"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build site
+        run: npm run build
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/build
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
