@@ -12,6 +12,7 @@ from typing import (
     Iterable,
     Iterator,
     NamedTuple,
+    Sequence,
     Tuple,
     cast,
 )
@@ -44,13 +45,13 @@ def _get_path_root(path: str | list[str], dataset: bool) -> str | None:
     return _prefix_cleanup(str(path)) if dataset is True else None
 
 
-def _get_path_ignore_suffix(path_ignore_suffix: str | list[str] | None) -> list[str] | None:
+def _get_path_ignore_suffix(path_ignore_suffix: str | Sequence[str] | None) -> list[str] | None:
     if isinstance(path_ignore_suffix, str):
         path_ignore_suffix = [path_ignore_suffix, "/_SUCCESS"]
     elif path_ignore_suffix is None:
         path_ignore_suffix = ["/_SUCCESS"]
     else:
-        path_ignore_suffix = path_ignore_suffix + ["/_SUCCESS"]
+        path_ignore_suffix = list(path_ignore_suffix) + ["/_SUCCESS"]
     return path_ignore_suffix
 
 
