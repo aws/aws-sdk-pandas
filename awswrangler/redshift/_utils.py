@@ -46,9 +46,7 @@ def _make_s3_auth_string(
         if aws_session_token is not None:
             auth_str += f"SESSION_TOKEN '{aws_session_token}'\n"
     elif aws_access_key_id is not None or aws_secret_access_key is not None:
-        raise exceptions.InvalidArgument(
-            "aws_access_key_id and aws_secret_access_key must be provided together."
-        )
+        raise exceptions.InvalidArgument("aws_access_key_id and aws_secret_access_key must be provided together.")
     elif iam_role is not None:
         auth_str = f"IAM_ROLE '{iam_role}'\n"
     else:
