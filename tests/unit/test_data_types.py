@@ -1,4 +1,6 @@
 import datetime
+import math
+from decimal import Decimal
 
 import numpy as np
 import pandas as pd
@@ -6,12 +8,14 @@ import pyarrow as pa
 import pytest
 
 from awswrangler import _data_types
+from awswrangler._arrow import _df_to_table
 from awswrangler._data_types import (
     athena2pandas,
     athena2pyarrow,
     cast_pandas_with_athena_types,
     pyarrow2athena,
     pyarrow2mysql,
+    pyarrow_schema_from_pandas,
 )
 from awswrangler.athena._write_iceberg import _validate_athena_ddl_type as validate_athena_ddl_type
 from awswrangler.exceptions import InvalidArgumentValue, UnsupportedType
@@ -376,3 +380,226 @@ def test_struct_field_name_breakout_is_caught_at_ddl_emission():
 def test_validate_athena_ddl_type_rejects_structural_injection(type_str):
     with pytest.raises(InvalidArgumentValue):
         validate_athena_ddl_type("col", type_str)
+
+
+def test_nested_decimal_dtype_casts_strings_to_decimal() -> None:
+    df = pd.DataFrame(
+        {
+            "id": [1],
+            "tax": [
+                [
+                    {
+                        "a": "foo",
+                        "b": "bar",
+                        "c": "12.345678",
+                    }
+                ]
+            ],
+        }
+    )
+    dtype = {
+        "id": "int",
+        "tax": "array<struct<a:string,b:string,c:decimal(26,6)>>",
+    }
+
+    df = cast_pandas_with_athena_types(df=df, dtype=dtype)
+    schema = pyarrow_schema_from_pandas(df=df, index=False, dtype=dtype)
+    table = _df_to_table(df=df, schema=schema, index=False, dtype=dtype)
+
+    assert table.column("tax").to_pylist() == [[{"a": "foo", "b": "bar", "c": Decimal("12.345678")}]]
+
+
+def test_nested_decimal_cast_preserves_mixed_case_struct_fields() -> None:
+    df = pd.DataFrame({"value": [{"Name": "x", "Amount": "1.5"}]})
+
+    result = cast_pandas_with_athena_types(
+        df=df,
+        dtype={"value": "struct<Name:string,Amount:decimal(10,2)>"},
+    )
+
+    assert result["value"].iloc[0] == {"Name": "x", "Amount": Decimal("1.5")}
+
+
+def test_nested_decimal_cast_preserves_undeclared_struct_fields() -> None:
+    df = pd.DataFrame({"value": [{"a": 1, "extra": 2}]})
+
+    result = cast_pandas_with_athena_types(df=df, dtype={"value": "struct<a:int>"})
+
+    assert result["value"].iloc[0] == {"a": 1, "extra": 2}
+
+
+def test_nested_decimal_cast_preserves_nan_in_non_decimal_leaf() -> None:
+    nan = float("nan")
+    inf = float("inf")
+    df = pd.DataFrame({"value": [[1.0, nan, inf]]})
+
+    result = cast_pandas_with_athena_types(df=df, dtype={"value": "array<double>"})
+    values = result["value"].iloc[0]
+
+    assert type(values) is list
+    assert values[0] == 1.0
+    assert values[1] is nan
+    assert values[2] is inf and math.isinf(values[2])
+    assert result["value"].dtype == df["value"].dtype
+
+
+def test_nested_decimal_casts_array_decimal_values_and_nulls() -> None:
+    existing_decimal = Decimal("2.50")
+    values = ["1.25", existing_decimal, None, pd.NA, np.nan, np.inf]
+
+    result = cast_pandas_with_athena_types(
+        df=pd.DataFrame({"value": [values]}),
+        dtype={"value": "array<decimal(10,2)>"},
+    )
+    cast_values = result["value"].iloc[0]
+
+    assert type(cast_values) is list
+    assert cast_values[0] == Decimal("1.25")
+    assert cast_values[1] is existing_decimal
+    assert cast_values[2:] == [None, None, None, None]
+
+
+def test_nested_decimal_cast_preserves_tuple_for_array_decimal() -> None:
+    values = ("1.25", Decimal("2.50"))
+
+    result = _data_types._cast_nested_athena_value(values, "array<decimal(10,2)>")
+
+    assert type(result) is tuple
+    assert result == (Decimal("1.25"), Decimal("2.50"))
+
+    df = pd.DataFrame({"value": [values]})
+    cast_df = cast_pandas_with_athena_types(df, {"value": "array<decimal(10,2)>"})
+    assert type(cast_df["value"].iloc[0]) is tuple
+
+
+def test_nested_decimal_casts_multiple_fields_in_nested_struct_preserving_order() -> None:
+    value = {"before": 7, "nested": {"First": "1.25", "Second": "2.50", "extra": True}, "after": "tail"}
+    dtype = "struct<before:int,nested:struct<First:decimal(10,2),Second:decimal(10,2)>,after:string>"
+
+    result = _data_types._cast_nested_athena_value(value, dtype)
+
+    assert list(result) == ["before", "nested", "after"]
+    assert list(result["nested"]) == ["First", "Second", "extra"]
+    assert result["before"] == 7 and type(result["before"]) is int
+    assert result["nested"] == {"First": Decimal("1.25"), "Second": Decimal("2.50"), "extra": True}
+    assert result["after"] == "tail"
+
+
+def test_nested_decimal_casts_decimal_inside_map() -> None:
+    value = {"first": "1.25", "second": "2.50"}
+
+    result = _data_types._cast_nested_athena_value(value, "map<string,decimal(10,2)>")
+
+    assert type(result) is dict
+    assert list(result) == ["first", "second"]
+    assert result == {"first": Decimal("1.25"), "second": Decimal("2.50")}
+
+
+def test_nested_decimal_casts_decimal_inside_map_array() -> None:
+    value = {"amounts": ["1.25", None, "2.50"]}
+
+    result = _data_types._cast_nested_athena_value(value, "map<string,array<decimal(10,2)>>")
+
+    assert type(result) is dict
+    assert type(result["amounts"]) is list
+    assert result == {"amounts": [Decimal("1.25"), None, Decimal("2.50")]}
+
+
+def test_nested_decimal_cast_preserves_map_pair_container_types() -> None:
+    value = [["first", "1.25"], ("second", "2.50")]
+
+    result = _data_types._cast_nested_athena_value(value, "map<string,decimal(10,2)>")
+
+    assert type(result) is list
+    assert type(result[0]) is list
+    assert type(result[1]) is tuple
+    assert result == [["first", Decimal("1.25")], ("second", Decimal("2.50"))]
+
+
+def test_nested_decimal_cast_converts_nan_and_inf_only_for_decimal_fields() -> None:
+    value = {
+        "nan": np.nan,
+        "inf": np.inf,
+        "decimal_nan": Decimal("NaN"),
+        "decimal_inf": Decimal("Infinity"),
+        "value": None,
+    }
+
+    result = _data_types._cast_nested_athena_value(
+        value,
+        "struct<nan:decimal(10,2),inf:decimal(10,2),decimal_nan:decimal(10,2),"
+        "decimal_inf:decimal(10,2),value:decimal(10,2)>",
+    )
+
+    assert result == {"nan": None, "inf": None, "decimal_nan": None, "decimal_inf": None, "value": None}
+
+
+def test_nested_non_decimal_values_and_containers_preserve_identity() -> None:
+    nan = float("nan")
+    inf = float("inf")
+    value = {
+        "text": "text",
+        "integer": 3,
+        "float": 1.5,
+        "boolean": True,
+        "decimal": Decimal("4.25"),
+        "decimal_nonfinite": Decimal("Infinity"),
+        "none": None,
+        "missing": pd.NA,
+        "nan": nan,
+        "inf": inf,
+        "list": [1, 2],
+        "tuple": ("x", 4),
+        "dict": {"nested": False},
+    }
+    dtype = (
+        "struct<text:string,integer:int,float:double,boolean:boolean,decimal:string,decimal_nonfinite:string,"
+        "none:string,missing:string,"
+        "nan:double,inf:double,list:array<int>,tuple:array<string>,dict:map<string,boolean>>"
+    )
+
+    result = _data_types._cast_nested_athena_value(value, dtype)
+
+    assert result is value
+    assert list(result) == list(value)
+    assert result["text"] is value["text"]
+    assert result["integer"] is value["integer"]
+    assert result["float"] is value["float"]
+    assert result["boolean"] is value["boolean"]
+    assert result["decimal"] is value["decimal"]
+    assert result["decimal_nonfinite"] is value["decimal_nonfinite"]
+    assert result["none"] is None
+    assert result["missing"] is pd.NA
+    assert result["nan"] is nan and math.isnan(result["nan"])
+    assert result["inf"] is inf and math.isinf(result["inf"])
+    assert result["list"] is value["list"]
+    assert result["tuple"] is value["tuple"]
+    assert result["dict"] is value["dict"]
+
+    df = pd.DataFrame({"value": [value]})
+    cast_df = cast_pandas_with_athena_types(df, {"value": dtype})
+    assert cast_df["value"].iloc[0] is value
+    assert cast_df["value"].dtype == df["value"].dtype
+
+
+def test_nested_decimal_cast_preserves_array_values_when_type_is_malformed_or_unsupported() -> None:
+    values = ["1.25", None]
+    struct_value = {"amount": "1.25", "extra": 3}
+    map_value = {"amount": "1.25"}
+
+    assert _data_types._cast_nested_athena_value(values, "array<decimal(10,2)") is values
+    assert _data_types._cast_nested_athena_value(values, "array<unsupported>") is values
+    assert _data_types._cast_nested_athena_value(struct_value, "struct<amount:unsupported>") is struct_value
+    assert _data_types._cast_nested_athena_value(map_value, "map<string,unsupported>") is map_value
+
+
+@pytest.mark.parametrize(
+    "value,athena_type,error",
+    [
+        ({"a": 1}, "struct<a>", ValueError),
+        ({"a": 1}, "map<string>", RuntimeError),
+    ],
+)
+def test_nested_decimal_cast_preserves_errors_for_malformed_types(value, athena_type, error) -> None:
+    with pytest.raises(error):
+        _data_types._cast_nested_athena_value(value, athena_type)
