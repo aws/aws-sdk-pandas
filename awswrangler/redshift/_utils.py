@@ -374,7 +374,7 @@ def _add_new_table_columns(cursor: "Cursor", schema: str, table: str, redshift_c
     _add_table_columns(cursor=cursor, schema=schema, table=table, new_columns=new_df_columns)
 
 
-def _create_table(  # noqa: PLR0913
+def _create_table(  # noqa: PLR0913, PLR0917
     df: pd.DataFrame | None,
     path: str | list[str] | None,
     con: "Connection",
