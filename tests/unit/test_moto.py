@@ -14,6 +14,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
+from awswrangler._distributed import EngineEnum
 from awswrangler.exceptions import InvalidArgumentCombination, InvalidArgumentValue
 
 from .._utils import _get_unique_suffix, ensure_data_types, get_df_csv, get_df_list
@@ -976,3 +977,32 @@ def test_redshift_auth_string_full_credentials() -> None:
     auth_str = _make_s3_auth_string(aws_access_key_id="AKIA_EXAMPLE", aws_secret_access_key="secret_example")
     assert "ACCESS_KEY_ID 'AKIA_EXAMPLE'" in auth_str
     assert "SECRET_ACCESS_KEY 'secret_example'" in auth_str
+
+
+# boto3_session/s3_additional_kwargs are rejected up-front in distributed mode,
+# so the forwarding under test is only reachable on the python engine.
+@mock.patch("awswrangler.neptune._neptune.bulk_load_from_files")
+@mock.patch("awswrangler.neptune._neptune.s3.delete_objects")
+@mock.patch("awswrangler.neptune._neptune.s3.to_csv")
+@mock.patch("awswrangler.neptune._neptune.s3.list_objects", return_value=[])
+@mock.patch("awswrangler._distributed.engine.get", return_value=EngineEnum.PYTHON)
+def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
+    engine_get, list_objects, to_csv, delete_objects, bulk_load_from_files
+) -> None:
+    df = pd.DataFrame({"~id": ["0"], "~label": ["v"]})
+    session = boto3.Session(region_name="us-east-1")
+    s3_kwargs = {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": "arn:aws:kms:us-east-1:123456789012:key/x"}
+
+    wr.neptune.bulk_load(
+        client=mock.MagicMock(),
+        df=df,
+        path="s3://bucket/stage/",
+        iam_role="arn:aws:iam::123456789012:role/example",
+        boto3_session=session,
+        s3_additional_kwargs=s3_kwargs,
+    )
+
+    # The staged write must run under the caller's session and encryption kwargs,
+    # matching the list_objects/delete_objects calls in the same function.
+    assert to_csv.call_args.kwargs["boto3_session"] is session
+    assert to_csv.call_args.kwargs["s3_additional_kwargs"] == s3_kwargs
