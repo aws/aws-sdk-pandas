@@ -17,6 +17,7 @@ from ._utils import (
     _add_new_table_columns,
     _create_table,
     _does_table_exist,
+    _escape_string_literal,
     _get_rsh_columns_types,
     _identifier,
     _make_s3_auth_string,
@@ -78,7 +79,9 @@ def _copy(
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
     column_names_str: str = f"({','.join(_identifier(col) for col in column_names)})" if column_names else ""
     sql = (
-        f"COPY {table_name} {column_names_str}\nFROM '{path}' {auth_str}\nFORMAT AS {data_format.upper()}{ser_json_str}"
+        f"COPY {table_name} {column_names_str}\n"
+        f"FROM '{_escape_string_literal(path)}' {auth_str}\n"
+        f"FORMAT AS {data_format.upper()}{ser_json_str}"
     )
 
     if manifest:

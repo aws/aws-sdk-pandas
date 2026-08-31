@@ -34,6 +34,11 @@ def _identifier(sql: str) -> str:
     return _sql_utils.identifier(sql, sql_mode="ansi")
 
 
+def _escape_string_literal(value: str) -> str:
+    """Escape a value for safe interpolation inside a single-quoted SQL string literal."""
+    return value.replace("'", "''")
+
+
 def _make_s3_auth_string(
     aws_access_key_id: str | None = None,
     aws_secret_access_key: str | None = None,
