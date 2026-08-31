@@ -362,9 +362,8 @@ def unload_to_files(
             boto3_session=boto3_session,
         )
 
-        # Escape quotation marks in SQL. Backslashes are allowed here — unlike
-        # _escape_string_literal targets, arbitrary SQL may legitimately contain them.
-        sql = sql.replace("'", "''")
+        # Escape quotation marks in SQL
+        sql = _escape_string_literal(sql)
 
         overwrite_str: str = "CLEANPATH" if cleanpath else "ALLOWOVERWRITE"
 

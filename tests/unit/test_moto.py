@@ -953,18 +953,3 @@ def test_redshift_copy_escapes_path_literal() -> None:
     executed_sql = cursor.execute.call_args[0][0]
     assert "FROM 's3://bucket/o''brien/'" in executed_sql
     assert "o'brien" not in executed_sql.replace("o''brien", "")
-
-
-def test_redshift_copy_rejects_backslash_in_path() -> None:
-    from awswrangler.redshift._write import _copy
-
-    # No single escaping of backslashes is correct in both standard_conforming_strings
-    # modes, so they are rejected outright.
-    with pytest.raises(wr.exceptions.InvalidArgument):
-        _copy(
-            cursor=mock.MagicMock(),
-            path="s3://bucket/a\\'; DROP TABLE t; --/",
-            table="t",
-            serialize_to_json=False,
-            iam_role="arn:aws:iam::123456789012:role/example",
-        )

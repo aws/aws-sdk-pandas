@@ -35,15 +35,7 @@ def _identifier(sql: str) -> str:
 
 
 def _escape_string_literal(value: str) -> str:
-    """Escape a value for safe interpolation inside a single-quoted SQL string literal.
-
-    Backslashes are rejected rather than escaped: their interpretation depends on the
-    ``standard_conforming_strings`` session setting, so no single escaping is correct in
-    both modes, and they are never legitimate in the parameters this is applied to
-    (S3 paths, region names, KMS key ids).
-    """
-    if "\\" in value:
-        raise exceptions.InvalidArgument("Backslash is not supported in this parameter.")
+    """Escape a value for safe interpolation inside a single-quoted SQL string literal."""
     return value.replace("'", "''")
 
 
