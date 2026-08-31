@@ -936,3 +936,43 @@ def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto
     # 5. max_items_evaluated=-1 raises InvalidArgumentValue
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
+
+
+def test_secretsmanager_get_secret_binary(moto_aws) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    # Bytes that are not valid base64 input; the previous double-decode silently returned b"".
+    raw = bytes(range(8))
+    session.client("secretsmanager").create_secret(Name="aws-sdk-pandas/binary-secret", SecretBinary=raw)
+
+    assert wr.secretsmanager.get_secret("aws-sdk-pandas/binary-secret", boto3_session=session) == raw
+
+
+def test_secretsmanager_get_secret_string(moto_aws) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    session.client("secretsmanager").create_secret(Name="aws-sdk-pandas/string-secret", SecretString="p@ssw0rd")
+
+    assert wr.secretsmanager.get_secret("aws-sdk-pandas/string-secret", boto3_session=session) == "p@ssw0rd"
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"aws_access_key_id": "AKIA_EXAMPLE"},
+        {"aws_secret_access_key": "secret_example"},
+    ],
+)
+def test_redshift_auth_string_partial_credentials(kwargs) -> None:
+    from awswrangler.redshift._utils import _make_s3_auth_string
+
+    # Supplying only one of the access-key pair previously fell through to ambient
+    # session credentials silently; it must now fail loudly.
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        _make_s3_auth_string(**kwargs)
+
+
+def test_redshift_auth_string_full_credentials() -> None:
+    from awswrangler.redshift._utils import _make_s3_auth_string
+
+    auth_str = _make_s3_auth_string(aws_access_key_id="AKIA_EXAMPLE", aws_secret_access_key="secret_example")
+    assert "ACCESS_KEY_ID 'AKIA_EXAMPLE'" in auth_str
+    assert "SECRET_ACCESS_KEY 'secret_example'" in auth_str
