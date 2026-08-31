@@ -989,6 +989,9 @@ def test_redshift_auth_string_full_credentials() -> None:
 def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
     engine_get, list_objects, to_csv, delete_objects, bulk_load_from_files
 ) -> None:
+    # bulk_load is gated on the sparql extra, which minimal CI does not install.
+    pytest.importorskip("SPARQLWrapper")
+
     df = pd.DataFrame({"~id": ["0"], "~label": ["v"]})
     session = boto3.Session(region_name="us-east-1")
     s3_kwargs = {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": "arn:aws:kms:us-east-1:123456789012:key/x"}
