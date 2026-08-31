@@ -50,13 +50,7 @@ from datetime import datetime
 df = pd.DataFrame({"id": [1, 2], "value": ["foo", "boo"]})
 
 # Storing data on Data Lake
-wr.s3.to_parquet(
-    df=df,
-    path="s3://bucket/dataset/",
-    dataset=True,
-    database="my_db",
-    table="my_table"
-)
+wr.s3.to_parquet(df=df, path="s3://bucket/dataset/", dataset=True, database="my_db", table="my_table")
 
 # Retrieving the data directly from Amazon S3
 df = wr.s3.read_parquet("s3://bucket/dataset/", dataset=True)
@@ -70,12 +64,15 @@ df = wr.redshift.read_sql_query("SELECT * FROM external_schema.my_table", con=co
 con.close()
 
 # Amazon Timestream Write
-df = pd.DataFrame({
-    "time": [datetime.now(), datetime.now()],   
-    "my_dimension": ["foo", "boo"],
-    "measure": [1.0, 1.1],
-})
-rejected_records = wr.timestream.write(df,
+df = pd.DataFrame(
+    {
+        "time": [datetime.now(), datetime.now()],
+        "my_dimension": ["foo", "boo"],
+        "measure": [1.0, 1.1],
+    }
+)
+rejected_records = wr.timestream.write(
+    df,
     database="sampleDB",
     table="sampleTable",
     time_col="time",
@@ -88,7 +85,6 @@ wr.timestream.query("""
 SELECT time, measure_value::double, my_dimension
 FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
 """)
-
 ```
 
 ## At scale
@@ -196,6 +192,7 @@ Enabling internal logging examples:
 
 ```py3
 import logging
+
 logging.basicConfig(level=logging.INFO, format="[%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
@@ -205,5 +202,6 @@ Into AWS lambda:
 
 ```py3
 import logging
+
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 ```

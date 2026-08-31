@@ -278,7 +278,7 @@ def to_sql(
 
 
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
-def copy_from_files(  # noqa: PLR0913
+def copy_from_files(  # noqa: PLR0913, PLR0917
     path: str,
     con: "Connection",
     table: str,
@@ -544,7 +544,7 @@ def copy_from_files(  # noqa: PLR0913
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
 @_utils.check_optional_dependency(redshift_connector, "redshift_connector")
-def copy(  # noqa: PLR0913
+def copy(  # noqa: PLR0913, PLR0917
     df: pd.DataFrame,
     path: str,
     con: "Connection",
