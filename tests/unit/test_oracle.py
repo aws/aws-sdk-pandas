@@ -76,6 +76,21 @@ def test_to_sql_upsert(oracle_table: str, oracle_con: "oracledb.Connection", fir
     assert_pandas_equals(df_expected, df_actual)
 
 
+def test_generate_upsert_statement_column_alignment() -> None:
+    df = pd.DataFrame({"name": ["alice"], "age": [30], "id": [1]})
+    sql = wr.oracle._generate_upsert_statement(
+        table_identifier='"TEST"."T"',
+        df=df,
+        use_column_names=True,
+        primary_keys=["id"],
+    )
+
+    assert 'INSERT INTO "TEST"."T" ("name", "age", "id")' in sql
+    assert "VALUES (:1, :2, :3)" in sql
+    assert '"name" = :1, "age" = :2' in sql
+    assert '"id" = :3' in sql
+
+
 def test_sql_types(oracle_table: str, oracle_con: "oracledb.Connection") -> None:
     table = oracle_table
     df = get_df()
