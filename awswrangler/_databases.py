@@ -211,30 +211,37 @@ def _iterate_results(
     timestamp_as_object: bool,
     dtype_backend: Literal["numpy_nullable", "pyarrow"],
 ) -> Iterator[pd.DataFrame]:
-    with con.cursor() as cursor:
-        cursor.execute(*cursor_args)
-        if _oracledb_found:
-            decimal_dtypes = oracle.detect_oracle_decimal_datatype(cursor)
-            _logger.debug("steporig: %s", dtype)
-            if decimal_dtypes and dtype is not None:
-                dtype = dict(list(decimal_dtypes.items()) + list(dtype.items()))
-            elif decimal_dtypes:
-                dtype = decimal_dtypes
+    # This generator runs lazily, so the caller's `try` block is already unwound by the time
+    # the statement is executed. The rollback must therefore happen here.
+    try:
+        with con.cursor() as cursor:
+            cursor.execute(*cursor_args)
+            if _oracledb_found:
+                decimal_dtypes = oracle.detect_oracle_decimal_datatype(cursor)
+                _logger.debug("steporig: %s", dtype)
+                if decimal_dtypes and dtype is not None:
+                    dtype = dict(list(decimal_dtypes.items()) + list(dtype.items()))
+                elif decimal_dtypes:
+                    dtype = decimal_dtypes
 
-        cols_names = _get_cols_names(cursor.description)
-        while True:
-            records = cursor.fetchmany(chunksize)
-            if not records:
-                break
-            yield _records2df(
-                records=records,
-                cols_names=cols_names,
-                index=index_col,
-                safe=safe,
-                dtype=dtype,
-                timestamp_as_object=timestamp_as_object,
-                dtype_backend=dtype_backend,
-            )
+            cols_names = _get_cols_names(cursor.description)
+            while True:
+                records = cursor.fetchmany(chunksize)
+                if not records:
+                    break
+                yield _records2df(
+                    records=records,
+                    cols_names=cols_names,
+                    index=index_col,
+                    safe=safe,
+                    dtype=dtype,
+                    timestamp_as_object=timestamp_as_object,
+                    dtype_backend=dtype_backend,
+                )
+    except Exception as ex:
+        con.rollback()
+        _logger.error(ex)
+        raise
 
 
 def _fetch_all_results(
