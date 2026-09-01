@@ -455,6 +455,38 @@ def test_to_csv_valid_argument_combination_when_dataset_true_succeed(moto_s3_cli
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, mode="append")
 
 
+def test_path2list_suffix_with_list_of_paths(moto_s3_client: "S3Client") -> None:
+    paths = ["s3://bucket/file1.parquet", "s3://bucket/file2.txt", "s3://bucket/file3.csv"]
+
+    # 1. suffix only
+    result1 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=".parquet",
+    )
+    assert result1 == ["s3://bucket/file1.parquet"]
+
+    # 2. list of suffixes
+    result2 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=[".parquet", ".csv"],
+    )
+    assert result2 == ["s3://bucket/file1.parquet", "s3://bucket/file3.csv"]
+
+    # 3. suffix and ignore_suffix combined
+    result3 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=[".parquet", ".txt"],
+        ignore_suffix=".txt",
+    )
+    assert result3 == ["s3://bucket/file1.parquet"]
+
+
 def test_to_csv_data_empty(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=pd.DataFrame(), path=path, index=False)
