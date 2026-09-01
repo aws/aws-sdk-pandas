@@ -585,7 +585,7 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     if "refresh" in kwargs and _is_serverless(client):
         raise exceptions.NotSupported("Refresh policy not supported in OpenSearch Serverless.")
 
-    if use_threads and any([max_retries, initial_backoff, max_backoff]):
+    if use_threads and any(x is not None for x in (max_retries, initial_backoff, max_backoff)):
         raise exceptions.InvalidArgumentCombination(
             "`max_retries`, `initial_backoff`, and `max_backoff` are not supported when `use_threads` is set to True"
         )
@@ -635,9 +635,9 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
                     errors += _errors
             else:
                 # Defaults
-                bulk_kwargs["max_retries"] = 5 if not max_retries else max_retries
-                bulk_kwargs["initial_backoff"] = 2 if not initial_backoff else initial_backoff
-                bulk_kwargs["max_backoff"] = 600 if not max_backoff else max_backoff
+                bulk_kwargs["max_retries"] = 5 if max_retries is None else max_retries
+                bulk_kwargs["initial_backoff"] = 2 if initial_backoff is None else initial_backoff
+                bulk_kwargs["max_backoff"] = 600 if max_backoff is None else max_backoff
 
                 _success, _errors = opensearchpy.helpers.bulk(client, bulk_chunk_documents, **bulk_kwargs)
                 success += _success
