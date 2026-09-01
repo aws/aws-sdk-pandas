@@ -58,9 +58,11 @@ def _new_writer(
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
     if "coerce_timestamps" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+        pyarrow_additional_kwargs["coerce_timestamps"] = "us"
     if "flavor" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["flavor"] = "spark"
+    if "use_deprecated_int96_timestamps" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["use_deprecated_int96_timestamps"] = False
     if "version" not in pyarrow_additional_kwargs:
         # By default, use version 1.0 logical type set to maximize compatibility
         pyarrow_additional_kwargs["version"] = "1.0"
@@ -712,9 +714,11 @@ def to_parquet(
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
     if "coerce_timestamps" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+        pyarrow_additional_kwargs["coerce_timestamps"] = "us"
     if "flavor" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["flavor"] = "spark"
+    if "use_deprecated_int96_timestamps" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["use_deprecated_int96_timestamps"] = False
 
     strategy = _S3ParquetWriteStrategy()
     return strategy.write(
