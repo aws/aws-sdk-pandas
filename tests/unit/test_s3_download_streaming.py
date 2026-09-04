@@ -7,6 +7,8 @@ assert the content round-trips AND that the object is fetched in bounded
 byte-range chunks rather than one shot.
 """
 
+from __future__ import annotations
+
 import io
 
 import boto3
@@ -63,7 +65,7 @@ def test_download_to_path_streams_in_bounded_chunks(moto_s3_client, tmp_path, mo
 
 def test_download_to_fileobj_preserves_content(moto_s3_client):
     size = _DOWNLOAD_CHUNK_SIZE + 777
-    payload = bytes(bytearray((i % 256 for i in range(size))))
+    payload = bytes(bytearray(i % 256 for i in range(size)))
     moto_s3_client.put_object(Bucket="bucket", Key="obj.bin", Body=payload)
 
     buf = io.BytesIO()
