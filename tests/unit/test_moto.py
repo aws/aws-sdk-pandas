@@ -14,6 +14,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
+from awswrangler._distributed import EngineEnum
 from awswrangler.exceptions import InvalidArgumentCombination, InvalidArgumentValue
 
 from .._utils import _get_unique_suffix, ensure_data_types, get_df_csv, get_df_list
@@ -936,3 +937,92 @@ def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto
     # 5. max_items_evaluated=-1 raises InvalidArgumentValue
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
+
+
+def test_redshift_copy_escapes_path_literal() -> None:
+    from awswrangler.redshift._write import _copy
+
+    cursor = mock.MagicMock()
+    # A single quote in the path must not be able to terminate the COPY string literal.
+    _copy(
+        cursor=cursor,
+        path="s3://bucket/o'brien/",
+        table="t",
+        serialize_to_json=False,
+        iam_role="arn:aws:iam::123456789012:role/example",
+    )
+    executed_sql = cursor.execute.call_args[0][0]
+    assert "FROM 's3://bucket/o''brien/'" in executed_sql
+    assert "o'brien" not in executed_sql.replace("o''brien", "")
+
+
+def test_secretsmanager_get_secret_binary(moto_aws) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    # Bytes that are not valid base64 input; the previous double-decode silently returned b"".
+    raw = bytes(range(8))
+    session.client("secretsmanager").create_secret(Name="aws-sdk-pandas/binary-secret", SecretBinary=raw)
+
+    assert wr.secretsmanager.get_secret("aws-sdk-pandas/binary-secret", boto3_session=session) == raw
+
+
+def test_secretsmanager_get_secret_string(moto_aws) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    session.client("secretsmanager").create_secret(Name="aws-sdk-pandas/string-secret", SecretString="p@ssw0rd")
+
+    assert wr.secretsmanager.get_secret("aws-sdk-pandas/string-secret", boto3_session=session) == "p@ssw0rd"
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"aws_access_key_id": "AKIA_EXAMPLE"},
+        {"aws_secret_access_key": "secret_example"},
+    ],
+)
+def test_redshift_auth_string_partial_credentials(kwargs) -> None:
+    from awswrangler.redshift._utils import _make_s3_auth_string
+
+    # Supplying only one of the access-key pair previously fell through to ambient
+    # session credentials silently; it must now fail loudly.
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        _make_s3_auth_string(**kwargs)
+
+
+def test_redshift_auth_string_full_credentials() -> None:
+    from awswrangler.redshift._utils import _make_s3_auth_string
+
+    auth_str = _make_s3_auth_string(aws_access_key_id="AKIA_EXAMPLE", aws_secret_access_key="secret_example")
+    assert "ACCESS_KEY_ID 'AKIA_EXAMPLE'" in auth_str
+    assert "SECRET_ACCESS_KEY 'secret_example'" in auth_str
+
+
+# boto3_session/s3_additional_kwargs are rejected up-front in distributed mode,
+# so the forwarding under test is only reachable on the python engine.
+@mock.patch("awswrangler.neptune._neptune.bulk_load_from_files")
+@mock.patch("awswrangler.neptune._neptune.s3.delete_objects")
+@mock.patch("awswrangler.neptune._neptune.s3.to_csv")
+@mock.patch("awswrangler.neptune._neptune.s3.list_objects", return_value=[])
+@mock.patch("awswrangler._distributed.engine.get", return_value=EngineEnum.PYTHON)
+def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
+    engine_get, list_objects, to_csv, delete_objects, bulk_load_from_files
+) -> None:
+    # bulk_load is gated on the sparql extra, which minimal CI does not install.
+    pytest.importorskip("SPARQLWrapper")
+
+    df = pd.DataFrame({"~id": ["0"], "~label": ["v"]})
+    session = boto3.Session(region_name="us-east-1")
+    s3_kwargs = {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": "arn:aws:kms:us-east-1:123456789012:key/x"}
+
+    wr.neptune.bulk_load(
+        client=mock.MagicMock(),
+        df=df,
+        path="s3://bucket/stage/",
+        iam_role="arn:aws:iam::123456789012:role/example",
+        boto3_session=session,
+        s3_additional_kwargs=s3_kwargs,
+    )
+
+    # The staged write must run under the caller's session and encryption kwargs,
+    # matching the list_objects/delete_objects calls in the same function.
+    assert to_csv.call_args.kwargs["boto3_session"] is session
+    assert to_csv.call_args.kwargs["s3_additional_kwargs"] == s3_kwargs

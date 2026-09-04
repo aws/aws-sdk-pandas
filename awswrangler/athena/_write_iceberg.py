@@ -458,7 +458,7 @@ def _merge_iceberg(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "s3_additional_kwargs"],
 )
-def to_iceberg(  # noqa: PLR0913
+def to_iceberg(  # noqa: PLR0913, PLR0917
     df: pd.DataFrame,
     database: str,
     table: str,
