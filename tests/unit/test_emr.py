@@ -185,3 +185,14 @@ def test_docker(bucket, cloudformation_outputs, emr_security_configuration):
 )
 def test_get_emr_integer_version(version, result):
     assert wr.emr._get_emr_classification_lib(version) == result
+
+
+@pytest.mark.parametrize("region", ["us-east-1", "us-gov-west-1", "cn-north-1", "us-iso-east-1"])
+def test_ecr_credentials_refresh_valid_region(region):
+    assert region in wr.emr._get_ecr_credentials_refresh_content(region)
+
+
+@pytest.mark.parametrize("region", ["us-east-1; rm -rf /", "us-east-1 --profile x", "$(whoami)", "", "US-EAST-1"])
+def test_ecr_credentials_refresh_invalid_region(region):
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.emr._get_ecr_credentials_refresh_content(region)
