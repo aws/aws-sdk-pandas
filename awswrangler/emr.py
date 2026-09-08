@@ -18,6 +18,8 @@ _ActionOnFailureLiteral = Literal["TERMINATE_JOB_FLOW", "TERMINATE_CLUSTER", "CA
 
 
 def _get_ecr_credentials_refresh_content(region: str) -> str:
+    if re.fullmatch(r"[a-z0-9-]+", region) is None:
+        raise exceptions.InvalidArgumentValue(f"Invalid AWS region: {region}")
     return f"""
 import subprocess
 from pyspark.sql import SparkSession
