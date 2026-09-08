@@ -605,10 +605,10 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     try:
         if progressbar:
             widgets = [
-                progressbar.Percentage(),  # type: ignore[no-untyped-call]
-                progressbar.SimpleProgress(format=" (%(value_s)s/%(max_value_s)s)"),  # type: ignore[no-untyped-call]
+                progressbar.Percentage(),
+                progressbar.SimpleProgress(format=" (%(value_s)s/%(max_value_s)s)"),
                 progressbar.Bar(),  # type: ignore[no-untyped-call]
-                progressbar.Timer(),  # type: ignore[no-untyped-call]
+                progressbar.Timer(),
             ]
             progress_bar = progressbar.ProgressBar(
                 widgets=widgets, max_value=total_documents, prefix="Indexing: "

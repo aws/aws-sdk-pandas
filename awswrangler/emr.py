@@ -433,7 +433,7 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
     return args
 
 
-def create_cluster(  # noqa: PLR0913
+def create_cluster(  # noqa: PLR0913, PLR0917
     subnet_id: str,
     cluster_name: str = "my-emr-cluster",
     logging_s3_path: str | None = None,

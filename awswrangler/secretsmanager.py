@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import logging
 from typing import Any, Dict, cast
@@ -39,7 +38,9 @@ def get_secret(name: str, boto3_session: boto3.Session | None = None) -> str | b
     response = client.get_secret_value(SecretId=name)
     if "SecretString" in response:
         return response["SecretString"]
-    return base64.b64decode(response["SecretBinary"])
+    # botocore already base64-decodes blob-typed response members, so ``SecretBinary`` holds
+    # the raw secret bytes. Decoding again corrupts the value (and raises for non-base64 bytes).
+    return response["SecretBinary"]
 
 
 def get_secret_json(name: str, boto3_session: boto3.Session | None = None) -> dict[str, Any]:
