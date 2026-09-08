@@ -106,9 +106,8 @@ def _get_connection_attributes_from_secrets_manager(
             ssl_context = ssl.create_default_context()
         else:
             _logger.warning(
-                'The "ssl" property from Secrets Manager is ignored for engine %s. '
-                "Configure TLS through the engine's connect() arguments instead.",
-                kind,
+                'The "ssl" property from Secrets Manager is only supported for MySQL engines '
+                "and will be ignored. Configure TLS through the engine's connect() arguments instead."
             )
     return ConnectionAttributes(
         kind=kind,
