@@ -99,6 +99,18 @@ def _get_connection_attributes_from_secrets_manager(
     ssl_enabled: Any = secret_value.get("ssl", False)
     if isinstance(ssl_enabled, str):
         ssl_enabled = ssl_enabled.strip().lower() == "true"
+    ssl_context: ssl.SSLContext | None = None
+    if ssl_enabled:
+        # Only the MySQL connector consumes ssl_context from this path.
+        if kind in ("mysql", "aurora-mysql"):
+            ssl_context = ssl.create_default_context()
+        else:
+            _logger.warning(
+                'The "ssl" property of secret %s is ignored for engine %s. '
+                "Configure TLS through the engine's connect() arguments instead.",
+                secret_id,
+                kind,
+            )
     return ConnectionAttributes(
         kind=kind,
         user=secret_value["username"],
@@ -106,7 +118,7 @@ def _get_connection_attributes_from_secrets_manager(
         host=secret_value["host"],
         port=int(secret_value["port"]),
         database=_dbname,
-        ssl_context=ssl.create_default_context() if ssl_enabled else None,
+        ssl_context=ssl_context,
     )
 
 

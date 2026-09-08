@@ -974,14 +974,25 @@ def test_secretsmanager_get_secret_string(moto_aws) -> None:
 
 
 @pytest.mark.parametrize(
-    "ssl_value, expect_tls",
-    [(True, True), ("true", True), ("True", True), (False, False), ("false", False), (None, False)],
+    "engine, ssl_value, expect_tls",
+    [
+        ("mysql", True, True),
+        ("mysql", "true", True),
+        ("mysql", "True", True),
+        ("mysql", False, False),
+        ("mysql", "false", False),
+        ("mysql", None, False),
+        ("aurora-mysql", True, True),
+        # ssl_context is only consumed by the MySQL connector; other engines must not set it
+        ("postgresql", True, False),
+        ("sqlserver", True, False),
+    ],
 )
-def test_connection_attributes_from_secret_ssl(moto_aws, ssl_value, expect_tls) -> None:
+def test_connection_attributes_from_secret_ssl(moto_aws, engine, ssl_value, expect_tls) -> None:
     session = boto3.Session(region_name="us-east-1")
     secret = {
-        "engine": "mysql",
-        "host": "mysql-instance.us-east-1.rds.amazonaws.com",
+        "engine": engine,
+        "host": "db-instance.us-east-1.rds.amazonaws.com",
         "username": "test",
         "password": "test",
         "port": "3306",
@@ -989,7 +1000,7 @@ def test_connection_attributes_from_secret_ssl(moto_aws, ssl_value, expect_tls) 
     }
     if ssl_value is not None:
         secret["ssl"] = ssl_value
-    secret_name = f"aws-sdk-pandas/db-secret-ssl-{type(ssl_value).__name__}-{ssl_value}"
+    secret_name = f"aws-sdk-pandas/db-secret-ssl-{engine}-{type(ssl_value).__name__}-{ssl_value}"
     session.client("secretsmanager").create_secret(Name=secret_name, SecretString=json.dumps(secret))
 
     attrs = wr._databases._get_connection_attributes_from_secrets_manager(
