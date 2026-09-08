@@ -96,6 +96,9 @@ def _get_connection_attributes_from_secrets_manager(
         if kind != "redshift":
             raise exceptions.InvalidConnection(f"The secret {secret_id} MUST have a dbname property.")
         _dbname = _get_dbname(cluster_id=secret_value["dbClusterIdentifier"], boto3_session=boto3_session)
+    ssl_enabled: Any = secret_value.get("ssl", False)
+    if isinstance(ssl_enabled, str):
+        ssl_enabled = ssl_enabled.strip().lower() == "true"
     return ConnectionAttributes(
         kind=kind,
         user=secret_value["username"],
@@ -103,7 +106,7 @@ def _get_connection_attributes_from_secrets_manager(
         host=secret_value["host"],
         port=int(secret_value["port"]),
         database=_dbname,
-        ssl_context=None,
+        ssl_context=ssl.create_default_context() if ssl_enabled else None,
     )
 
 
