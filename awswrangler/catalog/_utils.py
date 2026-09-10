@@ -142,12 +142,21 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     1	3	4
     2	4	6
     """
-    names = df.columns
-    set_names = set(names)
-    if len(names) == len(set_names):
+    if not df.columns.duplicated().any():
         return df
-    d = {key: [name + f"_{i}" if i > 0 else name for i, name in enumerate(names[names == key])] for key in set_names}
-    df.rename(columns=lambda c: d[c].pop(0), inplace=True)
+    # Group column positions by name, treating all NaN-like names as one group. A plain `==`
+    # mask (the previous implementation) does not match NaN with itself, which either crashes
+    # with IndexError (when duplicate NaN names share the same float object, e.g. via `df.T`
+    # on an index with repeated missing values) or silently leaves the duplicates unrenamed
+    # (when they don't).
+    occurrence: dict[Any, int] = {}
+    new_names = []
+    for name in df.columns:
+        key = "__nan__" if pd.isna(name) else name
+        i = occurrence.get(key, 0)
+        occurrence[key] = i + 1
+        new_names.append(f"{name}_{i}" if i > 0 else name)
+    df.columns = new_names
     while df.columns.duplicated().any():
         # Catches edge cases where pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [5, 6]})
         df = rename_duplicated_columns(df)
