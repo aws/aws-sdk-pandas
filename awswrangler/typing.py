@@ -9,6 +9,16 @@ from typing_extensions import NotRequired, Required
 
 BucketingInfoTuple = Tuple[List[str], int]
 
+DtypeBackend = Literal["numpy_nullable", "pyarrow"]
+TimestampUnit = Literal["s", "ms", "us", "ns"]
+S3WriteMode = Literal["append", "overwrite", "overwrite_partitions"]
+
+ParquetCompression = Literal["snappy", "gzip", "brotli", "zstd", "lz4", "none"]
+OrcCompression = Literal["lz4", "snappy", "zlib", "zstd", "none"]
+
+AthenaProjectionType = Literal["enum", "integer", "date", "injected"]
+AthenaUnloadFormat = Literal["PARQUET", "ORC", "AVRO", "JSON", "TEXTFILE"]
+
 
 class GlueTableSettings(TypedDict):
     """Typed dictionary defining the settings for the Glue table."""
@@ -68,7 +78,7 @@ class AthenaCTASSettings(TypedDict):
 class AthenaUNLOADSettings(TypedDict):
     """Typed dictionary defining the settings for using UNLOAD."""
 
-    file_format: NotRequired[str]
+    file_format: NotRequired[AthenaUnloadFormat]
     """
     Specifies the file format of the output. Only `PARQUET` is currently supported.
     """
@@ -125,7 +135,7 @@ class AthenaPartitionProjectionSettings(TypedDict):
     https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html
     """
 
-    projection_types: NotRequired[dict[str, Literal["enum", "integer", "date", "injected"]]]
+    projection_types: NotRequired[dict[str, AthenaProjectionType]]
     """
     Dictionary of partitions names and Athena projections types.
     Valid types: "enum", "integer", "date", "injected"
