@@ -398,7 +398,15 @@ def bulk_load(
         )
 
     try:
-        s3.to_csv(df, path, use_threads=use_threads, dataset=True, index=False)
+        s3.to_csv(
+            df,
+            path,
+            use_threads=use_threads,
+            dataset=True,
+            index=False,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
 
         bulk_load_from_files(
             client=client,

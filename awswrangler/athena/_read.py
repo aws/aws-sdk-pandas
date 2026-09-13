@@ -643,7 +643,7 @@ def _resolve_query_without_cache_regular(
     )
 
 
-def _resolve_query_without_cache(  # noqa: PLR0913
+def _resolve_query_without_cache(  # noqa: PLR0913, PLR0917
     sql: str,
     database: str,
     data_source: str | None,

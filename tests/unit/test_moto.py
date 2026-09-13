@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import json
 import logging
 import os
 from typing import TYPE_CHECKING
@@ -12,6 +15,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
+from awswrangler._distributed import EngineEnum
 from awswrangler.exceptions import InvalidArgumentCombination, InvalidArgumentValue
 
 from .._utils import _get_unique_suffix, ensure_data_types, get_df_csv, get_df_list
@@ -485,6 +489,37 @@ def test_s3_delete_object_success(moto_s3_client: "S3Client") -> None:
         wr.s3.read_parquet(path=path, dataset=True)
 
 
+def test_s3_delete_objects_additional_kwargs(moto_s3_client: "S3Client") -> None:
+    path = "s3://bucket/test_kwargs.txt"
+    moto_s3_client.put_object(Bucket="bucket", Key="test_kwargs.txt", Body=b"test")
+
+    orig_client = wr._utils.client
+    captured_kwargs = {}
+
+    def custom_client(service_name: str, session: boto3.Session | None = None) -> "S3Client":
+        client = orig_client(service_name, session)
+        if service_name == "s3":
+            orig_delete = client.delete_objects
+
+            def mock_delete(**kwargs):
+                nonlocal captured_kwargs
+                captured_kwargs = kwargs
+                return orig_delete(**kwargs)
+
+            client.delete_objects = mock_delete
+        return client  # type: ignore[return-value]
+
+    with patch("awswrangler.s3._delete._utils.client", side_effect=custom_client):
+        wr.s3.delete_objects(
+            path=path,
+            s3_additional_kwargs={"BypassGovernanceRetention": True, "RequestPayer": "requester", "Delimiter": "/"},
+        )
+
+    assert captured_kwargs.get("BypassGovernanceRetention") is True
+    assert captured_kwargs.get("RequestPayer") == "requester"
+    assert "Delimiter" not in captured_kwargs
+
+
 @pytest.mark.parametrize("chunked", [True, False])
 def test_s3_parquet_empty_table(moto_s3_client: "S3Client", chunked) -> None:
     path = "s3://bucket/file.parquet"
@@ -629,6 +664,37 @@ def test_glue_get_partition(moto_glue):
     assert partition_value == values
     parquet_partition_value = wr.catalog.get_parquet_partitions(database_name, table_name)
     assert parquet_partition_value == values
+
+
+def test_glue_add_column_without_comment(moto_glue):
+    database_name = "mydb_add_col"
+    table_name = "mytable_add_col"
+
+    wr.catalog.create_database(name=database_name)
+    wr.catalog.create_parquet_table(
+        database=database_name,
+        table=table_name,
+        path="s3://bucket/prefix/",
+        columns_types={"col0": "bigint"},
+    )
+    wr.catalog.add_column(
+        database=database_name,
+        table=table_name,
+        column_name="col1",
+        column_type="string",
+    )
+    wr.catalog.add_column(
+        database=database_name,
+        table=table_name,
+        column_name="col2",
+        column_type="double",
+        column_comment="column comment",
+    )
+    dtypes = wr.catalog.get_table_types(database=database_name, table=table_name)
+    assert dtypes == {"col0": "bigint", "col1": "string", "col2": "double"}
+    comments = wr.catalog.get_columns_comments(database=database_name, table=table_name)
+    assert comments.get("col2") == "column comment"
+    assert "col1" not in comments or comments.get("col1") is None
 
 
 def test_dynamodb_basic_usage(moto_dynamodb_client, moto_dynamodb_table):
@@ -872,3 +938,131 @@ def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto
     # 5. max_items_evaluated=-1 raises InvalidArgumentValue
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
+
+
+def test_redshift_copy_escapes_path_literal() -> None:
+    from awswrangler.redshift._write import _copy
+
+    cursor = mock.MagicMock()
+    # A single quote in the path must not be able to terminate the COPY string literal.
+    _copy(
+        cursor=cursor,
+        path="s3://bucket/o'brien/",
+        table="t",
+        serialize_to_json=False,
+        iam_role="arn:aws:iam::123456789012:role/example",
+    )
+    executed_sql = cursor.execute.call_args[0][0]
+    assert "FROM 's3://bucket/o''brien/'" in executed_sql
+    assert "o'brien" not in executed_sql.replace("o''brien", "")
+
+
+def test_secretsmanager_get_secret_binary(moto_aws) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    # Bytes that are not valid base64 input; the previous double-decode silently returned b"".
+    raw = bytes(range(8))
+    session.client("secretsmanager").create_secret(Name="aws-sdk-pandas/binary-secret", SecretBinary=raw)
+
+    assert wr.secretsmanager.get_secret("aws-sdk-pandas/binary-secret", boto3_session=session) == raw
+
+
+def test_secretsmanager_get_secret_string(moto_aws) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    session.client("secretsmanager").create_secret(Name="aws-sdk-pandas/string-secret", SecretString="p@ssw0rd")
+
+    assert wr.secretsmanager.get_secret("aws-sdk-pandas/string-secret", boto3_session=session) == "p@ssw0rd"
+
+
+@pytest.mark.parametrize(
+    "engine, ssl_value, expect_tls",
+    [
+        ("mysql", True, True),
+        ("mysql", "true", True),
+        ("mysql", "True", True),
+        ("mysql", False, False),
+        ("mysql", "false", False),
+        ("mysql", None, False),
+        ("aurora-mysql", True, True),
+        # ssl_context is only consumed by the MySQL connector; other engines must not set it
+        ("postgresql", True, False),
+        ("sqlserver", True, False),
+    ],
+)
+def test_connection_attributes_from_secret_ssl(moto_aws, engine, ssl_value, expect_tls) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    secret = {
+        "engine": engine,
+        "host": "db-instance.us-east-1.rds.amazonaws.com",
+        "username": "test",
+        "password": "test",
+        "port": "3306",
+        "dbname": "mydb",
+    }
+    if ssl_value is not None:
+        secret["ssl"] = ssl_value
+    secret_name = f"aws-sdk-pandas/db-secret-ssl-{engine}-{type(ssl_value).__name__}-{ssl_value}"
+    session.client("secretsmanager").create_secret(Name=secret_name, SecretString=json.dumps(secret))
+
+    attrs = wr._databases._get_connection_attributes_from_secrets_manager(
+        secret_id=secret_name, dbname=None, boto3_session=session
+    )
+    if expect_tls:
+        assert attrs.ssl_context is not None
+    else:
+        assert attrs.ssl_context is None
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"aws_access_key_id": "AKIA_EXAMPLE"},
+        {"aws_secret_access_key": "secret_example"},
+    ],
+)
+def test_redshift_auth_string_partial_credentials(kwargs) -> None:
+    from awswrangler.redshift._utils import _make_s3_auth_string
+
+    # Supplying only one of the access-key pair previously fell through to ambient
+    # session credentials silently; it must now fail loudly.
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        _make_s3_auth_string(**kwargs)
+
+
+def test_redshift_auth_string_full_credentials() -> None:
+    from awswrangler.redshift._utils import _make_s3_auth_string
+
+    auth_str = _make_s3_auth_string(aws_access_key_id="AKIA_EXAMPLE", aws_secret_access_key="secret_example")
+    assert "ACCESS_KEY_ID 'AKIA_EXAMPLE'" in auth_str
+    assert "SECRET_ACCESS_KEY 'secret_example'" in auth_str
+
+
+# boto3_session/s3_additional_kwargs are rejected up-front in distributed mode,
+# so the forwarding under test is only reachable on the python engine.
+@mock.patch("awswrangler.neptune._neptune.bulk_load_from_files")
+@mock.patch("awswrangler.neptune._neptune.s3.delete_objects")
+@mock.patch("awswrangler.neptune._neptune.s3.to_csv")
+@mock.patch("awswrangler.neptune._neptune.s3.list_objects", return_value=[])
+@mock.patch("awswrangler._distributed.engine.get", return_value=EngineEnum.PYTHON)
+def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
+    engine_get, list_objects, to_csv, delete_objects, bulk_load_from_files
+) -> None:
+    # bulk_load is gated on the sparql extra, which minimal CI does not install.
+    pytest.importorskip("SPARQLWrapper")
+
+    df = pd.DataFrame({"~id": ["0"], "~label": ["v"]})
+    session = boto3.Session(region_name="us-east-1")
+    s3_kwargs = {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": "arn:aws:kms:us-east-1:123456789012:key/x"}
+
+    wr.neptune.bulk_load(
+        client=mock.MagicMock(),
+        df=df,
+        path="s3://bucket/stage/",
+        iam_role="arn:aws:iam::123456789012:role/example",
+        boto3_session=session,
+        s3_additional_kwargs=s3_kwargs,
+    )
+
+    # The staged write must run under the caller's session and encryption kwargs,
+    # matching the list_objects/delete_objects calls in the same function.
+    assert to_csv.call_args.kwargs["boto3_session"] is session
+    assert to_csv.call_args.kwargs["s3_additional_kwargs"] == s3_kwargs
