@@ -6,7 +6,10 @@ import json
 import logging
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
+
+from awswrangler import exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -17,7 +20,8 @@ def post_message(webhook: str, message: str) -> Any | None:
     Parameters
     ----------
     webhook
-        Contains all the authentication information to send the message
+        Contains all the authentication information to send the message.
+        Must be an ``https://`` URL.
     message
         The actual message which needs to be posted on Slack channel
 
@@ -25,6 +29,8 @@ def post_message(webhook: str, message: str) -> Any | None:
     -------
         The response from Chime
     """
+    if not isinstance(webhook, str) or urlparse(webhook).scheme != "https":
+        raise exceptions.InvalidArgumentValue("The webhook argument must be an https:// URL.")
     response = None
     chime_message = {"Content": f"Message: {message}"}
     req = Request(webhook, json.dumps(chime_message).encode("utf-8"))

@@ -96,6 +96,19 @@ def _get_connection_attributes_from_secrets_manager(
         if kind != "redshift":
             raise exceptions.InvalidConnection(f"The secret {secret_id} MUST have a dbname property.")
         _dbname = _get_dbname(cluster_id=secret_value["dbClusterIdentifier"], boto3_session=boto3_session)
+    ssl_enabled: Any = secret_value.get("ssl", False)
+    if isinstance(ssl_enabled, str):
+        ssl_enabled = ssl_enabled.strip().lower() == "true"
+    ssl_context: ssl.SSLContext | None = None
+    if ssl_enabled:
+        # Only the MySQL connector consumes ssl_context from this path.
+        if kind in ("mysql", "aurora-mysql"):
+            ssl_context = ssl.create_default_context()
+        else:
+            _logger.warning(
+                'The "ssl" property from Secrets Manager is only supported for MySQL engines '
+                "and will be ignored. Configure TLS through the engine's connect() arguments instead."
+            )
     return ConnectionAttributes(
         kind=kind,
         user=secret_value["username"],
@@ -103,7 +116,7 @@ def _get_connection_attributes_from_secrets_manager(
         host=secret_value["host"],
         port=int(secret_value["port"]),
         database=_dbname,
-        ssl_context=None,
+        ssl_context=ssl_context,
     )
 
 
