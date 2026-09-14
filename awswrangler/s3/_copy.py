@@ -69,6 +69,27 @@ def _copy(
     )
 
 
+def _list_objects_non_recursive(path: str, boto3_session: boto3.Session | None) -> list[str]:
+    # Keys directly under this prefix only. Delimiter="/" keeps partition folders out of the listing.
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
+    bucket, key = _utils.parse_path(path=path)
+    prefix = key if (not key or key.endswith("/")) else f"{key}/"
+    paginator = s3_client.get_paginator("list_objects_v2")
+    paths: list[str] = []
+    for page in paginator.paginate(
+        Bucket=bucket,
+        Prefix=prefix,
+        Delimiter="/",
+        PaginationConfig={"PageSize": 1000},
+    ):
+        for content in page.get("Contents") or []:
+            obj_key: str = content["Key"]
+            if obj_key.endswith("/"):
+                continue
+            paths.append(f"s3://{bucket}/{obj_key}")
+    return paths
+
+
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session"],
 )
@@ -165,15 +186,21 @@ def merge_datasets(
         prefix = f"{source_path}/"
         paths_wo_prefix: list[str] = [x[len(prefix) :] if x.startswith(prefix) else x for x in paths]
         partitions_paths: set[str] = set()
+        has_root_files = False
         for x in paths_wo_prefix:
             folder = x.rpartition("/")[0]
             if folder:
                 partitions_paths.add(f"{target_path}/{folder}/")
             else:
-                partitions_paths.add(f"{target_path}/")
+                has_root_files = True
         for path in partitions_paths:
             _logger.debug("Deleting to overwrite_partitions: %s", path)
             delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
+        if has_root_files:
+            root_objects = _list_objects_non_recursive(path=f"{target_path}/", boto3_session=boto3_session)
+            if root_objects:
+                _logger.debug("Deleting root objects to overwrite_partitions: %s", root_objects)
+                delete_objects(path=root_objects, use_threads=use_threads, boto3_session=boto3_session)
     elif mode != "append":
         raise exceptions.InvalidArgumentValue(f"{mode} is a invalid mode option.")
 
