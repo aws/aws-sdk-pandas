@@ -5,6 +5,7 @@ import logging
 import tempfile
 import time
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import boto3
 import botocore
@@ -13,6 +14,7 @@ import pytest  # type: ignore
 
 import awswrangler as wr
 import awswrangler.pandas as pd
+from awswrangler import exceptions
 from awswrangler.opensearch._utils import _is_serverless
 
 from .._utils import _get_unique_suffix, extract_cloudformation_outputs
@@ -585,3 +587,32 @@ def test_opensearch_serverless_create_collection(opensearch_serverless_client) -
         client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
         client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
         client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")
+
+
+def test_index_documents_zero_retries_and_backoff_use_threads_false():
+    client_mock = MagicMock()
+    with patch("opensearchpy.helpers.bulk", return_value=(1, [])) as mock_bulk:
+        wr.opensearch.index_documents(
+            client=client_mock,
+            documents=[{"_id": "1", "name": "foo"}],
+            index="test-index",
+            use_threads=False,
+            max_retries=0,
+            initial_backoff=0,
+            max_backoff=0,
+        )
+        assert mock_bulk.call_args.kwargs["max_retries"] == 0
+        assert mock_bulk.call_args.kwargs["initial_backoff"] == 0
+        assert mock_bulk.call_args.kwargs["max_backoff"] == 0
+
+
+def test_index_documents_zero_retries_raises_when_use_threads_true():
+    client_mock = MagicMock()
+    with pytest.raises(exceptions.InvalidArgumentCombination):
+        wr.opensearch.index_documents(
+            client=client_mock,
+            documents=[{"_id": "1", "name": "foo"}],
+            index="test-index",
+            use_threads=True,
+            max_retries=0,
+        )
