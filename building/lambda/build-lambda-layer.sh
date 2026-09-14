@@ -117,7 +117,14 @@ rm -rf python/s3transfer*
 cp -r /aws-sdk-pandas/dist/pyarrow_files/pyarrow* python/
 
 # Removing nonessential files
-find python -name '*.so' -type f -exec strip "{}" \;
+# Skip auditwheel-vendored libraries (numpy.libs/, scipy.libs/, ...): these are
+# pre-built shared objects (e.g. libscipy_openblas64_.so) whose LOAD segments use
+# large-page alignment. GNU strip rewrites their file offsets without preserving
+# the ELF invariant p_offset ≡ p_vaddr (mod p_align), which mmap-based loaders
+# tolerate but Lambda's loader rejects with "ELF load command address/offset not
+# page-aligned" (issue: numpy C-extension import fails on Lambda). Our own
+# extension modules (awswrangler/pandas/pyarrow) are safe to strip.
+find python -name '*.so' -type f -not -path '*.libs/*' -exec strip "{}" \;
 find python -wholename "*/tests/*" -type f -delete
 find python -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 
