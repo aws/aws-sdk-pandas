@@ -606,6 +606,7 @@ def pyarrow2pandas_defaults(
         "split_blocks": True,
         "self_destruct": True,
         "ignore_metadata": False,
+        "coerce_temporal_nanoseconds": False,
         "types_mapper": get_pyarrow2pandas_type_mapper(dtype_backend),
     }
     if kwargs:
