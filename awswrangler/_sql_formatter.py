@@ -126,7 +126,7 @@ class _PartiQLEngine(_Engine):
     def format_string(self, value: str) -> str:
         return f"""'{value.replace("'", "''")}'"""
 
-    def format_bool(self, value: bool) -> str:
+    def format_bool(self, value: bool | np.bool_) -> str:
         return "1" if value else "0"
 
     def format_decimal(self, value: decimal.Decimal) -> str:
