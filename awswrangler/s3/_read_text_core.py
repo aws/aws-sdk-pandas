@@ -20,7 +20,8 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_read_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[str, str | None, str | None]:
+def _get_read_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[dict[str, Any], str, str | None, str | None]:
+    pandas_kwargs = pandas_kwargs.copy()
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
     mode: str = (
@@ -28,7 +29,7 @@ def _get_read_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[str, st
     )
     encoding: str | None = pandas_kwargs.get("encoding", "utf-8")
     newline: str | None = pandas_kwargs.get("lineterminator", None)
-    return mode, encoding, newline
+    return pandas_kwargs, mode, encoding, newline
 
 
 def _read_text_chunked(
@@ -43,7 +44,7 @@ def _read_text_chunked(
     use_threads: bool | int,
     version_id: str | None = None,
 ) -> Iterator[pd.DataFrame]:
-    mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
+    pandas_kwargs, mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
     with open_s3_object(
         path=path,
         version_id=version_id,
@@ -99,7 +100,7 @@ def _read_text_file(
     s3_additional_kwargs: dict[str, str] | None,
     dataset: bool,
 ) -> pd.DataFrame:
-    mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
+    pandas_kwargs, mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
     try:
         with open_s3_object(
             path=path,
