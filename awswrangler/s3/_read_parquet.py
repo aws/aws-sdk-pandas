@@ -20,7 +20,6 @@ import pyarrow as pa
 import pyarrow.dataset
 import pyarrow.parquet
 from packaging import version
-from typing_extensions import Literal
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _add_table_partitions, _table_to_df
@@ -42,7 +41,13 @@ from awswrangler.s3._read import (
     _InternalReadTableMetadataReturnValue,
     _TableMetadataReader,
 )
-from awswrangler.typing import ArrowDecryptionConfiguration, RayReadParquetSettings, _ReadTableMetadataReturnValue
+from awswrangler.typing import (
+    ArrowDecryptionConfiguration,
+    DtypeBackend,
+    RayReadParquetSettings,
+    TimestampUnit,
+    _ReadTableMetadataReturnValue,
+)
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -254,12 +259,13 @@ def _read_parquet_chunked(
                 schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
 
             use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
-            table_kwargs = {"path": path, "path_root": path_root}
             if metadata.num_rows > 0:
                 for chunk in pq_file.iter_batches(
                     batch_size=batch_size, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False
                 ):
-                    table = _add_table_partitions(table=pa.Table.from_batches([chunk], schema=schema), **table_kwargs)
+                    table = _add_table_partitions(
+                        table=pa.Table.from_batches([chunk], schema=schema), path=path, path_root=path_root
+                    )
                     df = _table_to_df(table=table, kwargs=arrow_kwargs)
                     if chunked is True:
                         yield df
@@ -274,7 +280,9 @@ def _read_parquet_chunked(
                         else:
                             next_slice = df
             else:
-                table = _add_table_partitions(table=pa.Table.from_batches([], schema=schema), **table_kwargs)
+                table = _add_table_partitions(
+                    table=pa.Table.from_batches([], schema=schema), path=path, path_root=path_root
+                )
                 df = _table_to_df(table=table, kwargs=arrow_kwargs)
                 yield df
 
@@ -337,12 +345,12 @@ def read_parquet(
     partition_filter: Callable[[dict[str, str]], bool] | None = None,
     columns: list[str] | None = None,
     validate_schema: bool = False,
-    coerce_int96_timestamp_unit: str | None = None,
+    coerce_int96_timestamp_unit: TimestampUnit | None = None,
     schema: pa.Schema | None = None,
     last_modified_begin: datetime.datetime | None = None,
     last_modified_end: datetime.datetime | None = None,
     version_id: str | dict[str, str] | None = None,
-    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
+    dtype_backend: DtypeBackend = "numpy_nullable",
     chunked: bool | int = False,
     use_threads: bool | int = True,
     ray_args: RayReadParquetSettings | None = None,
@@ -597,8 +605,8 @@ def read_parquet_table(
     partition_filter: Callable[[dict[str, str]], bool] | None = None,
     columns: list[str] | None = None,
     validate_schema: bool = True,
-    coerce_int96_timestamp_unit: str | None = None,
-    dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
+    coerce_int96_timestamp_unit: TimestampUnit | None = None,
+    dtype_backend: DtypeBackend = "numpy_nullable",
     chunked: bool | int = False,
     use_threads: bool | int = True,
     ray_args: RayReadParquetSettings | None = None,
