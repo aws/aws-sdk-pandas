@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any, cast
 
 import boto3
@@ -14,7 +15,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def download(
     path: str,
-    local_file: str | Any,
+    local_file: str | Path | Any,
     version_id: str | None = None,
     use_threads: bool | int = True,
     boto3_session: boto3.Session | None = None,
@@ -77,6 +78,9 @@ def download(
             _logger.debug("Downloading local_file: %s", local_file)
             with open(file=local_file, mode="wb") as local_f:
                 local_f.write(cast(bytes, s3_f.read()))
+        elif isinstance(local_file, Path):
+            _logger.debug("Downloading local_file: %s", local_file)
+            local_file.write_bytes(cast(bytes, s3_f.read()))
         else:
             _logger.debug("Downloading file-like object.")
             local_file.write(s3_f.read())
