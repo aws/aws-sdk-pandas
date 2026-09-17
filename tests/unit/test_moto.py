@@ -1192,3 +1192,23 @@ def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
     # matching the list_objects/delete_objects calls in the same function.
     assert to_csv.call_args.kwargs["boto3_session"] is session
     assert to_csv.call_args.kwargs["s3_additional_kwargs"] == s3_kwargs
+
+
+def test_emr_default_logging_path_warns() -> None:
+    """Falling back to the predictable default logging bucket must emit a warning."""
+    with moto.mock_aws():
+        session = boto3.Session(region_name="us-east-1")
+        with pytest.warns(UserWarning, match="predictable default"):
+            wr.emr._get_default_logging_path(account_id="123456789012", region="us-east-1", boto3_session=session)
+
+
+def test_emr_verify_bucket_ownership_own_bucket() -> None:
+    """_verify_bucket_ownership must succeed when the bucket belongs to the caller."""
+    from awswrangler.emr import _verify_bucket_ownership
+
+    with moto.mock_aws():
+        session = boto3.Session(region_name="us-east-1")
+        account_id = session.client("sts").get_caller_identity()["Account"]
+        session.client("s3").create_bucket(Bucket="my-owned-bucket")
+
+        _verify_bucket_ownership("my-owned-bucket", account_id, boto3_session=session)
