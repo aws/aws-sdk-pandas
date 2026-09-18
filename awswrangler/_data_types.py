@@ -817,21 +817,30 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
 
 
 # Database column types are spliced into CREATE TABLE statements and cannot be bound as
-# query parameters, so caller-provided overrides are restricted to a safe grammar: a type
-# name, optional parenthesized size/precision arguments (e.g. VARCHAR(255), DECIMAL(10,2),
-# NUMBER(*,0), GEOMETRY(Point, 4326)), optional trailing keywords (e.g. WITH TIME ZONE)
-# and an optional trailing [] for array types.
-_DATABASE_TYPE_REGEX: re.Pattern[str] = re.compile(
-    r"^[A-Za-z_][A-Za-z0-9_ ]*(?:\(\s*[A-Za-z0-9_*]+(?:\s*,\s*[A-Za-z0-9_*]+)*\s*\)[A-Za-z0-9_ ]*)*(?:\[\])?$"
-)
+# query parameters, and the type position has no quoting mechanism, so escaping is not an
+# option. Instead of enumerating valid types (vendor grammars vary too much), reject only
+# what a splice needs to escape the column definition list: statement terminators, string/
+# identifier delimiters, comment tokens, and a close-paren not opened within the value.
+_SQL_BREAKOUT_TOKENS: tuple[str, ...] = (";", "'", '"', "`", "--", "/*", "*/", "#", "\\")
 
 
 def _validate_database_type(col_name: str, type_str: str) -> str:
-    if not isinstance(type_str, str) or _DATABASE_TYPE_REGEX.fullmatch(type_str) is None:
+    valid = isinstance(type_str, str) and bool(type_str.strip())
+    valid = valid and not any(token in type_str for token in _SQL_BREAKOUT_TOKENS)
+    if valid:
+        depth = 0
+        for char in type_str:
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+                if depth < 0:
+                    break
+        valid = depth == 0
+    if not valid:
         raise exceptions.InvalidArgumentValue(
             f"Invalid database type {type_str!r} for column {col_name!r}. "
-            "Types may only contain letters, digits, underscores and spaces, with optional "
-            "parenthesized size/precision arguments and an optional trailing []."
+            "Types must not contain quotes, semicolons, comment tokens or unbalanced parentheses."
         )
     return type_str
 

@@ -1209,6 +1209,8 @@ def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
         "NUMBER(*,0)",
         "GEOMETRY(Point, 4326)",
         "character varying(255)[]",
+        "public.citext",
+        "myschema.my_udt",
     ],
 )
 def test_database_types_from_pandas_accepts_valid_dtype(type_str) -> None:
@@ -1234,9 +1236,13 @@ def test_database_types_from_pandas_accepts_valid_dtype(type_str) -> None:
         "INT; DROP TABLE users",
         "INT -- comment",
         "INT /* comment */",
+        "INT # comment",
+        "INT\\",
+        "INT`",
         "VARCHAR(10))",
         "(INT",
         "",
+        "   ",
         None,
         123,
     ],
