@@ -816,6 +816,36 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
     return df
 
 
+# Database column types are spliced into CREATE TABLE statements and cannot be bound as
+# query parameters, and the type position has no quoting mechanism, so escaping is not an
+# option. Instead of enumerating valid types (vendor grammars vary too much), reject only
+# what a splice needs to escape the column definition list: statement terminators, string/
+# identifier delimiters, comment tokens, and a close-paren not opened within the value.
+_SQL_BREAKOUT_TOKENS: tuple[str, ...] = (";", "'", '"', "`", "--", "/*", "*/", "#", "\\")
+
+
+def _validate_database_type(col_name: str, type_str: str) -> str:
+    error = exceptions.InvalidArgumentValue(
+        f"Invalid database type {type_str!r} for column {col_name!r}. "
+        "Types must not contain quotes, semicolons, comment tokens or unbalanced parentheses."
+    )
+    if not isinstance(type_str, str) or not type_str.strip():
+        raise error
+    if any(token in type_str for token in _SQL_BREAKOUT_TOKENS):
+        raise error
+    depth = 0
+    for char in type_str:
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth < 0:
+                raise error
+    if depth != 0:
+        raise error
+    return type_str
+
+
 def database_types_from_pandas(
     df: pd.DataFrame,
     index: bool,
@@ -833,9 +863,13 @@ def database_types_from_pandas(
     database_types: dict[str, str] = {}
     for col_name, col_dtype in pyarrow_types.items():
         if col_name in _dtype:
-            database_types[col_name] = _dtype[col_name]
+            database_types[col_name] = _validate_database_type(col_name, _dtype[col_name])
         else:
             if col_name in _varchar_lengths:
+                if not isinstance(_varchar_lengths[col_name], int):
+                    raise exceptions.InvalidArgumentValue(
+                        f"varchar_lengths value for column {col_name!r} must be an int."
+                    )
                 string_type: str = f"VARCHAR({_varchar_lengths[col_name]})"
             elif isinstance(varchar_lengths_default, str):
                 string_type = varchar_lengths_default

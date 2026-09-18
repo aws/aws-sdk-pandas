@@ -1192,3 +1192,80 @@ def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
     # matching the list_objects/delete_objects calls in the same function.
     assert to_csv.call_args.kwargs["boto3_session"] is session
     assert to_csv.call_args.kwargs["s3_additional_kwargs"] == s3_kwargs
+
+
+@pytest.mark.parametrize(
+    "type_str",
+    [
+        "INT",
+        "VARCHAR(MAX)",
+        "NVARCHAR(255)",
+        "DECIMAL(10,2)",
+        "DECIMAL(10, 2)",
+        "DOUBLE PRECISION",
+        "TIMESTAMP WITH TIME ZONE",
+        "TIMESTAMP(6) WITH LOCAL TIME ZONE",
+        "INTERVAL DAY(2) TO SECOND(6)",
+        "NUMBER(*,0)",
+        "GEOMETRY(Point, 4326)",
+        "character varying(255)[]",
+        "public.citext",
+        "myschema.my_udt",
+    ],
+)
+def test_database_types_from_pandas_accepts_valid_dtype(type_str) -> None:
+    types = wr._data_types.database_types_from_pandas(
+        df=pd.DataFrame({"c": [1]}),
+        index=False,
+        dtype={"c": type_str},
+        varchar_lengths_default="VARCHAR(MAX)",
+        varchar_lengths=None,
+        converter_func=lambda _, string_type: string_type,
+    )
+    assert types == {"c": type_str}
+
+
+@pytest.mark.parametrize(
+    "type_str",
+    [
+        # dtype values are spliced into CREATE TABLE DDL; statement/literal breakouts must be rejected.
+        "INT); DROP TABLE users; --",
+        "INT) END DROP TABLE users",
+        "INT'",
+        'INT"',
+        "INT; DROP TABLE users",
+        "INT -- comment",
+        "INT /* comment */",
+        "INT # comment",
+        "INT\\",
+        "INT`",
+        "VARCHAR(10))",
+        "(INT",
+        "",
+        "   ",
+        None,
+        123,
+    ],
+)
+def test_database_types_from_pandas_rejects_malicious_dtype(type_str) -> None:
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr._data_types.database_types_from_pandas(
+            df=pd.DataFrame({"c": [1]}),
+            index=False,
+            dtype={"c": type_str},
+            varchar_lengths_default="VARCHAR(MAX)",
+            varchar_lengths=None,
+            converter_func=lambda _, string_type: string_type,
+        )
+
+
+def test_database_types_from_pandas_rejects_non_int_varchar_lengths() -> None:
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr._data_types.database_types_from_pandas(
+            df=pd.DataFrame({"c": ["x"]}),
+            index=False,
+            dtype=None,
+            varchar_lengths_default=255,
+            varchar_lengths={"c": "10) DROP TABLE users --"},
+            converter_func=lambda _, string_type: string_type,
+        )
