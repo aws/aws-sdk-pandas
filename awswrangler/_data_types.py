@@ -825,23 +825,24 @@ _SQL_BREAKOUT_TOKENS: tuple[str, ...] = (";", "'", '"', "`", "--", "/*", "*/", "
 
 
 def _validate_database_type(col_name: str, type_str: str) -> str:
-    valid = isinstance(type_str, str) and bool(type_str.strip())
-    valid = valid and not any(token in type_str for token in _SQL_BREAKOUT_TOKENS)
-    if valid:
-        depth = 0
-        for char in type_str:
-            if char == "(":
-                depth += 1
-            elif char == ")":
-                depth -= 1
-                if depth < 0:
-                    break
-        valid = depth == 0
-    if not valid:
-        raise exceptions.InvalidArgumentValue(
-            f"Invalid database type {type_str!r} for column {col_name!r}. "
-            "Types must not contain quotes, semicolons, comment tokens or unbalanced parentheses."
-        )
+    error = exceptions.InvalidArgumentValue(
+        f"Invalid database type {type_str!r} for column {col_name!r}. "
+        "Types must not contain quotes, semicolons, comment tokens or unbalanced parentheses."
+    )
+    if not isinstance(type_str, str) or not type_str.strip():
+        raise error
+    if any(token in type_str for token in _SQL_BREAKOUT_TOKENS):
+        raise error
+    depth = 0
+    for char in type_str:
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth < 0:
+                raise error
+    if depth != 0:
+        raise error
     return type_str
 
 
