@@ -816,6 +816,26 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
     return df
 
 
+# Database column types are spliced into CREATE TABLE statements and cannot be bound as
+# query parameters, so caller-provided overrides are restricted to a safe grammar: a type
+# name, optional parenthesized size/precision arguments (e.g. VARCHAR(255), DECIMAL(10,2),
+# NUMBER(*,0), GEOMETRY(Point, 4326)), optional trailing keywords (e.g. WITH TIME ZONE)
+# and an optional trailing [] for array types.
+_DATABASE_TYPE_REGEX: re.Pattern[str] = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_ ]*(?:\(\s*[A-Za-z0-9_*]+(?:\s*,\s*[A-Za-z0-9_*]+)*\s*\)[A-Za-z0-9_ ]*)*(?:\[\])?$"
+)
+
+
+def _validate_database_type(col_name: str, type_str: str) -> str:
+    if not isinstance(type_str, str) or _DATABASE_TYPE_REGEX.fullmatch(type_str) is None:
+        raise exceptions.InvalidArgumentValue(
+            f"Invalid database type {type_str!r} for column {col_name!r}. "
+            "Types may only contain letters, digits, underscores and spaces, with optional "
+            "parenthesized size/precision arguments and an optional trailing []."
+        )
+    return type_str
+
+
 def database_types_from_pandas(
     df: pd.DataFrame,
     index: bool,
@@ -833,9 +853,13 @@ def database_types_from_pandas(
     database_types: dict[str, str] = {}
     for col_name, col_dtype in pyarrow_types.items():
         if col_name in _dtype:
-            database_types[col_name] = _dtype[col_name]
+            database_types[col_name] = _validate_database_type(col_name, _dtype[col_name])
         else:
             if col_name in _varchar_lengths:
+                if not isinstance(_varchar_lengths[col_name], int):
+                    raise exceptions.InvalidArgumentValue(
+                        f"varchar_lengths value for column {col_name!r} must be an int."
+                    )
                 string_type: str = f"VARCHAR({_varchar_lengths[col_name]})"
             elif isinstance(varchar_lengths_default, str):
                 string_type = varchar_lengths_default
