@@ -18,6 +18,19 @@ from awswrangler._distributed import engine
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
+# Athena identifiers may only contain letters, digits and underscores. Enforced for struct
+# field names because they are spliced into struct<name:type> DDL strings, a context with
+# no quoting mechanism, and they can originate from data files rather than the caller.
+_ATHENA_FIELD_NAME_REGEX: re.Pattern[str] = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def _athena_struct_field_name(name: str) -> str:
+    if _ATHENA_FIELD_NAME_REGEX.fullmatch(name) is None:
+        raise exceptions.InvalidArgumentValue(
+            f"Invalid struct field name {name!r}: Athena field names may only contain letters, digits and underscores."
+        )
+    return name
+
 
 def pyarrow2athena(  # noqa: PLR0911,PLR0912
     dtype: pa.DataType, ignore_null: bool = False
@@ -54,9 +67,7 @@ def pyarrow2athena(  # noqa: PLR0911,PLR0912
     if pa.types.is_list(dtype) or pa.types.is_large_list(dtype):
         return f"array<{pyarrow2athena(dtype=dtype.value_type, ignore_null=ignore_null)}>"
     if pa.types.is_struct(dtype):
-        return (
-            f"struct<{','.join([f'{f.name}:{pyarrow2athena(dtype=f.type, ignore_null=ignore_null)}' for f in dtype])}>"
-        )
+        return f"struct<{','.join([f'{_athena_struct_field_name(f.name)}:{pyarrow2athena(dtype=f.type, ignore_null=ignore_null)}' for f in dtype])}>"
     if pa.types.is_map(dtype):
         return f"map<{pyarrow2athena(dtype=dtype.key_type, ignore_null=ignore_null)},{pyarrow2athena(dtype=dtype.item_type, ignore_null=ignore_null)}>"
     if isinstance(dtype, getattr(pa, "BaseExtensionType", pa.ExtensionType)):
