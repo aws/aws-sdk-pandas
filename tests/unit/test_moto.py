@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import copy
+import json
 import logging
 import os
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, patch
@@ -83,6 +86,16 @@ def moto_dynamodb_table(moto_dynamodb_client):
         BillingMode="PAY_PER_REQUEST",
     )
     yield table_name
+
+
+@pytest.fixture(scope="function")
+def moto_timestream_session():
+    with moto.mock_aws():
+        session = boto3.Session(region_name="us-east-1")
+        timestream_client = session.client("timestream-write")
+        timestream_client.create_database(DatabaseName="sampleDB")
+        timestream_client.create_table(DatabaseName="sampleDB", TableName="sampleTable")
+        yield session
 
 
 def get_content_md5(desc: dict):
@@ -939,6 +952,120 @@ def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto
         wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
 
 
+def _capture_timestream_write_records(session: boto3.Session) -> list:
+    captured: list = []
+
+    def _handler(params, **kwargs) -> None:
+        # Deep copy so that a shared mutable `CommonAttributes` cannot be observed post-hoc.
+        captured.append(copy.deepcopy(params))
+
+    session.events.register("provide-client-params.timestream-write.WriteRecords", _handler)
+    return captured
+
+
+def _timestream_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            # Timezone-aware so that the formatted epoch value does not depend on the local timezone.
+            "time": [datetime(2024, 1, 1, tzinfo=timezone.utc)],
+            "cpu": [1.0],
+            "mem": [2.0],
+        }
+    )
+
+
+def test_timestream_write_does_not_mutate_common_attributes(moto_timestream_session: boto3.Session) -> None:
+    common_attributes = {"Dimensions": [{"Name": "host", "Value": "h1", "DimensionValueType": "VARCHAR"}]}
+    expected = copy.deepcopy(common_attributes)
+
+    rejected_records = wr.timestream.write(
+        df=_timestream_df(),
+        database="sampleDB",
+        table="sampleTable",
+        time_col="time",
+        measure_col="cpu",
+        common_attributes=common_attributes,
+        boto3_session=moto_timestream_session,
+        use_threads=False,
+    )
+
+    assert rejected_records == []
+    assert common_attributes == expected
+
+
+def test_timestream_write_common_attributes_reused_across_calls(moto_timestream_session: boto3.Session) -> None:
+    captured = _capture_timestream_write_records(moto_timestream_session)
+    common_attributes = {"Dimensions": [{"Name": "host", "Value": "h1", "DimensionValueType": "VARCHAR"}]}
+
+    wr.timestream.write(
+        df=_timestream_df(),
+        database="sampleDB",
+        table="sampleTable",
+        time_col="time",
+        measure_col="cpu",
+        common_attributes=common_attributes,
+        boto3_session=moto_timestream_session,
+        use_threads=False,
+    )
+    wr.timestream.write(
+        df=_timestream_df(),
+        database="sampleDB",
+        table="sampleTable",
+        time_col="time",
+        measure_col="mem",
+        version=5,
+        time_unit="MICROSECONDS",
+        common_attributes=common_attributes,
+        boto3_session=moto_timestream_session,
+        use_threads=False,
+    )
+
+    assert len(captured) == 2
+    first, second = captured
+
+    assert first["CommonAttributes"]["MeasureName"] == "cpu"
+    assert first["CommonAttributes"]["TimeUnit"] == "MILLISECONDS"
+    assert first["CommonAttributes"]["Version"] == 1
+    assert first["Records"][0]["Time"] == "1704067200000"
+
+    # The second call must honor its own arguments instead of the defaults resolved for the first one.
+    assert second["CommonAttributes"]["MeasureName"] == "mem"
+    assert second["CommonAttributes"]["TimeUnit"] == "MICROSECONDS"
+    assert second["CommonAttributes"]["Version"] == 5
+    assert second["Records"][0]["Time"] == "1704067200000000"
+
+
+def test_timestream_write_common_attributes_take_precedence(moto_timestream_session: boto3.Session) -> None:
+    captured = _capture_timestream_write_records(moto_timestream_session)
+    common_attributes = {
+        "Dimensions": [{"Name": "host", "Value": "h1", "DimensionValueType": "VARCHAR"}],
+        "MeasureName": "from_common_attributes",
+        "TimeUnit": "SECONDS",
+        "Version": 9,
+    }
+    expected = copy.deepcopy(common_attributes)
+
+    wr.timestream.write(
+        df=_timestream_df(),
+        database="sampleDB",
+        table="sampleTable",
+        time_col="time",
+        measure_col="cpu",
+        measure_name="from_argument",
+        version=1,
+        time_unit="MILLISECONDS",
+        common_attributes=common_attributes,
+        boto3_session=moto_timestream_session,
+        use_threads=False,
+    )
+
+    assert common_attributes == expected
+    assert captured[0]["CommonAttributes"]["MeasureName"] == "from_common_attributes"
+    assert captured[0]["CommonAttributes"]["TimeUnit"] == "SECONDS"
+    assert captured[0]["CommonAttributes"]["Version"] == 9
+    assert captured[0]["Records"][0]["Time"] == "1704067200"
+
+
 def test_redshift_copy_escapes_path_literal() -> None:
     from awswrangler.redshift._write import _copy
 
@@ -970,6 +1097,45 @@ def test_secretsmanager_get_secret_string(moto_aws) -> None:
     session.client("secretsmanager").create_secret(Name="aws-sdk-pandas/string-secret", SecretString="p@ssw0rd")
 
     assert wr.secretsmanager.get_secret("aws-sdk-pandas/string-secret", boto3_session=session) == "p@ssw0rd"
+
+
+@pytest.mark.parametrize(
+    "engine, ssl_value, expect_tls",
+    [
+        ("mysql", True, True),
+        ("mysql", "true", True),
+        ("mysql", "True", True),
+        ("mysql", False, False),
+        ("mysql", "false", False),
+        ("mysql", None, False),
+        ("aurora-mysql", True, True),
+        # ssl_context is only consumed by the MySQL connector; other engines must not set it
+        ("postgresql", True, False),
+        ("sqlserver", True, False),
+    ],
+)
+def test_connection_attributes_from_secret_ssl(moto_aws, engine, ssl_value, expect_tls) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    secret = {
+        "engine": engine,
+        "host": "db-instance.us-east-1.rds.amazonaws.com",
+        "username": "test",
+        "password": "test",
+        "port": "3306",
+        "dbname": "mydb",
+    }
+    if ssl_value is not None:
+        secret["ssl"] = ssl_value
+    secret_name = f"aws-sdk-pandas/db-secret-ssl-{engine}-{type(ssl_value).__name__}-{ssl_value}"
+    session.client("secretsmanager").create_secret(Name=secret_name, SecretString=json.dumps(secret))
+
+    attrs = wr._databases._get_connection_attributes_from_secrets_manager(
+        secret_id=secret_name, dbname=None, boto3_session=session
+    )
+    if expect_tls:
+        assert attrs.ssl_context is not None
+    else:
+        assert attrs.ssl_context is None
 
 
 @pytest.mark.parametrize(

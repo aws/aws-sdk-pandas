@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import ssl
 import uuid
 from typing import TYPE_CHECKING, Any, Iterator, Literal, cast, overload
 
@@ -93,6 +94,7 @@ def connect(
     write_timeout: int | None = None,
     connect_timeout: int = 10,
     cursorclass: type["Cursor"] | None = None,
+    ssl_context: bool | ssl.SSLContext | None = None,
 ) -> "pymysql.connections.Connection":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
@@ -108,13 +110,17 @@ def connect(
     "password":"test",
     "engine":"mysql",
     "port":"3306",
-    "dbname": "mydb" # Optional
+    "dbname": "mydb", # Optional
+    "ssl": true # Optional
     }
 
     Note
     ----
-    It is only possible to configure SSL using Glue Catalog Connection. More at:
+    TLS is NOT enabled by default. With a Glue Catalog Connection, SSL is configured through
+    the connection properties (``JDBC_ENFORCE_SSL``/``CUSTOM_JDBC_CERT``). More at:
     https://docs.aws.amazon.com/glue/latest/dg/connection-defining.html
+    With Secrets Manager, TLS is enabled when the secret contains ``"ssl": true``
+    or when the ``ssl_context`` argument is passed.
 
     Note
     ----
@@ -151,6 +157,12 @@ def connect(
     cursorclass
         Cursor class to use, e.g. SSCursor; defaults to :class:`pymysql.cursors.Cursor`
         https://pymysql.readthedocs.io/en/latest/modules/cursors.html
+    ssl_context
+        SSL configuration forwarded to pymysql. Pass ``True`` to enable TLS with the
+        default system trust store, or an :class:`ssl.SSLContext` for custom settings
+        (e.g. a CA bundle). Pass ``False`` to disable TLS even if the connection or
+        secret enables it. ``None`` (default) uses the TLS configuration from the
+        Glue Catalog Connection or Secrets Manager secret, if any.
 
     Returns
     -------
@@ -170,13 +182,22 @@ def connect(
     )
     if attrs.kind not in ("mysql", "aurora-mysql"):
         raise exceptions.InvalidDatabaseType(f"Invalid connection type ({attrs.kind}. It must be a MySQL connection.)")
+    _ssl_context: ssl.SSLContext | None
+    if ssl_context is None:
+        _ssl_context = attrs.ssl_context
+    elif ssl_context is True:
+        _ssl_context = ssl.create_default_context()
+    elif ssl_context is False:
+        _ssl_context = None
+    else:
+        _ssl_context = ssl_context
     return pymysql.connect(
         user=attrs.user,
         database=attrs.database,
         password=attrs.password,
         port=attrs.port,
         host=attrs.host,
-        ssl=attrs.ssl_context,
+        ssl=_ssl_context,
         read_timeout=read_timeout,
         write_timeout=write_timeout,
         connect_timeout=connect_timeout,
