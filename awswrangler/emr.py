@@ -5,9 +5,11 @@ from __future__ import annotations
 import logging
 import pprint
 import re
+import warnings
 from typing import Any, Literal, cast
 
 import boto3
+import botocore.exceptions
 
 from awswrangler import _utils, exceptions, sts
 
@@ -37,6 +39,37 @@ print("done!")
     """
 
 
+def _verify_bucket_ownership(
+    bucket_name: str,
+    account_id: str,
+    boto3_session: boto3.Session | None = None,
+) -> None:
+    """Verify that *bucket_name* is owned by *account_id*.
+
+    Uses ``HeadBucket`` with ``ExpectedBucketOwner`` so that S3 returns 403
+    when the bucket belongs to a different account, preventing data from being
+    read from or written to a squatted bucket.
+    """
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
+    try:
+        client_s3.head_bucket(Bucket=bucket_name, ExpectedBucketOwner=account_id)
+    except botocore.exceptions.ClientError as err:
+        code = err.response.get("Error", {}).get("Code")
+        if code in ("403", "AccessDenied", "Forbidden"):
+            raise exceptions.InvalidArgumentValue(
+                f"S3 bucket '{bucket_name}' is not owned by account {account_id}. "
+                f"Refusing to use it to prevent cross-account data leakage. "
+                f"Pass an explicit, account-owned S3 path instead."
+            ) from err
+        if code in ("404", "NoSuchBucket", "NotFound"):
+            raise exceptions.InvalidArgumentValue(
+                f"S3 bucket '{bucket_name}' does not exist. "
+                f"Create it in account {account_id} first, or pass an explicit "
+                f"`logging_s3_path` to an existing bucket you own."
+            ) from err
+        raise
+
+
 def _get_default_logging_path(
     subnet_id: str | None = None,
     account_id: str | None = None,
@@ -46,6 +79,11 @@ def _get_default_logging_path(
     """Get EMR default logging path.
 
     E.g. "s3://aws-logs-{account_id}-{region}/elasticmapreduce/"
+
+    The bucket name is derived from the caller's account ID and region.
+    Because S3 bucket names are global, this function emits a warning
+    encouraging callers to pass an explicit ``logging_s3_path`` instead
+    of relying on the predictable default.
 
     Parameters
     ----------
@@ -81,6 +119,14 @@ def _get_default_logging_path(
         raise exceptions.InvalidArgumentCombination("You must pass region or subnet_id or both.")
     else:
         _region = cast(str, region)
+    warnings.warn(
+        "No `logging_s3_path` was provided. Falling back to the default bucket "
+        f"`aws-logs-{_account_id}-{_region}`. Because S3 bucket names are global, "
+        "relying on this predictable default is discouraged: pass an explicit "
+        "`logging_s3_path` to avoid potential S3 bucket squatting.",
+        UserWarning,
+        stacklevel=2,
+    )
     return f"s3://aws-logs-{_account_id}-{_region}/elasticmapreduce/"
 
 
@@ -115,6 +161,8 @@ def _build_cluster_args(**pars: Any) -> dict[str, Any]:  # noqa: PLR0912,PLR0915
         pars["logging_s3_path"] = _get_default_logging_path(
             subnet_id=None, account_id=account_id, region=region, boto3_session=pars["boto3_session"]
         )
+        logging_bucket, _ = _utils.parse_path(pars["logging_s3_path"])
+        _verify_bucket_ownership(logging_bucket, account_id, boto3_session=pars["boto3_session"])
 
     spark_env: dict[str, str] | None = None
     yarn_env: dict[str, str] | None = None
