@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 from typing import Any, cast
 
 import boto3
@@ -10,6 +11,10 @@ import boto3
 from awswrangler.s3._fs import open_s3_object
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+# Block size used to stream an object to disk. Reading in fixed-size blocks
+# keeps peak memory bounded to roughly this value instead of the whole file.
+_DOWNLOAD_CHUNK_SIZE: int = 8 * 1024 * 1024  # 8 MiB
 
 
 def download(
@@ -69,14 +74,19 @@ def download(
         mode="rb",
         use_threads=use_threads,
         version_id=version_id,
-        s3_block_size=-1,  # One shot download
+        # Stream the object in fixed-size blocks (via HTTP Range requests)
+        # rather than loading it whole into memory. A one-shot read of a
+        # large object holds the entire body in the reader's cache *and*
+        # again in the write call, i.e. ~2x the file size in RAM, which
+        # OOMs on small hosts (see GitHub issue #2831).
+        s3_block_size=_DOWNLOAD_CHUNK_SIZE,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as s3_f:
         if isinstance(local_file, str):
             _logger.debug("Downloading local_file: %s", local_file)
             with open(file=local_file, mode="wb") as local_f:
-                local_f.write(cast(bytes, s3_f.read()))
+                shutil.copyfileobj(cast(Any, s3_f), local_f, length=_DOWNLOAD_CHUNK_SIZE)
         else:
             _logger.debug("Downloading file-like object.")
-            local_file.write(s3_f.read())
+            shutil.copyfileobj(cast(Any, s3_f), local_file, length=_DOWNLOAD_CHUNK_SIZE)
