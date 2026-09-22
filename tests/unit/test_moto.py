@@ -387,6 +387,50 @@ def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3_client: "S3Client"
         assert len(df.columns) == 2
 
 
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_csv_mixed_compression(moto_s3_client: "S3Client", chunksize: int | None) -> None:
+    df = pd.DataFrame({"id": [1, 2], "value": ["a", "b"]})
+    compressed = "s3://bucket/file1.csv.gz"
+    uncompressed = "s3://bucket/file2.csv"
+    wr.s3.to_csv(df=df, path=compressed, index=False, compression="gzip")
+    wr.s3.to_csv(df=df, path=uncompressed, index=False)
+    result = wr.s3.read_csv(path=[compressed, uncompressed], chunksize=chunksize, use_threads=False)
+    if chunksize is None:
+        assert len(result.index) == 4
+        assert list(result.columns) == ["id", "value"]
+    else:
+        chunks = list(result)
+        assert len(chunks) == 4
+        for chunk in chunks:
+            assert len(chunk.index) == 1
+            assert list(chunk.columns) == ["id", "value"]
+
+
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_json_mixed_compression(moto_s3_client: "S3Client", chunksize: int | None) -> None:
+    df = pd.DataFrame({"id": [1, 2], "value": ["a", "b"]})
+    compressed = "s3://bucket/file1.json.gz"
+    uncompressed = "s3://bucket/file2.json"
+    wr.s3.to_json(df=df, path=compressed, compression="gzip", orient="records", lines=True)
+    wr.s3.to_json(df=df, path=uncompressed, orient="records", lines=True)
+    result = wr.s3.read_json(
+        path=[compressed, uncompressed],
+        orient="records",
+        lines=True,
+        chunksize=chunksize,
+        use_threads=False,
+    )
+    if chunksize is None:
+        assert len(result.index) == 4
+        assert list(result.columns) == ["id", "value"]
+    else:
+        chunks = list(result)
+        assert len(chunks) == 4
+        for chunk in chunks:
+            assert len(chunk.index) == 1
+            assert list(chunk.columns) == ["id", "value"]
+
+
 @mock.patch("pandas.read_csv")
 @mock.patch("pandas.concat")
 def test_read_csv_pass_pandas_arguments_and_encoding_succeed(
