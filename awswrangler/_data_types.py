@@ -783,11 +783,31 @@ def _cast2date(value: Any) -> Any:
     return pd.to_datetime(value).date()
 
 
+def _cast_pandas_date(column: pd.Series) -> pd.Series:
+    non_null = column.dropna()
+    if pd.api.types.is_object_dtype(column.dtype):
+        is_string = pd.api.types.infer_dtype(non_null, skipna=False) == "string"
+    else:
+        is_string = not non_null.empty and pd.api.types.is_string_dtype(column.dtype)
+
+    # Whole-Series inference changes how mixed formats are parsed. Restrict the fast path to a fixed format whose
+    # result is equivalent to parsing each value separately, and retain the scalar path for all other inputs.
+    if is_string and non_null.str.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}").fillna(False).all():
+        try:
+            return pd.to_datetime(column, format="%Y-%m-%d").dt.date.replace(to_replace={pd.NaT: None})
+        except (OverflowError, TypeError, ValueError):
+            # Shape-valid dates can still be invalid or unsupported by a pandas version. The scalar path preserves
+            # the existing result or exception in those cases.
+            pass
+
+    return column.apply(lambda x: _cast2date(value=x)).replace(to_replace={pd.NaT: None})
+
+
 def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_type: str) -> pd.DataFrame:
     if desired_type == "datetime64":
         df[col] = pd.to_datetime(df[col])
     elif desired_type == "date":
-        df[col] = df[col].apply(lambda x: _cast2date(value=x)).replace(to_replace={pd.NaT: None})
+        df[col] = _cast_pandas_date(column=df[col])
     elif desired_type == "bytes":
         df[col] = df[col].astype("string").str.encode(encoding="utf-8").replace(to_replace={pd.NA: None})
     elif desired_type == "decimal":
