@@ -114,19 +114,19 @@ def pyarrow2mysql(  # noqa: PLR0911,PLR0912
     if pa.types.is_int8(dtype):
         return "TINYINT"
     if pa.types.is_uint8(dtype):
-        return "UNSIGNED TINYINT"
+        return "TINYINT UNSIGNED"
     if pa.types.is_int16(dtype):
         return "SMALLINT"
     if pa.types.is_uint16(dtype):
-        return "UNSIGNED SMALLINT"
+        return "SMALLINT UNSIGNED"
     if pa.types.is_int32(dtype):
         return "INTEGER"
     if pa.types.is_uint32(dtype):
-        return "UNSIGNED INTEGER"
+        return "INTEGER UNSIGNED"
     if pa.types.is_int64(dtype):
         return "BIGINT"
     if pa.types.is_uint64(dtype):
-        return "UNSIGNED BIGINT"
+        return "BIGINT UNSIGNED"
     if pa.types.is_float32(dtype):
         return "FLOAT"
     if pa.types.is_float64(dtype):
