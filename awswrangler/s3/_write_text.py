@@ -5,13 +5,13 @@ from __future__ import annotations
 import csv
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import boto3
 import pandas as pd
 from pandas.io.common import infer_compression
 
-from awswrangler import _data_types, _utils, catalog, exceptions, typing
+from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler._utils import copy_df_shallow
@@ -19,7 +19,13 @@ from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
-from awswrangler.typing import BucketingInfoTuple, GlueTableSettings, _S3WriteDataReturnValue
+from awswrangler.typing import (
+    AthenaPartitionProjectionSettings,
+    BucketingInfoTuple,
+    GlueTableSettings,
+    S3WriteMode,
+    _S3WriteDataReturnValue,
+)
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -98,14 +104,14 @@ def to_csv(  # noqa: PLR0912,PLR0915
     partition_cols: list[str] | None = None,
     bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
-    mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
+    mode: S3WriteMode | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
     dtype: dict[str, str] | None = None,
     database: str | None = None,
     table: str | None = None,
     glue_table_settings: GlueTableSettings | None = None,
-    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    athena_partition_projection_settings: AthenaPartitionProjectionSettings | None = None,
     catalog_id: str | None = None,
     **pandas_kwargs: Any,
 ) -> _S3WriteDataReturnValue:
@@ -658,14 +664,14 @@ def to_json(  # noqa: PLR0912,PLR0915
     partition_cols: list[str] | None = None,
     bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
-    mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
+    mode: S3WriteMode | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
     dtype: dict[str, str] | None = None,
     database: str | None = None,
     table: str | None = None,
     glue_table_settings: GlueTableSettings | None = None,
-    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    athena_partition_projection_settings: AthenaPartitionProjectionSettings | None = None,
     catalog_id: str | None = None,
     **pandas_kwargs: Any,
 ) -> _S3WriteDataReturnValue:
