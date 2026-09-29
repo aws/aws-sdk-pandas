@@ -16,6 +16,7 @@ import pyarrow as pa
 from awswrangler import _arrow, exceptions
 from awswrangler._distributed import engine
 
+_PANDAS_DEFAULT_TIMESTAMP_UNIT = "us" if int(pd.__version__.split(".")[0]) >= 3 else "ns"
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -341,7 +342,7 @@ def athena2pyarrow(dtype: str, df_type: str | None = None) -> pa.DataType:  # no
         elif df_type == "datetime64[s]":
             return pa.timestamp(unit="s")
         else:
-            return pa.timestamp(unit="ns")
+            return pa.timestamp(unit=_PANDAS_DEFAULT_TIMESTAMP_UNIT)
     if dtype == "date":
         return pa.date32()
     if dtype in ("binary", "varbinary"):
@@ -381,7 +382,11 @@ def athena2pandas(dtype: str, dtype_backend: str | None = None) -> str:  # noqa:
     if (dtype == "string") or dtype.startswith("char") or dtype.startswith("varchar"):
         return "string" if dtype_backend != "pyarrow" else "string[pyarrow]"
     if dtype in ("timestamp", "timestamp with time zone"):
-        return "datetime64" if dtype_backend != "pyarrow" else "timestamp[ns][pyarrow]"
+        return (
+            f"datetime64[{_PANDAS_DEFAULT_TIMESTAMP_UNIT}]"
+            if dtype_backend != "pyarrow"
+            else f"timestamp[{_PANDAS_DEFAULT_TIMESTAMP_UNIT}][pyarrow]"
+        )
     if dtype == "date":
         return "date" if dtype_backend != "pyarrow" else "date32[pyarrow]"
     if dtype == "time":
@@ -607,6 +612,7 @@ def pyarrow2pandas_defaults(
         "self_destruct": True,
         "ignore_metadata": False,
         "types_mapper": get_pyarrow2pandas_type_mapper(dtype_backend),
+        "coerce_temporal_nanoseconds": False,
     }
     if kwargs:
         default_kwargs.update(kwargs)
@@ -766,8 +772,10 @@ def cast_pandas_with_athena_types(
 
 
 def _normalize_pandas_dtype_name(dtype: str) -> str:
+    if dtype.startswith("datetime64[") is True:
+        return dtype  # preserve datetime64[us], datetime64[ns], etc.
     if dtype.startswith("datetime64") is True:
-        return "datetime64"
+        return "datetime64"  # bare datetime64 without resolution stays as-is
     if dtype.startswith("decimal") is True:
         return "decimal"
     return dtype
@@ -785,7 +793,7 @@ def _cast2date(value: Any) -> Any:
 
 def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_type: str) -> pd.DataFrame:
     if desired_type == "datetime64":
-        df[col] = pd.to_datetime(df[col])
+        df[col] = pd.to_datetime(df[col]).astype(f"datetime64[{_PANDAS_DEFAULT_TIMESTAMP_UNIT}]")
     elif desired_type == "date":
         df[col] = df[col].apply(lambda x: _cast2date(value=x)).replace(to_replace={pd.NaT: None})
     elif desired_type == "bytes":
