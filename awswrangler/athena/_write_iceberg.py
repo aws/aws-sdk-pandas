@@ -267,7 +267,8 @@ def _validate_args(
     mode: Literal["append", "overwrite", "overwrite_partitions"],
     partition_cols: list[str] | None,
     merge_cols: list[str] | None,
-    merge_condition: Literal["update", "ignore"],
+    merge_condition: Literal["update", "ignore", "conditional_update"],
+    conditional_merge_string: str | None = None,
 ) -> None:
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
@@ -290,6 +291,11 @@ def _validate_args(
     if merge_cols and merge_condition not in ["update", "ignore"]:
         raise exceptions.InvalidArgumentValue(
             f"Invalid merge_condition: {merge_condition}. Valid values: ['update', 'ignore']"
+        )
+
+    if conditional_merge_string and merge_condition != "conditional_update":
+        raise exceptions.InvalidArgumentValue(
+            f"Invalid merge_condition: {merge_condition}. When 'conditional_merge_string' is specified, valid values are: ['conditional_update']"
         )
 
 
@@ -329,8 +335,9 @@ def _merge_iceberg(
     table: str,
     source_table: str,
     merge_cols: list[str] | None = None,
-    merge_condition: Literal["update", "ignore"] = "update",
+    merge_condition: Literal["update", "ignore", "conditional_update"] = "update",
     merge_match_nulls: bool = False,
+    conditional_merge_string: str | None = None,
     partition_cols: list[str] | None = None,
     kms_key: str | None = None,
     boto3_session: boto3.Session | None = None,
@@ -361,7 +368,12 @@ def _merge_iceberg(
 
         https://docs.aws.amazon.com/athena/latest/ug/merge-into-statement.html
     merge_condition: str, optional
-        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore'].
+        The condition to be used in the MERGE INTO statement.
+        Valid values: ['update', 'ignore', 'conditional_update'].
+    conditional_merge_string: str, optional
+        A SQL predicate string appended as AND {conditional_merge_string} to the
+        WHEN MATCHED clause. Only used when merge_condition='conditional_update'.
+        e.g. 'source."updated_at" > target."updated_at"'
     merge_match_nulls: bool, optional
         Instruct whether to have nulls in the merge condition match other nulls
     partition_cols: List[str], optional
@@ -399,6 +411,9 @@ def _merge_iceberg(
         if merge_condition == "update":
             match_condition = f"""WHEN MATCHED THEN
                 UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in esc_columns])}"""
+        elif merge_condition == "conditional_update":
+            match_condition = f"""WHEN MATCHED AND {conditional_merge_string} THEN
+                UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in df.columns])}"""
         else:
             match_condition = ""
 
@@ -452,8 +467,9 @@ def to_iceberg(  # noqa: PLR0913, PLR0917
     table_location: str | None = None,
     partition_cols: list[str] | None = None,
     merge_cols: list[str] | None = None,
-    merge_condition: Literal["update", "ignore"] = "update",
+    merge_condition: Literal["update", "ignore", "conditional_update"] = "update",
     merge_match_nulls: bool = False,
+    conditional_merge_string: str | None = None,
     keep_files: bool = True,
     data_source: str | None = None,
     s3_output: str | None = None,
@@ -502,8 +518,14 @@ def to_iceberg(  # noqa: PLR0913, PLR0917
 
         https://docs.aws.amazon.com/athena/latest/ug/merge-into-statement.html
     merge_condition
-        The condition to be used in the MERGE INTO statement. Valid values: ['update', 'ignore'].
+        The condition to be used in the MERGE INTO statement.
+        Valid values: ['update', 'ignore', 'conditional_update'].
         Default is ``update``.
+    conditional_merge_string
+        A SQL predicate appended to the WHEN MATCHED clause as
+        ``AND {conditional_merge_string}``. Required when merge_condition is
+        ``'conditional_update'``. Ignored otherwise.
+        e.g. ``'source."updated_at" > target."updated_at"'`
     merge_match_nulls
         Instruct whether to have nulls in the merge condition match other nulls.
     keep_files
@@ -591,6 +613,7 @@ def to_iceberg(  # noqa: PLR0913, PLR0917
         partition_cols=partition_cols,
         merge_cols=merge_cols,
         merge_condition=merge_condition,
+        conditional_merge_string=conditional_merge_string,
     )
 
     glue_table_settings = glue_table_settings if glue_table_settings else {}
@@ -717,6 +740,7 @@ def to_iceberg(  # noqa: PLR0913, PLR0917
             merge_cols=merge_cols,
             merge_condition=merge_condition,
             merge_match_nulls=merge_match_nulls,
+            conditional_merge_string=conditional_merge_string,
             partition_cols=partition_cols,
             kms_key=kms_key,
             boto3_session=boto3_session,
