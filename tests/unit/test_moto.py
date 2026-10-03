@@ -1192,3 +1192,32 @@ def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
     # matching the list_objects/delete_objects calls in the same function.
     assert to_csv.call_args.kwargs["boto3_session"] is session
     assert to_csv.call_args.kwargs["s3_additional_kwargs"] == s3_kwargs
+
+
+def test_pyarrow2athena_struct_field_names_valid() -> None:
+    import pyarrow as pa
+
+    dtype = pa.struct([("field_1", pa.int64()), ("Field2", pa.string()), ("f", pa.struct([("n", pa.int32())]))])
+    assert wr._data_types.pyarrow2athena(dtype) == "struct<field_1:bigint,Field2:string,f:struct<n:int>>"
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        # Struct field names land in struct<name:type> DDL where no quoting exists and can
+        # originate from data files; breakout characters must be rejected.
+        "a:int>) LOCATION 's3://evil'",
+        "a>",
+        "a,b",
+        "a b",
+        "a'b",
+        "a`b",
+        "",
+    ],
+)
+def test_pyarrow2athena_struct_field_names_invalid(field_name) -> None:
+    import pyarrow as pa
+
+    dtype = pa.struct([(field_name, pa.int64())])
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr._data_types.pyarrow2athena(dtype)
