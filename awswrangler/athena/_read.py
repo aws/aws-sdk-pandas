@@ -17,7 +17,7 @@ from typing_extensions import Literal
 
 from awswrangler import _utils, catalog, exceptions, s3, typing
 from awswrangler._config import apply_configs
-from awswrangler._data_types import cast_pandas_with_athena_types
+from awswrangler._data_types import athena2pyarrow, cast_pandas_with_athena_types
 from awswrangler.athena._utils import (
     _QUERY_WAIT_POLLING_DELAY,
     _apply_formatter,
@@ -82,11 +82,21 @@ def _extract_ctas_manifest_paths(path: str, boto3_session: boto3.Session | None 
 
 
 def _fix_csv_types_generator(
-    dfs: Iterator[pd.DataFrame], parse_dates: list[str], binaries: list[str], parse_geometry: list[str]
+    dfs: Iterator[pd.DataFrame],
+    parse_dates: list[str],
+    binaries: list[str],
+    parse_geometry: list[str],
+    decimal_types: dict[str, str] | None = None,
 ) -> Iterator[pd.DataFrame]:
     """Apply data types cast to a Pandas DataFrames Generator."""
     for df in dfs:
-        yield _fix_csv_types(df=df, parse_dates=parse_dates, binaries=binaries, parse_geometry=parse_geometry)
+        yield _fix_csv_types(
+            df=df,
+            parse_dates=parse_dates,
+            binaries=binaries,
+            parse_geometry=parse_geometry,
+            decimal_types=decimal_types,
+        )
 
 
 def _add_query_metadata_generator(
@@ -99,7 +109,11 @@ def _add_query_metadata_generator(
 
 
 def _fix_csv_types(
-    df: pd.DataFrame, parse_dates: list[str], binaries: list[str], parse_geometry: list[str]
+    df: pd.DataFrame,
+    parse_dates: list[str],
+    binaries: list[str],
+    parse_geometry: list[str],
+    decimal_types: dict[str, str] | None = None,
 ) -> pd.DataFrame:
     """Apply data types cast to a Pandas DataFrames."""
     if len(df.index) > 0:
@@ -112,6 +126,9 @@ def _fix_csv_types(
                 )
         for col in binaries:
             df[col] = df[col].str.encode(encoding="utf-8")
+
+    for col, col_type in (decimal_types or {}).items():
+        df[col] = df[col].astype(pd.ArrowDtype(athena2pyarrow(col_type)))
 
     if geopandas and parse_geometry:
         df = _cast_geometry(df, parse_geometry=parse_geometry)
@@ -243,6 +260,7 @@ def _fetch_csv_result(
             parse_dates=query_metadata.parse_dates,
             binaries=query_metadata.binaries,
             parse_geometry=query_metadata.parse_geometry,
+            decimal_types=query_metadata.decimal_types,
         )
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         if keep_files is False:
@@ -258,6 +276,7 @@ def _fetch_csv_result(
         parse_dates=query_metadata.parse_dates,
         binaries=query_metadata.binaries,
         parse_geometry=query_metadata.parse_geometry,
+        decimal_types=query_metadata.decimal_types,
     )
     dfs = _add_query_metadata_generator(dfs=dfs, query_metadata=query_metadata)
     if keep_files is False:
@@ -328,6 +347,7 @@ def _build_api_dataframe(
         parse_dates=query_metadata.parse_dates,
         binaries=query_metadata.binaries,
         parse_geometry=query_metadata.parse_geometry,
+        decimal_types=query_metadata.decimal_types,
     )
     return _apply_query_metadata(df=df, query_metadata=query_metadata)
 
