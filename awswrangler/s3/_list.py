@@ -55,7 +55,7 @@ def _path2list(
                 "Specify a list of files or (last_modified_begin and last_modified_end)"
             )
         paths = path if _suffix is None else [x for x in path if x.endswith(tuple(_suffix))]
-        paths = path if _ignore_suffix is None else [x for x in paths if x.endswith(tuple(_ignore_suffix)) is False]
+        paths = paths if _ignore_suffix is None else [x for x in paths if x.endswith(tuple(_ignore_suffix)) is False]
     else:
         raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
     return paths
