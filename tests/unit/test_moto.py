@@ -120,6 +120,16 @@ def test_object_exist_succeed(moto_s3_client: "S3Client") -> None:
     assert result is True
 
 
+@pytest.mark.parametrize(
+    "key",
+    ["s3://source/file.csv", "archive/s3://source/file.csv", "archive/s3://source/s3://file.csv", "s3://"],
+)
+def test_object_exist_with_s3_scheme_in_key(moto_s3_client: "S3Client", key: str) -> None:
+    moto_s3_client.put_object(Bucket="bucket", Key=key, Body=b"test")
+
+    assert wr.s3.does_object_exist(f"s3://bucket/{key}") is True
+
+
 def test_list_directories_succeed(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket"
     moto_s3_client.put_object(
