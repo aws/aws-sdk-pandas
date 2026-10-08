@@ -261,7 +261,7 @@ def invoke_batch(
     df
         Input DataFrame.
     model_id
-        Bedrock foundation model id (e.g. ``anthropic.claude-3-haiku-20240307-v1:0``) or an
+        Bedrock foundation model id (e.g. ``us.anthropic.claude-haiku-4-5-20251001-v1:0``) or an
         inference profile / custom model ARN.
     role_arn
         IAM role ARN that Bedrock assumes to read input and write output. Required by the API.
@@ -317,7 +317,7 @@ def invoke_batch(
     >>> import awswrangler as wr
     >>> job_arn = wr.bedrock.invoke_batch(
     ...     df=my_df,
-    ...     model_id="anthropic.claude-3-haiku-20240307-v1:0",
+    ...     model_id="us.anthropic.claude-haiku-4-5-20251001-v1:0",
     ...     role_arn="arn:aws:iam::123456789012:role/BedrockBatchRole",
     ...     prompt_column="prompt",
     ...     inference_config={"maxTokens": 512},
@@ -508,7 +508,7 @@ def read_invoke_batch(
     >>> import awswrangler as wr
     >>> job_arn = wr.bedrock.invoke_batch(
     ...     df=my_df,
-    ...     model_id="anthropic.claude-3-haiku-20240307-v1:0",
+    ...     model_id="us.anthropic.claude-haiku-4-5-20251001-v1:0",
     ...     role_arn="arn:aws:iam::123456789012:role/BedrockBatchRole",
     ...     prompt_column="prompt",
     ...     record_id_column="id",
