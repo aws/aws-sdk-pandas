@@ -162,6 +162,7 @@ Amazon Bedrock
 .. autosummary::
     :toctree: stubs
 
+    describe_invoke_batch
     invoke_batch
     read_invoke_batch
 

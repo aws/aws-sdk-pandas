@@ -411,6 +411,42 @@ def invoke_batch(
 
 
 @apply_configs
+def describe_invoke_batch(
+    job_arn: str,
+    *,
+    boto3_session: boto3.Session | None = None,
+) -> dict[str, Any]:
+    """Describe a Bedrock batch inference job without blocking or raising on its state.
+
+    A thin wrapper around ``GetModelInvocationJob`` for exception-free status polling — e.g. from
+    a scheduled harvester that only calls :func:`read_invoke_batch` once ``status`` is terminal
+    (``Completed``, ``PartiallyCompleted``, ``Failed``, ``Stopped``, or ``Expired``).
+
+    Parameters
+    ----------
+    job_arn
+        ARN returned by :func:`invoke_batch` (or any ``CreateModelInvocationJob`` caller).
+    boto3_session
+        The default boto3 session will be used if **boto3_session** is ``None``.
+
+    Returns
+    -------
+        The ``GetModelInvocationJob`` response as a dictionary (``status``, ``message``,
+        ``submitTime``, data configs, ...), without the HTTP response metadata.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> if wr.bedrock.describe_invoke_batch(job_arn)["status"] == "Completed":
+    ...     results = wr.bedrock.read_invoke_batch(job_arn)
+    """
+    bedrock_client = _utils.client(service_name="bedrock", session=boto3_session)
+    job: dict[str, Any] = bedrock_client.get_model_invocation_job(jobIdentifier=job_arn)  # type: ignore[attr-defined]
+    job.pop("ResponseMetadata", None)
+    return job
+
+
+@apply_configs
 def read_invoke_batch(
     job_arn: str,
     *,

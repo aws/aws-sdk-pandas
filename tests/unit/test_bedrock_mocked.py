@@ -459,6 +459,17 @@ def test_read_invoke_batch_polls_until_terminal() -> None:
     assert bedrock.get_model_invocation_job.call_count == 3
 
 
+def test_describe_invoke_batch_returns_status_without_raising() -> None:
+    bedrock, s3 = _build_wait_clients([], statuses=["InProgress"])
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        job = wr.bedrock.describe_invoke_batch("arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456")
+
+    assert job["status"] == "InProgress"
+    assert "ResponseMetadata" not in job
+    s3.list_objects_v2.assert_not_called()
+
+
 def test_read_invoke_batch_raises_while_running() -> None:
     bedrock, s3 = _build_wait_clients([], statuses=["InProgress"])
 
