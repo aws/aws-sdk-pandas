@@ -182,7 +182,7 @@ def _get_data_quality_results(
                 List[Dict[str, Any]],
                 [
                     dict(
-                        ((k, d[k]) for k in ("Name", "Description", "Result") if k in d),  # type: ignore[literal-required]
+                        ((k, d[k]) for k in ("Name", "Description", "Result") if k in d),
                         **{"ResultId": result["ResultId"]},
                     )
                     for d in result["RuleResults"]

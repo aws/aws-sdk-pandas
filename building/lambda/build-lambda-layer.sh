@@ -11,7 +11,7 @@ popd
 rm -rf dist arrow
 
 export ARROW_HOME=$(pwd)/dist
-export ARROW_VERSION=22.0.0
+export ARROW_VERSION=24.0.0
 export LD_LIBRARY_PATH=$(pwd)/dist/lib:$LD_LIBRARY_PATH
 export CMAKE_PREFIX_PATH=$ARROW_HOME:$CMAKE_PREFIX_PATH
 export SETUPTOOLS_SCM_PRETEND_VERSION=$ARROW_VERSION
@@ -26,9 +26,16 @@ mkdir $ARROW_HOME
 mkdir arrow/cpp/build
 pushd arrow/cpp/build
 
+# -Wl,--as-needed drops DT_NEEDED entries for libraries whose symbols are never
+# referenced. On AL2023, boost-devel pulls libicu into the linker's library
+# path; without --as-needed, libparquet.so picks up libicudata/libicui18n/
+# libicuuc as DT_NEEDED even though Arrow uses zero ICU symbols. Lambda's
+# AL2023 runtime doesn't ship libicu, so the resulting layer fails to import.
 cmake \
     -DCMAKE_INSTALL_PREFIX=$ARROW_HOME \
     -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--as-needed" \
+    -DCMAKE_EXE_LINKER_FLAGS="-Wl,--as-needed" \
     -DARROW_PYTHON=ON \
     -DARROW_PARQUET=ON \
     -DARROW_DATASET=ON \
@@ -59,24 +66,20 @@ popd
 pushd arrow/python
 
 export CMAKE_PREFIX_PATH=${ARROW_HOME}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}
-export ARROW_PRE_0_15_IPC_FORMAT=0
+export PYARROW_BUNDLE_ARROW_CPP=ON
 export PYARROW_WITH_HDFS=0
 export PYARROW_WITH_FLIGHT=0
 export PYARROW_WITH_GANDIVA=0
 export PYARROW_WITH_ORC=0
 export PYARROW_WITH_CUDA=0
-export PYARROW_WITH_PLASMA=0
 export PYARROW_WITH_PARQUET=1
 export PYARROW_WITH_DATASET=1
-export PYARROW_WITH_FILESYSTEM=1
-export PYARROW_WITH_CSV=1
-export PYARROW_WITH_JSON=1
-export PYARROW_WITH_COMPUTE=1
 
-python3 setup.py build_ext \
-  --build-type=release \
-  --bundle-arrow-cpp \
-  bdist_wheel
+# pyarrow 24+ dropped setup.py in favour of scikit-build-core via pyproject.toml.
+# --no-isolation reuses build deps already installed in the image (scikit-build-core,
+# cython>=3.1, libcst, setuptools_scm, numpy) instead of pip resolving them again.
+python3 -m build --wheel . --no-isolation \
+  -C cmake.build-type=Release
 
 pip3 install dist/pyarrow-*.whl -t /aws-sdk-pandas/dist/pyarrow_files
 
@@ -86,7 +89,18 @@ popd
 
 pushd /aws-sdk-pandas
 
-pip3 install . --no-binary numpy,pandas --find-links="${PYARROW_WHEEL_DIR}" -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]" "pyarrow==${ARROW_VERSION}"
+# Building numpy/pandas from source on AL2023 without pinning the build-time
+# numpy to the runtime numpy produces an ABI-mismatched pandas binary that
+# SIGSEGVs on datetime64 construction (issue #3393). AL2023's glibc 2.34
+# satisfies the manylinux_2_28 tag that PyPI ships numpy/pandas wheels under,
+# so use those wheels. AL2 (glibc 2.26) is too old to load manylinux_2_28,
+# so keep forcing source builds there.
+NO_BINARY_FLAG=""
+if [ -r /etc/os-release ] && grep -q '^VERSION_ID="2"' /etc/os-release; then
+  NO_BINARY_FLAG="--no-binary numpy,pandas"
+fi
+
+pip3 install . ${NO_BINARY_FLAG} --find-links="${PYARROW_WHEEL_DIR}" -t ./python ".[redshift,mysql,postgres,gremlin,opensearch,openpyxl]" "pyarrow==${ARROW_VERSION}"
 
 # CVE-2026-41066: upgrade lxml past redshift-connector's <=6.0.2 cap.
 # pyproject.toml's [tool.uv] override-dependencies only applies to uv, not pip,
@@ -103,7 +117,14 @@ rm -rf python/s3transfer*
 cp -r /aws-sdk-pandas/dist/pyarrow_files/pyarrow* python/
 
 # Removing nonessential files
-find python -name '*.so' -type f -exec strip "{}" \;
+# Skip auditwheel-vendored libraries (numpy.libs/, scipy.libs/, ...): these are
+# pre-built shared objects (e.g. libscipy_openblas64_.so) whose LOAD segments use
+# large-page alignment. GNU strip rewrites their file offsets without preserving
+# the ELF invariant p_offset ≡ p_vaddr (mod p_align), which mmap-based loaders
+# tolerate but Lambda's loader rejects with "ELF load command address/offset not
+# page-aligned" (issue: numpy C-extension import fails on Lambda). Our own
+# extension modules (awswrangler/pandas/pyarrow) are safe to strip.
+find python -name '*.so' -type f -not -path '*.libs/*' -exec strip "{}" \;
 find python -wholename "*/tests/*" -type f -delete
 find python -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 

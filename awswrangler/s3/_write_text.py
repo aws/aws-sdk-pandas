@@ -27,13 +27,14 @@ if TYPE_CHECKING:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_write_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[str, str | None, str | None]:
+def _get_write_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[dict[str, Any], str, str | None, str | None]:
+    pandas_kwargs = pandas_kwargs.copy()
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
     mode: str = "w" if pandas_kwargs.get("compression") is None else "wb"
     encoding: str | None = pandas_kwargs.get("encoding", "utf-8")
     newline: str | None = pandas_kwargs.get("lineterminator", "")
-    return mode, encoding, newline
+    return pandas_kwargs, mode, encoding, newline
 
 
 @engine.dispatch_on_engine
@@ -61,7 +62,7 @@ def _to_text(
     else:
         raise RuntimeError("path and path_root received at the same time.")
 
-    mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
+    pandas_kwargs, mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
     with open_s3_object(
         path=file_path,
         mode=mode,
@@ -171,18 +172,18 @@ def to_csv(  # noqa: PLR0912,PLR0915
     concurrent_partitioning
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-sdk-pandas.readthedocs.io/en/3.16.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.17.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.16.1/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-sdk-pandas.readthedocs.io/en/3.17.1/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions")). False by default.
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.16.1/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.17.1/tutorials/014%20-%20Schema%20Evolution.html
     database
         Glue/Athena catalog: Database name.
     table
@@ -714,18 +715,18 @@ def to_json(  # noqa: PLR0912,PLR0915
     concurrent_partitioning
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-sdk-pandas.readthedocs.io/en/3.16.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.17.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.16.1/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-sdk-pandas.readthedocs.io/en/3.17.1/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/3.16.1/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.17.1/tutorials/014%20-%20Schema%20Evolution.html
     database
         Glue/Athena catalog: Database name.
     table

@@ -34,6 +34,11 @@ def _identifier(sql: str) -> str:
     return _sql_utils.identifier(sql, sql_mode="ansi")
 
 
+def _escape_string_literal(value: str) -> str:
+    """Escape a value for safe interpolation inside a single-quoted SQL string literal."""
+    return value.replace("'", "''")
+
+
 def _make_s3_auth_string(
     aws_access_key_id: str | None = None,
     aws_secret_access_key: str | None = None,
@@ -45,6 +50,8 @@ def _make_s3_auth_string(
         auth_str: str = f"ACCESS_KEY_ID '{aws_access_key_id}'\nSECRET_ACCESS_KEY '{aws_secret_access_key}'\n"
         if aws_session_token is not None:
             auth_str += f"SESSION_TOKEN '{aws_session_token}'\n"
+    elif aws_access_key_id is not None or aws_secret_access_key is not None:
+        raise exceptions.InvalidArgument("aws_access_key_id and aws_secret_access_key must be provided together.")
     elif iam_role is not None:
         auth_str = f"IAM_ROLE '{iam_role}'\n"
     else:
@@ -335,7 +342,7 @@ def _get_rsh_columns_types(
         if data_format in ["parquet", "orc"]:
             redshift_types = _redshift_types_from_path(
                 path=path,
-                data_format=data_format,  # type: ignore[arg-type]
+                data_format=data_format,
                 varchar_lengths_default=varchar_lengths_default,
                 varchar_lengths=varchar_lengths,
                 parquet_infer_sampling=parquet_infer_sampling,
@@ -374,7 +381,7 @@ def _add_new_table_columns(cursor: "Cursor", schema: str, table: str, redshift_c
     _add_table_columns(cursor=cursor, schema=schema, table=table, new_columns=new_df_columns)
 
 
-def _create_table(  # noqa: PLR0913
+def _create_table(  # noqa: PLR0913, PLR0917
     df: pd.DataFrame | None,
     path: str | list[str] | None,
     con: "Connection",

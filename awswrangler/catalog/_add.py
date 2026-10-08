@@ -399,9 +399,10 @@ def add_column(
         client_glue = _utils.client(service_name="glue", session=boto3_session)
         table_res = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
         table_input: dict[str, Any] = _update_table_definition(table_res)
-        table_input["StorageDescriptor"]["Columns"].append(
-            {"Name": column_name, "Type": column_type, "Comment": column_comment}
-        )
+        col_dict: dict[str, Any] = {"Name": column_name, "Type": column_type}
+        if column_comment is not None:
+            col_dict["Comment"] = column_comment
+        table_input["StorageDescriptor"]["Columns"].append(col_dict)
         res: dict[str, Any] = client_glue.update_table(
             **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
         )

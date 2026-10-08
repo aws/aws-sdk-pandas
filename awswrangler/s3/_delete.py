@@ -43,7 +43,7 @@ def _delete_objects(
 
     if s3_additional_kwargs:
         extra_kwargs: dict[str, Any] = get_botocore_valid_kwargs(
-            function_name="list_objects_v2", s3_additional_kwargs=s3_additional_kwargs
+            function_name="delete_objects", s3_additional_kwargs=s3_additional_kwargs
         )
     else:
         extra_kwargs = {}

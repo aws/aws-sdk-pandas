@@ -4,7 +4,13 @@ from dataclasses import dataclass
 
 import pytest
 
-from awswrangler._sql_formatter import _Engine, _format_parameters, _HiveEngine, _PrestoEngine
+from awswrangler._sql_formatter import (
+    _Engine,
+    _format_parameters,
+    _HiveEngine,
+    _PrestoEngine,
+    _process_sql_params,
+)
 
 _hive_engine_param = pytest.param(_HiveEngine(), id="hive")
 _presto_engine_param = pytest.param(_PrestoEngine(), id="presto")
@@ -32,7 +38,7 @@ def test_parameter_formatting(engine: _Engine) -> None:
     expected_params = {
         "string": "'hello'",
         "int": "12",
-        "float": "13.000000",
+        "float": "13.0",
         "null": "NULL",
         "datetime": "TIMESTAMP '2022-08-22 13:02:36.123'",
         "date": "DATE '2022-08-22'",
@@ -118,3 +124,18 @@ def test_invalid_parameter_type(engine: _Engine) -> None:
             {"point": Point(7, 1)},
             engine=engine,
         )
+
+
+def test_process_sql_params_double_colon_cast() -> None:
+    sql = "SELECT col::text, col::timestamp FROM table WHERE id = :id AND status = :text"
+    params = {"id": 1, "text": "active"}
+    processed_sql = _process_sql_params(sql, params)
+    expected_sql = "SELECT col::text, col::timestamp FROM table WHERE id = 1 AND status = 'active'"
+    assert processed_sql == expected_sql
+
+
+@pytest.mark.parametrize("engine", [_hive_engine_param, _presto_engine_param])
+def test_float_formatting_keeps_precision(engine: _Engine) -> None:
+    actual_params = _format_parameters({"a": 1.23456789, "b": -2.5e-7}, engine=engine)
+
+    assert actual_params == {"a": "1.23456789", "b": "-0.00000025"}

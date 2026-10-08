@@ -392,7 +392,18 @@ def _read_items(
         items = _read_batch_items(table_name, dynamodb_client, chunked, **kwargs)
 
     else:
-        if limit:
+        if limit is not None:
+            if limit < 0:
+                raise exceptions.InvalidArgumentValue("`max_items_evaluated` must be greater than or equal to 0.")
+            if limit == 0:
+                empty_items: _ItemsListType = []
+                if chunked:
+                    return _convert_items_chunked(
+                        items_iterator=iter([empty_items]),
+                        as_dataframe=as_dataframe,
+                        arrow_kwargs=arrow_kwargs,
+                    )
+                return _convert_items(items=empty_items, as_dataframe=as_dataframe, arrow_kwargs=arrow_kwargs)
             kwargs["Limit"] = limit
             _logger.debug("`max_items_evaluated` argument detected, setting use_threads to False")
             use_threads = False
@@ -456,7 +467,7 @@ def _convert_condition_base_to_expression(
 @_utils.validate_distributed_kwargs(
     unsupported_kwargs=["boto3_session", "dtype_backend"],
 )
-def read_items(  # noqa: PLR0912
+def read_items(  # noqa: PLR0912, PLR0915
     table_name: str,
     index_name: str | None = None,
     partition_values: Sequence[Any] | None = None,
@@ -475,6 +486,7 @@ def read_items(  # noqa: PLR0912
     use_threads: bool | int = True,
     boto3_session: boto3.Session | None = None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
+    key_schema: list[dict[str, str]] | None = None,
 ) -> pd.DataFrame | Iterator[pd.DataFrame] | _ItemsListType | Iterator[_ItemsListType]:
     """Read items from given DynamoDB table.
 
@@ -551,6 +563,10 @@ def read_items(  # noqa: PLR0912
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
+    key_schema
+        Key schema of the table (e.g. `[{"AttributeName": "key", "KeyType": "HASH"}]`).
+        If provided, the library will bypass the `DescribeTable` API call, which can
+        reduce network latency and prevent API throttling. Defaults to None.
 
     Raises
     ------
@@ -657,7 +673,10 @@ def read_items(  # noqa: PLR0912
     # Extract key schema
     dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
     serializer = TypeSerializer()
-    table_key_schema = dynamodb_client.describe_table(TableName=table_name)["Table"]["KeySchema"]
+    if key_schema:
+        table_key_schema = key_schema
+    else:
+        table_key_schema = dynamodb_client.describe_table(TableName=table_name)["Table"]["KeySchema"]
 
     # Detect sort key, if any
     if len(table_key_schema) == 1:
@@ -736,12 +755,20 @@ def read_items(  # noqa: PLR0912
             **kwargs.get("ExpressionAttributeValues", {}),
             **_serialize_item(expression_attribute_values, serializer),
         }
-    if max_items_evaluated:
+    if max_items_evaluated is not None:
         kwargs["Limit"] = max_items_evaluated
 
     _logger.debug("DynamoDB scan/query kwargs: %s", kwargs)
     # If kwargs are sufficiently informative, proceed with actual read op
-    if any((partition_values, key_condition_expression, filter_expression, allow_full_scan, max_items_evaluated)):
+    if any(
+        (
+            partition_values,
+            key_condition_expression,
+            filter_expression,
+            allow_full_scan,
+            max_items_evaluated is not None,
+        )
+    ):
         return _read_items(
             table_name=table_name,
             as_dataframe=as_dataframe,

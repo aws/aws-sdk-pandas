@@ -14,7 +14,7 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/python-3.12@master
         continue-on-error: true  # To make sure that SARIF upload gets called
@@ -23,6 +23,6 @@ jobs:
         with:
           args: --severity-threshold=high --sarif-file-output=snyk.sarif
       - name: Upload result to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v4.38.2
         with:
           sarif_file: snyk.sarif
