@@ -300,9 +300,28 @@ def test_invoke_batch_no_wait_returns_job_arn_only() -> None:
             wait=False,
         )
 
-    assert list(out.columns) == ["job_arn", "status"]
-    assert out["status"].iloc[0] == "Submitted"
+    assert isinstance(out, str)
+    assert out == "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456"
     bedrock.get_model_invocation_job.assert_not_called()
+
+
+def test_invoke_batch_duplicate_record_ids_raise() -> None:
+    bedrock, s3, _ = _build_batch_clients([])
+    df = pd.DataFrame({"id": ["a", "b", "a"], "prompt": ["x", "y", "z"]})
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        with pytest.raises(exceptions.InvalidArgumentValue, match="duplicate"):
+            wr.bedrock.invoke_batch(
+                df=df,
+                model_id="m",
+                role_arn="arn:aws:iam::123:role/R",
+                prompt_column="prompt",
+                record_id_column="id",
+                input_s3_uri="s3://b/in/",
+                output_s3_uri="s3://b/out/",
+            )
+    bedrock.create_model_invocation_job.assert_not_called()
+    s3.put_object.assert_not_called()
 
 
 def test_invoke_batch_records_with_errors_are_passed_through() -> None:
@@ -425,7 +444,9 @@ def test_wait_invoke_batch_merges_back_onto_input_df() -> None:
 
 
 def test_wait_invoke_batch_polls_until_terminal() -> None:
-    output_records = [{"recordId": "REC000000000", "modelOutput": {"output": {"message": {"content": [{"text": "ok"}]}}}}]
+    output_records = [
+        {"recordId": "REC000000000", "modelOutput": {"output": {"message": {"content": [{"text": "ok"}]}}}}
+    ]
     bedrock, s3 = _build_wait_clients(output_records, statuses=["InProgress", "InProgress", "Completed"])
 
     with _patch_clients({"bedrock": bedrock, "s3": s3}):
@@ -468,5 +489,3 @@ def test_wait_invoke_batch_invoke_model_omits_output_text() -> None:
 
     assert "output_text" not in out.columns
     assert out["model_output"].iloc[0] == {"results": [{"outputText": "ok"}]}
-
-

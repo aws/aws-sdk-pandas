@@ -7,7 +7,7 @@ import json
 import logging
 import time
 import uuid
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, Literal, overload
 
 import boto3
 
@@ -167,9 +167,7 @@ def _collect_results(
         df_with_id = df.copy()
         if record_id_column is not None:
             if record_id_column not in df_with_id.columns:
-                raise exceptions.InvalidArgumentValue(
-                    f"Column '{record_id_column}' not found in DataFrame."
-                )
+                raise exceptions.InvalidArgumentValue(f"Column '{record_id_column}' not found in DataFrame.")
             df_with_id["record_id"] = df_with_id[record_id_column].astype(str)
         else:
             df_with_id["record_id"] = [f"REC{i:09d}" for i in range(len(df_with_id))]
@@ -178,6 +176,52 @@ def _collect_results(
     results.attrs["job_arn"] = job_arn
     results.attrs["status"] = status
     return results
+
+
+@overload
+def invoke_batch(
+    df: pd.DataFrame,
+    *,
+    model_id: str,
+    role_arn: str,
+    job_name: str | None = ...,
+    prompt_column: str | None = ...,
+    model_input_column: str | None = ...,
+    record_id_column: str | None = ...,
+    invocation_type: str = ...,
+    inference_config: dict[str, Any] | None = ...,
+    input_s3_uri: str,
+    output_s3_uri: str,
+    wait: Literal[False] = ...,
+    poll_interval_seconds: float = ...,
+    max_wait_seconds: float = ...,
+    timeout_duration_in_hours: int | None = ...,
+    extra_create_kwargs: dict[str, Any] | None = ...,
+    boto3_session: boto3.Session | None = ...,
+) -> str: ...
+
+
+@overload
+def invoke_batch(
+    df: pd.DataFrame,
+    *,
+    model_id: str,
+    role_arn: str,
+    job_name: str | None = ...,
+    prompt_column: str | None = ...,
+    model_input_column: str | None = ...,
+    record_id_column: str | None = ...,
+    invocation_type: str = ...,
+    inference_config: dict[str, Any] | None = ...,
+    input_s3_uri: str,
+    output_s3_uri: str,
+    wait: Literal[True],
+    poll_interval_seconds: float = ...,
+    max_wait_seconds: float = ...,
+    timeout_duration_in_hours: int | None = ...,
+    extra_create_kwargs: dict[str, Any] | None = ...,
+    boto3_session: boto3.Session | None = ...,
+) -> pd.DataFrame: ...
 
 
 @apply_configs
@@ -200,14 +244,15 @@ def invoke_batch(
     timeout_duration_in_hours: int | None = None,
     extra_create_kwargs: dict[str, Any] | None = None,
     boto3_session: boto3.Session | None = None,
-) -> pd.DataFrame:
-    """Submit a DataFrame to Amazon Bedrock batch inference and return results as a DataFrame.
+) -> str | pd.DataFrame:
+    """Submit a DataFrame to Amazon Bedrock batch inference.
 
     Each row of ``df`` is converted to a ``{"recordId": ..., "modelInput": ...}`` JSONL record,
     uploaded to ``input_s3_uri``, and processed by a ``CreateModelInvocationJob`` request. By
-    default the function returns immediately with the job ARN; pass ``wait=True`` to block until
-    the job reaches a terminal state, read the output files under ``output_s3_uri``, and return a
-    DataFrame joined back to the original rows.
+    default the function returns immediately with the job ARN — persist it and harvest the results
+    later with :func:`wait_invoke_batch`, which also works from a different process. Pass
+    ``wait=True`` to block until the job reaches a terminal state, read the output files under
+    ``output_s3_uri``, and return a DataFrame joined back to the original rows.
 
     Bedrock requires a minimum of 100 records per batch inference job.
 
@@ -243,9 +288,9 @@ def invoke_batch(
     output_s3_uri
         S3 prefix that Bedrock writes results to (e.g. ``s3://bucket/batches/out/``).
     wait
-        When ``False`` (default), submit the job and return a single-row DataFrame containing
-        ``job_arn`` and ``status``. Batch jobs commonly run for hours, so blocking is opt-in. When
-        ``True``, poll until the job reaches a terminal state and return a DataFrame of results.
+        When ``False`` (default), submit the job and return its ARN as a string. Batch jobs
+        commonly run for hours, so blocking is opt-in. When ``True``, poll until the job reaches
+        a terminal state and return a DataFrame of results.
     poll_interval_seconds
         Delay between job-status polls.
     max_wait_seconds
@@ -260,17 +305,17 @@ def invoke_batch(
 
     Returns
     -------
-        DataFrame containing the original columns plus ``record_id``, ``model_output``, and (for
+        When ``wait=False`` (default), the job ARN as a string. When ``wait=True``, a DataFrame
+        containing the original columns plus ``record_id``, ``model_output``, and (for
         ``invocation_type="Converse"``) ``output_text``. Failed records have ``model_output=None``
-        and a populated ``error`` column. When ``wait=False``, a single-row DataFrame with
-        ``job_arn`` and ``status`` is returned instead.
+        and a populated ``error`` column.
 
     Examples
     --------
     Run a Converse batch over a DataFrame of prompts:
 
     >>> import awswrangler as wr
-    >>> result = wr.bedrock.invoke_batch(
+    >>> job_arn = wr.bedrock.invoke_batch(
     ...     df=my_df,
     ...     model_id="anthropic.claude-3-haiku-20240307-v1:0",
     ...     role_arn="arn:aws:iam::123456789012:role/BedrockBatchRole",
@@ -296,6 +341,14 @@ def invoke_batch(
     for col in (prompt_column, model_input_column, record_id_column):
         if col is not None and col not in df.columns:
             raise exceptions.InvalidArgumentValue(f"Column '{col}' not found in DataFrame.")
+    if record_id_column is not None:
+        record_ids = df[record_id_column].astype(str)
+        if record_ids.duplicated().any():
+            duplicated = record_ids[record_ids.duplicated()].unique()[:5].tolist()
+            raise exceptions.InvalidArgumentValue(
+                f"`record_id_column` '{record_id_column}' contains duplicate values "
+                f"(e.g. {duplicated}); recordId must be unique per record."
+            )
 
     job_name = job_name or f"awswrangler-{uuid.uuid4().hex[:12]}"
     input_bucket, input_prefix = _strip_s3_uri(input_s3_uri)
@@ -334,7 +387,7 @@ def invoke_batch(
     _logger.info("Submitted Bedrock batch inference job: %s", job_arn)
 
     if not wait:
-        return pd.DataFrame([{"job_arn": job_arn, "status": "Submitted"}])
+        return job_arn
 
     job = _wait_for_job(bedrock_client, job_arn, poll_interval_seconds, max_wait_seconds)
     status = job["status"]
@@ -408,7 +461,7 @@ def wait_invoke_batch(
     Submit now, harvest later:
 
     >>> import awswrangler as wr
-    >>> submitted = wr.bedrock.invoke_batch(
+    >>> job_arn = wr.bedrock.invoke_batch(
     ...     df=my_df,
     ...     model_id="anthropic.claude-3-haiku-20240307-v1:0",
     ...     role_arn="arn:aws:iam::123456789012:role/BedrockBatchRole",
@@ -417,7 +470,6 @@ def wait_invoke_batch(
     ...     input_s3_uri="s3://my-bucket/bedrock/in/",
     ...     output_s3_uri="s3://my-bucket/bedrock/out/",
     ... )
-    >>> job_arn = submitted["job_arn"].iloc[0]
     >>> # ... hours later, in another process ...
     >>> results = wr.bedrock.wait_invoke_batch(job_arn, df=my_df, record_id_column="id")
     """
