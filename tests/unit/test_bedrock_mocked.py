@@ -237,12 +237,27 @@ def test_invoke_batch_either_prompt_or_model_input_required() -> None:
 
 
 def test_invoke_batch_empty_dataframe_raises() -> None:
-    with pytest.raises(exceptions.EmptyDataFrame):
+    with pytest.raises(exceptions.InvalidArgumentValue, match="minimum"):
         wr.bedrock.invoke_batch(
             df=pd.DataFrame({"prompt": []}),
             model_id="m",
             role_arn="arn:aws:iam::123:role/R",
             prompt_column="prompt",
+            input_s3_uri="s3://b/in/",
+            output_s3_uri="s3://b/out/",
+        )
+
+
+def test_invoke_batch_inference_config_with_model_input_column_raises() -> None:
+    df = pd.DataFrame({"body": [{"inputText": "x"}]})
+    with pytest.raises(exceptions.InvalidArgumentCombination, match="inference_config"):
+        wr.bedrock.invoke_batch(
+            df=df,
+            model_id="m",
+            role_arn="arn:aws:iam::123:role/R",
+            model_input_column="body",
+            invocation_type="InvokeModel",
+            inference_config={"maxTokens": 32},
             input_s3_uri="s3://b/in/",
             output_s3_uri="s3://b/out/",
         )
@@ -357,9 +372,17 @@ def test_invoke_batch_records_with_errors_are_passed_through() -> None:
     assert out_sorted["model_output"].iloc[1] is None
 
 
-def test_invoke_batch_strip_s3_uri_validates_scheme() -> None:
+def test_invoke_batch_rejects_non_s3_uri() -> None:
+    df = pd.DataFrame({"prompt": ["x"]})
     with pytest.raises(exceptions.InvalidArgumentValue, match="s3://"):
-        _invoke._strip_s3_uri("https://not-s3/")
+        wr.bedrock.invoke_batch(
+            df=df,
+            model_id="m",
+            role_arn="arn:aws:iam::123:role/R",
+            prompt_column="prompt",
+            input_s3_uri="https://not-s3/",
+            output_s3_uri="s3://b/out/",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -501,6 +524,59 @@ def test_read_invoke_batch_failed_status_raises() -> None:
                 "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
                 poll_interval_seconds=0,
             )
+
+
+def test_read_invoke_batch_df_requires_record_id_column() -> None:
+    bedrock, s3 = _build_wait_clients([])
+    df = pd.DataFrame({"prompt": ["x"]})
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        with pytest.raises(exceptions.InvalidArgumentCombination, match="record_id_column"):
+            wr.bedrock.read_invoke_batch(
+                "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
+                df=df,
+            )
+    bedrock.get_model_invocation_job.assert_not_called()
+
+
+def test_read_invoke_batch_rejects_reserved_column_collision() -> None:
+    output_records = [{"recordId": "a", "modelOutput": {"output": {"message": {"content": [{"text": "A"}]}}}}]
+    bedrock, s3 = _build_wait_clients(output_records)
+    df = pd.DataFrame({"id": ["a"], "error": ["pre-existing"]})
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        with pytest.raises(exceptions.InvalidArgumentValue, match="collide"):
+            wr.bedrock.read_invoke_batch(
+                "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
+                df=df,
+                record_id_column="id",
+            )
+
+
+def test_read_invoke_batch_rejects_duplicate_record_ids_in_df() -> None:
+    output_records = [{"recordId": "a", "modelOutput": {"output": {"message": {"content": [{"text": "A"}]}}}}]
+    bedrock, s3 = _build_wait_clients(output_records)
+    df = pd.DataFrame({"id": ["a", "a"], "label": ["x", "y"]})
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        with pytest.raises(exceptions.InvalidArgumentValue, match="duplicate"):
+            wr.bedrock.read_invoke_batch(
+                "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
+                df=df,
+                record_id_column="id",
+            )
+
+
+def test_read_invoke_batch_lists_output_with_job_scoped_prefix() -> None:
+    output_records = [{"recordId": "a", "modelOutput": {"output": {"message": {"content": [{"text": "A"}]}}}}]
+    bedrock, s3 = _build_wait_clients(output_records)
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        wr.bedrock.read_invoke_batch("arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456")
+
+    prefix = s3.list_objects_v2.call_args.kwargs["Prefix"]
+    # Must be slash-terminated so a sibling job id sharing this prefix cannot match.
+    assert prefix.endswith("abc123def456/")
 
 
 def test_read_invoke_batch_invoke_model_omits_output_text() -> None:
