@@ -363,7 +363,7 @@ def test_invoke_batch_strip_s3_uri_validates_scheme() -> None:
 
 
 # ---------------------------------------------------------------------------
-# wait_invoke_batch
+# read_invoke_batch
 # ---------------------------------------------------------------------------
 
 
@@ -397,7 +397,7 @@ def _build_wait_clients(
     return bedrock, s3
 
 
-def test_wait_invoke_batch_returns_flat_results_when_df_omitted() -> None:
+def test_read_invoke_batch_returns_flat_results_when_df_omitted() -> None:
     output_records = [
         {
             "recordId": "REC000000000",
@@ -411,7 +411,7 @@ def test_wait_invoke_batch_returns_flat_results_when_df_omitted() -> None:
     bedrock, s3 = _build_wait_clients(output_records)
 
     with _patch_clients({"bedrock": bedrock, "s3": s3}):
-        out = wr.bedrock.wait_invoke_batch(
+        out = wr.bedrock.read_invoke_batch(
             "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
             poll_interval_seconds=0,
         )
@@ -422,7 +422,7 @@ def test_wait_invoke_batch_returns_flat_results_when_df_omitted() -> None:
     assert out.attrs["job_arn"].endswith("abc123def456")
 
 
-def test_wait_invoke_batch_merges_back_onto_input_df() -> None:
+def test_read_invoke_batch_merges_back_onto_input_df() -> None:
     output_records = [
         {"recordId": "alpha", "modelOutput": {"output": {"message": {"content": [{"text": "A"}]}}}},
         {"recordId": "beta", "modelOutput": {"output": {"message": {"content": [{"text": "B"}]}}}},
@@ -431,7 +431,7 @@ def test_wait_invoke_batch_merges_back_onto_input_df() -> None:
     df = pd.DataFrame({"id": ["alpha", "beta"], "label": ["x", "y"]})
 
     with _patch_clients({"bedrock": bedrock, "s3": s3}):
-        out = wr.bedrock.wait_invoke_batch(
+        out = wr.bedrock.read_invoke_batch(
             "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
             df=df,
             record_id_column="id",
@@ -443,22 +443,37 @@ def test_wait_invoke_batch_merges_back_onto_input_df() -> None:
     assert out_sorted["output_text"].tolist() == ["A", "B"]
 
 
-def test_wait_invoke_batch_polls_until_terminal() -> None:
+def test_read_invoke_batch_polls_until_terminal() -> None:
     output_records = [
         {"recordId": "REC000000000", "modelOutput": {"output": {"message": {"content": [{"text": "ok"}]}}}}
     ]
     bedrock, s3 = _build_wait_clients(output_records, statuses=["InProgress", "InProgress", "Completed"])
 
     with _patch_clients({"bedrock": bedrock, "s3": s3}):
-        wr.bedrock.wait_invoke_batch(
+        wr.bedrock.read_invoke_batch(
             "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
+            wait=True,
             poll_interval_seconds=0,
         )
 
     assert bedrock.get_model_invocation_job.call_count == 3
 
 
-def test_wait_invoke_batch_failed_status_raises() -> None:
+def test_read_invoke_batch_raises_while_running() -> None:
+    bedrock, s3 = _build_wait_clients([], statuses=["InProgress"])
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        with pytest.raises(exceptions.JobNotFinished, match="InProgress"):
+            wr.bedrock.read_invoke_batch(
+                "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
+            )
+
+    assert bedrock.get_model_invocation_job.call_count == 1
+    s3.list_objects_v2.assert_not_called()
+    s3.get_object.assert_not_called()
+
+
+def test_read_invoke_batch_failed_status_raises() -> None:
     bedrock, s3 = _build_wait_clients([], statuses=["Failed"])
     bedrock.get_model_invocation_job.side_effect = [
         {
@@ -471,18 +486,18 @@ def test_wait_invoke_batch_failed_status_raises() -> None:
     ]
     with _patch_clients({"bedrock": bedrock, "s3": s3}):
         with pytest.raises(exceptions.ServiceApiError, match="Failed"):
-            wr.bedrock.wait_invoke_batch(
+            wr.bedrock.read_invoke_batch(
                 "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
                 poll_interval_seconds=0,
             )
 
 
-def test_wait_invoke_batch_invoke_model_omits_output_text() -> None:
+def test_read_invoke_batch_invoke_model_omits_output_text() -> None:
     output_records = [{"recordId": "REC000000000", "modelOutput": {"results": [{"outputText": "ok"}]}}]
     bedrock, s3 = _build_wait_clients(output_records, invocation_type="InvokeModel")
 
     with _patch_clients({"bedrock": bedrock, "s3": s3}):
-        out = wr.bedrock.wait_invoke_batch(
+        out = wr.bedrock.read_invoke_batch(
             "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
             poll_interval_seconds=0,
         )

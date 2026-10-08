@@ -250,7 +250,7 @@ def invoke_batch(
     Each row of ``df`` is converted to a ``{"recordId": ..., "modelInput": ...}`` JSONL record,
     uploaded to ``input_s3_uri``, and processed by a ``CreateModelInvocationJob`` request. By
     default the function returns immediately with the job ARN — persist it and harvest the results
-    later with :func:`wait_invoke_batch`, which also works from a different process. Pass
+    later with :func:`read_invoke_batch`, which also works from a different process. Pass
     ``wait=True`` to block until the job reaches a terminal state, read the output files under
     ``output_s3_uri``, and return a DataFrame joined back to the original rows.
 
@@ -411,20 +411,25 @@ def invoke_batch(
 
 
 @apply_configs
-def wait_invoke_batch(
+def read_invoke_batch(
     job_arn: str,
     *,
     df: pd.DataFrame | None = None,
     record_id_column: str | None = None,
+    wait: bool = False,
     poll_interval_seconds: float = 30.0,
     max_wait_seconds: float = 24 * 60 * 60.0,
     boto3_session: boto3.Session | None = None,
 ) -> pd.DataFrame:
-    """Wait for a Bedrock batch inference job to finish and read its results into a DataFrame.
+    """Read the results of a Bedrock batch inference job into a DataFrame.
 
-    Use this together with :func:`invoke_batch` when ``wait=False`` (the default): submit the job,
-    persist the returned ``job_arn``, and call ``wait_invoke_batch(job_arn)`` later — typically from
-    an EventBridge / Step Functions / cron handler — to harvest the results.
+    Use this together with :func:`invoke_batch`: submit the job, persist the returned ``job_arn``,
+    and call ``read_invoke_batch(job_arn)`` later — from the same notebook or a different process.
+    By default the call never blocks: it checks the job status once and raises
+    :class:`~awswrangler.exceptions.JobNotFinished` when the job is still running (check back
+    later), returns the results DataFrame when it completed, and raises
+    :class:`~awswrangler.exceptions.ServiceApiError` when it ended unsuccessfully. Pass
+    ``wait=True`` to poll until the job reaches a terminal state instead.
 
     The output S3 location and invocation type are read from ``GetModelInvocationJob`` so callers
     do not need to remember them. Pass the original DataFrame and ``record_id_column`` to merge the
@@ -442,10 +447,14 @@ def wait_invoke_batch(
         Column in ``df`` whose stringified values match ``recordId`` in the JSONL output. Required
         when ``df`` is provided and you used a custom ``record_id_column`` in :func:`invoke_batch`;
         omit it if the default sequential ``REC000000000`` ids were used.
+    wait
+        When ``False`` (default), check the job status once and raise
+        :class:`~awswrangler.exceptions.JobNotFinished` if it is not yet in a terminal state.
+        When ``True``, poll until the job finishes.
     poll_interval_seconds
-        Delay between job-status polls.
+        Delay between job-status polls (only used when ``wait=True``).
     max_wait_seconds
-        Maximum total wait time before raising. Defaults to 24 hours.
+        Maximum total wait time before raising (only used when ``wait=True``). Defaults to 24 hours.
     boto3_session
         The default boto3 session will be used if **boto3_session** is ``None``.
 
@@ -453,8 +462,8 @@ def wait_invoke_batch(
     -------
         DataFrame containing ``record_id``, ``model_output``, ``error``, and (for Converse jobs)
         ``output_text``. When ``df`` is supplied, the original columns are preserved by merging on
-        ``record_id``. The job ARN and final status are exposed via ``result.attrs["job_arn"]`` and
-        ``result.attrs["status"]``.
+        ``record_id``. The job ARN and final status are exposed via ``result.attrs["job_arn"]``
+        and ``result.attrs["status"]``.
 
     Examples
     --------
@@ -471,13 +480,24 @@ def wait_invoke_batch(
     ...     output_s3_uri="s3://my-bucket/bedrock/out/",
     ... )
     >>> # ... hours later, in another process ...
-    >>> results = wr.bedrock.wait_invoke_batch(job_arn, df=my_df, record_id_column="id")
+    >>> try:
+    ...     results = wr.bedrock.read_invoke_batch(job_arn, df=my_df, record_id_column="id")
+    ... except wr.exceptions.JobNotFinished:
+    ...     print("still running, check back later")
     """
     s3_client = _utils.client(service_name="s3", session=boto3_session)
     bedrock_client = _utils.client(service_name="bedrock", session=boto3_session)
 
-    job = _wait_for_job(bedrock_client, job_arn, poll_interval_seconds, max_wait_seconds)
+    job: dict[str, Any] = bedrock_client.get_model_invocation_job(jobIdentifier=job_arn)  # type: ignore[attr-defined]
     status = job["status"]
+    if status not in _TERMINAL_STATES:
+        if not wait:
+            raise exceptions.JobNotFinished(
+                f"Bedrock batch inference job {job_arn} is not finished yet (status: '{status}'). "
+                "Check back later, or pass `wait=True` to block until it completes."
+            )
+        job = _wait_for_job(bedrock_client, job_arn, poll_interval_seconds, max_wait_seconds)
+        status = job["status"]
     if status not in _SUCCESS_STATES:
         message = job.get("message") or job.get("failureMessage") or ""
         raise exceptions.ServiceApiError(

@@ -45,6 +45,10 @@ class QueryCancelled(Exception):
     """QueryCancelled exception."""
 
 
+class JobNotFinished(Exception):
+    """JobNotFinished exception."""
+
+
 class SessionFailed(Exception):
     """SessionFailed exception."""
 

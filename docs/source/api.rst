@@ -163,7 +163,7 @@ Amazon Bedrock
     :toctree: stubs
 
     invoke_batch
-    wait_invoke_batch
+    read_invoke_batch
 
 Amazon Redshift
 ---------------
