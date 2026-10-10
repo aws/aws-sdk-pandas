@@ -4,6 +4,7 @@ import os
 import pytest
 
 from awswrangler._utils import ensure_cpu_count, get_even_chunks_sizes
+from awswrangler.s3._write_dataset import _get_bucket_number
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -33,3 +34,8 @@ def test_get_even_chunks_sizes(total_size, chunk_size, upper_bound, result):
 @pytest.mark.parametrize("use_threads,result", [(True, os.cpu_count()), (False, 1), (-1, 1), (1, 1), (5, 5)])
 def test_ensure_cpu_count(use_threads, result):
     assert ensure_cpu_count(use_threads=use_threads) == result
+
+
+def test_get_bucket_number_non_ascii_string():
+    # Hive and Trino hash string bytes as signed Java bytes
+    assert _get_bucket_number(5, ["São Paulo"]) == 2
