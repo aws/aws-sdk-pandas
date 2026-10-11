@@ -430,24 +430,16 @@ def invoke_batch(
     if not wait:
         return job_arn
 
-    job = _wait_for_job(bedrock_client, job_arn, poll_interval_seconds, max_wait_seconds)
-    status = job["status"]
-    if status not in _SUCCESS_STATES:
-        message = job.get("message") or job.get("failureMessage") or ""
-        raise exceptions.ServiceApiError(
-            f"Bedrock batch inference job {job_arn} ended with status '{status}': {message}"
-        )
-
     df_with_id = df.copy()
     df_with_id["record_id"] = [r["recordId"] for r in records]
-    return _collect_results(
-        s3_client=s3_client,
-        job_arn=job_arn,
-        status=status,
-        output_s3_uri=output_s3_uri,
-        invocation_type=invocation_type,
+    return read_invoke_batch(
+        job_arn,
         df=df_with_id,
         record_id_column="record_id",
+        wait=True,
+        poll_interval_seconds=poll_interval_seconds,
+        max_wait_seconds=max_wait_seconds,
+        boto3_session=boto3_session,
     )
 
 

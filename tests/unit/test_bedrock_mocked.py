@@ -53,6 +53,7 @@ def _lower_min_records(monkeypatch: pytest.MonkeyPatch) -> None:
 def _build_batch_clients(
     output_records: list[dict[str, Any]],
     statuses: list[str] | None = None,
+    invocation_type: str = "Converse",
 ) -> tuple[MagicMock, MagicMock, list[dict[str, Any]]]:
     """Wire up bedrock + s3 mocks and capture the JSONL payload uploaded to S3."""
     bedrock = MagicMock()
@@ -74,7 +75,14 @@ def _build_batch_clients(
     }
 
     statuses = statuses or ["Completed"]
-    bedrock.get_model_invocation_job.side_effect = [{"status": s} for s in statuses]
+    bedrock.get_model_invocation_job.side_effect = [
+        {
+            "status": s,
+            "modelInvocationType": invocation_type,
+            "outputDataConfig": {"s3OutputDataConfig": {"s3Uri": "s3://b/out/"}},
+        }
+        for s in statuses
+    ]
 
     s3.list_objects_v2.return_value = {
         "Contents": [{"Key": "out/abc123def456/awswrangler-job.jsonl.out"}],
@@ -192,7 +200,7 @@ def test_invoke_batch_invoke_model_with_model_input_column() -> None:
     output_records = [
         {"recordId": "REC000000000", "modelOutput": {"results": [{"outputText": "ok"}]}},
     ]
-    bedrock, s3, captured = _build_batch_clients(output_records)
+    bedrock, s3, captured = _build_batch_clients(output_records, invocation_type="InvokeModel")
     df = pd.DataFrame({"body": [{"inputText": "hello"}]})
 
     with _patch_clients({"bedrock": bedrock, "s3": s3}):
