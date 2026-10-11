@@ -57,9 +57,10 @@ def _verify_bucket_ownership(
         code = err.response.get("Error", {}).get("Code")
         if code in ("403", "AccessDenied", "Forbidden"):
             raise exceptions.InvalidArgumentValue(
-                f"S3 bucket '{bucket_name}' is not owned by account {account_id}. "
-                f"Refusing to use it to prevent cross-account data leakage. "
-                f"Pass an explicit, account-owned S3 path instead."
+                f"Could not verify that S3 bucket '{bucket_name}' is owned by account {account_id}: "
+                f"either the bucket belongs to another account or the caller lacks `s3:ListBucket` on it. "
+                f"Refusing to use it as the EMR logging path to prevent cross-account data leakage. "
+                f"Pass an explicit `logging_s3_path` to a bucket you own instead."
             ) from err
         if code in ("404", "NoSuchBucket", "NotFound"):
             raise exceptions.InvalidArgumentValue(
@@ -121,9 +122,9 @@ def _get_default_logging_path(
         _region = cast(str, region)
     warnings.warn(
         "No `logging_s3_path` was provided. Falling back to the default bucket "
-        f"`aws-logs-{_account_id}-{_region}`. Because S3 bucket names are global, "
-        "relying on this predictable default is discouraged: pass an explicit "
-        "`logging_s3_path` to avoid potential S3 bucket squatting.",
+        f"`aws-logs-{_account_id}-{_region}`. Because S3 bucket names are global, this "
+        "predictable name could be claimed by another account; its ownership is verified "
+        "before use, but passing an explicit `logging_s3_path` is recommended.",
         UserWarning,
         stacklevel=2,
     )
@@ -560,7 +561,11 @@ def create_cluster(  # noqa: PLR0913, PLR0917
         Cluster name.
     logging_s3_path
         Logging s3 path (e.g. s3://BUCKET_NAME/DIRECTORY_NAME/).
-        If None, the default is `s3://aws-logs-{AccountId}-{RegionId}/elasticmapreduce/`
+        If None, the default is `s3://aws-logs-{AccountId}-{RegionId}/elasticmapreduce/`.
+        Because that bucket name is predictable, its ownership is verified with
+        ``HeadBucket`` (``ExpectedBucketOwner``) before the cluster is created, which
+        requires ``s3:ListBucket`` on the bucket. The bucket must already exist and
+        belong to the caller's account; otherwise an ``InvalidArgumentValue`` is raised.
     emr_release
         EMR release (e.g. emr-5.28.0).
     emr_ec2_role
