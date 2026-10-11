@@ -76,6 +76,46 @@ def test_to_sql_upsert(oracle_table: str, oracle_con: "oracledb.Connection", fir
     assert_pandas_equals(df_expected, df_actual)
 
 
+def test_generate_upsert_statement_column_alignment() -> None:
+    df = pd.DataFrame({"name": ["alice"], "age": [30], "id": [1]})
+    sql = wr.oracle._generate_upsert_statement(
+        table_identifier='"TEST"."T"',
+        df=df,
+        use_column_names=True,
+        primary_keys=["id"],
+    )
+
+    assert 'INSERT INTO "TEST"."T" ("name", "age", "id")' in sql
+    assert "VALUES (:1, :2, :3)" in sql
+    assert '"name" = :1, "age" = :2' in sql
+    assert '"id" = :3' in sql
+
+
+def test_generate_upsert_statement_all_columns_are_primary_keys() -> None:
+    df = pd.DataFrame({"id": [1], "region": ["eu"]})
+    sql = wr.oracle._generate_upsert_statement(
+        table_identifier='"TEST"."T"',
+        df=df,
+        use_column_names=True,
+        primary_keys=["id", "region"],
+    )
+
+    assert "WHEN dup_val_on_index THEN" in sql
+    assert "NULL;" in sql
+    assert "UPDATE" not in sql
+
+
+def test_generate_upsert_statement_unknown_primary_key() -> None:
+    df = pd.DataFrame({"id": [1], "name": ["alice"]})
+    with pytest.raises(wr.exceptions.InvalidArgumentValue, match="not found in the DataFrame columns"):
+        wr.oracle._generate_upsert_statement(
+            table_identifier='"TEST"."T"',
+            df=df,
+            use_column_names=True,
+            primary_keys=["ID"],
+        )
+
+
 def test_sql_types(oracle_table: str, oracle_con: "oracledb.Connection") -> None:
     table = oracle_table
     df = get_df()

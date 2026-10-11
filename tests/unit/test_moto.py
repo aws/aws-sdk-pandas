@@ -4,7 +4,8 @@ import copy
 import json
 import logging
 import os
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, patch
@@ -89,6 +90,26 @@ def moto_dynamodb_table(moto_dynamodb_client):
 
 
 @pytest.fixture(scope="function")
+def local_timezone(request):
+    """Run a test under the local timezone named by the (indirect) parameter."""
+    if not hasattr(time, "tzset"):
+        pytest.skip("Changing the local timezone requires time.tzset(), which is not available on Windows.")
+    previous_tz = os.environ.get("TZ")
+    os.environ["TZ"] = request.param
+    time.tzset()
+    try:
+        if time.localtime().tm_gmtoff == 0:
+            pytest.skip(f"The timezone database has no entry for {request.param}.")
+        yield request.param
+    finally:
+        if previous_tz is None:
+            del os.environ["TZ"]
+        else:
+            os.environ["TZ"] = previous_tz
+        time.tzset()
+
+
+@pytest.fixture(scope="function")
 def moto_timestream_session():
     with moto.mock_aws():
         session = boto3.Session(region_name="us-east-1")
@@ -118,6 +139,16 @@ def test_object_exist_succeed(moto_s3_client: "S3Client") -> None:
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
     result = wr.s3.does_object_exist(path)
     assert result is True
+
+
+@pytest.mark.parametrize(
+    "key",
+    ["s3://source/file.csv", "archive/s3://source/file.csv", "archive/s3://source/s3://file.csv", "s3://"],
+)
+def test_object_exist_with_s3_scheme_in_key(moto_s3_client: "S3Client", key: str) -> None:
+    moto_s3_client.put_object(Bucket="bucket", Key=key, Body=b"test")
+
+    assert wr.s3.does_object_exist(f"s3://bucket/{key}") is True
 
 
 def test_list_directories_succeed(moto_s3_client: "S3Client") -> None:
@@ -387,6 +418,50 @@ def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3_client: "S3Client"
         assert len(df.columns) == 2
 
 
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_csv_mixed_compression(moto_s3_client: "S3Client", chunksize: int | None) -> None:
+    df = pd.DataFrame({"id": [1, 2], "value": ["a", "b"]})
+    compressed = "s3://bucket/file1.csv.gz"
+    uncompressed = "s3://bucket/file2.csv"
+    wr.s3.to_csv(df=df, path=compressed, index=False, compression="gzip")
+    wr.s3.to_csv(df=df, path=uncompressed, index=False)
+    result = wr.s3.read_csv(path=[compressed, uncompressed], chunksize=chunksize, use_threads=False)
+    if chunksize is None:
+        assert len(result.index) == 4
+        assert list(result.columns) == ["id", "value"]
+    else:
+        chunks = list(result)
+        assert len(chunks) == 4
+        for chunk in chunks:
+            assert len(chunk.index) == 1
+            assert list(chunk.columns) == ["id", "value"]
+
+
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_json_mixed_compression(moto_s3_client: "S3Client", chunksize: int | None) -> None:
+    df = pd.DataFrame({"id": [1, 2], "value": ["a", "b"]})
+    compressed = "s3://bucket/file1.json.gz"
+    uncompressed = "s3://bucket/file2.json"
+    wr.s3.to_json(df=df, path=compressed, compression="gzip", orient="records", lines=True)
+    wr.s3.to_json(df=df, path=uncompressed, orient="records", lines=True)
+    result = wr.s3.read_json(
+        path=[compressed, uncompressed],
+        orient="records",
+        lines=True,
+        chunksize=chunksize,
+        use_threads=False,
+    )
+    if chunksize is None:
+        assert len(result.index) == 4
+        assert list(result.columns) == ["id", "value"]
+    else:
+        chunks = list(result)
+        assert len(chunks) == 4
+        for chunk in chunks:
+            assert len(chunk.index) == 1
+            assert list(chunk.columns) == ["id", "value"]
+
+
 @mock.patch("pandas.read_csv")
 @mock.patch("pandas.concat")
 def test_read_csv_pass_pandas_arguments_and_encoding_succeed(
@@ -466,6 +541,38 @@ def test_to_csv_valid_argument_combination_when_dataset_true_succeed(moto_s3_cli
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
 
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, mode="append")
+
+
+def test_path2list_suffix_with_list_of_paths(moto_s3_client: "S3Client") -> None:
+    paths = ["s3://bucket/file1.parquet", "s3://bucket/file2.txt", "s3://bucket/file3.csv"]
+
+    # 1. suffix only
+    result1 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=".parquet",
+    )
+    assert result1 == ["s3://bucket/file1.parquet"]
+
+    # 2. list of suffixes
+    result2 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=[".parquet", ".csv"],
+    )
+    assert result2 == ["s3://bucket/file1.parquet", "s3://bucket/file3.csv"]
+
+    # 3. suffix and ignore_suffix combined
+    result3 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=[".parquet", ".txt"],
+        ignore_suffix=".txt",
+    )
+    assert result3 == ["s3://bucket/file1.parquet"]
 
 
 def test_to_csv_data_empty(moto_s3_client: "S3Client") -> None:
@@ -1192,6 +1299,67 @@ def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
     # matching the list_objects/delete_objects calls in the same function.
     assert to_csv.call_args.kwargs["boto3_session"] is session
     assert to_csv.call_args.kwargs["s3_additional_kwargs"] == s3_kwargs
+
+
+# Both a timezone ahead of and behind UTC, so the assertions are meaningful either way.
+@pytest.mark.parametrize("local_timezone", ["Asia/Tokyo", "America/New_York"], indirect=True)
+def test_cloudwatch_start_query_default_end_time_is_utc_now(local_timezone) -> None:
+    # The default `end_time` must be the current UTC instant regardless of the machine's
+    # local timezone. A naive UTC datetime is interpreted as local time by
+    # `datetime.timestamp()`, which shifts the query window by the local UTC offset.
+    logs_client = mock.MagicMock()
+    logs_client.start_query.return_value = {"queryId": "query-id"}
+
+    with mock.patch("awswrangler._utils.client", return_value=logs_client):
+        wr.cloudwatch.start_query(query="fields @timestamp", log_group_names=["log-group"])
+
+    args = logs_client.start_query.call_args.kwargs
+    now_milliseconds = int(1000 * datetime.now(tz=timezone.utc).timestamp())
+    assert abs(args["endTime"] - now_milliseconds) < 60_000
+    # The default `start_time` remains the Unix epoch.
+    assert args["startTime"] == 0
+
+
+@pytest.mark.parametrize("local_timezone", ["Asia/Tokyo", "America/New_York"], indirect=True)
+def test_cloudwatch_start_query_recent_start_time_with_default_end_time(local_timezone) -> None:
+    # A `start_time` in the recent past is valid against the default `end_time`; a local
+    # offset ahead of UTC used to push the default `end_time` before it and raise.
+    logs_client = mock.MagicMock()
+    logs_client.start_query.return_value = {"queryId": "query-id"}
+    start_time = datetime.now(tz=timezone.utc) - timedelta(minutes=5)
+
+    with mock.patch("awswrangler._utils.client", return_value=logs_client):
+        query_id = wr.cloudwatch.start_query(
+            query="fields @timestamp",
+            log_group_names=["log-group"],
+            start_time=start_time,
+        )
+
+    assert query_id == "query-id"
+    args = logs_client.start_query.call_args.kwargs
+    assert args["startTime"] == int(1000 * start_time.timestamp())
+    assert args["endTime"] > args["startTime"]
+
+
+@pytest.mark.parametrize("local_timezone", ["Asia/Tokyo"], indirect=True)
+def test_cloudwatch_start_query_explicit_times_are_preserved(local_timezone) -> None:
+    # Explicitly passed boundaries keep being converted straight to epoch milliseconds.
+    logs_client = mock.MagicMock()
+    logs_client.start_query.return_value = {"queryId": "query-id"}
+    start_time = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    end_time = datetime(2024, 1, 2, 0, 0, 0, tzinfo=timezone.utc)
+
+    with mock.patch("awswrangler._utils.client", return_value=logs_client):
+        wr.cloudwatch.start_query(
+            query="fields @timestamp",
+            log_group_names=["log-group"],
+            start_time=start_time,
+            end_time=end_time,
+        )
+
+    args = logs_client.start_query.call_args.kwargs
+    assert args["startTime"] == 1_704_067_200_000
+    assert args["endTime"] == 1_704_153_600_000
 
 
 def test_emr_default_logging_path_warns() -> None:
