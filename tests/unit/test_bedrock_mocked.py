@@ -11,6 +11,7 @@ import json
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -380,6 +381,56 @@ def test_invoke_batch_records_with_errors_are_passed_through() -> None:
     assert out_sorted["model_output"].iloc[1] is None
 
 
+def test_invoke_batch_null_prompt_raises() -> None:
+    bedrock, s3, _ = _build_batch_clients([])
+    df = pd.DataFrame({"prompt": ["ok", None]})
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        with pytest.raises(exceptions.InvalidArgumentValue, match="null"):
+            wr.bedrock.invoke_batch(
+                df=df,
+                model_id="m",
+                role_arn="arn:aws:iam::123:role/R",
+                prompt_column="prompt",
+                input_s3_uri="s3://b/in/",
+                output_s3_uri="s3://b/out/",
+            )
+    s3.put_object.assert_not_called()
+    bedrock.create_model_invocation_job.assert_not_called()
+
+
+def test_invoke_batch_serializes_numpy_scalars_in_model_input() -> None:
+    bedrock, s3, captured = _build_batch_clients([])
+    df = pd.DataFrame({"n": [np.int64(7)], "f": [np.float64(0.5)], "b": [np.bool_(True)]})
+    df["body"] = df.apply(
+        lambda r: {
+            "max_tokens": r["n"],
+            "temperature": r["f"],
+            "flag": r["b"],
+            "ts": pd.Timestamp("2026-01-02T03:04:05"),
+        },
+        axis=1,
+    )
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        wr.bedrock.invoke_batch(
+            df=df,
+            model_id="m",
+            role_arn="arn:aws:iam::123:role/R",
+            model_input_column="body",
+            invocation_type="InvokeModel",
+            input_s3_uri="s3://b/in/",
+            output_s3_uri="s3://b/out/",
+        )
+
+    assert captured[0]["modelInput"] == {
+        "max_tokens": 7,
+        "temperature": 0.5,
+        "flag": True,
+        "ts": "2026-01-02T03:04:05",
+    }
+
+
 def test_invoke_batch_rejects_non_s3_uri() -> None:
     df = pd.DataFrame({"prompt": ["x"]})
     with pytest.raises(exceptions.InvalidArgumentValue, match="s3://"):
@@ -585,6 +636,38 @@ def test_read_invoke_batch_lists_output_with_job_scoped_prefix() -> None:
     prefix = s3.list_objects_v2.call_args.kwargs["Prefix"]
     # Must be slash-terminated so a sibling job id sharing this prefix cannot match.
     assert prefix.endswith("abc123def456/")
+
+
+def test_read_invoke_batch_empty_output_keeps_schema() -> None:
+    bedrock, s3 = _build_wait_clients([])
+    df = pd.DataFrame({"id": ["a"], "label": ["x"]})
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        flat = wr.bedrock.read_invoke_batch("arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456")
+    assert list(flat.columns) == ["record_id", "model_output", "error", "output_text"]
+    assert len(flat) == 0
+
+    bedrock, s3 = _build_wait_clients([])
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        merged = wr.bedrock.read_invoke_batch(
+            "arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456",
+            df=df,
+            record_id_column="id",
+        )
+    assert list(merged.columns) == ["id", "label", "record_id", "model_output", "error", "output_text"]
+    assert merged["label"].tolist() == ["x"]
+    assert pd.isna(merged["output_text"].iloc[0])
+
+
+def test_read_invoke_batch_all_errors_keeps_output_text_column() -> None:
+    output_records = [{"recordId": "a", "error": {"errorCode": 400, "errorMessage": "bad"}}]
+    bedrock, s3 = _build_wait_clients(output_records)
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        out = wr.bedrock.read_invoke_batch("arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456")
+
+    assert list(out.columns) == ["record_id", "model_output", "error", "output_text"]
+    assert pd.isna(out["output_text"].iloc[0])
 
 
 def test_read_invoke_batch_invoke_model_omits_output_text() -> None:

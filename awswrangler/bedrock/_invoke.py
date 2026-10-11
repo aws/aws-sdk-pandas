@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import io
 import json
 import logging
@@ -10,6 +11,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, Iterable, Literal, overload
 
 import boto3
+import numpy as np
 
 import awswrangler.pandas as pd
 from awswrangler import _utils, exceptions
@@ -64,6 +66,13 @@ def _build_records(
     inference_config: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
+    if prompt_column is not None:
+        null_prompts = int(df[prompt_column].isna().sum())
+        if null_prompts:
+            raise exceptions.InvalidArgumentValue(
+                f"`prompt_column` '{prompt_column}' contains {null_prompts} null value(s); "
+                "drop or fill them before submitting, otherwise they would be sent to the model as literal text."
+            )
     for i, row in enumerate(df.to_dict(orient="records")):
         record_id = str(row[record_id_column]) if record_id_column else f"REC{i:09d}"
         if model_input_column is not None:
@@ -84,10 +93,25 @@ def _build_records(
     return records
 
 
+def _json_default(obj: Any) -> Any:
+    """Serialize numpy/pandas scalars that commonly end up in DataFrame-built model inputs."""
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (datetime.datetime, datetime.date)):  # pd.Timestamp subclasses datetime
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
 def _write_jsonl(s3_client: "BaseClient", records: Iterable[dict[str, Any]], bucket: str, key: str) -> None:
     buf = io.BytesIO()
     for rec in records:
-        buf.write(json.dumps(rec).encode("utf-8"))
+        buf.write(json.dumps(rec, default=_json_default).encode("utf-8"))
         buf.write(b"\n")
     s3_client.put_object(Bucket=bucket, Key=key, Body=buf.getvalue())  # type: ignore[attr-defined]
 
@@ -162,6 +186,9 @@ def _collect_results(
             f"No output files found under s3://{output_bucket}/{output_search_prefix} for job {job_arn}."
         )
 
+    result_columns = ["record_id", "model_output", "error"]
+    if invocation_type == "Converse":
+        result_columns.append("output_text")
     rows: list[dict[str, Any]] = []
     for key in output_keys:
         for record in _read_jsonl(s3_client, output_bucket, key):
@@ -173,7 +200,8 @@ def _collect_results(
             if invocation_type == "Converse" and record.get("modelOutput") is not None:
                 row["output_text"] = _extract_converse_text(record["modelOutput"])
             rows.append(row)
-    results = pd.DataFrame(rows)
+    # Explicit columns keep the schema stable when every record errored or the output is empty.
+    results = pd.DataFrame(rows, columns=result_columns)
 
     if df is not None:
         if record_id_column is None or record_id_column not in df.columns:
