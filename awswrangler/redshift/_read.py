@@ -15,7 +15,7 @@ from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
 
 from ._connect import _validate_connection
-from ._utils import _make_s3_auth_string
+from ._utils import _escape_string_literal, _make_s3_auth_string
 
 if TYPE_CHECKING:
     try:
@@ -343,7 +343,7 @@ def unload_to_files(
         format_str: str = unload_format or "PARQUET"
         partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
         manifest_str: str = "\nmanifest" if manifest is True else ""
-        region_str: str = f"\nREGION AS '{region}'" if region is not None else ""
+        region_str: str = f"\nREGION AS '{_escape_string_literal(region)}'" if region is not None else ""
         parallel_str: str = "\nPARALLEL ON" if parallel else "\nPARALLEL OFF"
         if not max_file_size and engine.get() == EngineEnum.RAY:
             _logger.warning(
@@ -352,7 +352,7 @@ def unload_to_files(
             )
             max_file_size = 512.0
         max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
-        kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
+        kms_key_id_str: str = f"\nKMS_KEY_ID '{_escape_string_literal(kms_key_id)}'" if kms_key_id is not None else ""
 
         auth_str: str = _make_s3_auth_string(
             iam_role=iam_role,
@@ -363,13 +363,13 @@ def unload_to_files(
         )
 
         # Escape quotation marks in SQL
-        sql = sql.replace("'", "''")
+        sql = _escape_string_literal(sql)
 
         overwrite_str: str = "CLEANPATH" if cleanpath else "ALLOWOVERWRITE"
 
         unload_sql = (
             f"UNLOAD ('{sql}')\n"
-            f"TO '{path}'\n"
+            f"TO '{_escape_string_literal(path)}'\n"
             f"{auth_str}"
             f"{overwrite_str}\n"
             f"{parallel_str}\n"

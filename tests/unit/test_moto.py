@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-import datetime
+import copy
+import json
 import logging
 import os
 import time
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, patch
@@ -16,6 +18,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
+from awswrangler._distributed import EngineEnum
 from awswrangler.exceptions import InvalidArgumentCombination, InvalidArgumentValue
 
 from .._utils import _get_unique_suffix, ensure_data_types, get_df_csv, get_df_list
@@ -106,6 +109,16 @@ def local_timezone(request):
         time.tzset()
 
 
+@pytest.fixture(scope="function")
+def moto_timestream_session():
+    with moto.mock_aws():
+        session = boto3.Session(region_name="us-east-1")
+        timestream_client = session.client("timestream-write")
+        timestream_client.create_database(DatabaseName="sampleDB")
+        timestream_client.create_table(DatabaseName="sampleDB", TableName="sampleTable")
+        yield session
+
+
 def get_content_md5(desc: dict):
     result = desc.get("ResponseMetadata").get("HTTPHeaders").get("content-md5")
     return result
@@ -126,6 +139,16 @@ def test_object_exist_succeed(moto_s3_client: "S3Client") -> None:
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
     result = wr.s3.does_object_exist(path)
     assert result is True
+
+
+@pytest.mark.parametrize(
+    "key",
+    ["s3://source/file.csv", "archive/s3://source/file.csv", "archive/s3://source/s3://file.csv", "s3://"],
+)
+def test_object_exist_with_s3_scheme_in_key(moto_s3_client: "S3Client", key: str) -> None:
+    moto_s3_client.put_object(Bucket="bucket", Key=key, Body=b"test")
+
+    assert wr.s3.does_object_exist(f"s3://bucket/{key}") is True
 
 
 def test_list_directories_succeed(moto_s3_client: "S3Client") -> None:
@@ -395,6 +418,50 @@ def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3_client: "S3Client"
         assert len(df.columns) == 2
 
 
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_csv_mixed_compression(moto_s3_client: "S3Client", chunksize: int | None) -> None:
+    df = pd.DataFrame({"id": [1, 2], "value": ["a", "b"]})
+    compressed = "s3://bucket/file1.csv.gz"
+    uncompressed = "s3://bucket/file2.csv"
+    wr.s3.to_csv(df=df, path=compressed, index=False, compression="gzip")
+    wr.s3.to_csv(df=df, path=uncompressed, index=False)
+    result = wr.s3.read_csv(path=[compressed, uncompressed], chunksize=chunksize, use_threads=False)
+    if chunksize is None:
+        assert len(result.index) == 4
+        assert list(result.columns) == ["id", "value"]
+    else:
+        chunks = list(result)
+        assert len(chunks) == 4
+        for chunk in chunks:
+            assert len(chunk.index) == 1
+            assert list(chunk.columns) == ["id", "value"]
+
+
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_json_mixed_compression(moto_s3_client: "S3Client", chunksize: int | None) -> None:
+    df = pd.DataFrame({"id": [1, 2], "value": ["a", "b"]})
+    compressed = "s3://bucket/file1.json.gz"
+    uncompressed = "s3://bucket/file2.json"
+    wr.s3.to_json(df=df, path=compressed, compression="gzip", orient="records", lines=True)
+    wr.s3.to_json(df=df, path=uncompressed, orient="records", lines=True)
+    result = wr.s3.read_json(
+        path=[compressed, uncompressed],
+        orient="records",
+        lines=True,
+        chunksize=chunksize,
+        use_threads=False,
+    )
+    if chunksize is None:
+        assert len(result.index) == 4
+        assert list(result.columns) == ["id", "value"]
+    else:
+        chunks = list(result)
+        assert len(chunks) == 4
+        for chunk in chunks:
+            assert len(chunk.index) == 1
+            assert list(chunk.columns) == ["id", "value"]
+
+
 @mock.patch("pandas.read_csv")
 @mock.patch("pandas.concat")
 def test_read_csv_pass_pandas_arguments_and_encoding_succeed(
@@ -474,6 +541,38 @@ def test_to_csv_valid_argument_combination_when_dataset_true_succeed(moto_s3_cli
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
 
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, mode="append")
+
+
+def test_path2list_suffix_with_list_of_paths(moto_s3_client: "S3Client") -> None:
+    paths = ["s3://bucket/file1.parquet", "s3://bucket/file2.txt", "s3://bucket/file3.csv"]
+
+    # 1. suffix only
+    result1 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=".parquet",
+    )
+    assert result1 == ["s3://bucket/file1.parquet"]
+
+    # 2. list of suffixes
+    result2 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=[".parquet", ".csv"],
+    )
+    assert result2 == ["s3://bucket/file1.parquet", "s3://bucket/file3.csv"]
+
+    # 3. suffix and ignore_suffix combined
+    result3 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=[".parquet", ".txt"],
+        ignore_suffix=".txt",
+    )
+    assert result3 == ["s3://bucket/file1.parquet"]
 
 
 def test_to_csv_data_empty(moto_s3_client: "S3Client") -> None:
@@ -960,6 +1059,248 @@ def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto
         wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
 
 
+def _capture_timestream_write_records(session: boto3.Session) -> list:
+    captured: list = []
+
+    def _handler(params, **kwargs) -> None:
+        # Deep copy so that a shared mutable `CommonAttributes` cannot be observed post-hoc.
+        captured.append(copy.deepcopy(params))
+
+    session.events.register("provide-client-params.timestream-write.WriteRecords", _handler)
+    return captured
+
+
+def _timestream_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            # Timezone-aware so that the formatted epoch value does not depend on the local timezone.
+            "time": [datetime(2024, 1, 1, tzinfo=timezone.utc)],
+            "cpu": [1.0],
+            "mem": [2.0],
+        }
+    )
+
+
+def test_timestream_write_does_not_mutate_common_attributes(moto_timestream_session: boto3.Session) -> None:
+    common_attributes = {"Dimensions": [{"Name": "host", "Value": "h1", "DimensionValueType": "VARCHAR"}]}
+    expected = copy.deepcopy(common_attributes)
+
+    rejected_records = wr.timestream.write(
+        df=_timestream_df(),
+        database="sampleDB",
+        table="sampleTable",
+        time_col="time",
+        measure_col="cpu",
+        common_attributes=common_attributes,
+        boto3_session=moto_timestream_session,
+        use_threads=False,
+    )
+
+    assert rejected_records == []
+    assert common_attributes == expected
+
+
+def test_timestream_write_common_attributes_reused_across_calls(moto_timestream_session: boto3.Session) -> None:
+    captured = _capture_timestream_write_records(moto_timestream_session)
+    common_attributes = {"Dimensions": [{"Name": "host", "Value": "h1", "DimensionValueType": "VARCHAR"}]}
+
+    wr.timestream.write(
+        df=_timestream_df(),
+        database="sampleDB",
+        table="sampleTable",
+        time_col="time",
+        measure_col="cpu",
+        common_attributes=common_attributes,
+        boto3_session=moto_timestream_session,
+        use_threads=False,
+    )
+    wr.timestream.write(
+        df=_timestream_df(),
+        database="sampleDB",
+        table="sampleTable",
+        time_col="time",
+        measure_col="mem",
+        version=5,
+        time_unit="MICROSECONDS",
+        common_attributes=common_attributes,
+        boto3_session=moto_timestream_session,
+        use_threads=False,
+    )
+
+    assert len(captured) == 2
+    first, second = captured
+
+    assert first["CommonAttributes"]["MeasureName"] == "cpu"
+    assert first["CommonAttributes"]["TimeUnit"] == "MILLISECONDS"
+    assert first["CommonAttributes"]["Version"] == 1
+    assert first["Records"][0]["Time"] == "1704067200000"
+
+    # The second call must honor its own arguments instead of the defaults resolved for the first one.
+    assert second["CommonAttributes"]["MeasureName"] == "mem"
+    assert second["CommonAttributes"]["TimeUnit"] == "MICROSECONDS"
+    assert second["CommonAttributes"]["Version"] == 5
+    assert second["Records"][0]["Time"] == "1704067200000000"
+
+
+def test_timestream_write_common_attributes_take_precedence(moto_timestream_session: boto3.Session) -> None:
+    captured = _capture_timestream_write_records(moto_timestream_session)
+    common_attributes = {
+        "Dimensions": [{"Name": "host", "Value": "h1", "DimensionValueType": "VARCHAR"}],
+        "MeasureName": "from_common_attributes",
+        "TimeUnit": "SECONDS",
+        "Version": 9,
+    }
+    expected = copy.deepcopy(common_attributes)
+
+    wr.timestream.write(
+        df=_timestream_df(),
+        database="sampleDB",
+        table="sampleTable",
+        time_col="time",
+        measure_col="cpu",
+        measure_name="from_argument",
+        version=1,
+        time_unit="MILLISECONDS",
+        common_attributes=common_attributes,
+        boto3_session=moto_timestream_session,
+        use_threads=False,
+    )
+
+    assert common_attributes == expected
+    assert captured[0]["CommonAttributes"]["MeasureName"] == "from_common_attributes"
+    assert captured[0]["CommonAttributes"]["TimeUnit"] == "SECONDS"
+    assert captured[0]["CommonAttributes"]["Version"] == 9
+    assert captured[0]["Records"][0]["Time"] == "1704067200"
+
+
+def test_redshift_copy_escapes_path_literal() -> None:
+    from awswrangler.redshift._write import _copy
+
+    cursor = mock.MagicMock()
+    # A single quote in the path must not be able to terminate the COPY string literal.
+    _copy(
+        cursor=cursor,
+        path="s3://bucket/o'brien/",
+        table="t",
+        serialize_to_json=False,
+        iam_role="arn:aws:iam::123456789012:role/example",
+    )
+    executed_sql = cursor.execute.call_args[0][0]
+    assert "FROM 's3://bucket/o''brien/'" in executed_sql
+    assert "o'brien" not in executed_sql.replace("o''brien", "")
+
+
+def test_secretsmanager_get_secret_binary(moto_aws) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    # Bytes that are not valid base64 input; the previous double-decode silently returned b"".
+    raw = bytes(range(8))
+    session.client("secretsmanager").create_secret(Name="aws-sdk-pandas/binary-secret", SecretBinary=raw)
+
+    assert wr.secretsmanager.get_secret("aws-sdk-pandas/binary-secret", boto3_session=session) == raw
+
+
+def test_secretsmanager_get_secret_string(moto_aws) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    session.client("secretsmanager").create_secret(Name="aws-sdk-pandas/string-secret", SecretString="p@ssw0rd")
+
+    assert wr.secretsmanager.get_secret("aws-sdk-pandas/string-secret", boto3_session=session) == "p@ssw0rd"
+
+
+@pytest.mark.parametrize(
+    "engine, ssl_value, expect_tls",
+    [
+        ("mysql", True, True),
+        ("mysql", "true", True),
+        ("mysql", "True", True),
+        ("mysql", False, False),
+        ("mysql", "false", False),
+        ("mysql", None, False),
+        ("aurora-mysql", True, True),
+        # ssl_context is only consumed by the MySQL connector; other engines must not set it
+        ("postgresql", True, False),
+        ("sqlserver", True, False),
+    ],
+)
+def test_connection_attributes_from_secret_ssl(moto_aws, engine, ssl_value, expect_tls) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    secret = {
+        "engine": engine,
+        "host": "db-instance.us-east-1.rds.amazonaws.com",
+        "username": "test",
+        "password": "test",
+        "port": "3306",
+        "dbname": "mydb",
+    }
+    if ssl_value is not None:
+        secret["ssl"] = ssl_value
+    secret_name = f"aws-sdk-pandas/db-secret-ssl-{engine}-{type(ssl_value).__name__}-{ssl_value}"
+    session.client("secretsmanager").create_secret(Name=secret_name, SecretString=json.dumps(secret))
+
+    attrs = wr._databases._get_connection_attributes_from_secrets_manager(
+        secret_id=secret_name, dbname=None, boto3_session=session
+    )
+    if expect_tls:
+        assert attrs.ssl_context is not None
+    else:
+        assert attrs.ssl_context is None
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"aws_access_key_id": "AKIA_EXAMPLE"},
+        {"aws_secret_access_key": "secret_example"},
+    ],
+)
+def test_redshift_auth_string_partial_credentials(kwargs) -> None:
+    from awswrangler.redshift._utils import _make_s3_auth_string
+
+    # Supplying only one of the access-key pair previously fell through to ambient
+    # session credentials silently; it must now fail loudly.
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        _make_s3_auth_string(**kwargs)
+
+
+def test_redshift_auth_string_full_credentials() -> None:
+    from awswrangler.redshift._utils import _make_s3_auth_string
+
+    auth_str = _make_s3_auth_string(aws_access_key_id="AKIA_EXAMPLE", aws_secret_access_key="secret_example")
+    assert "ACCESS_KEY_ID 'AKIA_EXAMPLE'" in auth_str
+    assert "SECRET_ACCESS_KEY 'secret_example'" in auth_str
+
+
+# boto3_session/s3_additional_kwargs are rejected up-front in distributed mode,
+# so the forwarding under test is only reachable on the python engine.
+@mock.patch("awswrangler.neptune._neptune.bulk_load_from_files")
+@mock.patch("awswrangler.neptune._neptune.s3.delete_objects")
+@mock.patch("awswrangler.neptune._neptune.s3.to_csv")
+@mock.patch("awswrangler.neptune._neptune.s3.list_objects", return_value=[])
+@mock.patch("awswrangler._distributed.engine.get", return_value=EngineEnum.PYTHON)
+def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
+    engine_get, list_objects, to_csv, delete_objects, bulk_load_from_files
+) -> None:
+    # bulk_load is gated on the sparql extra, which minimal CI does not install.
+    pytest.importorskip("SPARQLWrapper")
+
+    df = pd.DataFrame({"~id": ["0"], "~label": ["v"]})
+    session = boto3.Session(region_name="us-east-1")
+    s3_kwargs = {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": "arn:aws:kms:us-east-1:123456789012:key/x"}
+
+    wr.neptune.bulk_load(
+        client=mock.MagicMock(),
+        df=df,
+        path="s3://bucket/stage/",
+        iam_role="arn:aws:iam::123456789012:role/example",
+        boto3_session=session,
+        s3_additional_kwargs=s3_kwargs,
+    )
+
+    # The staged write must run under the caller's session and encryption kwargs,
+    # matching the list_objects/delete_objects calls in the same function.
+    assert to_csv.call_args.kwargs["boto3_session"] is session
+    assert to_csv.call_args.kwargs["s3_additional_kwargs"] == s3_kwargs
+
+
 # Both a timezone ahead of and behind UTC, so the assertions are meaningful either way.
 @pytest.mark.parametrize("local_timezone", ["Asia/Tokyo", "America/New_York"], indirect=True)
 def test_cloudwatch_start_query_default_end_time_is_utc_now(local_timezone) -> None:
@@ -973,7 +1314,7 @@ def test_cloudwatch_start_query_default_end_time_is_utc_now(local_timezone) -> N
         wr.cloudwatch.start_query(query="fields @timestamp", log_group_names=["log-group"])
 
     args = logs_client.start_query.call_args.kwargs
-    now_milliseconds = int(1000 * datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
+    now_milliseconds = int(1000 * datetime.now(tz=timezone.utc).timestamp())
     assert abs(args["endTime"] - now_milliseconds) < 60_000
     # The default `start_time` remains the Unix epoch.
     assert args["startTime"] == 0
@@ -985,7 +1326,7 @@ def test_cloudwatch_start_query_recent_start_time_with_default_end_time(local_ti
     # offset ahead of UTC used to push the default `end_time` before it and raise.
     logs_client = mock.MagicMock()
     logs_client.start_query.return_value = {"queryId": "query-id"}
-    start_time = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(minutes=5)
+    start_time = datetime.now(tz=timezone.utc) - timedelta(minutes=5)
 
     with mock.patch("awswrangler._utils.client", return_value=logs_client):
         query_id = wr.cloudwatch.start_query(
@@ -1005,8 +1346,8 @@ def test_cloudwatch_start_query_explicit_times_are_preserved(local_timezone) -> 
     # Explicitly passed boundaries keep being converted straight to epoch milliseconds.
     logs_client = mock.MagicMock()
     logs_client.start_query.return_value = {"queryId": "query-id"}
-    start_time = datetime.datetime(2024, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
-    end_time = datetime.datetime(2024, 1, 2, 0, 0, 0, tzinfo=datetime.timezone.utc)
+    start_time = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    end_time = datetime(2024, 1, 2, 0, 0, 0, tzinfo=timezone.utc)
 
     with mock.patch("awswrangler._utils.client", return_value=logs_client):
         wr.cloudwatch.start_query(
