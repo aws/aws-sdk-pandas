@@ -25,6 +25,7 @@ def _create_cluster_with_bootstraps(bootstraps_paths):
             with mock.patch("awswrangler.emr._utils.get_region_from_session", return_value="us-east-1"):
                 wr.emr.create_cluster(
                     subnet_id="subnet-12345678",
+                    logging_s3_path="s3://test-bucket/emr-logs/",
                     bootstraps_paths=bootstraps_paths,
                 )
     return fake_emr_client.run_job_flow_args
