@@ -1360,3 +1360,88 @@ def test_cloudwatch_start_query_explicit_times_are_preserved(local_timezone) -> 
     args = logs_client.start_query.call_args.kwargs
     assert args["startTime"] == 1_704_067_200_000
     assert args["endTime"] == 1_704_153_600_000
+
+
+def test_emr_default_logging_path_warns() -> None:
+    """Falling back to the predictable default logging bucket must emit a warning."""
+    with moto.mock_aws():
+        session = boto3.Session(region_name="us-east-1")
+        with pytest.warns(UserWarning, match="predictable name"):
+            wr.emr._get_default_logging_path(account_id="123456789012", region="us-east-1", boto3_session=session)
+
+
+def test_emr_verify_bucket_ownership_own_bucket() -> None:
+    """_verify_bucket_ownership must succeed when the bucket belongs to the caller."""
+    from awswrangler.emr import _verify_bucket_ownership
+
+    with moto.mock_aws():
+        session = boto3.Session(region_name="us-east-1")
+        account_id = session.client("sts").get_caller_identity()["Account"]
+        session.client("s3").create_bucket(Bucket="my-owned-bucket")
+
+        _verify_bucket_ownership("my-owned-bucket", account_id, boto3_session=session)
+
+
+def _s3_client_raising(code: str, status: int) -> mock.MagicMock:
+    client = mock.MagicMock()
+    client.head_bucket.side_effect = ClientError(
+        {"Error": {"Code": code, "Message": ""}, "ResponseMetadata": {"HTTPStatusCode": status}}, "HeadBucket"
+    )
+    return client
+
+
+@pytest.mark.parametrize("code,status", [("403", 403), ("AccessDenied", 403)])
+def test_emr_verify_bucket_ownership_rejects_foreign_bucket(code: str, status: int) -> None:
+    """A 403 from HeadBucket with ExpectedBucketOwner means the bucket is not ours (or not verifiable)."""
+    from awswrangler.emr import _verify_bucket_ownership
+
+    client = _s3_client_raising(code, status)
+    with mock.patch("awswrangler._utils.client", return_value=client):
+        with pytest.raises(wr.exceptions.InvalidArgumentValue, match="owned by account 123456789012"):
+            _verify_bucket_ownership("aws-logs-123456789012-us-east-1", "123456789012")
+
+    assert client.head_bucket.call_args.kwargs == {
+        "Bucket": "aws-logs-123456789012-us-east-1",
+        "ExpectedBucketOwner": "123456789012",
+    }
+
+
+@pytest.mark.parametrize("code,status", [("404", 404), ("NoSuchBucket", 404)])
+def test_emr_verify_bucket_ownership_rejects_missing_bucket(code: str, status: int) -> None:
+    """A missing default bucket is exactly the squattable state, so it must be rejected too."""
+    from awswrangler.emr import _verify_bucket_ownership
+
+    client = _s3_client_raising(code, status)
+    with mock.patch("awswrangler._utils.client", return_value=client):
+        with pytest.raises(wr.exceptions.InvalidArgumentValue, match="does not exist"):
+            _verify_bucket_ownership("aws-logs-123456789012-us-east-1", "123456789012")
+
+
+def test_emr_verify_bucket_ownership_reraises_other_errors() -> None:
+    """Unrelated S3 errors (throttling, etc.) must not be masked as ownership failures."""
+    from awswrangler.emr import _verify_bucket_ownership
+
+    client = _s3_client_raising("SlowDown", 503)
+    with mock.patch("awswrangler._utils.client", return_value=client):
+        with pytest.raises(ClientError):
+            _verify_bucket_ownership("aws-logs-123456789012-us-east-1", "123456789012")
+
+
+def test_emr_create_cluster_verifies_default_logging_bucket() -> None:
+    """create_cluster must verify ownership of the default log bucket, and skip it for explicit paths."""
+    with moto.mock_aws():
+        session = boto3.Session(region_name="us-east-1")
+        account_id = session.client("sts").get_caller_identity()["Account"]
+
+        with mock.patch("awswrangler.emr._verify_bucket_ownership") as verify:
+            with pytest.warns(UserWarning, match="aws-logs-"):
+                wr.emr.create_cluster(subnet_id="subnet-0123456789abcdef0", boto3_session=session)
+            verify.assert_called_once_with(f"aws-logs-{account_id}-us-east-1", account_id, boto3_session=session)
+
+        with mock.patch("awswrangler.emr._verify_bucket_ownership") as verify:
+            wr.emr.create_cluster(
+                subnet_id="subnet-0123456789abcdef0",
+                logging_s3_path="s3://my-own-bucket/emr-logs/",
+                boto3_session=session,
+            )
+            verify.assert_not_called()
