@@ -654,7 +654,7 @@ def test_read_invoke_batch_empty_output_keeps_schema() -> None:
             df=df,
             record_id_column="id",
         )
-    assert list(merged.columns) == ["id", "label", "record_id", "model_output", "error", "output_text"]
+    assert list(merged.columns) == ["id", "label", "model_output", "error", "output_text"]
     assert merged["label"].tolist() == ["x"]
     assert pd.isna(merged["output_text"].iloc[0])
 
@@ -682,3 +682,34 @@ def test_read_invoke_batch_invoke_model_omits_output_text() -> None:
 
     assert "output_text" not in out.columns
     assert out["model_output"].iloc[0] == {"results": [{"outputText": "ok"}]}
+
+
+def test_read_invoke_batch_paginates_output_listing() -> None:
+    bedrock, s3 = _build_wait_clients([])
+    s3.list_objects_v2.side_effect = [
+        {
+            "Contents": [{"Key": "out/abc123def456/part-1.jsonl.out"}],
+            "NextContinuationToken": "token-1",
+        },
+        {"Contents": [{"Key": "out/abc123def456/part-2.jsonl.out"}]},
+    ]
+
+    def body(record_id: str) -> dict[str, Any]:
+        record = {"recordId": record_id, "modelOutput": {"output": {"message": {"content": [{"text": "x"}]}}}}
+        return {"Body": io.BytesIO(json.dumps(record).encode())}
+
+    s3.get_object.side_effect = [body("REC000000000"), body("REC000000001")]
+
+    with _patch_clients({"bedrock": bedrock, "s3": s3}):
+        out = wr.bedrock.read_invoke_batch("arn:aws:bedrock:us-east-1:123:model-invocation-job/abc123def456")
+
+    assert s3.list_objects_v2.call_count == 2
+    assert s3.list_objects_v2.call_args_list[1].kwargs["ContinuationToken"] == "token-1"
+    # Records read from both pages (the mocked body is served per get_object call).
+    assert s3.get_object.call_count == 2
+    assert len(out) == 2
+
+
+def test_json_default_rejects_unserializable_values() -> None:
+    with pytest.raises(TypeError, match="not JSON serializable"):
+        _invoke._json_default({"a", "set"})

@@ -62,7 +62,7 @@ def _build_records(
     prompt_column: str | None,
     model_input_column: str | None,
     record_id_column: str | None,
-    invocation_type: str,
+    invocation_type: Literal["Converse", "InvokeModel"],
     inference_config: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
@@ -210,6 +210,9 @@ def _collect_results(
         df_with_id = df.copy()
         df_with_id["record_id"] = df_with_id[record_id_column].astype(str)
         results = df_with_id.merge(results, on="record_id", how="left")
+        if record_id_column != "record_id":
+            # The user's record_id_column carries the identity; drop the synthesized duplicate.
+            results = results.drop(columns="record_id")
 
     results.attrs["job_arn"] = job_arn
     results.attrs["status"] = status
@@ -226,7 +229,7 @@ def invoke_batch(
     prompt_column: str | None = ...,
     model_input_column: str | None = ...,
     record_id_column: str | None = ...,
-    invocation_type: str = ...,
+    invocation_type: Literal["Converse", "InvokeModel"] = ...,
     inference_config: dict[str, Any] | None = ...,
     input_s3_uri: str,
     output_s3_uri: str,
@@ -249,7 +252,7 @@ def invoke_batch(
     prompt_column: str | None = ...,
     model_input_column: str | None = ...,
     record_id_column: str | None = ...,
-    invocation_type: str = ...,
+    invocation_type: Literal["Converse", "InvokeModel"] = ...,
     inference_config: dict[str, Any] | None = ...,
     input_s3_uri: str,
     output_s3_uri: str,
@@ -272,7 +275,7 @@ def invoke_batch(
     prompt_column: str | None = ...,
     model_input_column: str | None = ...,
     record_id_column: str | None = ...,
-    invocation_type: str = ...,
+    invocation_type: Literal["Converse", "InvokeModel"] = ...,
     inference_config: dict[str, Any] | None = ...,
     input_s3_uri: str,
     output_s3_uri: str,
@@ -295,7 +298,7 @@ def invoke_batch(
     prompt_column: str | None = None,
     model_input_column: str | None = None,
     record_id_column: str | None = None,
-    invocation_type: str = "Converse",
+    invocation_type: Literal["Converse", "InvokeModel"] = "Converse",
     inference_config: dict[str, Any] | None = None,
     input_s3_uri: str,
     output_s3_uri: str,
@@ -367,9 +370,10 @@ def invoke_batch(
     Returns
     -------
         When ``wait=False`` (default), the job ARN as a string. When ``wait=True``, a DataFrame
-        containing the original columns plus ``record_id``, ``model_output``, and (for
-        ``invocation_type="Converse"``) ``output_text``. Failed records have ``model_output=None``
-        and a populated ``error`` column.
+        containing the original columns plus ``model_output`` and (for
+        ``invocation_type="Converse"``) ``output_text``; a ``record_id`` column is added only when
+        ``record_id_column`` was not provided (your own id column otherwise carries the identity).
+        Failed records have ``model_output=None`` and a populated ``error`` column.
 
     Examples
     --------
@@ -458,12 +462,16 @@ def invoke_batch(
     if not wait:
         return job_arn
 
-    df_with_id = df.copy()
-    df_with_id["record_id"] = [r["recordId"] for r in records]
+    if record_id_column is not None:
+        wait_df, wait_id_column = df, record_id_column
+    else:
+        wait_df = df.copy()
+        wait_df["record_id"] = [r["recordId"] for r in records]
+        wait_id_column = "record_id"
     return read_invoke_batch(
         job_arn,
-        df=df_with_id,
-        record_id_column="record_id",
+        df=wait_df,
+        record_id_column=wait_id_column,
         wait=True,
         poll_interval_seconds=poll_interval_seconds,
         max_wait_seconds=max_wait_seconds,
@@ -560,7 +568,8 @@ def read_invoke_batch(
     -------
         DataFrame containing ``record_id``, ``model_output``, ``error``, and (for Converse jobs)
         ``output_text``. When ``df`` is supplied, the original columns are preserved by merging on
-        ``record_id``. The job ARN and final status are exposed via ``result.attrs["job_arn"]``
+        the stringified ``record_id_column`` (the synthesized ``record_id`` column is dropped as a
+        duplicate). The job ARN and final status are exposed via ``result.attrs["job_arn"]``
         and ``result.attrs["status"]``.
 
     Examples
