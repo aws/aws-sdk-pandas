@@ -1,6 +1,5 @@
 """Unit tests for DQDL ruleset parsing (no AWS resources required)."""
 
-
 from awswrangler.data_quality._utils import _rules_to_df, _split_dqdl_rules
 
 
