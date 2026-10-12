@@ -398,7 +398,7 @@ def to_parquet(
         True to store the DataFrame index in file, otherwise False to ignore it.
         Is not supported in conjunction with `max_rows_by_file` when running the library with Ray/Modin.
     compression
-        Compression style (``None``, ``snappy``, ``gzip``, ``zstd``).
+        Compression style (``None``, ``snappy``, ``gzip``, ``zstd``, ``brotli``, ``lz4``).
     pyarrow_additional_kwargs
         Additional parameters forwarded to pyarrow.
         e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
@@ -707,7 +707,9 @@ def to_parquet(
 
     # Evaluating compression
     if _COMPRESSION_2_EXT.get(compression, None) is None:
-        raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, 'snappy', 'gzip' or 'zstd'.")
+        raise exceptions.InvalidCompression(
+            f"{compression} is invalid, please use None, 'snappy', 'gzip', 'zstd', 'brotli' or 'lz4'."
+        )
     compression_ext: str = _COMPRESSION_2_EXT[compression]
 
     # Pyarrow defaults

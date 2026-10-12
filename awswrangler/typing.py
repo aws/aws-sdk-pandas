@@ -13,8 +13,8 @@ DtypeBackend = Literal["numpy_nullable", "pyarrow"]
 TimestampUnit = Literal["s", "ms", "us", "ns"]
 S3WriteMode = Literal["append", "overwrite", "overwrite_partitions"]
 
-ParquetCompression = Literal["snappy", "gzip", "brotli", "zstd", "lz4", "none"]
-OrcCompression = Literal["lz4", "snappy", "zlib", "zstd", "none"]
+ParquetCompression = Literal["snappy", "gzip", "brotli", "zstd", "lz4"]
+OrcCompression = Literal["lz4", "snappy", "zlib", "zstd"]
 
 AthenaProjectionType = Literal["enum", "integer", "date", "injected"]
 AthenaUnloadFormat = Literal["PARQUET", "ORC", "AVRO", "JSON", "TEXTFILE"]

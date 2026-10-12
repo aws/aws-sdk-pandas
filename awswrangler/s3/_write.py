@@ -32,6 +32,8 @@ _COMPRESSION_2_EXT: dict[str | None, str] = {
     "xz": ".xz",
     "zip": ".zip",
     "zstd": ".zstd",
+    "brotli": ".brotli",
+    "lz4": ".lz4",
 }
 
 
