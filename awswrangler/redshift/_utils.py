@@ -294,10 +294,8 @@ def _redshift_types_from_path(
     _logger.debug("Parquet metadata types: %s", athena_types)
     redshift_types: dict[str, str] = {}
     for col_name, col_type in athena_types.items():
-        length: int = (
-            _data_types._validate_varchar_length(col_name, _varchar_lengths[col_name])
-            if col_name in _varchar_lengths
-            else varchar_lengths_default
+        length = _data_types._validate_varchar_length(
+            col_name, _varchar_lengths[col_name] if col_name in _varchar_lengths else varchar_lengths_default
         )
         redshift_types[col_name] = _data_types.athena2redshift(dtype=col_type, varchar_length=length)
     _logger.debug("Converted redshift types: %s", redshift_types)

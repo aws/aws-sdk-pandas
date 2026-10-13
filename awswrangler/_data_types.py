@@ -433,7 +433,7 @@ def athena2quicksight(dtype: str) -> str:  # noqa: PLR0911
 
 
 def athena2redshift(  # noqa: PLR0911
-    dtype: str, varchar_length: int = 256
+    dtype: str, varchar_length: int | str = 256
 ) -> str:
     """Athena to Redshift data types conversion."""
     dtype = dtype.lower()
@@ -845,41 +845,56 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
 # parenthesis depth zero (which would start a new column definition). Double quotes are
 # allowed in balanced pairs because PostgreSQL types legitimately carry quoted identifiers
 # (e.g. 'text COLLATE "C"', '"MySchema"."MyType"').
-_SQL_BREAKOUT_TOKENS: tuple[str, ...] = (";", "'", "`", "--", "/*", "*/", "#", "\\")
+# "$" blocks dollar-quoted string constants ($$...$$), which would otherwise let quoted
+# parentheses manipulate the depth scanner on PostgreSQL/Redshift.
+_SQL_BREAKOUT_TOKENS: tuple[str, ...] = (";", "'", "`", "--", "/*", "*/", "#", "\\", "$")
 
 
 def _validate_database_type(col_name: str, type_str: str) -> str:
-    error = exceptions.InvalidArgumentValue(
-        f"Invalid database type {type_str!r} for column {col_name!r}. "
-        "Types must not contain quotes, semicolons, comment tokens, top-level commas "
-        "or unbalanced parentheses."
-    )
+    def _reject() -> None:
+        raise exceptions.InvalidArgumentValue(
+            f"Invalid database type {type_str!r} for column {col_name!r}. "
+            "Types must not contain string delimiters, semicolons, comment tokens, top-level "
+            "commas, or unbalanced parentheses/double quotes."
+        )
+
     if not isinstance(type_str, str) or not type_str.strip():
-        raise error
+        _reject()
     if any(token in type_str for token in _SQL_BREAKOUT_TOKENS):
-        raise error
-    if type_str.count('"') % 2 != 0:
-        raise error
+        _reject()
+    # Characters inside balanced double quotes are inert for structure (quoted identifiers may
+    # contain commas/parens), but quoted regions cannot hide depth manipulation either: the
+    # scanner skips them entirely, so a breakout comma must appear unquoted at depth zero.
     depth = 0
+    in_quotes = False
     for char in type_str:
-        if char == "(":
+        if char == '"':
+            in_quotes = not in_quotes
+        elif in_quotes:
+            continue
+        elif char == "(":
             depth += 1
         elif char == ")":
             depth -= 1
             if depth < 0:
-                raise error
+                _reject()
         elif char == "," and depth == 0:
-            raise error
-    if depth != 0:
-        raise error
+            _reject()
+    if in_quotes or depth != 0:
+        _reject()
     return type_str
 
 
-def _validate_varchar_length(col_name: str, value: Any) -> int:
+def _validate_varchar_length(col_name: str, value: Any) -> int | str:
     # bool is an int subclass but 'VARCHAR(True)' is not a length; numpy integers are not
     # int subclasses but df["c"].str.len().max() (np.int64) is the natural way to get one.
-    if isinstance(value, bool) or not isinstance(value, numbers.Integral):
-        raise exceptions.InvalidArgumentValue(f"varchar_lengths value for column {col_name!r} must be an integer.")
+    # The literal "MAX" is allowed for the SQL Server / Redshift VARCHAR(MAX) idiom.
+    if isinstance(value, str) and value.upper() == "MAX":
+        return value
+    if isinstance(value, bool) or not isinstance(value, numbers.Integral) or value <= 0:
+        raise exceptions.InvalidArgumentValue(
+            f"varchar_lengths value for column {col_name!r} must be a positive integer or 'MAX'."
+        )
     return int(value)
 
 
@@ -905,7 +920,7 @@ def database_types_from_pandas(
             if col_name in _varchar_lengths:
                 string_type: str = f"VARCHAR({_validate_varchar_length(col_name, _varchar_lengths[col_name])})"
             elif isinstance(varchar_lengths_default, str):
-                string_type = varchar_lengths_default
+                string_type = _validate_database_type(col_name, varchar_lengths_default)
             else:
                 string_type = f"VARCHAR({varchar_lengths_default})"
             database_types[col_name] = converter_func(col_dtype, string_type)

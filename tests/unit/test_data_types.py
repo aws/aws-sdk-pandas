@@ -206,6 +206,7 @@ def test_cast_pandas_date_preserves_invalid_iso_exception(monkeypatch):
         "GEOMETRY(Point, 4326)",
         'text COLLATE "C"',
         '"MySchema"."MyType"',
+        '"MySchema"."My,Type"',  # commas inside quoted identifiers are inert
         "TIMESTAMP WITH TIME ZONE",
     ],
 )
@@ -252,6 +253,40 @@ def test_database_types_from_pandas_validates_dtype_overrides():
             index=False,
             dtype={"c0": "INT); DROP TABLE users; --"},
             varchar_lengths_default="VARCHAR(256)",
+            varchar_lengths=None,
+            converter_func=_data_types.pyarrow2postgresql,
+        )
+
+
+@pytest.mark.parametrize(
+    "type_str",
+    [
+        "INT DEFAULT $$($$, evil text DEFAULT $$)$$",  # dollar-quoting depth manipulation (PG/Redshift)
+        'INT DEFAULT "(", evil TEXT DEFAULT ")"',  # quote-hidden parens depth manipulation (MySQL)
+        "VARCHAR($$)",
+    ],
+)
+def test_validate_database_type_rejects_quoting_bypasses(type_str):
+    with pytest.raises(InvalidArgumentValue):
+        _data_types._validate_database_type("col", type_str)
+
+
+def test_validate_varchar_length_max_and_positivity():
+    assert _data_types._validate_varchar_length("c", "MAX") == "MAX"
+    assert _data_types._validate_varchar_length("c", "max") == "max"
+    for bad in (0, -1, np.int64(0)):
+        with pytest.raises(InvalidArgumentValue):
+            _data_types._validate_varchar_length("c", bad)
+
+
+def test_database_types_from_pandas_validates_varchar_lengths_default():
+    df = pd.DataFrame({"c1": ["x"]})
+    with pytest.raises(InvalidArgumentValue):
+        _data_types.database_types_from_pandas(
+            df=df,
+            index=False,
+            dtype=None,
+            varchar_lengths_default="VARCHAR(256)); DROP TABLE t; --",
             varchar_lengths=None,
             converter_func=_data_types.pyarrow2postgresql,
         )
