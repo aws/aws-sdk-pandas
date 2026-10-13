@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import logging
 import pprint
 import re
@@ -37,11 +36,44 @@ def _parse_rules(rules: list[str]) -> list[tuple[str, str | None, str | None]]:
     return parsed_rules
 
 
+def _split_dqdl_rules(rules_block: str) -> list[str]:
+    """Split a DQDL rules block on top-level commas, honoring quotes, brackets, and ``#`` comments."""
+    rules: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    in_string = False
+    in_comment = False
+    for char in rules_block:
+        if in_comment:
+            if char == "\n":
+                in_comment = False
+            continue
+        if char == '"':
+            in_string = not in_string
+        elif not in_string:
+            if char == "#":
+                in_comment = True
+                continue
+            if char in "[(":
+                depth += 1
+            elif char in "])":
+                # Clamp so a malformed (unbalanced) ruleset cannot disable the split guard.
+                depth = max(0, depth - 1)
+            elif char == "," and depth == 0:
+                if rule := " ".join("".join(buf).split()):
+                    rules.append(rule)
+                buf = []
+                continue
+        buf.append(char)
+    if rule := " ".join("".join(buf).split()):
+        rules.append(rule)
+    return rules
+
+
 def _rules_to_df(rules: str) -> pd.DataFrame:
-    rules = re.sub(r"^\s*Rules\s*=\s*\[\s*", "", rules)  # remove Rules = [\n
-    rules = re.sub(r"\s*\]\s*$", "", rules)  # remove \n]
-    rules = re.sub(r"\s*,\s*(?![^[]*])", "', '", rules)
-    list_rules = ast.literal_eval(f"['{rules}']")
+    rules = re.sub(r"^\s*Rules\s*=\s*\[", "", rules.strip())  # remove leading Rules = [
+    rules = re.sub(r"\]\s*$", "", rules)  # remove trailing ]
+    list_rules = _split_dqdl_rules(rules)
     return pd.DataFrame(_parse_rules(list_rules), columns=["rule_type", "parameter", "expression"])
 
 
