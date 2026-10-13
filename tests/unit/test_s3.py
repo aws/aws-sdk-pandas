@@ -63,8 +63,8 @@ def test_sanitize_columns(
 
 def test_list_by_last_modified_date(path):
     df = pd.DataFrame({"id": [1, 2, 3]})
-    path0 = f"s3://{path}0.json"
-    path1 = f"s3://{path}1.json"
+    path0 = f"{path}0.json"
+    path1 = f"{path}1.json"
 
     begin_utc = pytz.utc.localize(datetime.datetime.utcnow())
     time.sleep(5)
