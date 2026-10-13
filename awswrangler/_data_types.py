@@ -19,41 +19,6 @@ from awswrangler._distributed import engine
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-# Athena (Hive) DDL splices column type strings verbatim into CREATE/ALTER statements and
-# the type position has no quoting mechanism. Type strings can carry data-derived struct
-# field names and caller-supplied dtype overrides, so before splicing we require the full
-# string to stay within the DDL type grammar: a conservative charset plus balanced
-# parentheses and angle brackets (an unbalanced bracket is what a column-list breakout needs).
-_ATHENA_DDL_TYPE_CHARSET: re.Pattern[str] = re.compile(r"[A-Za-z0-9_<>,:() ]+")
-
-
-def validate_athena_ddl_type(col_name: str, type_str: str) -> str:
-    """Validate that an Athena column type string is safe to splice into DDL."""
-    error = exceptions.InvalidArgumentValue(
-        f"Invalid Athena type {type_str!r} for column {col_name!r}: type strings spliced into DDL "
-        "may only contain letters, digits, underscores, spaces, commas, colons and balanced "
-        "brackets. Rename nested fields (see wr.catalog.sanitize_dataframe_columns_names) or fix "
-        "the `dtype` override."
-    )
-    if not isinstance(type_str, str) or _ATHENA_DDL_TYPE_CHARSET.fullmatch(type_str) is None:
-        raise error
-    parens, angles = 0, 0
-    for char in type_str:
-        if char == "(":
-            parens += 1
-        elif char == ")":
-            parens -= 1
-        elif char == "<":
-            angles += 1
-        elif char == ">":
-            angles -= 1
-        if parens < 0 or angles < 0:
-            raise error
-    if parens != 0 or angles != 0:
-        raise error
-    return type_str
-
-
 def pyarrow2athena(  # noqa: PLR0911,PLR0912
     dtype: pa.DataType, ignore_null: bool = False
 ) -> str:

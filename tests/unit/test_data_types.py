@@ -12,8 +12,8 @@ from awswrangler._data_types import (
     cast_pandas_with_athena_types,
     pyarrow2athena,
     pyarrow2mysql,
-    validate_athena_ddl_type,
 )
+from awswrangler.athena._write_iceberg import _validate_athena_ddl_type as validate_athena_ddl_type
 from awswrangler.exceptions import InvalidArgumentValue, UnsupportedType
 
 
@@ -248,3 +248,17 @@ def test_struct_field_name_breakout_is_caught_at_ddl_emission():
     built = pyarrow2athena(malicious)
     with pytest.raises(InvalidArgumentValue):
         validate_athena_ddl_type("col", built)
+
+
+@pytest.mark.parametrize(
+    "type_str",
+    [
+        "int AFTER secret_col",  # top-level space: extra DDL clause injection
+        "int, extra int",  # top-level comma: extra column definition
+        "(<)>",  # interleaved brackets defeat independent counters
+        "array<int)",
+    ],
+)
+def test_validate_athena_ddl_type_rejects_structural_injection(type_str):
+    with pytest.raises(InvalidArgumentValue):
+        validate_athena_ddl_type("col", type_str)
