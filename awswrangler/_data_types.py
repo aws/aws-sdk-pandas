@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import numbers
 import re
 import warnings
 from decimal import Decimal
@@ -839,19 +840,25 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
 # Database column types are spliced into CREATE TABLE statements and cannot be bound as
 # query parameters, and the type position has no quoting mechanism, so escaping is not an
 # option. Instead of enumerating valid types (vendor grammars vary too much), reject only
-# what a splice needs to escape the column definition list: statement terminators, string/
-# identifier delimiters, comment tokens, and a close-paren not opened within the value.
-_SQL_BREAKOUT_TOKENS: tuple[str, ...] = (";", "'", '"', "`", "--", "/*", "*/", "#", "\\")
+# what a splice needs to escape the column definition list: statement terminators, string
+# and identifier delimiters, comment tokens, an unbalanced parenthesis, and a comma at
+# parenthesis depth zero (which would start a new column definition). Double quotes are
+# allowed in balanced pairs because PostgreSQL types legitimately carry quoted identifiers
+# (e.g. 'text COLLATE "C"', '"MySchema"."MyType"').
+_SQL_BREAKOUT_TOKENS: tuple[str, ...] = (";", "'", "`", "--", "/*", "*/", "#", "\\")
 
 
 def _validate_database_type(col_name: str, type_str: str) -> str:
     error = exceptions.InvalidArgumentValue(
         f"Invalid database type {type_str!r} for column {col_name!r}. "
-        "Types must not contain quotes, semicolons, comment tokens or unbalanced parentheses."
+        "Types must not contain quotes, semicolons, comment tokens, top-level commas "
+        "or unbalanced parentheses."
     )
     if not isinstance(type_str, str) or not type_str.strip():
         raise error
     if any(token in type_str for token in _SQL_BREAKOUT_TOKENS):
+        raise error
+    if type_str.count('"') % 2 != 0:
         raise error
     depth = 0
     for char in type_str:
@@ -861,9 +868,19 @@ def _validate_database_type(col_name: str, type_str: str) -> str:
             depth -= 1
             if depth < 0:
                 raise error
+        elif char == "," and depth == 0:
+            raise error
     if depth != 0:
         raise error
     return type_str
+
+
+def _validate_varchar_length(col_name: str, value: Any) -> int:
+    # bool is an int subclass but 'VARCHAR(True)' is not a length; numpy integers are not
+    # int subclasses but df["c"].str.len().max() (np.int64) is the natural way to get one.
+    if isinstance(value, bool) or not isinstance(value, numbers.Integral):
+        raise exceptions.InvalidArgumentValue(f"varchar_lengths value for column {col_name!r} must be an integer.")
+    return int(value)
 
 
 def database_types_from_pandas(
@@ -886,11 +903,7 @@ def database_types_from_pandas(
             database_types[col_name] = _validate_database_type(col_name, _dtype[col_name])
         else:
             if col_name in _varchar_lengths:
-                if not isinstance(_varchar_lengths[col_name], int):
-                    raise exceptions.InvalidArgumentValue(
-                        f"varchar_lengths value for column {col_name!r} must be an int."
-                    )
-                string_type: str = f"VARCHAR({_varchar_lengths[col_name]})"
+                string_type: str = f"VARCHAR({_validate_varchar_length(col_name, _varchar_lengths[col_name])})"
             elif isinstance(varchar_lengths_default, str):
                 string_type = varchar_lengths_default
             else:

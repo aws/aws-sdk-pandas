@@ -7,7 +7,7 @@ import pytest
 
 from awswrangler import _data_types
 from awswrangler._data_types import athena2pandas, athena2pyarrow, cast_pandas_with_athena_types, pyarrow2mysql
-from awswrangler.exceptions import UnsupportedType
+from awswrangler.exceptions import InvalidArgumentValue, UnsupportedType
 
 
 @pytest.mark.parametrize(
@@ -196,3 +196,62 @@ def test_cast_pandas_date_preserves_invalid_iso_exception(monkeypatch):
         cast_pandas_with_athena_types(df, {"event_date": "date"})
 
     assert calls == ["2024-02-30"]
+
+
+@pytest.mark.parametrize(
+    "type_str",
+    [
+        "INT",
+        "DECIMAL(10,2)",
+        "GEOMETRY(Point, 4326)",
+        'text COLLATE "C"',
+        '"MySchema"."MyType"',
+        "TIMESTAMP WITH TIME ZONE",
+    ],
+)
+def test_validate_database_type_accepts_legitimate_types(type_str):
+    assert _data_types._validate_database_type("col", type_str) == type_str
+
+
+@pytest.mark.parametrize(
+    "type_str",
+    [
+        "INT); DROP TABLE users; --",
+        "INT, evil INT REFERENCES other_table(id)",  # top-level comma: extra column defs
+        "INT'",
+        'text COLLATE "C',  # unbalanced double quote
+        "INT -- comment",
+        "INT /* c */",
+        "`INT`",
+        "INT)",
+        "(INT",
+        "",
+        "   ",
+        None,
+        5,
+    ],
+)
+def test_validate_database_type_rejects_breakouts(type_str):
+    with pytest.raises(InvalidArgumentValue):
+        _data_types._validate_database_type("col", type_str)
+
+
+def test_validate_varchar_length_integral_semantics():
+    assert _data_types._validate_varchar_length("c", 256) == 256
+    assert _data_types._validate_varchar_length("c", np.int64(256)) == 256  # pandas .str.len().max() idiom
+    for bad in (True, "256); DROP TABLE t; --", 2.5, None):
+        with pytest.raises(InvalidArgumentValue):
+            _data_types._validate_varchar_length("c", bad)
+
+
+def test_database_types_from_pandas_validates_dtype_overrides():
+    df = pd.DataFrame({"c0": [1], "c1": ["x"]})
+    with pytest.raises(InvalidArgumentValue):
+        _data_types.database_types_from_pandas(
+            df=df,
+            index=False,
+            dtype={"c0": "INT); DROP TABLE users; --"},
+            varchar_lengths_default="VARCHAR(256)",
+            varchar_lengths=None,
+            converter_func=_data_types.pyarrow2postgresql,
+        )
