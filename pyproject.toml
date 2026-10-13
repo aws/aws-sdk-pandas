@@ -57,7 +57,7 @@ deltalake = ["deltalake>=0.18.0,<1.7.0"]
 pyiceberg = ["pyiceberg[pyarrow]>=0.7.0,<1"]
 geopandas = ["geopandas>=1.0.0,<2", "pyproj>=3.6,<3.7.2"]
 modin = ["modin>=0.31,<0.38"]
-ray = ["ray[default, data]>=2.55.0,<3"]
+ray = ["ray[default, data]>=2.55.0,<3 ; python_version < '3.15'"]  # no cp315 wheels or sdist yet
 
 [project.urls]
 Homepage = "https://aws-sdk-pandas.readthedocs.io/"
