@@ -151,6 +151,7 @@ def test_default_logging_path(cloudformation_outputs):
 def test_docker(bucket, cloudformation_outputs, emr_security_configuration):
     cluster_id = wr.emr.create_cluster(
         subnet_id=cloudformation_outputs["PublicSubnet1"],
+        logging_s3_path=f"s3://{bucket}/emr-logs/",
         docker=True,
         custom_classifications=[
             {
