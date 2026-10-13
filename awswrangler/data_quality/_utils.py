@@ -57,7 +57,8 @@ def _split_dqdl_rules(rules_block: str) -> list[str]:
             if char in "[(":
                 depth += 1
             elif char in "])":
-                depth -= 1
+                # Clamp so a malformed (unbalanced) ruleset cannot disable the split guard.
+                depth = max(0, depth - 1)
             elif char == "," and depth == 0:
                 if rule := " ".join("".join(buf).split()):
                     rules.append(rule)

@@ -25,6 +25,9 @@ def _create_cluster_with_bootstraps(bootstraps_paths):
             with mock.patch("awswrangler.emr._utils.get_region_from_session", return_value="us-east-1"):
                 wr.emr.create_cluster(
                     subnet_id="subnet-12345678",
+                    # Deliberately a dummy path (unlike test_docker's real bucket fixture):
+                    # an explicit logging_s3_path skips bucket-ownership verification, and the
+                    # fake client never touches S3, so any syntactically valid path works.
                     logging_s3_path="s3://test-bucket/emr-logs/",
                     bootstraps_paths=bootstraps_paths,
                 )

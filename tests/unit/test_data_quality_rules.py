@@ -38,3 +38,12 @@ def test_split_dqdl_handles_composite_rules() -> None:
 def test_split_dqdl_hash_inside_string_is_not_a_comment() -> None:
     rules = _split_dqdl_rules('ColumnValues "code" in ["#1", "#2"], RowCount > 0')
     assert rules == ['ColumnValues "code" in ["#1", "#2"]', "RowCount > 0"]
+
+
+def test_split_dqdl_trailing_comment_without_newline() -> None:
+    assert _split_dqdl_rules("RowCount > 0 # trailing comment") == ["RowCount > 0"]
+
+
+def test_split_dqdl_unbalanced_bracket_fails_safe() -> None:
+    # A stray closing bracket must not disable the top-level comma split.
+    assert _split_dqdl_rules('IsComplete "a"], RowCount > 0') == ['IsComplete "a"]', "RowCount > 0"]
