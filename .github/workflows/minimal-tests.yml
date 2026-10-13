@@ -65,3 +65,6 @@ jobs:
       - name: Test Data Quality rules (unit)
         run: uv run pytest tests/unit/test_data_quality_rules.py
         working-directory: ${{ github.workspace }}
+      - name: Test Bedrock (mocked)
+        run: uv run pytest tests/unit/test_bedrock_mocked.py
+        working-directory: ${{ github.workspace }}
