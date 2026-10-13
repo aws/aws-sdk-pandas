@@ -8,6 +8,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Sequence
 
+import numpy as np
 from typing_extensions import Literal
 
 from awswrangler import exceptions
@@ -33,7 +34,7 @@ class _Engine(ABC):
         return str(value)
 
     def format_float(self, value: float) -> str:
-        return f"{value:f}"
+        return np.format_float_positional(value, trim="0")
 
     def format_decimal(self, value: decimal.Decimal) -> str:
         return f"DECIMAL '{value:f}'"
