@@ -84,9 +84,10 @@ def _create_iceberg_table(
     columns_types, _ = catalog.extract_athena_types(df=df, index=index, dtype=dtype)
     cols_str: str = ", ".join(
         [
-            f"`{_escape_athena_ddl_identifier(k)}` {v}"
+            f"`{_escape_athena_ddl_identifier(k)}` {_data_types.validate_athena_ddl_type(k, v)}"
             if (columns_comments is None or columns_comments.get(k) is None)
-            else f"`{_escape_athena_ddl_identifier(k)}` {v} COMMENT '{_escape_athena_string_literal(columns_comments[k])}'"
+            else f"`{_escape_athena_ddl_identifier(k)}` {_data_types.validate_athena_ddl_type(k, v)} "
+            f"COMMENT '{_escape_athena_string_literal(columns_comments[k])}'"
             for k, v in columns_types.items()
         ]
     )
@@ -240,7 +241,11 @@ def _alter_iceberg_table_add_columns_sql(
     columns_to_add: dict[str, str],
 ) -> list[str]:
     add_cols_str = ", ".join(
-        [f"`{_escape_athena_ddl_identifier(col_name)}` {columns_to_add[col_name]}" for col_name in columns_to_add]
+        [
+            f"`{_escape_athena_ddl_identifier(col_name)}` "
+            f"{_data_types.validate_athena_ddl_type(col_name, columns_to_add[col_name])}"
+            for col_name in columns_to_add
+        ]
     )
 
     return [f"ALTER TABLE `{_escape_athena_ddl_identifier(table)}` ADD COLUMNS ({add_cols_str})"]
@@ -255,7 +260,10 @@ def _alter_iceberg_table_change_columns_sql(
     for col_name, col_type in columns_to_change.items():
         escaped_table = _escape_athena_ddl_identifier(table)
         escaped_col = _escape_athena_ddl_identifier(col_name)
-        sql_statements.append(f"ALTER TABLE `{escaped_table}` CHANGE COLUMN `{escaped_col}` `{escaped_col}` {col_type}")
+        validated_type = _data_types.validate_athena_ddl_type(col_name, col_type)
+        sql_statements.append(
+            f"ALTER TABLE `{escaped_table}` CHANGE COLUMN `{escaped_col}` `{escaped_col}` {validated_type}"
+        )
 
     return sql_statements
 
