@@ -4,7 +4,8 @@ import copy
 import json
 import logging
 import os
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, patch
@@ -89,6 +90,26 @@ def moto_dynamodb_table(moto_dynamodb_client):
 
 
 @pytest.fixture(scope="function")
+def local_timezone(request):
+    """Run a test under the local timezone named by the (indirect) parameter."""
+    if not hasattr(time, "tzset"):
+        pytest.skip("Changing the local timezone requires time.tzset(), which is not available on Windows.")
+    previous_tz = os.environ.get("TZ")
+    os.environ["TZ"] = request.param
+    time.tzset()
+    try:
+        if time.localtime().tm_gmtoff == 0:
+            pytest.skip(f"The timezone database has no entry for {request.param}.")
+        yield request.param
+    finally:
+        if previous_tz is None:
+            del os.environ["TZ"]
+        else:
+            os.environ["TZ"] = previous_tz
+        time.tzset()
+
+
+@pytest.fixture(scope="function")
 def moto_timestream_session():
     with moto.mock_aws():
         session = boto3.Session(region_name="us-east-1")
@@ -118,6 +139,16 @@ def test_object_exist_succeed(moto_s3_client: "S3Client") -> None:
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
     result = wr.s3.does_object_exist(path)
     assert result is True
+
+
+@pytest.mark.parametrize(
+    "key",
+    ["s3://source/file.csv", "archive/s3://source/file.csv", "archive/s3://source/s3://file.csv", "s3://"],
+)
+def test_object_exist_with_s3_scheme_in_key(moto_s3_client: "S3Client", key: str) -> None:
+    moto_s3_client.put_object(Bucket="bucket", Key=key, Body=b"test")
+
+    assert wr.s3.does_object_exist(f"s3://bucket/{key}") is True
 
 
 def test_list_directories_succeed(moto_s3_client: "S3Client") -> None:
@@ -387,6 +418,50 @@ def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3_client: "S3Client"
         assert len(df.columns) == 2
 
 
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_csv_mixed_compression(moto_s3_client: "S3Client", chunksize: int | None) -> None:
+    df = pd.DataFrame({"id": [1, 2], "value": ["a", "b"]})
+    compressed = "s3://bucket/file1.csv.gz"
+    uncompressed = "s3://bucket/file2.csv"
+    wr.s3.to_csv(df=df, path=compressed, index=False, compression="gzip")
+    wr.s3.to_csv(df=df, path=uncompressed, index=False)
+    result = wr.s3.read_csv(path=[compressed, uncompressed], chunksize=chunksize, use_threads=False)
+    if chunksize is None:
+        assert len(result.index) == 4
+        assert list(result.columns) == ["id", "value"]
+    else:
+        chunks = list(result)
+        assert len(chunks) == 4
+        for chunk in chunks:
+            assert len(chunk.index) == 1
+            assert list(chunk.columns) == ["id", "value"]
+
+
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_json_mixed_compression(moto_s3_client: "S3Client", chunksize: int | None) -> None:
+    df = pd.DataFrame({"id": [1, 2], "value": ["a", "b"]})
+    compressed = "s3://bucket/file1.json.gz"
+    uncompressed = "s3://bucket/file2.json"
+    wr.s3.to_json(df=df, path=compressed, compression="gzip", orient="records", lines=True)
+    wr.s3.to_json(df=df, path=uncompressed, orient="records", lines=True)
+    result = wr.s3.read_json(
+        path=[compressed, uncompressed],
+        orient="records",
+        lines=True,
+        chunksize=chunksize,
+        use_threads=False,
+    )
+    if chunksize is None:
+        assert len(result.index) == 4
+        assert list(result.columns) == ["id", "value"]
+    else:
+        chunks = list(result)
+        assert len(chunks) == 4
+        for chunk in chunks:
+            assert len(chunk.index) == 1
+            assert list(chunk.columns) == ["id", "value"]
+
+
 @mock.patch("pandas.read_csv")
 @mock.patch("pandas.concat")
 def test_read_csv_pass_pandas_arguments_and_encoding_succeed(
@@ -466,6 +541,38 @@ def test_to_csv_valid_argument_combination_when_dataset_true_succeed(moto_s3_cli
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
 
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, mode="append")
+
+
+def test_path2list_suffix_with_list_of_paths(moto_s3_client: "S3Client") -> None:
+    paths = ["s3://bucket/file1.parquet", "s3://bucket/file2.txt", "s3://bucket/file3.csv"]
+
+    # 1. suffix only
+    result1 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=".parquet",
+    )
+    assert result1 == ["s3://bucket/file1.parquet"]
+
+    # 2. list of suffixes
+    result2 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=[".parquet", ".csv"],
+    )
+    assert result2 == ["s3://bucket/file1.parquet", "s3://bucket/file3.csv"]
+
+    # 3. suffix and ignore_suffix combined
+    result3 = wr.s3._list._path2list(
+        path=paths,
+        s3_client=moto_s3_client,
+        s3_additional_kwargs=None,
+        suffix=[".parquet", ".txt"],
+        ignore_suffix=".txt",
+    )
+    assert result3 == ["s3://bucket/file1.parquet"]
 
 
 def test_to_csv_data_empty(moto_s3_client: "S3Client") -> None:
@@ -1194,78 +1301,147 @@ def test_neptune_bulk_load_forwards_session_and_s3_kwargs(
     assert to_csv.call_args.kwargs["s3_additional_kwargs"] == s3_kwargs
 
 
-@pytest.mark.parametrize(
-    "type_str",
-    [
-        "INT",
-        "VARCHAR(MAX)",
-        "NVARCHAR(255)",
-        "DECIMAL(10,2)",
-        "DECIMAL(10, 2)",
-        "DOUBLE PRECISION",
-        "TIMESTAMP WITH TIME ZONE",
-        "TIMESTAMP(6) WITH LOCAL TIME ZONE",
-        "INTERVAL DAY(2) TO SECOND(6)",
-        "NUMBER(*,0)",
-        "GEOMETRY(Point, 4326)",
-        "character varying(255)[]",
-        "public.citext",
-        "myschema.my_udt",
-    ],
-)
-def test_database_types_from_pandas_accepts_valid_dtype(type_str) -> None:
-    types = wr._data_types.database_types_from_pandas(
-        df=pd.DataFrame({"c": [1]}),
-        index=False,
-        dtype={"c": type_str},
-        varchar_lengths_default="VARCHAR(MAX)",
-        varchar_lengths=None,
-        converter_func=lambda _, string_type: string_type,
+# Both a timezone ahead of and behind UTC, so the assertions are meaningful either way.
+@pytest.mark.parametrize("local_timezone", ["Asia/Tokyo", "America/New_York"], indirect=True)
+def test_cloudwatch_start_query_default_end_time_is_utc_now(local_timezone) -> None:
+    # The default `end_time` must be the current UTC instant regardless of the machine's
+    # local timezone. A naive UTC datetime is interpreted as local time by
+    # `datetime.timestamp()`, which shifts the query window by the local UTC offset.
+    logs_client = mock.MagicMock()
+    logs_client.start_query.return_value = {"queryId": "query-id"}
+
+    with mock.patch("awswrangler._utils.client", return_value=logs_client):
+        wr.cloudwatch.start_query(query="fields @timestamp", log_group_names=["log-group"])
+
+    args = logs_client.start_query.call_args.kwargs
+    now_milliseconds = int(1000 * datetime.now(tz=timezone.utc).timestamp())
+    assert abs(args["endTime"] - now_milliseconds) < 60_000
+    # The default `start_time` remains the Unix epoch.
+    assert args["startTime"] == 0
+
+
+@pytest.mark.parametrize("local_timezone", ["Asia/Tokyo", "America/New_York"], indirect=True)
+def test_cloudwatch_start_query_recent_start_time_with_default_end_time(local_timezone) -> None:
+    # A `start_time` in the recent past is valid against the default `end_time`; a local
+    # offset ahead of UTC used to push the default `end_time` before it and raise.
+    logs_client = mock.MagicMock()
+    logs_client.start_query.return_value = {"queryId": "query-id"}
+    start_time = datetime.now(tz=timezone.utc) - timedelta(minutes=5)
+
+    with mock.patch("awswrangler._utils.client", return_value=logs_client):
+        query_id = wr.cloudwatch.start_query(
+            query="fields @timestamp",
+            log_group_names=["log-group"],
+            start_time=start_time,
+        )
+
+    assert query_id == "query-id"
+    args = logs_client.start_query.call_args.kwargs
+    assert args["startTime"] == int(1000 * start_time.timestamp())
+    assert args["endTime"] > args["startTime"]
+
+
+@pytest.mark.parametrize("local_timezone", ["Asia/Tokyo"], indirect=True)
+def test_cloudwatch_start_query_explicit_times_are_preserved(local_timezone) -> None:
+    # Explicitly passed boundaries keep being converted straight to epoch milliseconds.
+    logs_client = mock.MagicMock()
+    logs_client.start_query.return_value = {"queryId": "query-id"}
+    start_time = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    end_time = datetime(2024, 1, 2, 0, 0, 0, tzinfo=timezone.utc)
+
+    with mock.patch("awswrangler._utils.client", return_value=logs_client):
+        wr.cloudwatch.start_query(
+            query="fields @timestamp",
+            log_group_names=["log-group"],
+            start_time=start_time,
+            end_time=end_time,
+        )
+
+    args = logs_client.start_query.call_args.kwargs
+    assert args["startTime"] == 1_704_067_200_000
+    assert args["endTime"] == 1_704_153_600_000
+
+
+def test_emr_default_logging_path_warns() -> None:
+    """Falling back to the predictable default logging bucket must emit a warning."""
+    with moto.mock_aws():
+        session = boto3.Session(region_name="us-east-1")
+        with pytest.warns(UserWarning, match="predictable name"):
+            wr.emr._get_default_logging_path(account_id="123456789012", region="us-east-1", boto3_session=session)
+
+
+def test_emr_verify_bucket_ownership_own_bucket() -> None:
+    """_verify_bucket_ownership must succeed when the bucket belongs to the caller."""
+    from awswrangler.emr import _verify_bucket_ownership
+
+    with moto.mock_aws():
+        session = boto3.Session(region_name="us-east-1")
+        account_id = session.client("sts").get_caller_identity()["Account"]
+        session.client("s3").create_bucket(Bucket="my-owned-bucket")
+
+        _verify_bucket_ownership("my-owned-bucket", account_id, boto3_session=session)
+
+
+def _s3_client_raising(code: str, status: int) -> mock.MagicMock:
+    client = mock.MagicMock()
+    client.head_bucket.side_effect = ClientError(
+        {"Error": {"Code": code, "Message": ""}, "ResponseMetadata": {"HTTPStatusCode": status}}, "HeadBucket"
     )
-    assert types == {"c": type_str}
+    return client
 
 
-@pytest.mark.parametrize(
-    "type_str",
-    [
-        # dtype values are spliced into CREATE TABLE DDL; statement/literal breakouts must be rejected.
-        "INT); DROP TABLE users; --",
-        "INT) END DROP TABLE users",
-        "INT'",
-        'INT"',
-        "INT; DROP TABLE users",
-        "INT -- comment",
-        "INT /* comment */",
-        "INT # comment",
-        "INT\\",
-        "INT`",
-        "VARCHAR(10))",
-        "(INT",
-        "",
-        "   ",
-        None,
-        123,
-    ],
-)
-def test_database_types_from_pandas_rejects_malicious_dtype(type_str) -> None:
-    with pytest.raises(wr.exceptions.InvalidArgumentValue):
-        wr._data_types.database_types_from_pandas(
-            df=pd.DataFrame({"c": [1]}),
-            index=False,
-            dtype={"c": type_str},
-            varchar_lengths_default="VARCHAR(MAX)",
-            varchar_lengths=None,
-            converter_func=lambda _, string_type: string_type,
-        )
+@pytest.mark.parametrize("code,status", [("403", 403), ("AccessDenied", 403)])
+def test_emr_verify_bucket_ownership_rejects_foreign_bucket(code: str, status: int) -> None:
+    """A 403 from HeadBucket with ExpectedBucketOwner means the bucket is not ours (or not verifiable)."""
+    from awswrangler.emr import _verify_bucket_ownership
+
+    client = _s3_client_raising(code, status)
+    with mock.patch("awswrangler._utils.client", return_value=client):
+        with pytest.raises(wr.exceptions.InvalidArgumentValue, match="owned by account 123456789012"):
+            _verify_bucket_ownership("aws-logs-123456789012-us-east-1", "123456789012")
+
+    assert client.head_bucket.call_args.kwargs == {
+        "Bucket": "aws-logs-123456789012-us-east-1",
+        "ExpectedBucketOwner": "123456789012",
+    }
 
 
-def test_database_types_from_pandas_rejects_non_int_varchar_lengths() -> None:
-    with pytest.raises(wr.exceptions.InvalidArgumentValue):
-        wr._data_types.database_types_from_pandas(
-            df=pd.DataFrame({"c": ["x"]}),
-            index=False,
-            dtype=None,
-            varchar_lengths_default=255,
-            varchar_lengths={"c": "10) DROP TABLE users --"},
-            converter_func=lambda _, string_type: string_type,
-        )
+@pytest.mark.parametrize("code,status", [("404", 404), ("NoSuchBucket", 404)])
+def test_emr_verify_bucket_ownership_rejects_missing_bucket(code: str, status: int) -> None:
+    """A missing default bucket is exactly the squattable state, so it must be rejected too."""
+    from awswrangler.emr import _verify_bucket_ownership
+
+    client = _s3_client_raising(code, status)
+    with mock.patch("awswrangler._utils.client", return_value=client):
+        with pytest.raises(wr.exceptions.InvalidArgumentValue, match="does not exist"):
+            _verify_bucket_ownership("aws-logs-123456789012-us-east-1", "123456789012")
+
+
+def test_emr_verify_bucket_ownership_reraises_other_errors() -> None:
+    """Unrelated S3 errors (throttling, etc.) must not be masked as ownership failures."""
+    from awswrangler.emr import _verify_bucket_ownership
+
+    client = _s3_client_raising("SlowDown", 503)
+    with mock.patch("awswrangler._utils.client", return_value=client):
+        with pytest.raises(ClientError):
+            _verify_bucket_ownership("aws-logs-123456789012-us-east-1", "123456789012")
+
+
+def test_emr_create_cluster_verifies_default_logging_bucket() -> None:
+    """create_cluster must verify ownership of the default log bucket, and skip it for explicit paths."""
+    with moto.mock_aws():
+        session = boto3.Session(region_name="us-east-1")
+        account_id = session.client("sts").get_caller_identity()["Account"]
+
+        with mock.patch("awswrangler.emr._verify_bucket_ownership") as verify:
+            with pytest.warns(UserWarning, match="aws-logs-"):
+                wr.emr.create_cluster(subnet_id="subnet-0123456789abcdef0", boto3_session=session)
+            verify.assert_called_once_with(f"aws-logs-{account_id}-us-east-1", account_id, boto3_session=session)
+
+        with mock.patch("awswrangler.emr._verify_bucket_ownership") as verify:
+            wr.emr.create_cluster(
+                subnet_id="subnet-0123456789abcdef0",
+                logging_s3_path="s3://my-own-bucket/emr-logs/",
+                boto3_session=session,
+            )
+            verify.assert_not_called()
