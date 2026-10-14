@@ -846,8 +846,11 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
 # allowed in balanced pairs because PostgreSQL types legitimately carry quoted identifiers
 # (e.g. 'text COLLATE "C"', '"MySchema"."MyType"').
 # "$" blocks dollar-quoted string constants ($$...$$), which would otherwise let quoted
-# parentheses manipulate the depth scanner on PostgreSQL/Redshift.
-_SQL_BREAKOUT_TOKENS: tuple[str, ...] = (";", "'", "`", "--", "/*", "*/", "#", "\\", "$")
+# parentheses manipulate the depth scanner on PostgreSQL/Redshift. Single quotes are handled
+# structurally (balanced pairs skipped, like double quotes) because MySQL ENUM('a','b') and
+# SET(...) legitimately require them; comment/terminator tokens are still rejected even
+# inside quotes, conservatively.
+_SQL_BREAKOUT_TOKENS: tuple[str, ...] = (";", "`", "--", "/*", "*/", "#", "\\", "$")
 
 
 def _validate_database_type(col_name: str, type_str: str) -> str:
@@ -866,16 +869,18 @@ def _validate_database_type(col_name: str, type_str: str) -> str:
         # Control characters (incl. NUL) are never valid in a type and otherwise surface as
         # confusing low-level driver errors at execution time.
         _reject()
-    # Characters inside balanced double quotes are inert for structure (quoted identifiers may
-    # contain commas/parens), but quoted regions cannot hide depth manipulation either: the
-    # scanner skips them entirely, so a breakout comma must appear unquoted at depth zero.
+    # Characters inside balanced quotes are inert for structure (quoted identifiers may contain
+    # commas/parens; ENUM values are single-quoted), but quoted regions cannot hide depth
+    # manipulation either: the scanner skips them entirely, so a breakout comma must appear
+    # unquoted at depth zero, and any unbalanced quote is rejected.
     depth = 0
-    in_quotes = False
+    quote: str | None = None
     for char in type_str:
-        if char == '"':
-            in_quotes = not in_quotes
-        elif in_quotes:
-            continue
+        if quote is not None:
+            if char == quote:
+                quote = None
+        elif char in ("'", '"'):
+            quote = char
         elif char == "(":
             depth += 1
         elif char == ")":
@@ -884,7 +889,7 @@ def _validate_database_type(col_name: str, type_str: str) -> str:
                 _reject()
         elif char == "," and depth == 0:
             _reject()
-    if in_quotes or depth != 0:
+    if quote is not None or depth != 0:
         _reject()
     return type_str
 

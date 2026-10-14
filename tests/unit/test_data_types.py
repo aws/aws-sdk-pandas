@@ -207,6 +207,8 @@ def test_cast_pandas_date_preserves_invalid_iso_exception(monkeypatch):
         'text COLLATE "C"',
         '"MySchema"."MyType"',
         '"MySchema"."My,Type"',  # commas inside quoted identifiers are inert
+        "ENUM('small','medium','large')",  # MySQL enum values require single quotes
+        "SET('a','b','c')",
         "TIMESTAMP WITH TIME ZONE",
     ],
 )
@@ -219,7 +221,8 @@ def test_validate_database_type_accepts_legitimate_types(type_str):
     [
         "INT); DROP TABLE users; --",
         "INT, evil INT REFERENCES other_table(id)",  # top-level comma: extra column defs
-        "INT'",
+        "INT'",  # unbalanced single quote
+        "INT DEFAULT '(', evil TEXT DEFAULT ')'",  # single-quote-hidden parens: comma is unquoted at depth 0
         'text COLLATE "C',  # unbalanced double quote
         "INT -- comment",
         "INT /* c */",
