@@ -264,6 +264,8 @@ def test_database_types_from_pandas_validates_dtype_overrides():
         "INT DEFAULT $$($$, evil text DEFAULT $$)$$",  # dollar-quoting depth manipulation (PG/Redshift)
         'INT DEFAULT "(", evil TEXT DEFAULT ")"',  # quote-hidden parens depth manipulation (MySQL)
         "VARCHAR($$)",
+        "INT\x00",  # control characters surface as confusing driver errors downstream
+        "INT\n, evil INT",
     ],
 )
 def test_validate_database_type_rejects_quoting_bypasses(type_str):

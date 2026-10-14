@@ -862,6 +862,10 @@ def _validate_database_type(col_name: str, type_str: str) -> str:
         _reject()
     if any(token in type_str for token in _SQL_BREAKOUT_TOKENS):
         _reject()
+    if any(ord(char) < 0x20 for char in type_str):
+        # Control characters (incl. NUL) are never valid in a type and otherwise surface as
+        # confusing low-level driver errors at execution time.
+        _reject()
     # Characters inside balanced double quotes are inert for structure (quoted identifiers may
     # contain commas/parens), but quoted regions cannot hide depth manipulation either: the
     # scanner skips them entirely, so a breakout comma must appear unquoted at depth zero.
