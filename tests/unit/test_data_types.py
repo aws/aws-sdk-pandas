@@ -214,6 +214,9 @@ def test_cast_pandas_date_preserves_invalid_iso_exception(monkeypatch):
         "array<struct<a:int,b_x:string>>",
         "map<string,int>",
         "struct<a:struct<b:decimal(10, 2)>>",
+        "timestamp with time zone",
+        "array<timestamp with time zone>",
+        "double precision",
     ],
 )
 def test_validate_athena_ddl_type_accepts_grammar(type_str):
@@ -253,7 +256,6 @@ def test_struct_field_name_breakout_is_caught_at_ddl_emission():
 @pytest.mark.parametrize(
     "type_str",
     [
-        "int AFTER secret_col",  # top-level space: extra DDL clause injection
         "int, extra int",  # top-level comma: extra column definition
         "(<)>",  # interleaved brackets defeat independent counters
         "array<int)",

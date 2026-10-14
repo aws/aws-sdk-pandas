@@ -55,8 +55,10 @@ def _escape_athena_dml_identifier(name: Any) -> str:
 # type position has no quoting mechanism. Type strings can carry data-derived struct field names
 # and caller-supplied dtype overrides, so before splicing we require the full string to stay
 # within the DDL type grammar: a conservative charset, properly nested brackets (an unbalanced
-# or interleaved bracket is what a column-list breakout needs), and no space or comma outside
-# brackets (which would extend the column definition with extra clauses or columns).
+# or interleaved bracket is what a column-list breakout needs), and no comma outside brackets
+# (which would start an extra column definition). Spaces stay legal at top level because real
+# Athena types contain them ("timestamp with time zone"); the residual this accepts is extra
+# words inside the caller's own column definition, which crosses no boundary.
 _ATHENA_DDL_TYPE_CHARSET: re.Pattern[str] = re.compile(r"[A-Za-z0-9_<>,:() ]+")
 _BRACKET_PAIRS = {")": "(", ">": "<"}
 
@@ -79,7 +81,7 @@ def _validate_athena_ddl_type(col_name: str, type_str: str) -> str:
         elif char in ")>":
             if not stack or stack.pop() != _BRACKET_PAIRS[char]:
                 _reject()
-        elif char in ", " and not stack:
+        elif char == "," and not stack:
             _reject()
     if stack:
         _reject()
