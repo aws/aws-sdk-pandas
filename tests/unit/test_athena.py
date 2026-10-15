@@ -1186,6 +1186,16 @@ def test_sanitize_dataframe_column_names():
     ).equals(pd.DataFrame({"a": [1, 2], "a_1": [3, 4], "a_1_1": [5, 6]}))
 
 
+def test_rename_duplicated_columns_with_nan_names():
+    # Duplicate NaN column labels (e.g. from transposing a DataFrame whose index has repeated
+    # missing values) used to raise IndexError because the old implementation matched columns
+    # with `==`, under which NaN never equals itself.
+    df = pd.DataFrame({"c1": [1, 2, 3], "c2": [4, 5, 6]}, index=[None, None, "x"]).T
+    renamed = wr.catalog.rename_duplicated_columns(df)
+    assert renamed.columns.duplicated().sum() == 0
+    assert list(renamed.columns)[1] == "nan_1"
+
+
 def test_sanitize_names():
     assert wr.catalog.sanitize_column_name("CamelCase") == "camelcase"
     assert wr.catalog.sanitize_column_name("CamelCase2") == "camelcase2"
