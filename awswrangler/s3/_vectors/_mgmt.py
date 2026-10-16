@@ -26,8 +26,10 @@ def _encryption_block(sse_type: str | None, kms_key_arn: str | None) -> dict[str
     if sse_type is None and kms_key_arn is None:
         return None
     block: dict[str, str] = {}
-    if sse_type is not None:
-        block["sseType"] = sse_type
+    if sse_type is None:
+        # The API only accepts `kmsKeyArn` together with `sseType='aws:kms'`.
+        sse_type = "aws:kms"
+    block["sseType"] = sse_type
     if kms_key_arn is not None:
         block["kmsKeyArn"] = kms_key_arn
     return block
