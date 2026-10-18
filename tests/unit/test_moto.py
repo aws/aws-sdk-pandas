@@ -1059,6 +1059,25 @@ def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto
         wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
 
 
+@pytest.mark.parametrize("chunked", [False, True])
+def test_dynamodb_read_items_more_than_100_partition_values(moto_dynamodb_client, moto_dynamodb_table, chunked) -> None:
+    # BatchGetItem accepts at most 100 keys per request
+    items = [{"key": i, "value": f"v{i}"} for i in range(250)]
+    wr.dynamodb.put_items(items=items, table_name=moto_dynamodb_table)
+
+    result = wr.dynamodb.read_items(
+        table_name=moto_dynamodb_table,
+        partition_values=[item["key"] for item in items],
+        as_dataframe=False,
+        chunked=chunked,
+    )
+    if chunked:
+        result = [item for chunk in result for item in chunk]
+
+    assert len(result) == len(items)
+    assert sorted(int(item["key"]) for item in result) == list(range(250))
+
+
 def _capture_timestream_write_records(session: boto3.Session) -> list:
     captured: list = []
 
