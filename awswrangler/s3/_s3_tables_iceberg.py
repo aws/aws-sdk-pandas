@@ -114,7 +114,7 @@ def from_iceberg(
 
     from awswrangler.s3._s3_tables_catalog import _load_catalog  # noqa: PLC0415
 
-    catalog = _load_catalog(table_bucket_arn)
+    catalog = _load_catalog(table_bucket_arn, boto3_session=boto3_session)
     identifier = f"{namespace}.{table_name}"
 
     try:
@@ -223,7 +223,7 @@ def to_iceberg(
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, index=index, ignore_cols=None, dtype=dtype)
     arrow_table: pa.Table = _df_to_table(df, schema, index, dtype)
 
-    catalog = _load_catalog(table_bucket_arn)
+    catalog = _load_catalog(table_bucket_arn, boto3_session=boto3_session)
     identifier = f"{namespace}.{table_name}"
 
     try:
