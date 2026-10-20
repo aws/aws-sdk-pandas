@@ -210,6 +210,14 @@ def test_cast_pandas_date_preserves_invalid_iso_exception(monkeypatch):
         "ENUM('small','medium','large')",  # MySQL enum values require single quotes
         "SET('a','b','c')",
         "TIMESTAMP WITH TIME ZONE",
+        "NUMBER(*,2)",  # Oracle star precision
+        "[dbo].[MyType]",  # SQL Server bracket-quoted UDT
+        "hierarchyid",
+        "INT COMMENT 'it''s a col'",  # MySQL attribute with doubled-quote escaping
+        "VARCHAR(256) ENCODE lzo",  # Redshift encoding attribute
+        "DOUBLE(8,3) UNSIGNED",
+        "int4range[]",
+        "INTERVAL YEAR(4) TO MONTH",
     ],
 )
 def test_validate_database_type_accepts_legitimate_types(type_str):
