@@ -6,7 +6,7 @@ import re
 import sys
 import time
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from timeit import default_timer as timer
 from types import TracebackType
@@ -567,6 +567,24 @@ def pandas_equals(df1: pd.DataFrame | pd.Series, df2: pd.DataFrame | pd.Series) 
     return df1.equals(df2)
 
 
+def _canonicalize_fixed_offset_tz(df: PandasDataFrame | PandasSeries) -> PandasDataFrame | PandasSeries:
+    # pyarrow/pandas may wrap a fixed UTC offset as either datetime.timezone or pytz.FixedOffset
+    # depending on the read path and library versions. The offset is identical; only the wrapper
+    # class differs, which trips assert_*_equal's dtype check. Canonicalize to datetime.timezone.
+    def _canon(s: PandasSeries) -> PandasSeries:
+        tz = getattr(s.dtype, "tz", None)
+        if tz is not None and (offset := tz.utcoffset(None)) is not None:
+            return s.dt.tz_convert(timezone(offset))
+        return s
+
+    if isinstance(df, PandasSeries):
+        return _canon(df)
+    df = df.copy(deep=False)  # column reassignment below must not mutate the caller's frame
+    for col in df.columns:
+        df[col] = _canon(df[col])
+    return df
+
+
 def assert_pandas_equals(
     df1: pd.DataFrame | pd.Series,
     df2: pd.DataFrame | pd.Series,
@@ -574,6 +592,7 @@ def assert_pandas_equals(
     check_datetimelike_compat: bool = False,
 ) -> None:
     df1, df2 = to_pandas(df1), to_pandas(df2)
+    df1, df2 = _canonicalize_fixed_offset_tz(df1), _canonicalize_fixed_offset_tz(df2)
 
     if isinstance(df1, PandasDataFrame):
         assert_frame_equal(df1, df2, check_dtype=check_dtype, check_datetimelike_compat=check_datetimelike_compat)
