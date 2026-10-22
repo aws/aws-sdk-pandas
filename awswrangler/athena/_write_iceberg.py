@@ -51,6 +51,49 @@ def _escape_athena_dml_identifier(name: Any) -> str:
     return str(name).replace('"', '""')
 
 
+# Athena (Hive) DDL splices column type strings verbatim into CREATE/ALTER statements and the
+# type position has no quoting mechanism. Type strings can carry data-derived struct field names
+# and caller-supplied dtype overrides, so before splicing we require the full string to stay
+# within the DDL type grammar: a conservative charset, properly nested brackets (an unbalanced
+# or interleaved bracket is what a column-list breakout needs), and no comma outside brackets
+# (which would start an extra column definition). Spaces stay legal at top level because real
+# Athena types contain them ("timestamp with time zone"); the residual this accepts is extra
+# words inside the caller's own column definition, which crosses no boundary.
+_ATHENA_DDL_TYPE_CHARSET: re.Pattern[str] = re.compile(r"[A-Za-z0-9_<>,:() ]+")
+_BRACKET_PAIRS = {")": "(", ">": "<"}
+
+
+def _validate_athena_ddl_type(col_name: str, type_str: str) -> str:
+    def _reject() -> None:
+        raise exceptions.InvalidArgumentValue(
+            f"Invalid Athena type {type_str!r} for column {col_name!r}: type strings spliced into "
+            "DDL may only contain letters, digits, underscores, properly nested brackets, and "
+            "commas/spaces inside brackets. Rename the offending nested field in the source data, "
+            "or fix the `dtype` override."
+        )
+
+    if not isinstance(type_str, str) or _ATHENA_DDL_TYPE_CHARSET.fullmatch(type_str) is None:
+        _reject()
+    stack: list[str] = []
+    for char in type_str:
+        if char in "(<":
+            stack.append(char)
+        elif char in ")>":
+            if not stack or stack.pop() != _BRACKET_PAIRS[char]:
+                _reject()
+        elif char == "," and not stack:
+            _reject()
+    if stack:
+        _reject()
+    return type_str
+
+
+# Iceberg partition columns may be identifiers or transform expressions (e.g. "day(ts)",
+# "truncate(10, col)") and are spliced verbatim into PARTITIONED BY — same grammar rules.
+def _validate_partition_transform(value: str) -> str:
+    return _validate_athena_ddl_type("partition_cols", value)
+
+
 def _escape_athena_ddl_identifier(name: Any) -> str:
     # For identifiers spliced inside BACKTICK delimited identifiers in DDL statements
     # (CREATE TABLE / ALTER TABLE), e.g. `<name>`. Athena's Hive-based DDL engine uses
@@ -84,15 +127,20 @@ def _create_iceberg_table(
     columns_types, _ = catalog.extract_athena_types(df=df, index=index, dtype=dtype)
     cols_str: str = ", ".join(
         [
-            f"`{_escape_athena_ddl_identifier(k)}` {v}"
+            f"`{_escape_athena_ddl_identifier(k)}` {_validate_athena_ddl_type(k, v)}"
             if (columns_comments is None or columns_comments.get(k) is None)
-            else f"`{_escape_athena_ddl_identifier(k)}` {v} COMMENT '{_escape_athena_string_literal(columns_comments[k])}'"
+            else f"`{_escape_athena_ddl_identifier(k)}` {_validate_athena_ddl_type(k, v)} "
+            f"COMMENT '{_escape_athena_string_literal(columns_comments[k])}'"
             for k, v in columns_types.items()
         ]
     )
     # partition_cols may be partition transform expressions (e.g. "day(ts)", "truncate(10, col)"),
     # not plain identifiers, so they are spliced verbatim rather than quoted as identifiers.
-    partition_cols_str: str = f"PARTITIONED BY ({', '.join([col for col in partition_cols])})" if partition_cols else ""
+    partition_cols_str: str = (
+        f"PARTITIONED BY ({', '.join([_validate_partition_transform(col) for col in partition_cols])})"
+        if partition_cols
+        else ""
+    )
     table_properties_str: str = (
         ", "
         + ", ".join(
@@ -240,7 +288,11 @@ def _alter_iceberg_table_add_columns_sql(
     columns_to_add: dict[str, str],
 ) -> list[str]:
     add_cols_str = ", ".join(
-        [f"`{_escape_athena_ddl_identifier(col_name)}` {columns_to_add[col_name]}" for col_name in columns_to_add]
+        [
+            f"`{_escape_athena_ddl_identifier(col_name)}` "
+            f"{_validate_athena_ddl_type(col_name, columns_to_add[col_name])}"
+            for col_name in columns_to_add
+        ]
     )
 
     return [f"ALTER TABLE `{_escape_athena_ddl_identifier(table)}` ADD COLUMNS ({add_cols_str})"]
@@ -255,7 +307,10 @@ def _alter_iceberg_table_change_columns_sql(
     for col_name, col_type in columns_to_change.items():
         escaped_table = _escape_athena_ddl_identifier(table)
         escaped_col = _escape_athena_ddl_identifier(col_name)
-        sql_statements.append(f"ALTER TABLE `{escaped_table}` CHANGE COLUMN `{escaped_col}` `{escaped_col}` {col_type}")
+        validated_type = _validate_athena_ddl_type(col_name, col_type)
+        sql_statements.append(
+            f"ALTER TABLE `{escaped_table}` CHANGE COLUMN `{escaped_col}` `{escaped_col}` {validated_type}"
+        )
 
     return sql_statements
 
