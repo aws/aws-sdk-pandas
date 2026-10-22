@@ -1,7 +1,7 @@
 Install
 =======
 
-**AWS SDK for pandas** runs on Python ``3.8``, ``3.9``, ``3.10``,  ``3.11``, ``3.12``, ``3.13``, and ``3.14``
+**AWS SDK for pandas** runs on Python ``3.10``, ``3.11``, ``3.12``, ``3.13``, ``3.14``, and ``3.15``
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 

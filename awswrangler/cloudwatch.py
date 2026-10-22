@@ -73,7 +73,7 @@ def start_query(
     start_time = (
         start_time if start_time else datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc)
     )
-    end_time = end_time if end_time else datetime.datetime.utcnow()
+    end_time = end_time if end_time else datetime.datetime.now(tz=datetime.timezone.utc)
 
     start_timestamp: int = int(1000 * start_time.timestamp())
     end_timestamp: int = int(1000 * end_time.timestamp())
