@@ -579,6 +579,7 @@ def _canonicalize_fixed_offset_tz(df: PandasDataFrame | PandasSeries) -> PandasD
 
     if isinstance(df, PandasSeries):
         return _canon(df)
+    df = df.copy(deep=False)  # column reassignment below must not mutate the caller's frame
     for col in df.columns:
         df[col] = _canon(df[col])
     return df
