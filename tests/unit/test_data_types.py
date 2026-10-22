@@ -6,7 +6,14 @@ import pyarrow as pa
 import pytest
 
 from awswrangler import _data_types
-from awswrangler._data_types import athena2pandas, athena2pyarrow, cast_pandas_with_athena_types, pyarrow2mysql
+from awswrangler._data_types import (
+    athena2pandas,
+    athena2pyarrow,
+    cast_pandas_with_athena_types,
+    pyarrow2athena,
+    pyarrow2mysql,
+)
+from awswrangler.athena._write_iceberg import _validate_athena_ddl_type as validate_athena_ddl_type
 from awswrangler.exceptions import InvalidArgumentValue, UnsupportedType
 
 
@@ -303,3 +310,64 @@ def test_database_types_from_pandas_validates_varchar_lengths_default():
             varchar_lengths=None,
             converter_func=_data_types.pyarrow2postgresql,
         )
+
+
+@pytest.mark.parametrize(
+    "type_str",
+    [
+        "int",
+        "string",
+        "decimal(38,2)",
+        "array<struct<a:int,b_x:string>>",
+        "map<string,int>",
+        "struct<a:struct<b:decimal(10, 2)>>",
+        "timestamp with time zone",
+        "array<timestamp with time zone>",
+        "double precision",
+    ],
+)
+def test_validate_athena_ddl_type_accepts_grammar(type_str):
+    assert validate_athena_ddl_type("col", type_str) == type_str
+
+
+@pytest.mark.parametrize(
+    "type_str",
+    [
+        "struct<a:int>) LOCATION 's3://evil'",  # report payload: quote + unbalanced paren
+        "int) LOCATION (x",  # all-legal charset, unbalanced brackets
+        "struct<a>b:int>",  # field name broke the angle grammar at build time
+        "int; DROP TABLE t",
+        "int -- comment",
+        "`int`",
+        'struct<a:int> TBLPROPERTIES ("k"="v")',
+        "int\n",
+        "",
+        None,
+        123,
+    ],
+)
+def test_validate_athena_ddl_type_rejects_breakouts(type_str):
+    with pytest.raises(InvalidArgumentValue):
+        validate_athena_ddl_type("col", type_str)
+
+
+def test_struct_field_name_breakout_is_caught_at_ddl_emission():
+    # Data-derived field names flow through pyarrow2athena unvalidated (read paths must
+    # accept arbitrary existing data); the DDL emitter is the enforcement point.
+    malicious = pa.struct([pa.field("a>b:int,x", pa.int64())])
+    built = pyarrow2athena(malicious)
+    with pytest.raises(InvalidArgumentValue):
+        validate_athena_ddl_type("col", built)
+
+
+@pytest.mark.parametrize(
+    "type_str",
+    [
+        "int, extra int",  # top-level comma: extra column definition
+        "(<)>",  # interleaved brackets defeat independent counters
+        "array<int)",
+    ],
+)
+def test_validate_athena_ddl_type_rejects_structural_injection(type_str):
+    with pytest.raises(InvalidArgumentValue):
+        validate_athena_ddl_type("col", type_str)
