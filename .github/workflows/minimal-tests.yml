@@ -61,6 +61,9 @@ jobs:
       - name: Test Utils
         run: uv run pytest tests/unit/test_utils.py
         working-directory: ${{ github.workspace }}
+      - name: Test Data Types
+        run: uv run pytest tests/unit/test_data_types.py
+        working-directory: ${{ github.workspace }}
       - name: Test Moto
         run: uv run pytest -n 4 tests/unit/test_moto.py
         working-directory: ${{ github.workspace }}
