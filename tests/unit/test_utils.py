@@ -3,7 +3,9 @@ import os
 
 import pytest
 
-from awswrangler._utils import ensure_cpu_count, get_even_chunks_sizes
+from awswrangler._utils import ensure_cpu_count, get_even_chunks_sizes, parse_path
+from awswrangler.exceptions import InvalidArgumentValue
+from awswrangler.s3._write_dataset import _get_bucket_number
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -33,3 +35,49 @@ def test_get_even_chunks_sizes(total_size, chunk_size, upper_bound, result):
 @pytest.mark.parametrize("use_threads,result", [(True, os.cpu_count()), (False, 1), (-1, 1), (1, 1), (5, 5)])
 def test_ensure_cpu_count(use_threads, result):
     assert ensure_cpu_count(use_threads=use_threads) == result
+
+
+@pytest.mark.parametrize(
+    "path,result",
+    [
+        ("s3://bucket", ("bucket", "")),
+        ("s3://bucket/", ("bucket", "")),
+        ("s3://bucket/prefix/file.csv", ("bucket", "prefix/file.csv")),
+        ("s3://bucket//file.csv", ("bucket", "/file.csv")),
+        ("s3://bucket/s3://source/file.csv", ("bucket", "s3://source/file.csv")),
+        ("s3://bucket/archive/s3://source/file.csv", ("bucket", "archive/s3://source/file.csv")),
+        ("s3://bucket/archive/s3://source/s3://file.csv", ("bucket", "archive/s3://source/s3://file.csv")),
+        ("s3://bucket/s3://", ("bucket", "s3://")),
+        (
+            "s3://arn:aws:s3:us-east-1:123456789012:accesspoint/test-ap",
+            ("arn:aws:s3:us-east-1:123456789012:accesspoint:test-ap", ""),
+        ),
+        (
+            "s3://arn:aws:s3:us-east-1:123456789012:accesspoint/test-ap/file.csv",
+            ("arn:aws:s3:us-east-1:123456789012:accesspoint:test-ap", "file.csv"),
+        ),
+        (
+            "s3://arn:aws:s3:us-east-1:123456789012:accesspoint:test-ap/file.csv",
+            ("arn:aws:s3:us-east-1:123456789012:accesspoint:test-ap", "file.csv"),
+        ),
+        (
+            "s3://arn:aws:s3:us-east-1:123456789012:accesspoint/test-ap/archive/s3://source/file.csv",
+            ("arn:aws:s3:us-east-1:123456789012:accesspoint:test-ap", "archive/s3://source/file.csv"),
+        ),
+    ],
+)
+def test_parse_path(path, result):
+    assert parse_path(path) == result
+
+
+@pytest.mark.parametrize(
+    "path", ["", "bucket/key", "https://bucket/key", "S3://bucket/key", "https://host/s3://bucket/key"]
+)
+def test_parse_path_invalid_scheme(path):
+    with pytest.raises(InvalidArgumentValue, match="MUST start with 's3://'"):
+        parse_path(path)
+
+
+def test_get_bucket_number_non_ascii_string():
+    # Hive and Trino hash string bytes as signed Java bytes
+    assert _get_bucket_number(5, ["São Paulo"]) == 2

@@ -314,8 +314,8 @@ def _read_item(
     chunked: bool = False,
     **kwargs: Any,
 ) -> _ItemsListType | Iterator[_ItemsListType]:
-    item = dynamodb_client.get_item(TableName=table_name, **kwargs).get("Item", {})
-    item_list: _ItemsListType = [_deserialize_item(item)]
+    item = dynamodb_client.get_item(TableName=table_name, **kwargs).get("Item")
+    item_list: _ItemsListType = [_deserialize_item(item)] if item else []
 
     return [item_list] if chunked else item_list
 

@@ -38,7 +38,7 @@ def test_parameter_formatting(engine: _Engine) -> None:
     expected_params = {
         "string": "'hello'",
         "int": "12",
-        "float": "13.000000",
+        "float": "13.0",
         "null": "NULL",
         "datetime": "TIMESTAMP '2022-08-22 13:02:36.123'",
         "date": "DATE '2022-08-22'",
@@ -132,3 +132,38 @@ def test_process_sql_params_double_colon_cast() -> None:
     processed_sql = _process_sql_params(sql, params)
     expected_sql = "SELECT col::text, col::timestamp FROM table WHERE id = 1 AND status = 'active'"
     assert processed_sql == expected_sql
+
+
+@pytest.mark.parametrize("engine", [_hive_engine_param, _presto_engine_param])
+def test_float_formatting_keeps_precision(engine: _Engine) -> None:
+    actual_params = _format_parameters({"a": 1.23456789, "b": -2.5e-7}, engine=engine)
+
+    assert actual_params == {"a": "1.23456789", "b": "-0.00000025"}
+
+
+@pytest.mark.parametrize("engine", [_hive_engine_param, _presto_engine_param])
+def test_numpy_parameter_formatting(engine: _Engine) -> None:
+    import numpy as np
+
+    actual_params = _format_parameters(
+        {
+            "np_int64": np.int64(42),
+            "np_int32": np.int32(10),
+            "np_float64": np.float64(3.14),
+            "np_float32": np.float32(2.5),
+            "np_bool_true": np.bool_(True),
+            "np_bool_false": np.bool_(False),
+            "np_str": np.str_("hello"),
+            "np_list": [np.int64(1), np.int32(2)],
+        },
+        engine=engine,
+    )
+
+    assert actual_params["np_int64"] == "42"
+    assert actual_params["np_int32"] == "10"
+    assert actual_params["np_float64"] == "3.14"
+    assert actual_params["np_float32"] == "2.5"
+    assert actual_params["np_bool_true"] == "TRUE"
+    assert actual_params["np_bool_false"] == "FALSE"
+    assert actual_params["np_str"] == "'hello'"
+    assert actual_params["np_list"] == "ARRAY [1, 2]"
