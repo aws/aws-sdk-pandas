@@ -1,6 +1,10 @@
 import logging
+from unittest.mock import Mock, patch
 
+import boto3
+import botocore.exceptions
 import pandas as pd
+import pyarrow as pa
 import pytest
 
 import awswrangler as wr
@@ -53,6 +57,69 @@ def test_build_catalog_properties_no_credentials():
     arn = "arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket"
     props = _build_catalog_properties(arn)
     assert not any(k for k in props if "access-key" in k or "secret" in k or "session-token" in k)
+
+
+@pytest.mark.parametrize("token", ["session-token", None])
+def test_build_catalog_properties_session_credentials(token):
+    arn = "arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket"
+    session = boto3.Session(
+        aws_access_key_id="AKIACALLERSESSION000",
+        aws_secret_access_key="caller-secret",
+        aws_session_token=token,
+        region_name="eu-west-1",
+    )
+    props = _build_catalog_properties(arn, boto3_session=session)
+
+    assert props["client.access-key-id"] == "AKIACALLERSESSION000"
+    assert props["client.secret-access-key"] == "caller-secret"
+    assert props.get("client.session-token") == token
+    # The signing region still comes from the table bucket ARN, not from the session.
+    assert props["rest.signing-region"] == "us-east-1"
+    assert "client.region" not in props
+
+
+def test_build_catalog_properties_session_without_credentials():
+    arn = "arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket"
+    session = Mock(spec=boto3.Session)
+    session.get_credentials.return_value = None
+    # Falling back to the default credential chain would silently use another identity.
+    with pytest.raises(botocore.exceptions.NoCredentialsError):
+        _build_catalog_properties(arn, boto3_session=session)
+
+
+@pytest.mark.parametrize("func_name", ["from_iceberg", "to_iceberg"])
+@pytest.mark.parametrize("use_session", [True, False])
+def test_iceberg_catalog_uses_boto3_session(func_name, use_session):
+    arn = "arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket"
+    session = (
+        boto3.Session(
+            aws_access_key_id="AKIACALLERSESSION000",
+            aws_secret_access_key="caller-secret",
+            region_name="us-east-1",
+        )
+        if use_session
+        else None
+    )
+    with patch("pyiceberg.catalog.rest.RestCatalog") as rest_catalog:
+        table = rest_catalog.return_value.load_table.return_value
+        table.scan.return_value.to_arrow.return_value = pa.table({"id": [1]})
+        if func_name == "from_iceberg":
+            wr.s3.from_iceberg(table_bucket_arn=arn, namespace="ns", table_name="t", boto3_session=session)
+        else:
+            wr.s3.to_iceberg(
+                df=pd.DataFrame({"id": [1]}),
+                table_bucket_arn=arn,
+                namespace="ns",
+                table_name="t",
+                boto3_session=session,
+            )
+
+    catalog_properties = rest_catalog.call_args.kwargs
+    if use_session:
+        assert catalog_properties["client.access-key-id"] == "AKIACALLERSESSION000"
+        assert catalog_properties["client.secret-access-key"] == "caller-secret"
+    else:
+        assert not any(k for k in catalog_properties if "access-key" in k or "secret" in k)
 
 
 def test_build_catalog_properties_glue_endpoint():
