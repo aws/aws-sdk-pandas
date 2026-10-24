@@ -61,7 +61,8 @@ def _get_value_hash(value: str | int | bool) -> int:
     if isinstance(value, (str, np.str_)):
         value_hash = 0
         for byte in value.encode():
-            value_hash = value_hash * 31 + byte
+            # Hive and Trino hash each byte as a signed Java byte
+            value_hash = value_hash * 31 + (byte - 256 if byte > 127 else byte)
             value_hash = _simulate_overflow(value_hash)
         return value_hash
     if isinstance(value, (bool, np.bool_)):
