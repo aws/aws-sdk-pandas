@@ -156,6 +156,59 @@ def test_public_aliases_point_to_private_implementations() -> None:
 
 
 # ---------------------------------------------------------------------------
+# create_vector_bucket / create_vector_index — encryption configuration
+# ---------------------------------------------------------------------------
+
+_KMS_KEY_ARN = "arn:aws:kms:us-east-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+
+
+def test_create_vector_bucket_kms_key_implies_aws_kms() -> None:
+    client = MagicMock()
+    client.create_vector_bucket.return_value = {"vectorBucketArn": "arn:b"}
+
+    with _patch_client(client):
+        wr.s3.create_vector_bucket("b", encryption_kms_key_arn=_KMS_KEY_ARN)
+
+    assert client.create_vector_bucket.call_args.kwargs["encryptionConfiguration"] == {
+        "sseType": "aws:kms",
+        "kmsKeyArn": _KMS_KEY_ARN,
+    }
+
+
+def test_create_vector_index_kms_key_implies_aws_kms() -> None:
+    client = MagicMock()
+    client.create_index.return_value = {"indexArn": "arn:i"}
+
+    with _patch_client(client):
+        wr.s3.create_vector_index(vector_bucket="b", name="i", dimension=3, encryption_kms_key_arn=_KMS_KEY_ARN)
+
+    assert client.create_index.call_args.kwargs["encryptionConfiguration"] == {
+        "sseType": "aws:kms",
+        "kmsKeyArn": _KMS_KEY_ARN,
+    }
+
+
+def test_create_vector_bucket_explicit_sse_type_is_kept() -> None:
+    client = MagicMock()
+    client.create_vector_bucket.return_value = {"vectorBucketArn": "arn:b"}
+
+    with _patch_client(client):
+        wr.s3.create_vector_bucket("b", sse_type="AES256")
+
+    assert client.create_vector_bucket.call_args.kwargs["encryptionConfiguration"] == {"sseType": "AES256"}
+
+
+def test_create_vector_bucket_without_encryption_omits_block() -> None:
+    client = MagicMock()
+    client.create_vector_bucket.return_value = {"vectorBucketArn": "arn:b"}
+
+    with _patch_client(client):
+        wr.s3.create_vector_bucket("b")
+
+    assert "encryptionConfiguration" not in client.create_vector_bucket.call_args.kwargs
+
+
+# ---------------------------------------------------------------------------
 # put_vectors — chunking + payload shape
 # ---------------------------------------------------------------------------
 
