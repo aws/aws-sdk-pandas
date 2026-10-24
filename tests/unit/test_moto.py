@@ -328,6 +328,17 @@ def test_download_fileobj(moto_s3_client: "S3Client", tmp_path: str) -> None:
     assert local_file.read_bytes() == content
 
 
+def test_upload_download_path(moto_s3_client: "S3Client", tmp_path) -> None:
+    path = "s3://bucket/foo.tmp"
+    src = tmp_path / "src.tmp"
+    src.write_bytes(b"foo")
+    wr.s3.upload(local_file=src, path=path)
+
+    dst = tmp_path / "dst.tmp"
+    wr.s3.download(path=path, local_file=dst)
+    assert dst.read_bytes() == b"foo"
+
+
 def test_upload_file(moto_s3_client: "S3Client", tmp_path: str) -> None:
     bucket = "bucket"
     key = "foo.tmp"
