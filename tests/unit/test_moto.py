@@ -1059,6 +1059,25 @@ def test_dynamodb_read_items_max_items_evaluated_zero(moto_dynamodb_client, moto
         wr.dynamodb.read_items(table_name=moto_dynamodb_table, max_items_evaluated=-1)
 
 
+def test_dynamodb_read_items_missing_single_key(moto_dynamodb_client, moto_dynamodb_table) -> None:
+    wr.dynamodb.put_items(items=[{"key": 1, "value": "A"}], table_name=moto_dynamodb_table)
+
+    items = wr.dynamodb.read_items(table_name=moto_dynamodb_table, partition_values=[2], as_dataframe=False)
+    assert items == []
+
+    chunks = list(
+        wr.dynamodb.read_items(table_name=moto_dynamodb_table, partition_values=[2], as_dataframe=False, chunked=True)
+    )
+    assert chunks == [[]]
+
+    df = wr.dynamodb.read_items(table_name=moto_dynamodb_table, partition_values=[2])
+    assert len(df) == 0
+
+    # Same result as when several missing keys go through BatchGetItem
+    items = wr.dynamodb.read_items(table_name=moto_dynamodb_table, partition_values=[2, 3], as_dataframe=False)
+    assert items == []
+
+
 def _capture_timestream_write_records(session: boto3.Session) -> list:
     captured: list = []
 
