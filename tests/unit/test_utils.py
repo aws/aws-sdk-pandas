@@ -5,6 +5,7 @@ import pytest
 
 from awswrangler._utils import ensure_cpu_count, get_even_chunks_sizes, parse_path
 from awswrangler.exceptions import InvalidArgumentValue
+from awswrangler.s3._write_dataset import _get_bucket_number
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -75,3 +76,8 @@ def test_parse_path(path, result):
 def test_parse_path_invalid_scheme(path):
     with pytest.raises(InvalidArgumentValue, match="MUST start with 's3://'"):
         parse_path(path)
+
+
+def test_get_bucket_number_non_ascii_string():
+    # Hive and Trino hash string bytes as signed Java bytes
+    assert _get_bucket_number(5, ["São Paulo"]) == 2

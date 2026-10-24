@@ -623,10 +623,10 @@ def to_sql(
                 insertion_columns = f"({', '.join(column_names)})"
             if mode == "upsert":
                 upsert_columns = ", ".join(f"{column}=EXCLUDED.{column}" for column in column_names)
-                conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore[arg-type]
+                conflict_columns = ", ".join(_identifier(col) for col in upsert_conflict_columns)  # type: ignore[union-attr]
                 upsert_str = f" ON CONFLICT ({conflict_columns}) DO UPDATE SET {upsert_columns}"
             if mode == "append" and insert_conflict_columns:
-                conflict_columns = ", ".join(insert_conflict_columns)
+                conflict_columns = ", ".join(_identifier(col) for col in insert_conflict_columns)
                 upsert_str = f" ON CONFLICT ({conflict_columns}) DO NOTHING"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
