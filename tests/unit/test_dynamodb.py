@@ -214,7 +214,7 @@ def test_dynamodb_put_from_file(
         raise RuntimeError(f"Unknown format {format}")
 
     df2 = wr.dynamodb.read_partiql_query(query=f"SELECT * FROM {dynamodb_table}")
-    df2 = df2.sort_values(by="par0").reset_index(drop=True)
+    df2 = df2[df.columns].sort_values(by="par0").reset_index(drop=True)
     df2["par0"] = df["par0"].astype("int64")
     assert_pandas_equals(df, df2)
 
@@ -302,6 +302,8 @@ def test_read_items_simple(params: dict[str, Any], dynamodb_table: str, use_thre
     )
     if chunked:
         df2 = pd.concat(df2)
+    # DynamoDB does not guarantee attribute order in returned items
+    df2 = df2[df.columns]
     assert df2.shape == (2, len(df.columns))
     assert df2.dtypes.to_list() == df.dtypes.to_list()
 
