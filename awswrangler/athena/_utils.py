@@ -55,6 +55,7 @@ class _QueryMetadata(NamedTuple):
     output_location: str | None
     manifest_location: str | None
     raw_payload: "QueryExecutionTypeDef"
+    decimal_types: dict[str, str] | None = None
 
 
 class _WorkGroupConfig(NamedTuple):
@@ -274,10 +275,13 @@ def _get_query_metadata(
     parse_geometry: list[str] = []
     converters: dict[str, Any] = {}
     binaries: list[str] = []
+    decimal_types: dict[str, str] = {}
     col_name: str
     col_type: str
     for col_name, col_type in cols_types.items():
         pandas_type: str = _data_types.athena2pandas(dtype=col_type, dtype_backend=dtype_backend)
+        if col_type.startswith("decimal") and dtype_backend == "pyarrow":
+            pandas_type = "decimal"
         if (categories is not None) and (col_name in categories):
             dtype[col_name] = "category"
         elif pandas_type in ["datetime64", "date"]:
@@ -289,6 +293,8 @@ def _get_query_metadata(
             binaries.append(col_name)
         elif pandas_type == "decimal":
             converters[col_name] = lambda x: Decimal(str(x)) if str(x) not in ("", "none", " ", "<NA>") else None
+            if dtype_backend == "pyarrow":
+                decimal_types[col_name] = col_type
         elif col_type == "geometry" and pandas_type == "string":
             parse_geometry.append(col_name)
         else:
@@ -314,6 +320,7 @@ def _get_query_metadata(
         output_location=output_location,
         manifest_location=manifest_location,
         raw_payload=_query_execution_payload,
+        decimal_types=decimal_types,
     )
     _logger.debug("Query metadata:\n%s", query_metadata)
     return query_metadata
