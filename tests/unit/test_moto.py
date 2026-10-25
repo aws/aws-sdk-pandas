@@ -1480,3 +1480,30 @@ def test_merge_datasets_overwrite_partitions_root_files(moto_s3_client) -> None:
         f"s3://{bucket}/target/part=1/file_new_p.csv",
         f"s3://{bucket}/target/part=2/keep.csv",
     }
+
+
+@pytest.mark.parametrize(
+    "target_keys,source_keys,survivors",
+    [
+        # source without root files must leave the target root alone
+        (
+            ["root.csv", "part=1/old.csv", "part=2/keep.csv"],
+            ["part=1/new.csv"],
+            ["root.csv", "part=1/new.csv", "part=2/keep.csv"],
+        ),
+        # the folder-marker object (key == prefix) is not a root file
+        (["", "old.csv", "part=1/keep.csv"], ["new.csv"], ["", "new.csv", "part=1/keep.csv"]),
+    ],
+)
+def test_merge_datasets_overwrite_partitions_root_scope(moto_s3_client, target_keys, source_keys, survivors) -> None:
+    for key in target_keys:
+        moto_s3_client.put_object(Bucket="bucket", Key=f"target/{key}", Body=b"old")
+    for key in source_keys:
+        moto_s3_client.put_object(Bucket="bucket", Key=f"source/{key}", Body=b"new")
+
+    wr.s3.merge_datasets(
+        source_path="s3://bucket/source/", target_path="s3://bucket/target/", mode="overwrite_partitions"
+    )
+
+    keys = moto_s3_client.list_objects_v2(Bucket="bucket", Prefix="target/")["Contents"]
+    assert sorted(o["Key"] for o in keys) == sorted(f"target/{key}" for key in survivors)
