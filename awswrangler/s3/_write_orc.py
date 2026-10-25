@@ -29,6 +29,7 @@ from awswrangler.typing import (
     AthenaPartitionProjectionSettings,
     BucketingInfoTuple,
     GlueTableSettings,
+    OrcCompression,
     _S3WriteDataReturnValue,
 )
 
@@ -314,7 +315,7 @@ def to_orc(
     df: pd.DataFrame,
     path: str | None = None,
     index: bool = False,
-    compression: str | None = None,
+    compression: OrcCompression | None = None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
     max_rows_by_file: int | None = None,
     use_threads: bool | int = True,
@@ -368,7 +369,7 @@ def to_orc(
         True to store the DataFrame index in file, otherwise False to ignore it.
         Is not supported in conjunction with `max_rows_by_file` when running the library with Ray/Modin.
     compression
-        Compression style (``None``, ``snappy``, ``gzip``, ``zstd``).
+        Compression style (``None``, ``snappy``, ``zlib``, ``lz4``, ``zstd``).
     pyarrow_additional_kwargs
         Additional parameters forwarded to pyarrow.
         e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
