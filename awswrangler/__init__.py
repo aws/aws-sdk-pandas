@@ -9,6 +9,7 @@ import logging as _logging
 
 from awswrangler import (
     athena,
+    bedrock,
     catalog,
     chime,
     cleanrooms,
@@ -41,6 +42,7 @@ engine.register()
 
 __all__ = [
     "athena",
+    "bedrock",
     "catalog",
     "chime",
     "cleanrooms",

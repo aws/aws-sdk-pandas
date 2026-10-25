@@ -467,32 +467,41 @@ def _generate_upsert_statement(
     if not primary_keys:
         raise exceptions.InvalidArgumentCombination('`primary_keys` need to be defined when `mode="upsert"`')
 
+    missing_primary_keys = [key for key in primary_keys if key not in df.columns]
+    if missing_primary_keys:
+        raise exceptions.InvalidArgumentValue(
+            f"`primary_keys` not found in the DataFrame columns: {missing_primary_keys}. "
+            f"The DataFrame has the columns: {list(df.columns)}"
+        )
+
     non_primary_key_columns = [key for key in df.columns if key not in set(primary_keys)]
 
-    primary_keys_str = ", ".join([f"{identifier(key, sql_mode='ansi')}" for key in primary_keys])
-    columns_str = ", ".join([f"{identifier(key, sql_mode='ansi')}" for key in non_primary_key_columns])
+    placeholder_by_column = {column: f":{i + 1}" for i, column in enumerate(df.columns)}
+
+    insertion_columns_str = ", ".join([f"{identifier(column, sql_mode='ansi')}" for column in df.columns])
 
     column_placeholders: str = f"({', '.join([':' + str(i + 1) for i in range(len(df.columns))])})"
 
-    primary_key_condition_str = " AND ".join(
-        [f"{identifier(key, sql_mode='ansi')} = :{i + 1}" for i, key in enumerate(primary_keys)]
-    )
-    assignment_str = ", ".join(
-        [
-            f"{identifier(col, sql_mode='ansi')} = :{i + len(primary_keys) + 1}"
-            for i, col in enumerate(non_primary_key_columns)
-        ]
-    )
+    if non_primary_key_columns:
+        primary_key_condition_str = " AND ".join(
+            [f"{identifier(key, sql_mode='ansi')} = {placeholder_by_column[key]}" for key in primary_keys]
+        )
+        assignment_str = ", ".join(
+            [f"{identifier(col, sql_mode='ansi')} = {placeholder_by_column[col]}" for col in non_primary_key_columns]
+        )
+        duplicate_action = f"""UPDATE {table_identifier}
+            SET    {assignment_str}
+            WHERE  {primary_key_condition_str};"""
+    else:
+        duplicate_action = "NULL;"
 
     return f"""
     BEGIN
-        INSERT INTO {table_identifier} ({primary_keys_str}, {columns_str})
+        INSERT INTO {table_identifier} ({insertion_columns_str})
             VALUES {column_placeholders};
         EXCEPTION
         WHEN dup_val_on_index THEN
-            UPDATE {table_identifier}
-            SET    {assignment_str}
-            WHERE  {primary_key_condition_str};
+            {duplicate_action}
     END;
     """
 

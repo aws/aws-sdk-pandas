@@ -67,6 +67,7 @@ if TYPE_CHECKING:
 
     ServiceName = Literal[
         "athena",
+        "bedrock",
         "bedrock-runtime",
         "cleanrooms",
         "dynamodb",
@@ -548,7 +549,7 @@ def parse_path(path: str) -> tuple[str, str]:
     """
     if path.startswith("s3://") is False:
         raise exceptions.InvalidArgumentValue(f"'{path}' is not a valid path. It MUST start with 's3://'")
-    parts = path.replace("s3://", "").replace(":accesspoint/", ":accesspoint:").split("/", 1)
+    parts = path.replace("s3://", "", 1).replace(":accesspoint/", ":accesspoint:").split("/", 1)
     bucket: str = parts[0]
     if "/" in bucket:
         raise exceptions.InvalidArgumentValue(f"'{bucket}' is not a valid bucket name.")

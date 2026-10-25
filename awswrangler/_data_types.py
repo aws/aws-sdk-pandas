@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import numbers
 import re
 import warnings
 from decimal import Decimal
@@ -45,7 +46,7 @@ def pyarrow2athena(  # noqa: PLR0911,PLR0912
         return "timestamp"
     if pa.types.is_date(dtype):
         return "date"
-    if pa.types.is_binary(dtype) or pa.types.is_fixed_size_binary(dtype):
+    if pa.types.is_binary(dtype) or pa.types.is_large_binary(dtype) or pa.types.is_fixed_size_binary(dtype):
         return "binary"
     if pa.types.is_dictionary(dtype):
         return pyarrow2athena(dtype=dtype.value_type, ignore_null=ignore_null)
@@ -114,19 +115,19 @@ def pyarrow2mysql(  # noqa: PLR0911,PLR0912
     if pa.types.is_int8(dtype):
         return "TINYINT"
     if pa.types.is_uint8(dtype):
-        return "UNSIGNED TINYINT"
+        return "TINYINT UNSIGNED"
     if pa.types.is_int16(dtype):
         return "SMALLINT"
     if pa.types.is_uint16(dtype):
-        return "UNSIGNED SMALLINT"
+        return "SMALLINT UNSIGNED"
     if pa.types.is_int32(dtype):
         return "INTEGER"
     if pa.types.is_uint32(dtype):
-        return "UNSIGNED INTEGER"
+        return "INTEGER UNSIGNED"
     if pa.types.is_int64(dtype):
         return "BIGINT"
     if pa.types.is_uint64(dtype):
-        return "UNSIGNED BIGINT"
+        return "BIGINT UNSIGNED"
     if pa.types.is_float32(dtype):
         return "FLOAT"
     if pa.types.is_float64(dtype):
@@ -432,7 +433,7 @@ def athena2quicksight(dtype: str) -> str:  # noqa: PLR0911
 
 
 def athena2redshift(  # noqa: PLR0911
-    dtype: str, varchar_length: int = 256
+    dtype: str, varchar_length: int | str = 256
 ) -> str:
     """Athena to Redshift data types conversion."""
     dtype = dtype.lower()
@@ -783,11 +784,31 @@ def _cast2date(value: Any) -> Any:
     return pd.to_datetime(value).date()
 
 
+def _cast_pandas_date(column: pd.Series) -> pd.Series:
+    non_null = column.dropna()
+    if pd.api.types.is_object_dtype(column.dtype):
+        is_string = pd.api.types.infer_dtype(non_null, skipna=False) == "string"
+    else:
+        is_string = not non_null.empty and pd.api.types.is_string_dtype(column.dtype)
+
+    # Whole-Series inference changes how mixed formats are parsed. Restrict the fast path to a fixed format whose
+    # result is equivalent to parsing each value separately, and retain the scalar path for all other inputs.
+    if is_string and non_null.str.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}").fillna(False).all():
+        try:
+            return pd.to_datetime(column, format="%Y-%m-%d").dt.date.replace(to_replace={pd.NaT: None})
+        except (OverflowError, TypeError, ValueError):
+            # Shape-valid dates can still be invalid or unsupported by a pandas version. The scalar path preserves
+            # the existing result or exception in those cases.
+            pass
+
+    return column.apply(lambda x: _cast2date(value=x)).replace(to_replace={pd.NaT: None})
+
+
 def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_type: str) -> pd.DataFrame:
     if desired_type == "datetime64":
         df[col] = pd.to_datetime(df[col])
     elif desired_type == "date":
-        df[col] = df[col].apply(lambda x: _cast2date(value=x)).replace(to_replace={pd.NaT: None})
+        df[col] = _cast_pandas_date(column=df[col])
     elif desired_type == "bytes":
         df[col] = df[col].astype("string").str.encode(encoding="utf-8").replace(to_replace={pd.NA: None})
     elif desired_type == "decimal":
@@ -816,6 +837,76 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
     return df
 
 
+# Database column types are spliced into CREATE TABLE statements and cannot be bound as
+# query parameters, and the type position has no quoting mechanism, so escaping is not an
+# option. Instead of enumerating valid types (vendor grammars vary too much), reject only
+# what a splice needs to escape the column definition list: statement terminators, string
+# and identifier delimiters, comment tokens, an unbalanced parenthesis, and a comma at
+# parenthesis depth zero (which would start a new column definition). Double quotes are
+# allowed in balanced pairs because PostgreSQL types legitimately carry quoted identifiers
+# (e.g. 'text COLLATE "C"', '"MySchema"."MyType"').
+# "$" blocks dollar-quoted string constants ($$...$$), which would otherwise let quoted
+# parentheses manipulate the depth scanner on PostgreSQL/Redshift. Single quotes are handled
+# structurally (balanced pairs skipped, like double quotes) because MySQL ENUM('a','b') and
+# SET(...) legitimately require them; comment/terminator tokens are still rejected even
+# inside quotes, conservatively.
+_SQL_BREAKOUT_TOKENS: tuple[str, ...] = (";", "`", "--", "/*", "*/", "#", "\\", "$")
+
+
+def _validate_database_type(col_name: str, type_str: str) -> str:
+    def _reject() -> None:
+        raise exceptions.InvalidArgumentValue(
+            f"Invalid database type {type_str!r} for column {col_name!r}. "
+            "Types must not contain string delimiters, semicolons, comment tokens, top-level "
+            "commas, or unbalanced parentheses/double quotes."
+        )
+
+    if not isinstance(type_str, str) or not type_str.strip():
+        _reject()
+    if any(token in type_str for token in _SQL_BREAKOUT_TOKENS):
+        _reject()
+    if any(ord(char) < 0x20 for char in type_str):
+        # Control characters (incl. NUL) are never valid in a type and otherwise surface as
+        # confusing low-level driver errors at execution time.
+        _reject()
+    # Characters inside balanced quotes are inert for structure (quoted identifiers may contain
+    # commas/parens; ENUM values are single-quoted), but quoted regions cannot hide depth
+    # manipulation either: the scanner skips them entirely, so a breakout comma must appear
+    # unquoted at depth zero, and any unbalanced quote is rejected.
+    depth = 0
+    quote: str | None = None
+    for char in type_str:
+        if quote is not None:
+            if char == quote:
+                quote = None
+        elif char in ("'", '"'):
+            quote = char
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth < 0:
+                _reject()
+        elif char == "," and depth == 0:
+            _reject()
+    if quote is not None or depth != 0:
+        _reject()
+    return type_str
+
+
+def _validate_varchar_length(col_name: str, value: Any) -> int | str:
+    # bool is an int subclass but 'VARCHAR(True)' is not a length; numpy integers are not
+    # int subclasses but df["c"].str.len().max() (np.int64) is the natural way to get one.
+    # The literal "MAX" is allowed for the SQL Server / Redshift VARCHAR(MAX) idiom.
+    if isinstance(value, str) and value.upper() == "MAX":
+        return value
+    if isinstance(value, bool) or not isinstance(value, numbers.Integral) or value <= 0:
+        raise exceptions.InvalidArgumentValue(
+            f"varchar_lengths value for column {col_name!r} must be a positive integer or 'MAX'."
+        )
+    return int(value)
+
+
 def database_types_from_pandas(
     df: pd.DataFrame,
     index: bool,
@@ -833,12 +924,12 @@ def database_types_from_pandas(
     database_types: dict[str, str] = {}
     for col_name, col_dtype in pyarrow_types.items():
         if col_name in _dtype:
-            database_types[col_name] = _dtype[col_name]
+            database_types[col_name] = _validate_database_type(col_name, _dtype[col_name])
         else:
             if col_name in _varchar_lengths:
-                string_type: str = f"VARCHAR({_varchar_lengths[col_name]})"
+                string_type: str = f"VARCHAR({_validate_varchar_length(col_name, _varchar_lengths[col_name])})"
             elif isinstance(varchar_lengths_default, str):
-                string_type = varchar_lengths_default
+                string_type = _validate_database_type(col_name, varchar_lengths_default)
             else:
                 string_type = f"VARCHAR({varchar_lengths_default})"
             database_types[col_name] = converter_func(col_dtype, string_type)
