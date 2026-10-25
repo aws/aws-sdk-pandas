@@ -13,7 +13,7 @@ import pyarrow as pa
 import pyarrow.lib
 import pyarrow.parquet
 
-from awswrangler import _utils, catalog, exceptions, typing
+from awswrangler import _utils, catalog, exceptions
 from awswrangler._arrow import _df_to_table
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
@@ -34,6 +34,8 @@ from awswrangler.typing import (
     AthenaPartitionProjectionSettings,
     BucketingInfoTuple,
     GlueTableSettings,
+    ParquetCompression,
+    S3WriteMode,
     _S3WriteDataReturnValue,
 )
 
@@ -341,7 +343,7 @@ def to_parquet(
     df: pd.DataFrame,
     path: str | None = None,
     index: bool = False,
-    compression: str | None = "snappy",
+    compression: ParquetCompression | None = "snappy",
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
     max_rows_by_file: int | None = None,
     use_threads: bool | int = True,
@@ -353,14 +355,14 @@ def to_parquet(
     partition_cols: list[str] | None = None,
     bucketing_info: BucketingInfoTuple | None = None,
     concurrent_partitioning: bool = False,
-    mode: Literal["append", "overwrite", "overwrite_partitions"] | None = None,
+    mode: S3WriteMode | None = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
     database: str | None = None,
     table: str | None = None,
     glue_table_settings: GlueTableSettings | None = None,
     dtype: dict[str, str] | None = None,
-    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    athena_partition_projection_settings: AthenaPartitionProjectionSettings | None = None,
     catalog_id: str | None = None,
     encryption_configuration: ArrowEncryptionConfiguration | None = None,
 ) -> _S3WriteDataReturnValue:
@@ -396,7 +398,7 @@ def to_parquet(
         True to store the DataFrame index in file, otherwise False to ignore it.
         Is not supported in conjunction with `max_rows_by_file` when running the library with Ray/Modin.
     compression
-        Compression style (``None``, ``snappy``, ``gzip``, ``zstd``).
+        Compression style (``None``, ``snappy``, ``gzip``, ``zstd``, ``brotli``, ``lz4``).
     pyarrow_additional_kwargs
         Additional parameters forwarded to pyarrow.
         e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
@@ -705,7 +707,9 @@ def to_parquet(
 
     # Evaluating compression
     if _COMPRESSION_2_EXT.get(compression, None) is None:
-        raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, 'snappy', 'gzip' or 'zstd'.")
+        raise exceptions.InvalidCompression(
+            f"{compression} is invalid, please use None, 'snappy', 'gzip', 'zstd', 'brotli' or 'lz4'."
+        )
     compression_ext: str = _COMPRESSION_2_EXT[compression]
 
     # Pyarrow defaults
@@ -776,7 +780,7 @@ def store_parquet_metadata(
     mode: Literal["append", "overwrite"] = "overwrite",
     catalog_versioning: bool = False,
     regular_partitions: bool = True,
-    athena_partition_projection_settings: typing.AthenaPartitionProjectionSettings | None = None,
+    athena_partition_projection_settings: AthenaPartitionProjectionSettings | None = None,
     s3_additional_kwargs: dict[str, Any] | None = None,
     boto3_session: boto3.Session | None = None,
 ) -> tuple[dict[str, str], dict[str, str] | None, dict[str, list[str]] | None]:

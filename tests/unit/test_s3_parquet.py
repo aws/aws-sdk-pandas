@@ -769,7 +769,7 @@ def test_mixed_types_column(path) -> None:
         wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
 
 
-@pytest.mark.parametrize("compression", [None, "snappy", "gzip", "zstd"])
+@pytest.mark.parametrize("compression", [None, "snappy", "gzip", "zstd", "brotli", "lz4"])
 def test_parquet_compression(path, compression) -> None:
     df = pd.DataFrame({"id": [1, 2, 3]}, dtype="Int64")
     path_file = f"{path}0.parquet"
