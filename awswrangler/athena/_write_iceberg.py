@@ -413,7 +413,7 @@ def _merge_iceberg(
                 UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in esc_columns])}"""
         elif merge_condition == "conditional_update":
             match_condition = f"""WHEN MATCHED AND {conditional_merge_string} THEN
-                UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in df.columns])}"""
+                UPDATE SET {", ".join([f'"{x}" = source."{x}"' for x in esc_columns])}"""
         else:
             match_condition = ""
 
