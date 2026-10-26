@@ -1496,14 +1496,17 @@ def test_merge_datasets_overwrite_partitions_root_files(moto_s3_client) -> None:
     ],
 )
 def test_merge_datasets_overwrite_partitions_root_scope(moto_s3_client, target_keys, source_keys, survivors) -> None:
+    prefix = f"merge_{_get_unique_suffix()}"
     for key in target_keys:
-        moto_s3_client.put_object(Bucket="bucket", Key=f"target/{key}", Body=b"old")
+        moto_s3_client.put_object(Bucket="bucket", Key=f"{prefix}/target/{key}", Body=b"old")
     for key in source_keys:
-        moto_s3_client.put_object(Bucket="bucket", Key=f"source/{key}", Body=b"new")
+        moto_s3_client.put_object(Bucket="bucket", Key=f"{prefix}/source/{key}", Body=b"new")
 
     wr.s3.merge_datasets(
-        source_path="s3://bucket/source/", target_path="s3://bucket/target/", mode="overwrite_partitions"
+        source_path=f"s3://bucket/{prefix}/source/",
+        target_path=f"s3://bucket/{prefix}/target/",
+        mode="overwrite_partitions",
     )
 
-    keys = moto_s3_client.list_objects_v2(Bucket="bucket", Prefix="target/")["Contents"]
-    assert sorted(o["Key"] for o in keys) == sorted(f"target/{key}" for key in survivors)
+    keys = moto_s3_client.list_objects_v2(Bucket="bucket", Prefix=f"{prefix}/target/")["Contents"]
+    assert sorted(o["Key"] for o in keys) == sorted(f"{prefix}/target/{key}" for key in survivors)
