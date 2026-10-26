@@ -1,13 +1,16 @@
 import datetime
 import logging
 import string
+from decimal import Decimal
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import boto3
 import botocore
 import numpy as np
+import pyarrow as pa
 import pytest
+from pandas import ArrowDtype
 from pandas import DataFrame as PandasDataFrame
 
 import awswrangler as wr
@@ -2223,3 +2226,18 @@ def test_athena_date_recovery(path, glue_database, glue_table):
     )
     # Round-trip dtype/resolution may differ (e.g. datetime64[ns] vs [us]) depending on pandas version.
     assert_pandas_equals(df, df2, check_dtype=False, check_datetimelike_compat=True)
+
+
+@pytest.mark.parametrize("ctas_approach", [False, True])
+def test_read_sql_query_decimal_pyarrow_backend(glue_database, workgroup0, ctas_approach):
+    df = wr.athena.read_sql_query(
+        sql="SELECT CAST('123456789012345.67' AS DECIMAL(20,2)) AS amount, CAST(NULL AS DECIMAL(20,2)) AS missing",
+        database=glue_database,
+        ctas_approach=ctas_approach,
+        workgroup=workgroup0,
+        dtype_backend="pyarrow",
+        keep_files=False,
+    )
+    assert df["amount"].dtype == ArrowDtype(pa.decimal128(20, 2))
+    assert df["amount"].iloc[0] == Decimal("123456789012345.67")
+    assert df["missing"].isna().iloc[0]

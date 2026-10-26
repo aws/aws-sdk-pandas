@@ -42,6 +42,8 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 _ItemsListType = List[Dict[str, "TableAttributeValueTypeDef"]]
 
+_MAX_BATCH_GET_ITEM_KEYS = 100
+
 
 def _read_chunked(iterator: Iterator[dict[str, "TableAttributeValueTypeDef"]]) -> Iterator[pd.DataFrame]:
     for item in iterator:
@@ -279,20 +281,29 @@ def _read_batch_items_chunked(
     dynamodb_client = dynamodb_client if dynamodb_client else _utils.client("dynamodb")
     deserializer = TypeDeserializer()
 
-    response = dynamodb_client.batch_get_item(RequestItems={table_name: kwargs})
-    yield [_deserialize_item(d, deserializer) for d in response.get("Responses", {table_name: []}).get(table_name, [])]
+    # BatchGetItem accepts at most 100 keys per request
+    # SEE: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
+    keys = kwargs.pop("Keys")
+    for i in range(0, len(keys), _MAX_BATCH_GET_ITEM_KEYS):
+        request = {**kwargs, "Keys": keys[i : i + _MAX_BATCH_GET_ITEM_KEYS]}
 
-    # SEE: handle possible unprocessed keys. As suggested in Boto3 docs,
-    # this approach should involve exponential backoff, but this should be
-    # already managed by AWS SDK itself, as stated
-    # [here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html)
-    while response["UnprocessedKeys"]:
-        kwargs["Keys"] = response["UnprocessedKeys"][table_name]["Keys"]
-
-        response = dynamodb_client.batch_get_item(RequestItems={table_name: kwargs})
+        response = dynamodb_client.batch_get_item(RequestItems={table_name: request})
         yield [
             _deserialize_item(d, deserializer) for d in response.get("Responses", {table_name: []}).get(table_name, [])
         ]
+
+        # SEE: handle possible unprocessed keys. As suggested in Boto3 docs,
+        # this approach should involve exponential backoff, but this should be
+        # already managed by AWS SDK itself, as stated
+        # [here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html)
+        while response["UnprocessedKeys"]:
+            request["Keys"] = response["UnprocessedKeys"][table_name]["Keys"]
+
+            response = dynamodb_client.batch_get_item(RequestItems={table_name: request})
+            yield [
+                _deserialize_item(d, deserializer)
+                for d in response.get("Responses", {table_name: []}).get(table_name, [])
+            ]
 
 
 @_handle_reserved_keyword_error
@@ -314,8 +325,8 @@ def _read_item(
     chunked: bool = False,
     **kwargs: Any,
 ) -> _ItemsListType | Iterator[_ItemsListType]:
-    item = dynamodb_client.get_item(TableName=table_name, **kwargs).get("Item", {})
-    item_list: _ItemsListType = [_deserialize_item(item)]
+    item = dynamodb_client.get_item(TableName=table_name, **kwargs).get("Item")
+    item_list: _ItemsListType = [_deserialize_item(item)] if item else []
 
     return [item_list] if chunked else item_list
 
