@@ -254,7 +254,7 @@ def _read_query_chunked(table_name: str, dynamodb_client: "DynamoDBClient", **kw
 
     # Handle pagination
     while next_token:
-        response = dynamodb_client.query(TableName=table_name, **kwargs)
+        response = _handle_reserved_keyword_error(dynamodb_client.query)(TableName=table_name, **kwargs)
         items = response.get("Items", [])
         total_items += len(items)
         yield [_deserialize_item(item) for item in items]
@@ -267,7 +267,6 @@ def _read_query_chunked(table_name: str, dynamodb_client: "DynamoDBClient", **kw
             kwargs["ExclusiveStartKey"] = next_token
 
 
-@_handle_reserved_keyword_error
 def _read_query(
     table_name: str, dynamodb_client: "DynamoDBClient", chunked: bool, **kwargs: Any
 ) -> _ItemsListType | Iterator[_ItemsListType]:
@@ -285,13 +284,17 @@ def _read_batch_items_chunked(
     dynamodb_client = dynamodb_client if dynamodb_client else _utils.client("dynamodb")
     deserializer = TypeDeserializer()
 
+    @_handle_reserved_keyword_error
+    def _batch_get_item(**request: Any) -> Any:
+        return dynamodb_client.batch_get_item(RequestItems={table_name: request})
+
     # BatchGetItem accepts at most 100 keys per request
     # SEE: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
     keys = kwargs.pop("Keys")
     for i in range(0, len(keys), _MAX_BATCH_GET_ITEM_KEYS):
         request = {**kwargs, "Keys": keys[i : i + _MAX_BATCH_GET_ITEM_KEYS]}
 
-        response = dynamodb_client.batch_get_item(RequestItems={table_name: request})
+        response = _batch_get_item(**request)
         yield [
             _deserialize_item(d, deserializer) for d in response.get("Responses", {table_name: []}).get(table_name, [])
         ]
@@ -303,14 +306,13 @@ def _read_batch_items_chunked(
         while response["UnprocessedKeys"]:
             request["Keys"] = response["UnprocessedKeys"][table_name]["Keys"]
 
-            response = dynamodb_client.batch_get_item(RequestItems={table_name: request})
+            response = _batch_get_item(**request)
             yield [
                 _deserialize_item(d, deserializer)
                 for d in response.get("Responses", {table_name: []}).get(table_name, [])
             ]
 
 
-@_handle_reserved_keyword_error
 def _read_batch_items(
     table_name: str, dynamodb_client: "DynamoDBClient" | None, chunked: bool, **kwargs: Any
 ) -> _ItemsListType | Iterator[_ItemsListType]:
