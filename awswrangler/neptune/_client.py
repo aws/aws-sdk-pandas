@@ -87,6 +87,7 @@ class NeptuneClient:
             self.region = region
         self._http_session = requests.Session()
         self.gremlin_connection = None
+        self._gremlin_connection_nested = False
 
     def __del__(self) -> None:
         """Close the Gremlin connection."""
@@ -235,13 +236,19 @@ class NeptuneClient:
             raise exceptions.QueryFailed(e)
 
     def _get_gremlin_connection(self, headers: Any = None) -> "gremlin.Client":
+        event_loop_running = _is_event_loop_running()
+        if self.gremlin_connection is not None and event_loop_running and not self._gremlin_connection_nested:
+            # Created outside an event loop; it cannot be driven from inside one without nest_asyncio.
+            self.gremlin_connection.close()
+            self.gremlin_connection = None
         if self.gremlin_connection is None:
             uri = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin"
             request = self._prepare_request("GET", uri, headers=headers)
             ws_url = f"{WS_PROTOCOL}://{self.host}:{self.port}/gremlin"
             self.gremlin_connection = gremlin.Client(
-                ws_url, "g", headers=dict(request.headers), call_from_event_loop=_is_event_loop_running()
+                ws_url, "g", headers=dict(request.headers), call_from_event_loop=event_loop_running
             )
+            self._gremlin_connection_nested = event_loop_running
         return self.gremlin_connection
 
     def read_sparql(self, query: str, headers: Any = None) -> Any:
