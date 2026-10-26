@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any, TypedDict, cast
@@ -52,6 +53,17 @@ class BulkLoadParserConfiguration(TypedDict):
     If allowEmptyStrings is set to true, the loader treats empty strings
     as valid property values and loads them accordingly.
     """
+
+
+def _is_event_loop_running() -> bool:
+    # gremlinpython's AiohttpTransport runs its own event loop; `call_from_event_loop=True` makes it apply
+    # nest_asyncio so that works from inside an already running loop (e.g. Jupyter). nest_asyncio patches
+    # asyncio process-wide and does not work on Python 3.14, so only request it when a loop is actually running.
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return True
 
 
 class NeptuneClient:
@@ -228,7 +240,7 @@ class NeptuneClient:
             request = self._prepare_request("GET", uri, headers=headers)
             ws_url = f"{WS_PROTOCOL}://{self.host}:{self.port}/gremlin"
             self.gremlin_connection = gremlin.Client(
-                ws_url, "g", headers=dict(request.headers), call_from_event_loop=True
+                ws_url, "g", headers=dict(request.headers), call_from_event_loop=_is_event_loop_running()
             )
         return self.gremlin_connection
 
