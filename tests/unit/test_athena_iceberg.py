@@ -955,7 +955,7 @@ def test_to_iceberg_conditional_merge_string_conditions_truthy(
         table_location=path,
         temp_path=path2,
         merge_cols=["id"],
-        merge_condition="conditional_merge",
+        merge_condition="update",
         conditional_merge_string="source.updated_at > target.updated_at",
         keep_files=False,
     )
@@ -1000,7 +1000,7 @@ def test_to_iceberg_conditional_merge_string_conditions_falsy(
         table_location=path,
         temp_path=path2,
         merge_cols=["id"],
-        merge_condition="conditional_merge",
+        merge_condition="update",
         conditional_merge_string="source.updated_at > target.updated_at",
         keep_files=False,
     )
@@ -1021,35 +1021,21 @@ def test_to_iceberg_conditional_merge_string_conditions_falsy(
     assert_pandas_equals(expected, df_out.reset_index(drop=True))
 
 
-def test_to_iceberg_conditional_merge_string_and_merge_cols_error(
-    path: str, path2: str, glue_database: str, glue_table: str
-) -> None:
-    df = pd.DataFrame({"id": [1], "val": ["a"]})
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.athena.to_iceberg(
-            df=df,
-            database=glue_database,
-            table=glue_table,
-            table_location=path,
-            temp_path=path2,
-            merge_cols=["id"],
-            merge_condition="conditional_update",
-            conditional_merge_string="source.updated_at > target.updated_at",
-        )
-
-
 def test_to_iceberg_conditional_merge_string_and_merge_condition_error(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
     df = pd.DataFrame({"id": [1], "val": ["a"]})
-    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+    with pytest.raises(
+        wr.exceptions.InvalidArgumentValue,
+        match="Invalid merge_condition: ignore. When 'conditional_merge_string' is specified, valid values are: ['update']",
+    ):
         wr.athena.to_iceberg(
             df=df,
             database=glue_database,
             table=glue_table,
             table_location=path,
             temp_path=path2,
-            merge_condition="update",
+            merge_condition="ignore",
             conditional_merge_string="source.updated_at > target.updated_at",
         )
 

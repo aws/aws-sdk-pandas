@@ -288,9 +288,9 @@ def _validate_args(
                 "When mode is 'overwrite_partitions' merge_cols must not be specified."
             )
 
-    if conditional_merge_string and not merge_condition:
+    if conditional_merge_string and merge_condition != "update":
         raise exceptions.InvalidArgumentValue(
-            f"Invalid merge_condition: {merge_condition}. When 'conditional_merge_string' is specified, valid values are: ['conditional_update']"
+            f"Invalid merge_condition: {merge_condition}. When 'conditional_merge_string' is specified, valid values are: ['update']"
         )
 
     if merge_cols and merge_condition not in ["update", "ignore"]:
