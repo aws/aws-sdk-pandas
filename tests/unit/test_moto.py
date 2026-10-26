@@ -473,6 +473,17 @@ def test_read_json_mixed_compression(moto_s3_client: "S3Client", chunksize: int 
             assert list(chunk.columns) == ["id", "value"]
 
 
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_csv_encoding_errors_replace(moto_s3_client: "S3Client", chunksize: int | None) -> None:
+    moto_s3_client.put_object(Bucket="bucket", Key="latin1.csv", Body="c0\ncaf\xe9\n".encode("latin-1"))
+    result = wr.s3.read_csv(
+        path="s3://bucket/latin1.csv", encoding="utf-8", encoding_errors="replace", chunksize=chunksize
+    )
+    if chunksize is not None:
+        result = pd.concat(result, ignore_index=True)
+    assert result["c0"].tolist() == ["caf�"]
+
+
 @mock.patch("pandas.read_csv")
 @mock.patch("pandas.concat")
 def test_read_csv_pass_pandas_arguments_and_encoding_succeed(
