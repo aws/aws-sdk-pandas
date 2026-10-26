@@ -15,6 +15,7 @@ import botocore
 import moto
 import pandas as pd
 import pytest
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
@@ -1108,15 +1109,18 @@ def test_dynamodb_read_items_more_than_100_partition_values(moto_dynamodb_client
     assert sorted(int(item["key"]) for item in result) == list(range(250))
 
 
+@pytest.mark.parametrize("chunked", [False, True])
 @pytest.mark.parametrize(
-    "partition_values,expected",
+    "read_kwargs,expected",
     [
-        ([1], [{"key": 1, "key_id": "a"}]),
-        ([1, 2], [{"key": 1, "key_id": "a"}, {"key": 2, "key_id": "b"}]),
+        ({"partition_values": [1]}, [{"key": 1, "key_id": "a"}]),
+        ({"partition_values": [1, 2]}, [{"key": 1, "key_id": "a"}, {"key": 2, "key_id": "b"}]),
+        ({"key_condition_expression": Key("key").eq(1)}, [{"key": 1, "key_id": "a"}]),
     ],
+    ids=["get_item", "batch_get_item", "query"],
 )
 def test_dynamodb_read_items_reserved_keyword_column_prefix(
-    moto_dynamodb_client, moto_dynamodb_table, partition_values, expected
+    moto_dynamodb_client, moto_dynamodb_table, read_kwargs, expected, chunked
 ) -> None:
     wr.dynamodb.put_items(items=[{"key": 1, "key_id": "a"}, {"key": 2, "key_id": "b"}], table_name=moto_dynamodb_table)
 
@@ -1135,10 +1139,13 @@ def test_dynamodb_read_items_reserved_keyword_column_prefix(
     with mock.patch("botocore.client.BaseClient._make_api_call", new=mock_make_api_call):
         items = wr.dynamodb.read_items(
             table_name=moto_dynamodb_table,
-            partition_values=partition_values,
             columns=["key", "key_id"],
             as_dataframe=False,
+            chunked=chunked,
+            **read_kwargs,
         )
+        if chunked:
+            items = [item for chunk in items for item in chunk]
 
     assert sorted(items, key=lambda item: item["key"]) == expected
 
