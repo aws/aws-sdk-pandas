@@ -1108,6 +1108,41 @@ def test_dynamodb_read_items_more_than_100_partition_values(moto_dynamodb_client
     assert sorted(int(item["key"]) for item in result) == list(range(250))
 
 
+@pytest.mark.parametrize(
+    "partition_values,expected",
+    [
+        ([1], [{"key": 1, "key_id": "a"}]),
+        ([1, 2], [{"key": 1, "key_id": "a"}, {"key": 2, "key_id": "b"}]),
+    ],
+)
+def test_dynamodb_read_items_reserved_keyword_column_prefix(
+    moto_dynamodb_client, moto_dynamodb_table, partition_values, expected
+) -> None:
+    wr.dynamodb.put_items(items=[{"key": 1, "key_id": "a"}, {"key": 2, "key_id": "b"}], table_name=moto_dynamodb_table)
+
+    call = botocore.client.BaseClient._make_api_call
+
+    def mock_make_api_call(self, operation_name, kwarg):
+        try:
+            return call(self, operation_name, kwarg)
+        except ClientError as e:
+            # DynamoDB prefixes this message with "Invalid ", which moto omits
+            message = e.response["Error"]["Message"]
+            if message.startswith("ProjectionExpression: Attribute name is a reserved keyword"):
+                e.response["Error"]["Message"] = f"Invalid {message}"
+            raise
+
+    with mock.patch("botocore.client.BaseClient._make_api_call", new=mock_make_api_call):
+        items = wr.dynamodb.read_items(
+            table_name=moto_dynamodb_table,
+            partition_values=partition_values,
+            columns=["key", "key_id"],
+            as_dataframe=False,
+        )
+
+    assert sorted(items, key=lambda item: item["key"]) == expected
+
+
 def _capture_timestream_write_records(session: boto3.Session) -> list:
     captured: list = []
 

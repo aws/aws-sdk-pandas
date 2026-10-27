@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import re
 import warnings
 from functools import wraps
 from typing import (
@@ -139,7 +140,10 @@ def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
             if (error_code == "ValidationException") and kwarg:
                 reserved_keyword = error_message.split("keyword: ")[-1]
                 sanitized_keyword = f"#{reserved_keyword}"
-                kwargs[kwarg] = kwargs[kwarg].replace(reserved_keyword, sanitized_keyword)
+                # Replace whole attribute names only, not substrings of other names or placeholders
+                kwargs[kwarg] = re.sub(
+                    rf"(?<![#:\w]){re.escape(reserved_keyword)}(?!\w)", sanitized_keyword, kwargs[kwarg]
+                )
                 kwargs["ExpressionAttributeNames"] = {
                     **kwargs.get("ExpressionAttributeNames", {}),
                     sanitized_keyword: reserved_keyword,
