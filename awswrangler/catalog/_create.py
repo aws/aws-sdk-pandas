@@ -118,7 +118,7 @@ def _create_table(  # noqa: PLR0912,PLR0915
             mode=mode,
         )
     else:
-        table_input["Parameters"]["projection.enabled"] = "false"
+        table_input["Parameters"].setdefault("projection.enabled", "false")
 
     # Column comments
     columns_comments = columns_comments if columns_comments else {}
