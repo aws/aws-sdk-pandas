@@ -20,8 +20,11 @@ def _extract_partitions_from_path(path_root: str, path: str) -> dict[str, str]:
     if path_root not in path:
         raise Exception(f"Object {path} is not under the root path ({path_root}).")
     path_wo_filename: str = path.rpartition("/")[0] + "/"
-    path_wo_prefix: str = path_wo_filename.replace(f"{path_root}/", "")
-    dirs: tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if x and (x.count("=") > 0))
+    # A root pointing at a partition folder (e.g. s3://bucket/table/year=2020/) still yields that partition.
+    root_dirs: list[str] = path_root.split("/")[:-1]
+    partitions_start: int = max(i for i, x in enumerate(root_dirs) if "=" not in x) + 1
+    path_dirs: list[str] = path_wo_filename.split("/")[partitions_start:]
+    dirs: tuple[str, ...] = tuple(x for x in path_dirs if x and (x.count("=") > 0))
     if not dirs:
         return {}
     values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
