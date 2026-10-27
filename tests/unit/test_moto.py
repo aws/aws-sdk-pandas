@@ -1494,3 +1494,68 @@ def test_emr_create_cluster_verifies_default_logging_bucket() -> None:
                 boto3_session=session,
             )
             verify.assert_not_called()
+
+
+def test_merge_datasets_overwrite_partitions_root_files(moto_s3_client) -> None:
+    bucket = "bucket"
+    # Target has existing files at the dataset root, in a partition that the source will
+    # replace, and in a partition that the source does not contain.
+    moto_s3_client.put_object(Bucket=bucket, Key="target/file_old.csv", Body=b"old")
+    moto_s3_client.put_object(Bucket=bucket, Key="target/_SUCCESS", Body=b"old-success")
+    moto_s3_client.put_object(Bucket=bucket, Key="target/part=1/file_old_p.csv", Body=b"old_p")
+    moto_s3_client.put_object(Bucket=bucket, Key="target/part=2/keep.csv", Body=b"keep")
+
+    # Source has a root-level marker plus files at the dataset root and in part=1.
+    moto_s3_client.put_object(Bucket=bucket, Key="source/_SUCCESS", Body=b"new-success")
+    moto_s3_client.put_object(Bucket=bucket, Key="source/file_new.csv", Body=b"new")
+    moto_s3_client.put_object(Bucket=bucket, Key="source/part=1/file_new_p.csv", Body=b"new_p")
+
+    copied = wr.s3.merge_datasets(
+        source_path=f"s3://{bucket}/source/",
+        target_path=f"s3://{bucket}/target/",
+        mode="overwrite_partitions",
+    )
+
+    assert set(copied) == {
+        f"s3://{bucket}/target/_SUCCESS",
+        f"s3://{bucket}/target/file_new.csv",
+        f"s3://{bucket}/target/part=1/file_new_p.csv",
+    }
+
+    target_objects = wr.s3.list_objects(f"s3://{bucket}/target/")
+    assert set(target_objects) == {
+        f"s3://{bucket}/target/_SUCCESS",
+        f"s3://{bucket}/target/file_new.csv",
+        f"s3://{bucket}/target/part=1/file_new_p.csv",
+        f"s3://{bucket}/target/part=2/keep.csv",
+    }
+
+
+@pytest.mark.parametrize(
+    "target_keys,source_keys,survivors",
+    [
+        # source without root files must leave the target root alone
+        (
+            ["root.csv", "part=1/old.csv", "part=2/keep.csv"],
+            ["part=1/new.csv"],
+            ["root.csv", "part=1/new.csv", "part=2/keep.csv"],
+        ),
+        # the folder-marker object (key == prefix) is not a root file
+        (["", "old.csv", "part=1/keep.csv"], ["new.csv"], ["", "new.csv", "part=1/keep.csv"]),
+    ],
+)
+def test_merge_datasets_overwrite_partitions_root_scope(moto_s3_client, target_keys, source_keys, survivors) -> None:
+    prefix = f"merge_{_get_unique_suffix()}"
+    for key in target_keys:
+        moto_s3_client.put_object(Bucket="bucket", Key=f"{prefix}/target/{key}", Body=b"old")
+    for key in source_keys:
+        moto_s3_client.put_object(Bucket="bucket", Key=f"{prefix}/source/{key}", Body=b"new")
+
+    wr.s3.merge_datasets(
+        source_path=f"s3://bucket/{prefix}/source/",
+        target_path=f"s3://bucket/{prefix}/target/",
+        mode="overwrite_partitions",
+    )
+
+    keys = moto_s3_client.list_objects_v2(Bucket="bucket", Prefix=f"{prefix}/target/")["Contents"]
+    assert sorted(o["Key"] for o in keys) == sorted(f"{prefix}/target/{key}" for key in survivors)
