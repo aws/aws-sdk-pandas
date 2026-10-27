@@ -15,6 +15,7 @@ import botocore
 import moto
 import pandas as pd
 import pytest
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
@@ -1106,6 +1107,47 @@ def test_dynamodb_read_items_more_than_100_partition_values(moto_dynamodb_client
 
     assert len(result) == len(items)
     assert sorted(int(item["key"]) for item in result) == list(range(250))
+
+
+@pytest.mark.parametrize("chunked", [False, True])
+@pytest.mark.parametrize(
+    "read_kwargs,expected",
+    [
+        ({"partition_values": [1]}, [{"key": 1, "key_id": "a"}]),
+        ({"partition_values": [1, 2]}, [{"key": 1, "key_id": "a"}, {"key": 2, "key_id": "b"}]),
+        ({"key_condition_expression": Key("key").eq(1)}, [{"key": 1, "key_id": "a"}]),
+    ],
+    ids=["get_item", "batch_get_item", "query"],
+)
+def test_dynamodb_read_items_reserved_keyword_column_prefix(
+    moto_dynamodb_client, moto_dynamodb_table, read_kwargs, expected, chunked
+) -> None:
+    wr.dynamodb.put_items(items=[{"key": 1, "key_id": "a"}, {"key": 2, "key_id": "b"}], table_name=moto_dynamodb_table)
+
+    call = botocore.client.BaseClient._make_api_call
+
+    def mock_make_api_call(self, operation_name, kwarg):
+        try:
+            return call(self, operation_name, kwarg)
+        except ClientError as e:
+            # DynamoDB prefixes this message with "Invalid ", which moto omits
+            message = e.response["Error"]["Message"]
+            if message.startswith("ProjectionExpression: Attribute name is a reserved keyword"):
+                e.response["Error"]["Message"] = f"Invalid {message}"
+            raise
+
+    with mock.patch("botocore.client.BaseClient._make_api_call", new=mock_make_api_call):
+        items = wr.dynamodb.read_items(
+            table_name=moto_dynamodb_table,
+            columns=["key", "key_id"],
+            as_dataframe=False,
+            chunked=chunked,
+            **read_kwargs,
+        )
+        if chunked:
+            items = [item for chunk in items for item in chunk]
+
+    assert sorted(items, key=lambda item: item["key"]) == expected
 
 
 def _capture_timestream_write_records(session: boto3.Session) -> list:
