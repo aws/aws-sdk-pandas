@@ -586,6 +586,8 @@ def to_iceberg(  # noqa: PLR0913, PLR0917
     conditional_merge_string
         A SQL predicate appended to the WHEN MATCHED clause as
         ``AND {conditional_merge_string}``.
+        This predicate is injected directly into the outputting SQL command. Therefore, careful consideration must be taken,
+        to avoid SQL injection from untrusted input.
         e.g. ``source."updated_at" > target."updated_at"``
     merge_match_nulls
         Instruct whether to have nulls in the merge condition match other nulls.
