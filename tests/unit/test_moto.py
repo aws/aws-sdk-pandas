@@ -931,6 +931,33 @@ def test_create_athena_bucket_owned_by_caller_succeed(moto_aws) -> None:
     s3.head_bucket(Bucket=f"aws-athena-query-results-{account_id}-{region}", ExpectedBucketOwner=account_id)
 
 
+def test_athena_start_query_execution_qmark_skips_cache(moto_aws) -> None:
+    client = boto3.client("athena")
+    call = botocore.client.BaseClient._make_api_call
+
+    def mock_make_api_call(self, operation_name, kwarg):
+        # moto does not implement BatchGetQueryExecution, which the cache lookup uses
+        if operation_name == "BatchGetQueryExecution":
+            return {
+                "QueryExecutions": [
+                    client.get_query_execution(QueryExecutionId=query_id)["QueryExecution"]
+                    for query_id in kwarg["QueryExecutionIds"]
+                ]
+            }
+        return call(self, operation_name, kwarg)
+
+    sql = f"SELECT * FROM table_{_get_unique_suffix()} WHERE id = ?"
+    kwargs = {"s3_output": "s3://bucket/athena/", "athena_cache_settings": {"max_cache_seconds": 900}}
+    with mock.patch("botocore.client.BaseClient._make_api_call", new=mock_make_api_call):
+        named_query_id = wr.athena.start_query_execution(sql=sql.replace("?", "1"), **kwargs)
+        assert wr.athena.start_query_execution(sql=sql.replace("?", "1"), **kwargs) == named_query_id
+
+        wr.athena.start_query_execution(sql=sql, params=["1"], paramstyle="qmark", **kwargs)
+        query_id = wr.athena.start_query_execution(sql=sql, params=["2"], paramstyle="qmark", **kwargs)
+
+    assert client.get_query_execution(QueryExecutionId=query_id)["QueryExecution"]["ExecutionParameters"] == ["2"]
+
+
 def test_extract_ctas_manifest_paths_same_bucket_succeed(moto_s3_client: "S3Client") -> None:
     from awswrangler.athena._read import _extract_ctas_manifest_paths
 
