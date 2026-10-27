@@ -1045,7 +1045,7 @@ def test_to_iceberg_conditional_merge_string_and_merge_cols_error(
 ) -> None:
     df = pd.DataFrame({"id": [1], "val": ["a"]})
     with pytest.raises(
-        wr.exceptions.InvalidArgumentValue,
+        wr.exceptions.InvalidArgumentCombination,
         match="When 'conditional_merge_string' is specified, merge_cols must also be specified.",
     ):
         wr.athena.to_iceberg(
