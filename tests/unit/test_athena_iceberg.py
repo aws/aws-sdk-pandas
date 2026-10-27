@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import re
 from typing import Any
 
 import numpy as np
@@ -922,7 +923,7 @@ def test_athena_to_iceberg_no_table_location_error(
 def test_to_iceberg_conditional_merge_string_conditions_truthy(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
-    today = datetime.datetime.now()
+    today = datetime.datetime.now().replace(microsecond=0)
     yesterday = today - datetime.timedelta(days=1)
 
     df = pd.DataFrame(
@@ -979,7 +980,7 @@ def test_to_iceberg_conditional_merge_string_conditions_truthy(
 def test_to_iceberg_conditional_merge_string_conditions_falsy(
     path: str, path2: str, glue_database: str, glue_table: str
 ) -> None:
-    today = datetime.datetime.now()
+    today = datetime.datetime.now().replace(microsecond=0)
     yesterday = today - datetime.timedelta(days=1)
 
     df = pd.DataFrame({"id": [1, 2], "val": ["a", "b"], "updated_at": [yesterday, yesterday]})
@@ -1027,7 +1028,10 @@ def test_to_iceberg_conditional_merge_string_and_merge_condition_error(
     df = pd.DataFrame({"id": [1], "val": ["a"]})
     with pytest.raises(
         wr.exceptions.InvalidArgumentValue,
-        match="Invalid merge_condition: ignore. When 'conditional_merge_string' is specified, valid values are: ['update']",
+        match=re.escape(
+            "Invalid merge_condition: ignore. When 'conditional_merge_string' is specified, "
+            "valid values are: ['update']"
+        ),
     ):
         wr.athena.to_iceberg(
             df=df,
