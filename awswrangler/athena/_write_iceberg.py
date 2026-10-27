@@ -348,6 +348,11 @@ def _validate_args(
             f"Invalid merge_condition: {merge_condition}. When 'conditional_merge_string' is specified, valid values are: ['update']"
         )
 
+    if conditional_merge_string and not merge_cols:
+        raise exceptions.InvalidArgumentCombination(
+            "When 'conditional_merge_string' is specified, merge_cols must also be specified."
+        )
+
     if merge_cols and merge_condition not in ["update", "ignore"]:
         raise exceptions.InvalidArgumentValue(
             f"Invalid merge_condition: {merge_condition}. Valid values: ['update', 'ignore']"
