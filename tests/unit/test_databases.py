@@ -6,8 +6,10 @@ database server and no AWS credentials.
 
 from __future__ import annotations
 
+import datetime
 from typing import Any, Iterator
 
+import pandas as pd
 import pytest
 
 from awswrangler import _databases as _db_utils
@@ -109,3 +111,15 @@ def test_read_sql_query_chunked_does_not_roll_back_on_early_exit() -> None:
     iterator.close()  # type: ignore[union-attr]
 
     assert con.rollback_count == 0
+
+
+def test_generate_placeholder_parameter_pairs_keeps_int_values() -> None:
+    df = pd.DataFrame({"id": [9007199254740993, 2], "price": [1.5, None]})
+    pairs = list(_db_utils.generate_placeholder_parameter_pairs(df=df, column_placeholders="%s, %s", chunksize=10))
+    assert pairs == [("(%s, %s), (%s, %s)", [9007199254740993, 1.5, 2, None])]
+
+
+def test_generate_placeholder_parameter_pairs_datetime_only_frame() -> None:
+    df = pd.DataFrame({"ts": pd.Series([datetime.datetime(2020, 1, 1, 12, 30), None], dtype="datetime64[ns]")})
+    pairs = list(_db_utils.generate_placeholder_parameter_pairs(df=df, column_placeholders="%s", chunksize=10))
+    assert pairs == [("(%s), (%s)", [datetime.datetime(2020, 1, 1, 12, 30), None])]
