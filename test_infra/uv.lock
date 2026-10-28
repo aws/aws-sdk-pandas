@@ -158,7 +158,7 @@ wheels = [
 
 [[package]]
 name = "awswrangler-test-infrastructure"
-version = "3.17.1"
+version = "3.18.0"
 source = { virtual = "." }
 dependencies = [
     { name = "aws-cdk-aws-glue-alpha" },
