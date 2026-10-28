@@ -928,8 +928,8 @@ def test_to_iceberg_conditional_merge_string_conditions_truthy(
 
     df = pd.DataFrame(
         {
-            "id": [1, 2],
-            "val": ["a", "b"],
+            "id": pd.array([1, 2], dtype="Int64"),
+            "val": pd.array(["a", "b"], dtype="string"),
             "updated_at": [yesterday, yesterday],
         }
     )
@@ -944,8 +944,8 @@ def test_to_iceberg_conditional_merge_string_conditions_truthy(
 
     df2 = pd.DataFrame(
         {
-            "id": [1, 3],
-            "val": ["c", "d"],
+            "id": pd.array([1, 3], dtype="Int64"),
+            "val": pd.array(["c", "d"], dtype="string"),
             "updated_at": [today, yesterday],
         }
     )
