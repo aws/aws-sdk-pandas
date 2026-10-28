@@ -983,7 +983,13 @@ def test_to_iceberg_conditional_merge_string_conditions_falsy(
     today = datetime.datetime.now().replace(microsecond=0)
     yesterday = today - datetime.timedelta(days=1)
 
-    df = pd.DataFrame({"id": [1, 2], "val": ["a", "b"], "updated_at": [yesterday, yesterday]})
+    df = pd.DataFrame(
+        {
+            "id": pd.array([1, 2], dtype="Int64"),
+            "val": pd.array(["a", "b"], dtype="string"),
+            "updated_at": [yesterday, yesterday],
+        }
+    )
     wr.athena.to_iceberg(
         df=df,
         database=glue_database,
@@ -993,7 +999,13 @@ def test_to_iceberg_conditional_merge_string_conditions_falsy(
         keep_files=False,
     )
 
-    df2 = pd.DataFrame({"id": [1, 3], "val": ["c", "d"], "updated_at": [yesterday, yesterday]})
+    df2 = pd.DataFrame(
+        {
+            "id": pd.array([1, 3], dtype="Int64"),
+            "val": pd.array(["c", "d"], dtype="string"),
+            "updated_at": [yesterday, yesterday],
+        }
+    )
     wr.athena.to_iceberg(
         df=df2,
         database=glue_database,
