@@ -388,7 +388,7 @@ def generate_placeholder_parameter_pairs(
 
         return value
 
-    parameters = df.values.tolist()
+    parameters = df.to_numpy(dtype=object).tolist()
     for i in range(0, len(df.index), chunksize):
         parameters_chunk = parameters[i : i + chunksize]
         chunk_placeholders = ", ".join([f"({column_placeholders})" for _ in range(len(parameters_chunk))])
