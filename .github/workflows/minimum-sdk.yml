@@ -1,0 +1,58 @@
+name: Minimum SDK
+
+# Runs the offline botocore capability check against the locked environment and against the oldest
+# boto3/botocore that pyproject.toml declares as supported. The "minimum" job is expected to fail while the
+# declared minimum does not know all the AWS services and operations awswrangler uses.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  Check:
+    name: Capabilities (${{ matrix.sdk }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: ["locked", "minimum"]
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+      # Keep the environment prepared below: `uv run` would otherwise re-sync to uv.lock.
+      UV_NO_SYNC: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Rust latest
+        run: rustup update
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install Requirements
+        run: uv sync --frozen --dev --verbose
+        working-directory: ${{ github.workspace }}
+      - name: Install the declared minimum boto3 and botocore
+        if: matrix.sdk == 'minimum'
+        run: |
+          MIN=$(grep -oE '"(boto3|botocore)>=[0-9.]+' pyproject.toml | sed 's/>=/==/;s/"//' | tr '\n' ' ')
+          echo "Installing: $MIN"
+          uv pip install --no-config $MIN
+        working-directory: ${{ github.workspace }}
+      - name: Show SDK versions
+        run: uv run python -c "import boto3, botocore; print('boto3', boto3.__version__, 'botocore', botocore.__version__)"
+        working-directory: ${{ github.workspace }}
+      - name: Test botocore capabilities
+        run: uv run pytest tests/unit/test_botocore_capabilities.py
+        working-directory: ${{ github.workspace }}
