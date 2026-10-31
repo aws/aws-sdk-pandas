@@ -277,7 +277,7 @@ def get_tables(
     if database is not None:
         dbs: list[str] = [database]
     else:
-        dbs = [x["Name"] for x in get_databases(catalog_id=catalog_id)]
+        dbs = [x["Name"] for x in get_databases(catalog_id=catalog_id, boto3_session=boto3_session)]
     for db in dbs:
         args["DatabaseName"] = db
         response_iterator = paginator.paginate(**_catalog_id(catalog_id=catalog_id, **args))
