@@ -1,6 +1,7 @@
 """Offline, table-driven tests for the type mapping and casting helpers in ``awswrangler._data_types``."""
 
 import datetime
+import uuid
 from decimal import Decimal
 
 import pandas as pd
@@ -234,12 +235,18 @@ def test_pyarrow2athena_table(dtype, expected):
 
 
 def test_pyarrow2athena_uint64_unsupported():
-    with pytest.raises(exceptions.UnsupportedType, match="uint64"):
+    with pytest.raises(
+        exceptions.UnsupportedType,
+        match=r"^There is no support for uint64, please consider int64 or uint32\.$",
+    ):
         pyarrow2athena(pa.uint64())
 
 
 def test_pyarrow2athena_null_type():
-    with pytest.raises(exceptions.UndetectedType):
+    with pytest.raises(
+        exceptions.UndetectedType,
+        match=r"^We can not infer the data type from an entire null object column$",
+    ):
         pyarrow2athena(pa.null())
     assert pyarrow2athena(pa.null(), ignore_null=True) == ""
 
@@ -462,12 +469,12 @@ def test_cast_pandas_column_integer_with_missing_values_warns(monkeypatch):
         return original_astype(self, dtype, *args, **kwargs)
 
     monkeypatch.setattr(pd.Series, "astype", flaky_astype)
-    df = pd.DataFrame({"c": pd.Series(["1", "", "3", None, "<NA>"], dtype="object")})
+    df = pd.DataFrame({"c": pd.Series(["1", "", "3", None, "<NA>", "none", "None", " "], dtype="object")})
     with pytest.warns(UserWarning, match="Object cannot be converted to an IntegerDtype"):
         result = _cast_pandas_column(df, "c", "object", "Int64")
     assert calls == ["Int64", "Int64"]
     assert str(result["c"].dtype) == "Int64"
-    assert result["c"].isna().tolist() == [False, True, False, True, True]
+    assert result["c"].isna().tolist() == [False, True, False, True, True, True, True, True]
     assert result["c"].dropna().tolist() == [1, 3]
 
 
@@ -696,3 +703,152 @@ def test_validate_varchar_length_returns_python_int():
     result = _data_types._validate_varchar_length("c", np.int32(3))
     assert result == 3
     assert type(result) is int
+
+
+# --------------------------------------------------------------------------------------
+# additional edge cases found by mutation testing
+# --------------------------------------------------------------------------------------
+
+
+class _NullExtension(pa.ExtensionType):
+    def __init__(self) -> None:
+        super().__init__(pa.null(), "tests.null_extension")
+
+    def __arrow_ext_serialize__(self) -> bytes:
+        return b""
+
+    @classmethod
+    def __arrow_ext_deserialize__(cls, storage_type: pa.DataType, serialized: bytes) -> "_NullExtension":
+        return cls()
+
+
+def test_pyarrow2athena_ignore_null_propagates_to_extension_storage_type():
+    assert pyarrow2athena(_NullExtension(), ignore_null=True) == ""
+    with pytest.raises(exceptions.UndetectedType):
+        pyarrow2athena(_NullExtension())
+
+
+@pytest.mark.parametrize("athena_type", ["array<int>", "struct<a:int>", "map<string,int>"])
+def test_cast_pandas_with_athena_types_leaves_nested_type_columns_untouched(athena_type):
+    df = pd.DataFrame({"c": [1, 2]})
+    result = cast_pandas_with_athena_types(df, {"c": athena_type})
+    assert str(result["c"].dtype) == "int64"
+    assert result["c"].tolist() == [1, 2]
+
+
+def test_cast_pandas_with_athena_types_ensures_mutability_once(monkeypatch):
+    calls = []
+
+    def fake_ensure(df):
+        calls.append(df)
+        return df
+
+    monkeypatch.setattr(_data_types._arrow, "ensure_df_is_mutable", fake_ensure)
+    df = pd.DataFrame({"a": ["1", "2"], "b": ["3", "4"], "c": ["5", "6"]})
+    result = cast_pandas_with_athena_types(df, {"a": "int", "b": "int", "c": "bigint"})
+    assert len(calls) == 1
+    assert [str(result[c].dtype) for c in ("a", "b", "c")] == ["Int32", "Int32", "Int64"]
+
+
+def test_cast_pandas_with_athena_types_does_not_touch_mutability_when_nothing_to_cast(monkeypatch):
+    calls = []
+    monkeypatch.setattr(_data_types._arrow, "ensure_df_is_mutable", lambda df: calls.append(df) or df)
+    df = pd.DataFrame({"a": pd.array([1, 2], dtype="Int32")})
+    cast_pandas_with_athena_types(df, {"a": "int", "missing": "int"})
+    assert calls == []
+
+
+def test_database_types_from_pandas_does_not_infer_overridden_columns():
+    # A column of mixed types cannot be inferred, but must be ignored when the type is given explicitly.
+    df = pd.DataFrame({"mixed": pd.Series([1, "a"], dtype=object), "a": [1, 2]})
+    assert _db_types(df, dtype={"mixed": "VARCHAR(10)"}) == {"mixed": "VARCHAR(10)", "a": "BIGINT"}
+    with pytest.raises(pa.ArrowInvalid):
+        _db_types(df)
+
+
+def test_database_types_from_pandas_index_comes_first():
+    df = pd.DataFrame({"a": [1], "b": ["x"]}, index=pd.Index([10], name="idx"))
+    assert list(_db_types(df, index=True)) == ["idx", "a", "b"]
+
+
+def test_database_types_from_pandas_index_dtype_override():
+    df = pd.DataFrame({"a": [1]}, index=pd.Index([10], name="idx"))
+    result = _db_types(df, index=True, dtype={"idx": "SMALLINT"})
+    assert result == {"idx": "SMALLINT", "a": "BIGINT"}
+    assert list(result) == ["idx", "a"]
+
+
+def test_database_types_from_pandas_errors_mention_the_column():
+    df = pd.DataFrame({"col_x": ["x"]})
+    with pytest.raises(exceptions.InvalidArgumentValue, match="'col_x'"):
+        _db_types(df, dtype={"col_x": "INT;"})
+    with pytest.raises(exceptions.InvalidArgumentValue, match="'col_x'"):
+        _db_types(df, varchar_lengths={"col_x": 0})
+    with pytest.raises(exceptions.InvalidArgumentValue, match="'col_x'"):
+        _db_types(df, varchar_lengths_default="TEXT;")
+
+
+def test_validate_database_type_accepts_nested_parentheses():
+    for type_str in ("TEST(A(B))", "ARRAY(STRUCT(a INT, b DECIMAL(10,2)))", "T((A),(B))"):
+        assert _data_types._validate_database_type("c", type_str) == type_str
+
+
+def test_validate_database_type_rejects_unbalanced_nested_parentheses():
+    for type_str in ("TEST(A(B)))", "TEST((A)", "TEST(A(B),C)D)"):
+        with pytest.raises(exceptions.InvalidArgumentValue):
+            _data_types._validate_database_type("c", type_str)
+
+
+def test_validate_varchar_length_accepts_one():
+    assert _data_types._validate_varchar_length("c", 1) == 1
+
+
+# --------------------------------------------------------------------------------------
+# process_not_inferred_dtype / process_not_inferred_array
+# --------------------------------------------------------------------------------------
+
+
+class _Unknown:
+    pass
+
+
+def _arrow_invalid_for(value, type_name):
+    # Message produced by pyarrow versions that cannot infer the given Python type.
+    return pa.ArrowInvalid(
+        f"Could not convert {value!r} with type {type_name}: "
+        "did not recognize Python value type when inferring an Arrow data type"
+    )
+
+
+def test_process_not_inferred_dtype_uuid_is_string():
+    ex = _arrow_invalid_for(uuid.UUID("12345678-1234-5678-1234-567812345678"), "UUID")
+    assert _data_types.process_not_inferred_dtype(ex) == pa.string()
+
+
+def test_process_not_inferred_dtype_reraises_other_types():
+    ex = _arrow_invalid_for(_Unknown(), "_Unknown")
+    with pytest.raises(pa.ArrowInvalid) as exc:
+        _data_types.process_not_inferred_dtype(ex)
+    assert exc.value is ex
+
+
+def test_process_not_inferred_dtype_reraises_unrelated_errors():
+    ex = pa.ArrowInvalid("something else entirely")
+    with pytest.raises(pa.ArrowInvalid) as exc:
+        _data_types.process_not_inferred_dtype(ex)
+    assert exc.value is ex
+
+
+def test_process_not_inferred_array_converts_uuids_to_strings():
+    values = [uuid.UUID("12345678-1234-5678-1234-567812345678"), None]
+    ex = _arrow_invalid_for(values[0], "UUID")
+    result = _data_types.process_not_inferred_array(ex, values=values)
+    assert result.type == pa.string()
+    assert result.to_pylist() == ["12345678-1234-5678-1234-567812345678", None]
+
+
+def test_process_not_inferred_array_reraises_other_types():
+    ex = _arrow_invalid_for(_Unknown(), "_Unknown")
+    with pytest.raises(pa.ArrowInvalid) as exc:
+        _data_types.process_not_inferred_array(ex, values=[_Unknown()])
+    assert exc.value is ex
