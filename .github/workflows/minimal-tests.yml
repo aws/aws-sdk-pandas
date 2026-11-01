@@ -29,8 +29,14 @@ jobs:
             platform: windows-latest
           - python-version: "3.10"
             pandas-version: "3"
+          # pandas 2.x publishes no wheels for Python 3.15
+          - python-version: "3.15"
+            pandas-version: "2"
     env:
       AWS_DEFAULT_REGION: us-east-1
+      # The pandas version under test is installed on top of the locked environment. Without this,
+      # `uv run` re-syncs to uv.lock and silently replaces it (uv.lock pins pandas 3 on Python 3.11+).
+      UV_NO_SYNC: "1"
 
     runs-on: ${{ matrix.platform }}
 
@@ -49,9 +55,17 @@ jobs:
       - name: Install Requirements
         run: uv sync --frozen --dev --verbose
         working-directory: ${{ github.workspace }}
+      # --no-config is required: `uv pip install` otherwise applies [tool.uv] override-dependencies from
+      # pyproject.toml, which forces pandas>=3 on Python 3.11+ and turns the install into a silent no-op.
+      - name: Override pandas ${{ matrix.pandas-version }}
+        if: matrix.pandas-version == '2'
+        run: uv pip install --no-config "pandas>=2.0.0,<3.0.0"
       - name: Override pandas ${{ matrix.pandas-version }}
         if: matrix.pandas-version == '3'
-        run: uv pip install "pandas>=3.0.0,<4.0.0"
+        run: uv pip install --no-config "pandas>=3.0.0,<4.0.0"
+      - name: Verify pandas major version
+        run: uv run python -c "import sys, pandas; print('pandas', pandas.__version__); sys.exit(0 if pandas.__version__.split('.')[0] == '${{ matrix.pandas-version }}' else 1)"
+        working-directory: ${{ github.workspace }}
       - name: Test Metadata
         run: uv run pytest tests/unit/test_metadata.py
         working-directory: ${{ github.workspace }}
