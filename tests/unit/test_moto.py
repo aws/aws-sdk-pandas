@@ -827,6 +827,21 @@ def test_glue_add_column_without_comment(moto_glue):
     assert "col1" not in comments or comments.get("col1") is None
 
 
+def test_to_parquet_append_preserves_struct_field_name_case(moto_s3_client: "S3Client", moto_glue) -> None:
+    database_name = "mydb_struct_case"
+    table_name = "mytable_struct_case"
+    path = "s3://bucket/struct_case/"
+    wr.catalog.create_database(name=database_name)
+
+    df = pd.DataFrame({"c0": [1], "info": [{"firstName": "a"}]})
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=database_name, table=table_name)
+    df = pd.DataFrame({"c0": [2], "info": [{"firstName": "b"}]})
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=database_name, table=table_name, mode="append")
+
+    df = wr.s3.read_parquet(path=path, dataset=True).sort_values("c0")
+    assert df["info"].to_list() == [{"firstName": "a"}, {"firstName": "b"}]
+
+
 def test_dynamodb_basic_usage(moto_dynamodb_client, moto_dynamodb_table):
     items = [{"key": 1}, {"key": 2, "my_value": "Hello"}]
 
