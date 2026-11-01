@@ -694,6 +694,18 @@ def test_s3_dataset_empty_table(moto_s3_client: "S3Client") -> None:
     pd.testing.assert_frame_equal(result_df, r_df, check_dtype=True)
 
 
+def test_s3_dataset_key_value_folder_above_root(moto_s3_client: "S3Client") -> None:
+    path = f"s3://bucket/{_get_unique_suffix()}/source=crm/events/"
+    df = pd.DataFrame({"id": [1, 2], "source": ["web", "app"], "par0": ["x", "y"]})
+    wr.s3.to_parquet(df=df, path=path, index=False, dataset=True, partition_cols=["par0"])
+
+    result_df = wr.s3.read_parquet(path=path, dataset=True).sort_values("id", ignore_index=True)
+
+    assert result_df.columns.tolist() == ["id", "source", "par0"]
+    assert result_df["source"].tolist() == ["web", "app"]
+    assert result_df["par0"].tolist() == ["x", "y"]
+
+
 def test_s3_raise_delete_object_exception_success(moto_s3_client: "S3Client") -> None:
     path = "s3://bucket/test.parquet"
     wr.s3.to_parquet(df=get_df_list(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
