@@ -749,21 +749,94 @@ def cast_pandas_with_athena_types(
     """Cast columns in a Pandas DataFrame."""
     mutability_ensured: bool = False
     for col, athena_type in dtype.items():
-        if (
-            (col in df.columns)
-            and (athena_type.startswith("array") is False)
-            and (athena_type.startswith("struct") is False)
-            and (athena_type.startswith("map") is False)
+        if col not in df.columns:
+            continue
+
+        desired_type: str = athena2pandas(dtype=athena_type, dtype_backend=dtype_backend)
+        current_type: str = _normalize_pandas_dtype_name(dtype=str(df[col].dtypes))
+
+        if desired_type != current_type and athena_type.startswith(("array", "struct", "map")) is False:
+            _logger.debug("current_type: %s -> desired_type: %s", current_type, desired_type)
+            if mutability_ensured is False:
+                df = _arrow.ensure_df_is_mutable(df=df)
+                mutability_ensured = True
+            _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type=desired_type)
+        elif athena_type.startswith(("array", "struct", "map")) and re.search(
+            r"(?:^|[<,:])\s*decimal\s*\(", athena_type, re.IGNORECASE
         ):
-            desired_type: str = athena2pandas(dtype=athena_type, dtype_backend=dtype_backend)
-            current_type: str = _normalize_pandas_dtype_name(dtype=str(df[col].dtypes))
-            if desired_type != current_type:  # Needs conversion
-                _logger.debug("current_type: %s -> desired_type: %s", current_type, desired_type)
-                if mutability_ensured is False:
-                    df = _arrow.ensure_df_is_mutable(df=df)
-                    mutability_ensured = True
-                _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type=desired_type)
+            _logger.debug("Casting nested Athena type in column %s: %s", col, athena_type)
+            if mutability_ensured is False:
+                df = _arrow.ensure_df_is_mutable(df=df)
+                mutability_ensured = True
+            df[col] = df[col].apply(lambda value: _cast_nested_athena_value(value=value, athena_type=athena_type))
     return df
+
+
+def _cast_nested_athena_value(value: Any, athena_type: str) -> Any:
+    athena_type = athena_type.strip()
+    normalized_type = athena_type.lower().replace(" ", "")
+    if not normalized_type.startswith("decimal") and (
+        value is None
+        or value is pd.NA
+        or (isinstance(value, (float, np.floating)) and (np.isnan(value) or np.isinf(value)))
+    ):
+        return value
+    if normalized_type.startswith("array<") and normalized_type.endswith(">"):
+        return _cast_nested_athena_array(value=value, item_type=athena_type[6:-1])
+    if normalized_type.startswith("struct<") and normalized_type.endswith(">"):
+        return _cast_nested_athena_struct(value=value, fields_type=athena_type[7:-1])
+    if normalized_type.startswith("map<") and normalized_type.endswith(">"):
+        return _cast_nested_athena_map(value=value, map_type=athena_type[4:-1])
+    if normalized_type.startswith("decimal"):
+        return _cast_nested_athena_decimal(value)
+    return value
+
+
+def _cast_nested_athena_array(value: Any, item_type: str) -> Any:
+    items = [_cast_nested_athena_value(value=item, athena_type=item_type) for item in value]
+    return tuple(items) if isinstance(value, tuple) else items
+
+
+def _cast_nested_athena_struct(value: Any, fields_type: str) -> Any:
+    if not isinstance(value, dict):
+        return value
+    result = value.copy()
+    for field in _split_struct(fields_type):
+        field_name, field_type = field.split(":", 1)
+        field_name = field_name.strip()
+        if field_name in value:
+            result[field_name] = _cast_nested_athena_value(value=value[field_name], athena_type=field_type)
+    return result
+
+
+def _cast_nested_athena_map(value: Any, map_type: str) -> Any:
+    key_type, item_type = _split_map(map_type)
+    if isinstance(value, dict):
+        return {
+            _cast_nested_athena_value(value=key, athena_type=key_type): _cast_nested_athena_value(
+                value=item, athena_type=item_type
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        casted_pairs: list[Any] = []
+        for pair in value:
+            key, item = pair
+            casted_key = _cast_nested_athena_value(value=key, athena_type=key_type)
+            casted_item = _cast_nested_athena_value(value=item, athena_type=item_type)
+            casted_pairs.append((casted_key, casted_item) if isinstance(pair, tuple) else [casted_key, casted_item])
+        return tuple(casted_pairs) if isinstance(value, tuple) else casted_pairs
+    return value
+
+
+def _cast_nested_athena_decimal(value: Any) -> Any:
+    if value is None or value is pd.NA:
+        return None
+    if isinstance(value, Decimal):
+        return value if value.is_finite() else None
+    if pd.isna(value) or (isinstance(value, (float, np.floating)) and np.isinf(value)):
+        return None
+    return Decimal(str(value))
 
 
 def _normalize_pandas_dtype_name(dtype: str) -> str:
