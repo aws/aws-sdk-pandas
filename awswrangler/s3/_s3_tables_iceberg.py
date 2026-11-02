@@ -37,6 +37,7 @@ def from_iceberg(
     dtype_backend: Literal["numpy_nullable", "pyarrow"] = "numpy_nullable",
     boto3_session: boto3.Session | None = None,
     pyarrow_additional_kwargs: dict[str, Any] | None = None,
+    role_arn: str | None = None,
 ) -> pd.DataFrame:
     """Read an S3 Table into a Pandas DataFrame via PyIceberg.
 
@@ -70,9 +71,16 @@ def from_iceberg(
     dtype_backend : str, optional
         Which dtype_backend to use. ``"numpy_nullable"`` or ``"pyarrow"``.
     boto3_session : boto3.Session, optional
-        Boto3 Session. If None, the default boto3 session is used.
+        Boto3 Session used to sign the catalog requests. If None, the default boto3 session is used.
+        PyArrow has no way to use this session, so table data in S3 is accessed with ``role_arn``
+        if given, otherwise with credentials vended by the catalog, otherwise with the default
+        credential chain, not with this session.
     pyarrow_additional_kwargs : dict[str, Any], optional
         Additional keyword arguments forwarded to PyArrow's ``to_pandas()`` method.
+    role_arn : str, optional
+        ARN of an IAM role PyArrow assumes to access table data in S3, refreshing the credentials
+        itself. PyArrow assumes it with the default credential chain, not with ``boto3_session``.
+        It cannot be combined with a catalog that vends credentials: PyArrow refuses both together.
 
     Returns
     -------
@@ -114,7 +122,7 @@ def from_iceberg(
 
     from awswrangler.s3._s3_tables_catalog import _load_catalog  # noqa: PLC0415
 
-    catalog = _load_catalog(table_bucket_arn)
+    catalog = _load_catalog(table_bucket_arn, boto3_session=boto3_session, role_arn=role_arn)
     identifier = f"{namespace}.{table_name}"
 
     try:
@@ -166,6 +174,7 @@ def to_iceberg(
     index: bool = False,
     dtype: dict[str, str] | None = None,
     boto3_session: boto3.Session | None = None,
+    role_arn: str | None = None,
 ) -> None:
     """Write a Pandas DataFrame to an S3 Table via PyIceberg.
 
@@ -202,7 +211,14 @@ def to_iceberg(
         Dictionary of column names and Athena/Glue types to cast.
         (e.g. ``{"col_name": "bigint", "col2_name": "int"}``).
     boto3_session : boto3.Session, optional
-        Boto3 Session. If None, the default boto3 session is used.
+        Boto3 Session used to sign the catalog requests. If None, the default boto3 session is used.
+        PyArrow has no way to use this session, so table data in S3 is accessed with ``role_arn``
+        if given, otherwise with credentials vended by the catalog, otherwise with the default
+        credential chain, not with this session.
+    role_arn : str, optional
+        ARN of an IAM role PyArrow assumes to access table data in S3, refreshing the credentials
+        itself. PyArrow assumes it with the default credential chain, not with ``boto3_session``.
+        It cannot be combined with a catalog that vends credentials: PyArrow refuses both together.
 
     Examples
     --------
@@ -223,7 +239,7 @@ def to_iceberg(
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, index=index, ignore_cols=None, dtype=dtype)
     arrow_table: pa.Table = _df_to_table(df, schema, index, dtype)
 
-    catalog = _load_catalog(table_bucket_arn)
+    catalog = _load_catalog(table_bucket_arn, boto3_session=boto3_session, role_arn=role_arn)
     identifier = f"{namespace}.{table_name}"
 
     try:
