@@ -41,6 +41,11 @@ def test_athena2pandas_binary_types(dtype):
     assert athena2pandas(dtype) == "bytes"
 
 
+@pytest.mark.parametrize("dtype_backend,expected", [(None, "string"), ("pyarrow", "string[pyarrow]")])
+def test_athena2pandas_uuid(dtype_backend, expected):
+    assert athena2pandas("uuid", dtype_backend=dtype_backend) == expected
+
+
 @pytest.mark.parametrize("dtype", [pa.binary(), pa.large_binary(), pa.binary(16)])
 def test_pyarrow2athena_binary_types(dtype):
     assert pyarrow2athena(dtype) == "binary"
