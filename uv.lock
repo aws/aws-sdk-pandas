@@ -699,7 +699,7 @@ requires-dist = [
     { name = "pg8000", marker = "extra == 'postgres'", specifier = ">=1.29.0,<2" },
     { name = "progressbar2", marker = "extra == 'progressbar'", specifier = ">=4.0.0,<5" },
     { name = "pyarrow", specifier = ">=8.0.0,<27.0.0" },
-    { name = "pyiceberg", extras = ["pyarrow"], marker = "extra == 'pyiceberg'", specifier = ">=0.7.0,<1" },
+    { name = "pyiceberg", extras = ["pyarrow"], marker = "extra == 'pyiceberg'", specifier = ">=0.10.0,<1" },
     { name = "pymysql", marker = "extra == 'mysql'", specifier = ">=1.0.0,<2" },
     { name = "pyodbc", marker = "extra == 'sqlserver'", specifier = ">=4,<6" },
     { name = "pyproj", marker = "extra == 'geopandas'", specifier = ">=3.6,<3.7.2" },
