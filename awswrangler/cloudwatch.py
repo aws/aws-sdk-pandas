@@ -131,7 +131,7 @@ def wait_query(
     ... response = wr.cloudwatch.wait_query(query_id=query_id)
 
     """
-    final_states: list[str] = ["Complete", "Failed", "Cancelled"]
+    final_states: list[str] = ["Complete", "Failed", "Cancelled", "Timeout"]
     client_logs = _utils.client(service_name="logs", session=boto3_session)
     response = client_logs.get_query_results(queryId=query_id)
     status = response["status"]
@@ -144,6 +144,8 @@ def wait_query(
         raise exceptions.QueryFailed(f"query ID: {query_id}")
     if status == "Cancelled":
         raise exceptions.QueryCancelled(f"query ID: {query_id}")
+    if status == "Timeout":
+        raise exceptions.QueryFailed(f"query ID: {query_id} timed out")
     return cast(Dict[str, Any], response)
 
 
