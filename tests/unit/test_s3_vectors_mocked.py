@@ -594,6 +594,38 @@ def test_query_vectors_with_text_calls_bedrock_then_query() -> None:
     assert df["key"].tolist() == ["a"]
 
 
+@pytest.mark.parametrize(
+    ("model_kwargs", "expected_input_type"),
+    [
+        pytest.param(None, "search_query", id="default"),
+        pytest.param({"input_type": "classification"}, "classification", id="caller_override"),
+    ],
+)
+def test_query_vectors_with_cohere_text_embeds_as_search_query(
+    model_kwargs: dict[str, Any] | None, expected_input_type: str
+) -> None:
+    s3v_client = MagicMock()
+    s3v_client.query_vectors.return_value = {"vectors": [{"key": "a"}]}
+    br = MagicMock()
+    br.invoke_model.return_value = {"body": io.BytesIO(json.dumps({"embeddings": [[0.5, 0.25]]}).encode())}
+
+    def fake_client(service_name: str, **_: Any) -> MagicMock:
+        return br if service_name == "bedrock-runtime" else s3v_client
+
+    with patch("awswrangler._utils.client", side_effect=fake_client):
+        wr.s3.query_vectors(
+            query_text="hello",
+            bedrock_model_id="cohere.embed-english-v3",
+            bedrock_model_kwargs=model_kwargs,
+            top_k=1,
+            vector_bucket="b",
+            index="i",
+        )
+    body = json.loads(br.invoke_model.call_args.kwargs["body"])
+    assert body == {"texts": ["hello"], "input_type": expected_input_type}
+    assert s3v_client.query_vectors.call_args.kwargs["queryVector"] == {"float32": [0.5, 0.25]}
+
+
 # ---------------------------------------------------------------------------
 # Bedrock helper
 # ---------------------------------------------------------------------------

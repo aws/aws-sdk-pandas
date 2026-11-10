@@ -277,7 +277,9 @@ def query_vectors(
     return_distance, return_metadata
         Whether to include each result's distance and metadata.
     bedrock_model_id, bedrock_model_kwargs
-        Bedrock embedding configuration when using ``query_text``.
+        Bedrock embedding configuration when using ``query_text``. For Cohere models the
+        query is embedded with ``input_type="search_query"`` unless ``bedrock_model_kwargs``
+        sets ``input_type``.
     vector_bucket / vector_bucket_arn / index / index_arn
         Target index.
     boto3_session
@@ -311,10 +313,15 @@ def query_vectors(
     )
 
     if query_vector is None:
+        model_kwargs = bedrock_model_kwargs
+        if bedrock_model_id.startswith("cohere.embed"):  # type: ignore[union-attr]
+            # Cohere embeds queries and documents differently; the helper defaults to
+            # "search_document", which is right for writes but not for the query side.
+            model_kwargs = {"input_type": "search_query", **(bedrock_model_kwargs or {})}
         query_vector = embed_texts(
             texts=[query_text],  # type: ignore[list-item]
             model_id=bedrock_model_id,  # type: ignore[arg-type]
-            model_kwargs=bedrock_model_kwargs,
+            model_kwargs=model_kwargs,
             use_threads=False,
             boto3_session=boto3_session,
         )[0]
