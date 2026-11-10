@@ -219,6 +219,7 @@ def run_job(
             application_id=application_id,
             job_run_id=job_run_id,
             emr_serverless_job_wait_polling_delay=emr_serverless_job_wait_polling_delay,
+            boto3_session=boto3_session,
         )
     return job_run_id
 
