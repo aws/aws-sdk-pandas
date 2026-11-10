@@ -128,6 +128,41 @@ def test_drop_nan_keeps_falsy_values_and_collections() -> None:
     assert cleaned == {"a": 0, "b": False, "c": "", "f": "x", "h": [1, 2, 3], "i": {"nested": "dict"}}
 
 
+def test_drop_nan_turns_arrays_and_tuples_into_lists() -> None:
+    cleaned = _write._drop_nan({"a": np.array(["x", "y"]), "b": np.array([1, 2]), "c": ("p", "q")})
+    assert cleaned == {"a": ["x", "y"], "b": [1, 2], "c": ["p", "q"]}
+    assert all(type(v) is list for v in cleaned.values())
+    assert all(type(x) is int for x in cleaned["b"])
+
+
+def test_put_vectors_from_df_sends_array_metadata_as_lists() -> None:
+    # List columns read from Parquet come back as numpy arrays, which botocore rejects
+    # as document values, so the metadata has to be sent as plain lists.
+    client = MagicMock()
+    client.put_vectors.return_value = {}
+    df = pd.DataFrame(
+        {
+            "id": ["a", "b"],
+            "embedding": [[0.1, 0.2], [0.3, 0.4]],
+            "tags": [np.array(["x", "y"]), np.array(["z"])],
+        }
+    )
+
+    with _patch_client(client):
+        wr.s3.put_vectors_from_df(
+            df=df,
+            key_column="id",
+            vector_column="embedding",
+            vector_bucket="b",
+            index="i",
+            use_threads=False,
+        )
+
+    sent = client.put_vectors.call_args.kwargs["vectors"]
+    assert [v["metadata"] for v in sent] == [{"tags": ["x", "y"]}, {"tags": ["z"]}]
+    assert all(type(v["metadata"]["tags"]) is list for v in sent)
+
+
 # ---------------------------------------------------------------------------
 # Aliasing identity (the public surface mirrors the private functions)
 # ---------------------------------------------------------------------------
