@@ -554,11 +554,11 @@ wheels = [
 
 [[package]]
 name = "async-timeout"
-version = "4.0.3"
+version = "5.0.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/87/d6/21b30a550dafea84b1b8eee21b5e23fa16d010ae006011221f33dcd8d7f8/async-timeout-4.0.3.tar.gz", hash = "sha256:4640d96be84d82d02ed59ea2b7105a0f7b33abe8703703cd0ab0bf87c427522f", size = 8345, upload-time = "2023-08-10T16:35:56.907Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a5/ae/136395dfbfe00dfc94da3f3e136d0b13f394cba8f4841120e34226265780/async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3", size = 9274, upload-time = "2024-11-06T16:41:39.6Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/fa/e01228c2938de91d47b307831c62ab9e4001e747789d0b05baf779a6488c/async_timeout-4.0.3-py3-none-any.whl", hash = "sha256:7405140ff1230c310e51dc27b3145b9092d659ce68ff733fb0cefe3ee42be028", size = 5721, upload-time = "2023-08-10T16:35:55.203Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/ba/e2081de779ca30d473f21f5b30e0e737c438205440784c7dfc81efc2b029/async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c", size = 6233, upload-time = "2024-11-06T16:41:37.9Z" },
 ]
 
 [[package]]
@@ -1766,18 +1766,18 @@ wheels = [
 
 [[package]]
 name = "gremlinpython"
-version = "3.8.2"
+version = "3.7.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aenum" },
     { name = "aiohttp" },
-    { name = "async-timeout" },
     { name = "isodate" },
     { name = "nest-asyncio" },
+    { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/33/229c8783eeeb8c0321b2c9981f06b034c09deb97df7bd5eed9ba80ea74c9/gremlinpython-3.8.2.tar.gz", hash = "sha256:b7ae3820ac1e54edfc04efc1b1deebd58b5726accbe2d0425b80086d7e4ed5fa", size = 54675, upload-time = "2026-09-08T21:49:32.015Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/3f/798d17661a13d2da2721038e2c3602c33225b482da76a6bf2cbe23a034d7/gremlinpython-3.7.2.tar.gz", hash = "sha256:58d12e4af81210d7770d54da8f1f586de816bc00858e095f76326d338ea34acd", size = 52153, upload-time = "2024-04-15T17:17:49.214Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/e8/ad44c5db4d121c1d1d71acea3b0e5dd6d43e6cb3e11341edcb1414bcd302/gremlinpython-3.8.2-py3-none-any.whl", hash = "sha256:bff95fa950e4efaf0793a2ffab96bf362f2e24af519e67833cf957762b1de473", size = 76076, upload-time = "2026-09-08T21:49:30.759Z" },
+    { url = "https://files.pythonhosted.org/packages/20/35/f70c50cf76419ed2f16d66d1362043796580ff357c2664eca7c023f8ca2d/gremlinpython-3.7.2-py2.py3-none-any.whl", hash = "sha256:ff925632f70fc5afff6864627fa69de8df577090a6eea63f10f0fed7194f98bf", size = 78094, upload-time = "2024-04-15T17:17:46.591Z" },
 ]
 
 [[package]]
@@ -4284,14 +4284,14 @@ wheels = [
 
 [[package]]
 name = "progressbar2"
-version = "4.6.0"
+version = "4.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "python-utils" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/1e/5bd376abe32a392e74fffd82feb42ee1472d263bd358d628af20663d0346/progressbar2-4.6.0.tar.gz", hash = "sha256:fe48c8955a84428af77bff2642ba47041e1b8f7c867a5b7cc94f8bc255a8f0cf", size = 542464, upload-time = "2026-08-14T01:07:30.008Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/dd/63ac006e821594bf6ec5cd7557f16c44d8c209108578ea01bc1f715baafc/progressbar2-4.7.0.tar.gz", hash = "sha256:f4122439b00dca41424f787ea5148478685d265742078c1c7c3ede31f06bd001", size = 751542, upload-time = "2026-11-05T10:39:31.333Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/4c/ba64c450164fa4feaa9c4bb1c6445811d89d6a1995bfc58d039273b698af/progressbar2-4.6.0-py3-none-any.whl", hash = "sha256:2d78bdeb1debef92a39dd9042e0689542bd72d6e2f30b13432db371aa9d8ee4e", size = 104185, upload-time = "2026-08-14T01:07:28.474Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/91/4e41878c890ff425b33135df7e97a992a55c8e96044a0d931c39d21f30bc/progressbar2-4.7.0-py3-none-any.whl", hash = "sha256:ff929d767c1fd7656bcefa7f2132aa174aa8746d7de580edfcfc1c6a738825da", size = 151038, upload-time = "2026-11-05T10:39:29.234Z" },
 ]
 
 [[package]]
@@ -4936,11 +4936,11 @@ pyarrow = [
 
 [[package]]
 name = "pymysql"
-version = "1.2.3"
+version = "1.2.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b1/d4/c15b459e25a23767d2f4065ef40968920320f04e302889574310c21c96a3/pymysql-1.2.3.tar.gz", hash = "sha256:d5b288529782e536ae171866df3ca9dc4f6cbfb3cc2f18e6f837fbb90dbc262b", size = 50629, upload-time = "2026-09-17T12:22:49.146Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/69/808dc3d9bcc7d2841cdc2909b978c64eb1c450b7cd7b42d5907f7de7567d/pymysql-1.2.4.tar.gz", hash = "sha256:491558165b8e11f3644c5f9cfb30cc9c9111ffd54e53d3aa91b9a0a20be2294f", size = 51598, upload-time = "2026-11-09T09:37:09.356Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/4b/0a906d8184f011ff8dbd4722743783867589b33269d2c5fff238d636fdcb/pymysql-1.2.3-py3-none-any.whl", hash = "sha256:14f1c68e2ed859243ae5ca41ffbe677027fc46bc136a9f0be8a4e928e5e7415a", size = 46740, upload-time = "2026-09-17T12:22:47.826Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/60/acffa1e7261fdc68fadf6f196b66058e03dcb3df239f2c0acbfd11165845/pymysql-1.2.4-py3-none-any.whl", hash = "sha256:e169bed906168fffd0088925f45b3df024c2775c6fd128da0df773d47c458840", size = 46892, upload-time = "2026-11-09T09:37:07.987Z" },
 ]
 
 [[package]]
@@ -5304,14 +5304,14 @@ wheels = [
 
 [[package]]
 name = "python-utils"
-version = "3.9.1"
+version = "4.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/13/4c/ef8b7b1046d65c1f18ca31e5235c7d6627ca2b3f389ab1d44a74d22f5cc9/python_utils-3.9.1.tar.gz", hash = "sha256:eb574b4292415eb230f094cbf50ab5ef36e3579b8f09e9f2ba74af70891449a0", size = 35403, upload-time = "2024-11-26T00:38:58.736Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/bf/e4cc07248ca65fe5065a9712efeace1eba6b0c77c72fc24cbfc8a79ddd80/python_utils-4.2.2.tar.gz", hash = "sha256:6c51c46e600c67ad5f16c4205ba875ced4372e560561c5aa3cf52ff1d4657471", size = 87746, upload-time = "2026-11-13T16:40:51.194Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d4/69/31c82567719b34d8f6b41077732589104883771d182a9f4ff3e71430999a/python_utils-3.9.1-py2.py3-none-any.whl", hash = "sha256:0273d7363c7ad4b70999b2791d5ba6b55333d6f7a4e4c8b6b39fb82b5fab4613", size = 32078, upload-time = "2024-11-26T00:38:57.488Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/f7/653d9774d62d17efe8a9ceb6982387aa02bf2641e3112fb8a2a8557f34ec/python_utils-4.2.2-py3-none-any.whl", hash = "sha256:7cb810c9d536108b5c6c4de886605cd1e86e25e77d809b778f33110666fc7630", size = 52247, upload-time = "2026-11-13T16:40:49.791Z" },
 ]
 
 [[package]]
