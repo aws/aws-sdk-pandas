@@ -137,8 +137,10 @@ def start_query_execution(
     sql, execution_params = _apply_formatter(sql, params, paramstyle)
     _logger.debug("Executing query:\n%s", sql)
 
-    if not client_request_token:
-        cache_info: _CacheInfo = _check_for_cached_results(
+    cache_info = _CacheInfo(has_valid_cache=False)
+    if not client_request_token and paramstyle != "qmark":
+        # The cache matches on query text only, so it would reuse a run with other qmark params.
+        cache_info = _check_for_cached_results(
             sql=sql,
             boto3_session=boto3_session,
             workgroup=workgroup,
@@ -146,7 +148,7 @@ def start_query_execution(
         )
         _logger.debug("Cache info:\n%s", cache_info)
 
-    if not client_request_token and cache_info.has_valid_cache and cache_info.query_execution_id is not None:
+    if cache_info.has_valid_cache and cache_info.query_execution_id is not None:
         query_execution_id = cache_info.query_execution_id
         _logger.debug("Valid cache found. Retrieving...")
     else:
