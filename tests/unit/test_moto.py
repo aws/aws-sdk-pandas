@@ -827,6 +827,46 @@ def test_glue_add_column_without_comment(moto_glue):
     assert "col1" not in comments or comments.get("col1") is None
 
 
+def test_to_parquet_append_new_column_keeps_partition_projection(moto_glue):
+    database_name = "mydb_projection"
+    table_name = "mytable_projection"
+    path = "s3://bucket-projection/prefix/"
+    boto3.client("s3").create_bucket(Bucket="bucket-projection")
+    wr.catalog.create_database(name=database_name)
+
+    wr.s3.to_parquet(
+        df=pd.DataFrame({"c0": [1], "c1": [1]}),
+        path=path,
+        dataset=True,
+        database=database_name,
+        table=table_name,
+        partition_cols=["c1"],
+        athena_partition_projection_settings={
+            "projection_types": {"c1": "integer"},
+            "projection_ranges": {"c1": "0,9"},
+        },
+        glue_table_settings={"regular_partitions": False},
+    )
+    wr.s3.to_parquet(
+        df=pd.DataFrame({"c0": [2], "c1": [2], "c2": ["new"]}),
+        path=path,
+        dataset=True,
+        mode="append",
+        database=database_name,
+        table=table_name,
+        partition_cols=["c1"],
+        glue_table_settings={"regular_partitions": False},
+    )
+
+    assert wr.catalog.get_table_types(database=database_name, table=table_name) == {
+        "c0": "bigint",
+        "c2": "string",
+        "c1": "bigint",
+    }
+    parameters = wr.catalog.get_table_parameters(database=database_name, table=table_name)
+    assert parameters["projection.enabled"] == "true"
+
+
 def test_dynamodb_basic_usage(moto_dynamodb_client, moto_dynamodb_table):
     items = [{"key": 1}, {"key": 2, "my_value": "Hello"}]
 
