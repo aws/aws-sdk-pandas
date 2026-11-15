@@ -1559,3 +1559,78 @@ def test_merge_datasets_overwrite_partitions_root_scope(moto_s3_client, target_k
 
     keys = moto_s3_client.list_objects_v2(Bucket="bucket", Prefix=f"{prefix}/target/")["Contents"]
     assert sorted(o["Key"] for o in keys) == sorted(f"{prefix}/target/{key}" for key in survivors)
+
+
+@pytest.fixture
+def athena_workgroup_config_cache():
+    from awswrangler.athena import _utils as athena_utils
+
+    athena_utils._WORKGROUP_CONFIG_CACHE.clear()
+    yield athena_utils
+    wr.config.reset("athena_workgroup_config_ttl")
+    athena_utils._WORKGROUP_CONFIG_CACHE.clear()
+
+
+def _create_athena_workgroup(session: boto3.Session, name: str) -> None:
+    session.client("athena").create_work_group(
+        Name=name,
+        Configuration={
+            "ResultConfiguration": {"OutputLocation": f"s3://bucket/{name}/"},
+            "EnforceWorkGroupConfiguration": True,
+        },
+    )
+
+
+def _count_get_work_group_calls(session: boto3.Session) -> list[int]:
+    calls: list[int] = []
+    session.events.register("before-call.athena.GetWorkGroup", lambda **_: calls.append(1))
+    return calls
+
+
+def test_athena_workgroup_config_not_cached_by_default(moto_aws, athena_workgroup_config_cache) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    _create_athena_workgroup(session, "wg-no-cache")
+    calls = _count_get_work_group_calls(session)
+
+    for _ in range(2):
+        wr.athena.start_query_execution(sql="SELECT 1", workgroup="wg-no-cache", boto3_session=session)
+
+    assert len(calls) == 2
+
+
+def test_athena_workgroup_config_cached_with_ttl(moto_aws, athena_workgroup_config_cache) -> None:
+    session = boto3.Session(region_name="us-east-1")
+    _create_athena_workgroup(session, "wg-ttl")
+    calls = _count_get_work_group_calls(session)
+    wr.config.athena_workgroup_config_ttl = 60
+
+    for _ in range(2):
+        wr.athena.start_query_execution(sql="SELECT 1", workgroup="wg-ttl", boto3_session=session)
+    assert len(calls) == 1
+
+    # Once the TTL has passed, the configuration is fetched again
+    with patch.object(athena_workgroup_config_cache.time, "monotonic", return_value=time.monotonic() + 61):
+        wr.athena.start_query_execution(sql="SELECT 1", workgroup="wg-ttl", boto3_session=session)
+    assert len(calls) == 2
+
+
+def test_athena_workgroup_config_cache_per_credentials_and_region(moto_aws, athena_workgroup_config_cache) -> None:
+    def new_session(access_key: str, region: str) -> boto3.Session:
+        return boto3.Session(aws_access_key_id=access_key, aws_secret_access_key="secret", region_name=region)
+
+    _create_athena_workgroup(new_session("AKIAEXAMPLE1", "us-east-1"), "wg-same-name")
+    _create_athena_workgroup(new_session("AKIAEXAMPLE1", "us-west-2"), "wg-same-name")
+    sessions = [
+        new_session("AKIAEXAMPLE1", "us-east-1"),
+        new_session("AKIAEXAMPLE2", "us-east-1"),
+        new_session("AKIAEXAMPLE1", "us-west-2"),
+    ]
+    calls = [_count_get_work_group_calls(session) for session in sessions]
+    wr.config.athena_workgroup_config_ttl = 60
+
+    for _ in range(2):
+        for session in sessions:
+            athena_workgroup_config_cache._get_workgroup_config(session=session, workgroup="wg-same-name")
+
+    # Each credentials/region pair fetches its own configuration once
+    assert [len(c) for c in calls] == [1, 1, 1]
