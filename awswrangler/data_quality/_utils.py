@@ -180,6 +180,8 @@ def _wait_ruleset_run(
         raise exceptions.QueryFailed(response.get("ErrorString"))
     if status == "STOPPED":
         raise exceptions.QueryCancelled("Ruleset execution stopped")
+    if status == "TIMEOUT":
+        raise exceptions.QueryFailed(f"Ruleset run {run_id} timed out")
     return response
 
 
