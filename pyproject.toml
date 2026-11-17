@@ -1,6 +1,6 @@
 [project]
 name = "awswrangler"
-version = "3.17.1"
+version = "3.18.0"
 description = "Pandas on AWS."
 authors = [{ name = "Amazon Web Services" }]
 requires-python = ">=3.10, <4.0"
@@ -85,7 +85,7 @@ dev = [
     "s3fs==2026.9.0",
     "tox>=4.23.2,<5",
     "tox-uv==1.36.1",
-    "bump-my-version>=0.29,<1.7",
+    "bump-my-version>=0.29,<1.9",
     "IPython>=8.18.1,<9",
     "jupyterlab~=4.3",
     "nbsphinx>=0.9.6,<0.10",
