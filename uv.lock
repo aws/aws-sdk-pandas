@@ -683,8 +683,8 @@ dev = [
 requires-dist = [
     { name = "aiohttp", marker = "extra == 'gremlin'", specifier = ">=3.12.14,<4" },
     { name = "async-timeout", marker = "extra == 'gremlin'", specifier = ">=4.0.3,<6.0.0" },
-    { name = "boto3", specifier = ">=1.20.32,<2" },
-    { name = "botocore", specifier = ">=1.23.32,<2" },
+    { name = "boto3", specifier = ">=1.39.5,<2" },
+    { name = "botocore", specifier = ">=1.39.5,<2" },
     { name = "deltalake", marker = "extra == 'deltalake'", specifier = ">=0.18.0,<1.7.0" },
     { name = "geopandas", marker = "extra == 'geopandas'", specifier = ">=1.0.0,<2" },
     { name = "gremlinpython", marker = "extra == 'gremlin'", specifier = ">=3.7.1,<4" },
