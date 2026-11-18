@@ -28,7 +28,9 @@ _KEYS_PER_DELETE = 500
 def _drop_nan(metadata: dict[str, Any]) -> dict[str, Any]:
     """Drop NaN / pd.NA / None metadata values (per-row).
 
-    Lists, dicts, and falsy scalars (0, False, '') are preserved.
+    Lists, dicts, and falsy scalars (0, False, '') are preserved. Numpy arrays, tuples and
+    sets (e.g. list columns read from Parquet) become plain lists, the only sequence type
+    botocore accepts in a metadata document.
     """
     cleaned: dict[str, Any] = {}
     for k, v in metadata.items():
@@ -38,7 +40,12 @@ def _drop_nan(metadata: dict[str, Any]) -> dict[str, Any]:
         # for sequences, so guard iterables first.
         if not isinstance(v, (list, tuple, dict, set, np.ndarray)) and pd.isna(v):
             continue
-        cleaned[k] = v
+        if isinstance(v, np.ndarray):
+            cleaned[k] = v.tolist()
+        elif isinstance(v, (tuple, set)):
+            cleaned[k] = list(v)
+        else:
+            cleaned[k] = v
     return cleaned
 
 
