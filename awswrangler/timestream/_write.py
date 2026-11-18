@@ -428,7 +428,7 @@ def wait_batch_load_task(
     _logger.debug("Task status: %s", status)
     if status != "SUCCEEDED":
         _logger.debug("Task response: %s", response)
-        raise exceptions.TimestreamLoadError(response.get("ErrorMessage"))
+        raise exceptions.TimestreamLoadError(response["BatchLoadTaskDescription"].get("ErrorMessage"))
     return response  # type: ignore[return-value]
 
 
