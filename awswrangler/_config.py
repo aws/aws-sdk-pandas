@@ -43,6 +43,7 @@ _CONFIG_ARGS: dict[str, _ConfigArg] = {
     "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False, parent_parameter_key="athena_cache_settings"),
     "athena_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
+    "athena_workgroup_config_ttl": _ConfigArg(dtype=int, nullable=False, loaded=True, default=0),
     "cloudwatch_query_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "neptune_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
     "timestream_batch_load_wait_polling_delay": _ConfigArg(dtype=float, nullable=False),
@@ -339,6 +340,18 @@ class _Config:
     @athena_query_wait_polling_delay.setter
     def athena_query_wait_polling_delay(self, value: float) -> None:
         self._set_config_value(key="athena_query_wait_polling_delay", value=value)
+
+    @property
+    def athena_workgroup_config_ttl(self) -> int:
+        """Property athena_workgroup_config_ttl.
+
+        Seconds to cache Athena workgroup configurations fetched with GetWorkGroup. 0 (default) disables caching.
+        """
+        return cast(int, self["athena_workgroup_config_ttl"])
+
+    @athena_workgroup_config_ttl.setter
+    def athena_workgroup_config_ttl(self, value: int) -> None:
+        self._set_config_value(key="athena_workgroup_config_ttl", value=value)
 
     @property
     def cloudwatch_query_wait_polling_delay(self) -> float:
