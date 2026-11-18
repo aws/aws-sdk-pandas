@@ -25,7 +25,9 @@ def _get_read_details(path: str, pandas_kwargs: dict[str, Any]) -> tuple[dict[st
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
     mode: str = (
-        "r" if pandas_kwargs.get("compression") is None and pandas_kwargs.get("encoding_errors") != "ignore" else "rb"
+        "r"
+        if pandas_kwargs.get("compression") is None and pandas_kwargs.get("encoding_errors", "strict") == "strict"
+        else "rb"
     )
     encoding: str | None = pandas_kwargs.get("encoding", "utf-8")
     newline: str | None = pandas_kwargs.get("lineterminator", None)
