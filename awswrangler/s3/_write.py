@@ -147,11 +147,12 @@ def _get_chunk_file_path(file_counter: int, file_path: str) -> str:
     return file_path
 
 
-def _get_write_table_args(pyarrow_additional_kwargs: dict[str, Any] | None = None) -> dict[str, Any]:
-    write_table_args: dict[str, Any] = {}
-    if pyarrow_additional_kwargs and "write_table_args" in pyarrow_additional_kwargs:
-        write_table_args = pyarrow_additional_kwargs.pop("write_table_args")
-    return write_table_args
+def _get_write_table_args(
+    pyarrow_additional_kwargs: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    pyarrow_additional_kwargs = dict(pyarrow_additional_kwargs or {})
+    write_table_args: dict[str, Any] = pyarrow_additional_kwargs.pop("write_table_args", {})
+    return write_table_args, pyarrow_additional_kwargs
 
 
 def _get_file_path(

@@ -94,7 +94,7 @@ def _write_chunk(
     chunk_size: int,
     use_threads: bool | int,
 ) -> list[str]:
-    write_table_args = _get_write_table_args(pyarrow_additional_kwargs)
+    write_table_args, pyarrow_additional_kwargs = _get_write_table_args(pyarrow_additional_kwargs)
     with _new_writer(
         file_path=file_path,
         compression=compression,
@@ -181,7 +181,7 @@ def _to_orc(
             cpus=cpus,
         )
     else:
-        write_table_args = _get_write_table_args(pyarrow_additional_kwargs)
+        write_table_args, pyarrow_additional_kwargs = _get_write_table_args(pyarrow_additional_kwargs)
         with _new_writer(
             file_path=file_path,
             compression=compression,

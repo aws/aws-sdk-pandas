@@ -115,7 +115,7 @@ def _write_chunk(
     use_threads: bool | int,
     encryption_configuration: ArrowEncryptionConfiguration | None,
 ) -> list[str]:
-    write_table_args = _get_write_table_args(pyarrow_additional_kwargs)
+    write_table_args, pyarrow_additional_kwargs = _get_write_table_args(pyarrow_additional_kwargs)
     with _new_writer(
         file_path=file_path,
         compression=compression,
@@ -207,7 +207,7 @@ def _to_parquet(
             encryption_configuration=encryption_configuration,
         )
     else:
-        write_table_args = _get_write_table_args(pyarrow_additional_kwargs)
+        write_table_args, pyarrow_additional_kwargs = _get_write_table_args(pyarrow_additional_kwargs)
         with _new_writer(
             file_path=file_path,
             compression=compression,
