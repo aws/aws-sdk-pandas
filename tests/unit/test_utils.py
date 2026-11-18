@@ -1,9 +1,11 @@
 import logging
 import os
 
+import pandas as pd
 import pytest
 
 from awswrangler._utils import ensure_cpu_count, get_even_chunks_sizes, parse_path
+from awswrangler.catalog import rename_duplicated_columns
 from awswrangler.exceptions import InvalidArgumentValue
 from awswrangler.s3._write_dataset import _get_bucket_number
 
@@ -81,3 +83,13 @@ def test_parse_path_invalid_scheme(path):
 def test_get_bucket_number_non_ascii_string():
     # Hive and Trino hash string bytes as signed Java bytes
     assert _get_bucket_number(5, ["São Paulo"]) == 2
+
+
+def test_rename_duplicated_numeric_columns() -> None:
+    df = pd.DataFrame([[10, 20, 30]], columns=[1, 1, "1_1"])
+
+    result = rename_duplicated_columns(df)
+
+    assert result is df
+    assert df.columns.tolist() == [1, "1_1", "1_1_1"]
+    assert df.iloc[0].tolist() == [10, 20, 30]
