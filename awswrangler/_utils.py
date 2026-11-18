@@ -665,8 +665,17 @@ def chunkify(
     if not lst:
         return []
     n: int = num_chunks if max_length is None else int(math.ceil(float(len(lst)) / float(max_length)))
-    np_chunks: list[np.ndarray[Any, Any]] = np.array_split(np.asarray(lst, dtype=object), n)
-    return [arr.tolist() for arr in np_chunks if len(arr) > 0]
+    if n <= 0:
+        raise ValueError("number sections must be larger than 0.")
+    n = min(n, len(lst))
+    size, extra = divmod(len(lst), n)
+    chunks = []
+    start = 0
+    for i in range(n):
+        end = start + size + (i < extra)
+        chunks.append(lst[start:end])
+        start = end
+    return chunks
 
 
 def empty_generator() -> Generator[None, None, None]:
