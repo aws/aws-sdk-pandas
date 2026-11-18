@@ -274,7 +274,10 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     duplicated = df.columns.duplicated()
     if duplicated.any():
         _logger.warning("Dropping duplicated columns...")
-        columns = df.columns.values
+        # Mark a copy: `df.columns.values` can be shared with other DataFrames
+        # (e.g. the frame `df` was copied from), and a non-object array (e.g. int
+        # labels) cannot hold the string marker.
+        columns = df.columns.to_numpy(dtype=object, copy=True)
         columns[duplicated] = "AWSWranglerDuplicatedMarker"
         df.columns = columns
         df.drop(columns="AWSWranglerDuplicatedMarker", inplace=True)

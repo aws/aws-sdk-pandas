@@ -1189,6 +1189,21 @@ def test_sanitize_dataframe_column_names():
     ).equals(pd.DataFrame({"a": [1, 2], "a_1": [3, 4], "a_1_1": [5, 6]}))
 
 
+def test_drop_duplicated_columns_keeps_other_frames_intact():
+    df = pd.DataFrame({"a": [1, 2], "b": [3, 4], "c": [5, 6]})
+    df.columns = ["a", "a", "b"]
+    df_copy = df.copy()
+    result = wr.catalog.drop_duplicated_columns(df=df_copy)
+    assert result.equals(pd.DataFrame({"a": [1, 2], "b": [5, 6]}))
+    assert df_copy.columns.to_list() == ["a", "b"]
+    assert df.columns.to_list() == ["a", "a", "b"]
+
+
+def test_drop_duplicated_columns_non_string_labels():
+    df = pd.DataFrame([[1, 2, 3]], columns=[0, 0, 1])
+    assert wr.catalog.drop_duplicated_columns(df=df).columns.to_list() == [0, 1]
+
+
 def test_sanitize_names():
     assert wr.catalog.sanitize_column_name("CamelCase") == "camelcase"
     assert wr.catalog.sanitize_column_name("CamelCase2") == "camelcase2"
