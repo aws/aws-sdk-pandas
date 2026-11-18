@@ -36,6 +36,18 @@ def test_athena2pyarrow_rejects_binary_substrings(dtype):
         athena2pyarrow(dtype)
 
 
+@pytest.mark.parametrize(
+    "dtype,expected",
+    [
+        ("struct<roleType:string>", pa.struct([("roleType", pa.string())])),
+        ("ARRAY<STRUCT<roleType:STRING>>", pa.list_(pa.struct([("roleType", pa.string())]))),
+        ("map<string,struct<firstName:int>>", pa.map_(pa.string(), pa.struct([("firstName", pa.int32())]))),
+    ],
+)
+def test_athena2pyarrow_preserves_nested_field_name_case(dtype, expected):
+    assert athena2pyarrow(dtype) == expected
+
+
 @pytest.mark.parametrize("dtype", ["binary", "varbinary"])
 def test_athena2pandas_binary_types(dtype):
     assert athena2pandas(dtype) == "bytes"
