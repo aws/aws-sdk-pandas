@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from awswrangler._utils import ensure_cpu_count, get_even_chunks_sizes, parse_path
+from awswrangler._utils import chunkify, ensure_cpu_count, get_even_chunks_sizes, parse_path
 from awswrangler.exceptions import InvalidArgumentValue
 from awswrangler.s3._write_dataset import _get_bucket_number
 
@@ -81,3 +81,11 @@ def test_parse_path_invalid_scheme(path):
 def test_get_bucket_number_non_ascii_string():
     # Hive and Trino hash string bytes as signed Java bytes
     assert _get_bucket_number(5, ["São Paulo"]) == 2
+
+
+def test_chunkify_preserves_sequence_items() -> None:
+    items = [("a", 1), ("b", 2), ("c", 3)]
+
+    assert chunkify(items, num_chunks=2) == [items[:2], items[2:]]
+    assert chunkify(items, num_chunks=5) == [[item] for item in items]
+    assert chunkify(items, num_chunks=1, max_length=2) == [items[:2], items[2:]]
