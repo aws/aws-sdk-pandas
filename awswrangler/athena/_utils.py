@@ -1220,8 +1220,8 @@ def list_query_executions(
     if workgroup:
         kwargs["WorkGroup"] = workgroup
 
-        if max_results is not None:
-            kwargs["MaxResults"] = min(max_results, 50)
+    if max_results is not None:
+        kwargs["MaxResults"] = min(max_results, 50)
 
     query_list: list[str] = []
     response = _utils.try_it(
