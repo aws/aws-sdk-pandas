@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pyarrow as pa
@@ -78,3 +78,29 @@ def test_get_query_metadata_category_takes_precedence_over_decimal() -> None:
 
     assert meta.dtype == {"amount": "category"}
     assert meta.decimal_types == {}
+
+
+@pytest.mark.parametrize("workgroup", [None, "wg"])
+@pytest.mark.parametrize("max_results", [3, 60])
+def test_list_query_executions_forwards_max_results(workgroup: str | None, max_results: int) -> None:
+    all_ids = [f"id-{i}" for i in range(120)]
+
+    def fake_list(**kwargs):
+        start = int(kwargs.get("NextToken", 0))
+        size = kwargs.get("MaxResults", 50)
+        page = all_ids[start : start + size]
+        response = {"QueryExecutionIds": page}
+        if start + size < len(all_ids):
+            response["NextToken"] = str(start + size)
+        return response
+
+    client = MagicMock()
+    client.list_query_executions.side_effect = fake_list
+
+    with patch("awswrangler._utils.client", return_value=client):
+        result = _utils.list_query_executions(workgroup=workgroup, max_results=max_results)
+
+    assert result == all_ids[:max_results]
+    first_call = client.list_query_executions.call_args_list[0].kwargs
+    assert first_call["MaxResults"] == min(max_results, 50)
+    assert ("WorkGroup" in first_call) == (workgroup is not None)
