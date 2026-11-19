@@ -60,5 +60,5 @@ def wait_query(
 
     _logger.debug("state: %s", state)
     if state != "SUCCESS":
-        raise exceptions.QueryFailed(response["protectedQuery"].get("Error"))
+        raise exceptions.QueryFailed(response["protectedQuery"].get("error", {}).get("message"))
     return response
