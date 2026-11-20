@@ -80,6 +80,7 @@ def test_get_query_metadata_category_takes_precedence_over_decimal() -> None:
     assert meta.dtype == {"amount": "category"}
     assert meta.decimal_types == {}
 
+
 @pytest.mark.parametrize("state", ["FAILED", "CANCELLED"])
 def test_get_query_metadata_failed_without_state_change_reason(state: str) -> None:
     payload = {"QueryExecutionId": "query-id", "Status": {"State": state}}
