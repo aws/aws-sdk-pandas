@@ -34,6 +34,10 @@ class _Engine(ABC):
         return str(value)
 
     def format_float(self, value: float | np.floating[Any]) -> str:
+        if np.isnan(value):
+            return "CAST('NaN' AS DOUBLE)"
+        if np.isinf(value):
+            return "CAST('Infinity' AS DOUBLE)" if value > 0 else "CAST('-Infinity' AS DOUBLE)"
         return np.format_float_positional(value, trim="0")
 
     def format_decimal(self, value: decimal.Decimal) -> str:
@@ -128,6 +132,11 @@ class _PartiQLEngine(_Engine):
 
     def format_bool(self, value: bool | np.bool_) -> str:
         return "1" if value else "0"
+
+    def format_float(self, value: float | np.floating[Any]) -> str:
+        if not np.isfinite(value):
+            raise TypeError(f"Non-finite float {value} is not supported for engine={self.engine_name}.")
+        return super().format_float(value)
 
     def format_decimal(self, value: decimal.Decimal) -> str:
         return f"'{value}'"
