@@ -141,13 +141,18 @@ class DataApiConnector(ABC):
 
                 if key == "stringValue":
                     if col_type == "DATETIME":
-                        return dt.datetime.strptime(column_value[key], "%Y-%m-%d %H:%M:%S")
+                        return dt.datetime.strptime(
+                            column_value[key],
+                            "%Y-%m-%d %H:%M:%S.%f" if "." in column_value[key] else "%Y-%m-%d %H:%M:%S",
+                        )
 
                     if col_type == "DATE":
                         return dt.datetime.strptime(column_value[key], "%Y-%m-%d").date()
 
                     if col_type == "TIME":
-                        return dt.datetime.strptime(column_value[key], "%H:%M:%S").time()
+                        return dt.datetime.strptime(
+                            column_value[key], "%H:%M:%S.%f" if "." in column_value[key] else "%H:%M:%S"
+                        ).time()
 
                     if col_type == "DECIMAL":
                         return Decimal(column_value[key])
