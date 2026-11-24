@@ -167,3 +167,32 @@ def test_numpy_parameter_formatting(engine: _Engine) -> None:
     assert actual_params["np_bool_false"] == "FALSE"
     assert actual_params["np_str"] == "'hello'"
     assert actual_params["np_list"] == "ARRAY [1, 2]"
+
+
+@pytest.mark.parametrize("engine", [_hive_engine_param, _presto_engine_param])
+def test_non_finite_float_formatting(engine: _Engine) -> None:
+    import numpy as np
+
+    actual_params = _format_parameters(
+        {
+            "nan": float("nan"),
+            "inf": float("inf"),
+            "neg_inf": float("-inf"),
+            "np_nan": np.float64("nan"),
+            "np_neg_inf": np.float32("-inf"),
+        },
+        engine=engine,
+    )
+
+    assert actual_params == {
+        "nan": "CAST('NaN' AS DOUBLE)",
+        "inf": "CAST('Infinity' AS DOUBLE)",
+        "neg_inf": "CAST('-Infinity' AS DOUBLE)",
+        "np_nan": "CAST('NaN' AS DOUBLE)",
+        "np_neg_inf": "CAST('-Infinity' AS DOUBLE)",
+    }
+
+
+def test_non_finite_float_partiql_raises() -> None:
+    with pytest.raises(TypeError):
+        _process_sql_params("SELECT * FROM t WHERE x = :x", {"x": float("nan")}, engine_type="partiql")
