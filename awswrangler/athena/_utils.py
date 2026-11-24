@@ -253,7 +253,7 @@ def _get_query_metadata(
     """Get query metadata."""
     if (query_execution_payload is not None) and (query_execution_payload["Status"]["State"] in _QUERY_FINAL_STATES):
         if query_execution_payload["Status"]["State"] != "SUCCEEDED":
-            reason: str = query_execution_payload["Status"]["StateChangeReason"]
+            reason: str | None = query_execution_payload["Status"].get("StateChangeReason")
             raise exceptions.QueryFailed(f"Query error: {reason}")
         _query_execution_payload = query_execution_payload
     else:

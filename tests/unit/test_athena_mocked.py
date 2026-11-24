@@ -8,6 +8,7 @@ import pandas as pd
 import pyarrow as pa
 import pytest
 
+from awswrangler import exceptions
 from awswrangler.athena import _read, _utils
 
 _SUCCEEDED_PAYLOAD = {
@@ -78,3 +79,18 @@ def test_get_query_metadata_category_takes_precedence_over_decimal() -> None:
 
     assert meta.dtype == {"amount": "category"}
     assert meta.decimal_types == {}
+
+
+@pytest.mark.parametrize("state", ["FAILED", "CANCELLED"])
+def test_get_query_metadata_failed_without_state_change_reason(state: str) -> None:
+    payload = {"QueryExecutionId": "query-id", "Status": {"State": state}}
+
+    with pytest.raises(exceptions.QueryFailed, match="Query error"):
+        _utils._get_query_metadata(query_execution_id="query-id", query_execution_payload=payload)
+
+
+def test_get_query_metadata_failed_with_state_change_reason() -> None:
+    payload = {"QueryExecutionId": "query-id", "Status": {"State": "FAILED", "StateChangeReason": "SYNTAX_ERROR"}}
+
+    with pytest.raises(exceptions.QueryFailed, match="SYNTAX_ERROR"):
+        _utils._get_query_metadata(query_execution_id="query-id", query_execution_payload=payload)
