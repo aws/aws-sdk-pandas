@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 import logging
 import os
@@ -14,6 +15,7 @@ import boto3
 import botocore
 import moto
 import pandas as pd
+import pyarrow.parquet as pq
 import pytest
 from botocore.exceptions import ClientError
 
@@ -607,6 +609,45 @@ def test_parquet_with_size(moto_s3_client: "S3Client") -> None:
     df = wr.s3.read_parquet(path="s3://bucket/", dataset=False)
     ensure_data_types(df, has_list=True)
     assert df.shape == (63, 19)
+
+
+def test_parquet_pyarrow_additional_kwargs_reused_across_calls(moto_s3_client: "S3Client") -> None:
+    prefix = f"s3://bucket/{_get_unique_suffix()}"
+    pyarrow_additional_kwargs = {"coerce_timestamps": "us"}
+    df = pd.DataFrame({"c0": [1, 2], "par": ["a", "b"]})
+
+    wr.s3.to_parquet(df=df, path=f"{prefix}/file.parquet", pyarrow_additional_kwargs=pyarrow_additional_kwargs)
+    wr.s3.to_parquet(
+        df=df,
+        path=f"{prefix}/dataset/",
+        dataset=True,
+        partition_cols=["par"],
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+    )
+
+    df2 = wr.s3.read_parquet(path=f"{prefix}/dataset/", dataset=True)
+    assert df2.sort_values("c0")["c0"].tolist() == [1, 2]
+    assert df2.sort_values("c0")["par"].tolist() == ["a", "b"]
+
+
+def test_parquet_write_table_args_applied_to_every_file(moto_s3_client: "S3Client") -> None:
+    key = f"{_get_unique_suffix()}/dataset/"
+    df = pd.DataFrame({"c0": [0, 1, 2, 3], "par": ["a", "a", "b", "b"]})
+
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=f"s3://bucket/{key}",
+        dataset=True,
+        partition_cols=["par"],
+        use_threads=False,
+        pyarrow_additional_kwargs={"write_table_args": {"row_group_size": 1}},
+    )["paths"]
+
+    num_row_groups = {}
+    for path in paths:
+        body = moto_s3_client.get_object(Bucket="bucket", Key=path[len("s3://bucket/") :])["Body"].read()
+        num_row_groups[path.split("/")[-2]] = pq.ParquetFile(io.BytesIO(body)).num_row_groups
+    assert num_row_groups == {"par=a": 2, "par=b": 2}
 
 
 def test_s3_delete_object_success(moto_s3_client: "S3Client") -> None:
