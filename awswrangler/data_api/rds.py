@@ -404,12 +404,11 @@ def _generate_parameters(columns: list[str], values: list[Any]) -> list[dict[str
     return parameter_list
 
 
-def _generate_parameter_sets(df: pd.DataFrame) -> list[list[dict[str, Any]]]:
+def _generate_parameter_sets(df: pd.DataFrame, parameter_names: list[str]) -> list[list[dict[str, Any]]]:
     parameter_sets = []
 
-    columns = df.columns.tolist()
     for values in df.values.tolist():
-        parameter_sets.append(_generate_parameters(columns, values))
+        parameter_sets.append(_generate_parameters(parameter_names, values))
 
     return parameter_sets
 
@@ -490,10 +489,11 @@ def to_sql(
         else:
             insertion_columns = ""
 
-        placeholders = ", ".join([f":{col}" for col in df.columns])
+        parameter_names = [f"p{i}" for i in range(len(df.columns))]
+        placeholders = ", ".join([f":{name}" for name in parameter_names])
 
         sql = f"INSERT INTO {identifier(table, sql_mode=sql_mode)} {insertion_columns} VALUES ({placeholders})"
-        parameter_sets = _generate_parameter_sets(df)
+        parameter_sets = _generate_parameter_sets(df, parameter_names)
 
         for parameter_sets_chunk in _utils.chunkify(parameter_sets, max_length=chunksize):
             con.batch_execute(
