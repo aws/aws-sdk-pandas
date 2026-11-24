@@ -38,7 +38,7 @@ _TimeUnitLiteral = Literal["MILLISECONDS", "SECONDS", "MICROSECONDS", "NANOSECON
 
 def _df2list(df: pd.DataFrame) -> list[list[Any]]:
     """Extract Parameters."""
-    parameters: list[list[Any]] = df.values.tolist()
+    parameters: list[list[Any]] = [list(row) for row in df.itertuples(index=False, name=None)]
     for i, row in enumerate(parameters):
         for j, value in enumerate(row):
             if pd.isna(value):

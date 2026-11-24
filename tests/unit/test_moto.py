@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import time
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -16,10 +17,12 @@ import moto
 import pandas as pd
 import pytest
 from botocore.exceptions import ClientError
+from botocore.stub import Stubber
 
 import awswrangler as wr
 from awswrangler._distributed import EngineEnum
 from awswrangler.exceptions import InvalidArgumentCombination, InvalidArgumentValue
+from awswrangler.timestream._write import _df2list
 
 from .._utils import _get_unique_suffix, ensure_data_types, get_df_csv, get_df_list
 
@@ -1574,3 +1577,59 @@ def test_merge_datasets_overwrite_partitions_root_scope(moto_s3_client, target_k
 
     keys = moto_s3_client.list_objects_v2(Bucket="bucket", Prefix=f"{prefix}/target/")["Contents"]
     assert sorted(o["Key"] for o in keys) == sorted(f"{prefix}/target/{key}" for key in survivors)
+
+
+def test_timestream_write_preserves_mixed_numeric_measures() -> None:
+    session = boto3.Session(region_name="us-east-1", aws_access_key_id="testing", aws_secret_access_key="testing")
+    df = pd.DataFrame({"counter": [9007199254740993, 7], "load": [0.5, float("nan")]}, index=[10, 20])
+    common = {"Time": "1700000000000", "Dimensions": [{"Name": "host", "Value": "test"}]}
+    expected = {
+        "DatabaseName": "test",
+        "TableName": "test",
+        "CommonAttributes": dict(common, Version=1, TimeUnit="MILLISECONDS", MeasureName="metrics"),
+        "Records": [
+            {
+                "MeasureValueType": "MULTI",
+                "MeasureValues": [
+                    {"Name": "counter", "Value": "9007199254740993", "Type": "BIGINT"},
+                    {"Name": "load", "Value": "0.5", "Type": "DOUBLE"},
+                ],
+            },
+            {
+                "MeasureValueType": "MULTI",
+                "MeasureValues": [{"Name": "counter", "Value": "7", "Type": "BIGINT"}],
+            },
+        ],
+    }
+    with closing(session.client("timestream-write", endpoint_url="https://example.invalid")) as client:
+        with Stubber(client) as stubber, patch("awswrangler.timestream._write._utils.client", return_value=client):
+            stubber.add_response("write_records", {}, expected)
+
+            rejected = wr.timestream.write(
+                df,
+                database="test",
+                table="test",
+                measure_col=["counter", "load"],
+                measure_name="metrics",
+                common_attributes=common,
+                use_threads=False,
+            )
+
+            assert rejected == []
+            stubber.assert_no_pending_responses()
+
+
+def test_timestream_row_conversion_preserves_timestamps_and_nulls() -> None:
+    timestamp = datetime(2024, 1, 2, 3, 4, 5, 123456, tzinfo=timezone.utc)
+    df = pd.DataFrame(
+        {
+            "time": [pd.Timestamp(timestamp), pd.NaT],
+            "counter": pd.Series([9007199254740993, pd.NA], dtype="Int64"),
+            "load": [0.5, float("nan")],
+        }
+    )
+
+    rows = _df2list(df)
+
+    assert rows == [[timestamp, 9007199254740993, 0.5], [None, None, None]]
+    assert type(rows[0][0]) is datetime
