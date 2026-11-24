@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any
+
+import boto3
+import botocore.exceptions
 
 from awswrangler import _config, exceptions
 
@@ -28,12 +32,16 @@ def _parse_table_bucket_arn(table_bucket_arn: str) -> tuple[str, str, str]:
     return match.group(1), match.group(2), match.group(3)
 
 
-def _build_catalog_properties(table_bucket_arn: str) -> dict[str, str]:
+def _build_catalog_properties(
+    table_bucket_arn: str,
+    boto3_session: boto3.Session | None = None,
+    role_arn: str | None = None,
+) -> dict[str, Any]:
     """Build PyIceberg REST catalog properties for S3 Tables or Glue endpoint."""
     region, account_id, bucket_name = _parse_table_bucket_arn(table_bucket_arn)
     endpoint = _config.config.s3tables_catalog_endpoint_url
 
-    props: dict[str, str] = {
+    props: dict[str, Any] = {
         "type": "rest",
         "rest.sigv4-enabled": "true",
         "rest.signing-region": region,
@@ -50,14 +58,29 @@ def _build_catalog_properties(table_bucket_arn: str) -> dict[str, str]:
         props["warehouse"] = table_bucket_arn
         props["rest.signing-name"] = "s3tables"
 
+    if boto3_session is not None:
+        if boto3_session.get_credentials() is None:
+            raise botocore.exceptions.NoCredentialsError()
+        # PyIceberg's SigV4 adapter asks this session for credentials on every request, so they
+        # stay refreshable and no key strings end up in the properties.
+        props["botocore_session"] = boto3_session._session
+
+    if role_arn is not None:
+        # PyArrow's S3FileSystem has no session hook, it assumes this role for table data instead.
+        props["s3.role-arn"] = role_arn
+
     return props
 
 
-def _load_catalog(table_bucket_arn: str) -> "RestCatalog":  # type: ignore[name-defined]  # noqa: F821
+def _load_catalog(
+    table_bucket_arn: str,
+    boto3_session: boto3.Session | None = None,
+    role_arn: str | None = None,
+) -> "RestCatalog":  # type: ignore[name-defined]  # noqa: F821
     """Create and return a PyIceberg RestCatalog configured for S3 Tables."""
     from pyiceberg.catalog.rest import RestCatalog  # noqa: PLC0415
 
-    properties = _build_catalog_properties(table_bucket_arn)
+    properties = _build_catalog_properties(table_bucket_arn, boto3_session=boto3_session, role_arn=role_arn)
     catalog = RestCatalog(name="s3tables", **properties)
     _logger.debug("Loaded PyIceberg REST catalog for %s", table_bucket_arn)
     return catalog
