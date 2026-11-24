@@ -71,17 +71,14 @@ def _extract_partitions_metadata_from_paths(
             if dirs:
                 values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
                 values_dics: dict[str, str] = dict(values_tups)
-                p_values: list[str] = list(values_dics.values())
                 p_types: dict[str, str] = {x: "string" for x in values_dics.keys()}
                 if not partitions_types:
                     partitions_types = p_types
-                if p_values:
-                    partitions_types = p_types
-                    partitions_values[path_wo_filename] = p_values
-                elif p_types != partitions_types:
+                elif set(p_types) != set(partitions_types):
                     raise exceptions.InvalidSchemaConvergence(
                         f"At least two different partitions schema detected: {partitions_types} and {p_types}"
                     )
+                partitions_values[path_wo_filename] = [values_dics[key] for key in partitions_types]
     if not partitions_types:
         return None, None
     return partitions_types, partitions_values

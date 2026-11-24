@@ -796,6 +796,39 @@ def test_glue_get_partition(moto_glue):
     assert parquet_partition_value == values
 
 
+def test_store_parquet_metadata_partitions_different_key_order(moto_s3_client: "S3Client", moto_glue) -> None:
+    database_name = "mydb_partitions_order"
+    table_name = "mytable_partitions_order"
+    df = pd.DataFrame({"c0": [1]})
+    wr.s3.to_parquet(df=df, path="s3://bucket/partitions_order/a=1/b=2/file1.parquet")
+    wr.s3.to_parquet(df=df, path="s3://bucket/partitions_order/b=3/a=4/file2.parquet")
+
+    wr.catalog.create_database(name=database_name)
+    wr.s3.store_parquet_metadata(
+        path="s3://bucket/partitions_order/", database=database_name, table=table_name, dataset=True
+    )
+
+    partitions_values = wr.catalog.get_partitions(database_name, table_name)
+    assert partitions_values == {
+        "s3://bucket/partitions_order/a=1/b=2/": ["1", "2"],
+        "s3://bucket/partitions_order/b=3/a=4/": ["4", "3"],
+    }
+
+
+def test_store_parquet_metadata_partitions_different_keys(moto_s3_client: "S3Client", moto_glue) -> None:
+    database_name = "mydb_partitions_keys"
+    table_name = "mytable_partitions_keys"
+    df = pd.DataFrame({"c0": [1]})
+    wr.s3.to_parquet(df=df, path="s3://bucket/partitions_keys/a=1/file1.parquet")
+    wr.s3.to_parquet(df=df, path="s3://bucket/partitions_keys/a=1/b=2/file2.parquet")
+
+    wr.catalog.create_database(name=database_name)
+    with pytest.raises(wr.exceptions.InvalidSchemaConvergence):
+        wr.s3.store_parquet_metadata(
+            path="s3://bucket/partitions_keys/", database=database_name, table=table_name, dataset=True
+        )
+
+
 def test_glue_add_column_without_comment(moto_glue):
     database_name = "mydb_add_col"
     table_name = "mytable_add_col"
