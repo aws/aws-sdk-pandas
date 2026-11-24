@@ -146,7 +146,7 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     set_names = set(names)
     if len(names) == len(set_names):
         return df
-    d = {key: [name + f"_{i}" if i > 0 else name for i, name in enumerate(names[names == key])] for key in set_names}
+    d = {key: [f"{name}_{i}" if i > 0 else name for i, name in enumerate(names[names == key])] for key in set_names}
     df.rename(columns=lambda c: d[c].pop(0), inplace=True)
     while df.columns.duplicated().any():
         # Catches edge cases where pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [5, 6]})
