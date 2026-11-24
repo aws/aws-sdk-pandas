@@ -16,6 +16,7 @@ import moto
 import pandas as pd
 import pytest
 from botocore.exceptions import ClientError
+from botocore.stub import Stubber
 
 import awswrangler as wr
 from awswrangler._distributed import EngineEnum
@@ -931,6 +932,57 @@ def test_data_api_rds_read_sql_no_results():
     mock_data_api_connector(con, has_result_set=False)
     dataframe = wr.data_api.rds.read_sql_query("DROP TABLE test", con=con)
     assert dataframe.empty is True
+
+
+@pytest.mark.parametrize("type_name", ["DATETIME", "TIME"])
+@pytest.mark.parametrize(
+    "fraction, microsecond",
+    [
+        ("", 0),
+        (".1", 100000),
+        (".12", 120000),
+        (".123", 123000),
+        (".1234", 123400),
+        (".12345", 123450),
+        (".123456", 123456),
+    ],
+)
+def test_data_api_rds_read_sql_fractional_seconds(type_name: str, fraction: str, microsecond: int) -> None:
+    session = boto3.Session(region_name="us-east-1", aws_access_key_id="testing", aws_secret_access_key="testing")
+    resource_arn = "arn:aws:rds:us-east-1:123456789012:cluster:test"
+    secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:test"
+    sql = "SELECT temporal_value FROM sample"
+    value = ("2024-01-02 03:04:05" if type_name == "DATETIME" else "03:04:05") + fraction
+    expected_datetime = datetime(2024, 1, 2, 3, 4, 5, microsecond)
+    expected = expected_datetime if type_name == "DATETIME" else expected_datetime.time()
+    with wr.data_api.rds.connect(
+        resource_arn=resource_arn, database="test", secret_arn=secret_arn, boto3_session=session
+    ) as con:
+        with Stubber(con.client) as stubber:
+            stubber.add_response(
+                "execute_statement",
+                {
+                    "columnMetadata": [{"name": "temporal_value", "typeName": type_name}],
+                    "records": [[{"stringValue": value}], [{"isNull": True}]],
+                    "numberOfRecordsUpdated": 0,
+                },
+                {
+                    "resourceArn": resource_arn,
+                    "secretArn": secret_arn,
+                    "database": "test",
+                    "sql": sql,
+                    "includeResultMetadata": True,
+                },
+            )
+
+            result = wr.data_api.rds.read_sql_query(sql, con=con)
+
+            stubber.assert_no_pending_responses()
+
+    assert result.columns.tolist() == ["temporal_value"]
+    assert result.shape == (2, 1)
+    assert result.iloc[0, 0] == expected
+    assert pd.isna(result.iloc[1, 0])
 
 
 def test_create_athena_bucket_owned_by_caller_succeed(moto_aws) -> None:
