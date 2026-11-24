@@ -215,7 +215,7 @@ class RedshiftDataApiWaiter:
             if status == "FINISHED":
                 return True
             if status in ["ABORTED", "FAILED"]:
-                error = response["Error"]
+                error = response.get("Error", "no error message returned")
                 raise RedshiftDataApiFailedException(
                     f"Request {request_id} failed with status {status} and error {error}"
                 )
