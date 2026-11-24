@@ -341,7 +341,9 @@ def unload_to_files(
         raise exceptions.InvalidArgumentValue("<unload_format> argument must be 'CSV' or 'PARQUET'")
     with con.cursor() as cursor:
         format_str: str = unload_format or "PARQUET"
-        partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
+        partition_str: str = (
+            f"\nPARTITION BY ({','.join(_identifier(col) for col in partition_cols)})" if partition_cols else ""
+        )
         manifest_str: str = "\nmanifest" if manifest is True else ""
         region_str: str = f"\nREGION AS '{_escape_string_literal(region)}'" if region is not None else ""
         parallel_str: str = "\nPARALLEL ON" if parallel else "\nPARALLEL OFF"
