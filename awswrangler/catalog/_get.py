@@ -797,7 +797,7 @@ def get_table_parameters(
     """
     client_glue = _utils.client("glue", session=boto3_session)
     response = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
-    parameters: dict[str, str] = response["Table"]["Parameters"]
+    parameters: dict[str, str] = response["Table"].get("Parameters", {})
     return parameters
 
 
