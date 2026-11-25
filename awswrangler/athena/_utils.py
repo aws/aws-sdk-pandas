@@ -7,6 +7,7 @@ import csv
 import json
 import logging
 import pprint
+import time
 import uuid
 import warnings
 from decimal import Decimal
@@ -26,7 +27,7 @@ import botocore.exceptions
 import pandas as pd
 from typing_extensions import Literal
 
-from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts, typing
+from awswrangler import _config, _data_types, _utils, catalog, exceptions, s3, sts, typing
 from awswrangler._config import apply_configs
 from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.catalog._utils import _catalog_id
@@ -64,6 +65,10 @@ class _WorkGroupConfig(NamedTuple):
     encryption: str | None
     kms_key: str | None
     managed_results: bool
+
+
+# (workgroup, region, access key id) -> (expiry on the time.monotonic() clock, config)
+_WORKGROUP_CONFIG_CACHE: dict[tuple[str, str | None, str | None], tuple[float, _WorkGroupConfig]] = {}
 
 
 def _get_s3_output(
@@ -156,7 +161,26 @@ def _start_query_execution(
     return response["QueryExecutionId"]
 
 
+def _get_workgroup_config_cache_key(
+    session: boto3.Session | None, workgroup: str
+) -> tuple[str, str | None, str | None]:
+    # Workgroup names repeat across accounts and regions (e.g. "primary"), so the
+    # credentials and region are part of the key.
+    session = _utils.ensure_session(session=session)
+    credentials = session.get_credentials()
+    return workgroup, session.region_name, getattr(credentials, "access_key", None)
+
+
 def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str = "primary") -> _WorkGroupConfig:
+    ttl: int = _config.config.athena_workgroup_config_ttl
+    cache_key: tuple[str, str | None, str | None] | None = None
+    if workgroup is not None and ttl > 0:
+        cache_key = _get_workgroup_config_cache_key(session=session, workgroup=workgroup)
+        cached = _WORKGROUP_CONFIG_CACHE.get(cache_key)
+        if cached is not None and time.monotonic() < cached[0]:
+            _logger.debug("Using cached workgroup config for %s", workgroup)
+            return cached[1]
+
     enforced: bool
     wg_s3_output: str | None
     wg_encryption: str | None
@@ -185,6 +209,12 @@ def _get_workgroup_config(session: boto3.Session | None = None, workgroup: str =
         managed_results=wg_managed_results,
     )
     _logger.debug("Workgroup config:\n%s", wg_config)
+    if cache_key is not None:
+        now = time.monotonic()
+        for key, (expires_at, _) in list(_WORKGROUP_CONFIG_CACHE.items()):
+            if expires_at <= now:
+                _WORKGROUP_CONFIG_CACHE.pop(key, None)
+        _WORKGROUP_CONFIG_CACHE[cache_key] = (now + ttl, wg_config)
     return wg_config
 
 
