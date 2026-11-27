@@ -303,6 +303,11 @@ def _split_struct(s: str) -> list[str]:
     return list(_split_fields(s=s))
 
 
+def _nested_inner(s: str) -> str:
+    # e.g. "array <int>" -> "int", allowing spaces before the "<"
+    return s[s.find("<") + 1 : -1]
+
+
 def _split_map(s: str) -> list[str]:
     parts: list[str] = list(_split_fields(s=s))
     if len(parts) != 2:
@@ -349,13 +354,16 @@ def athena2pyarrow(dtype: str, df_type: str | None = None) -> pa.DataType:  # no
         precision, scale = dtype.replace("decimal(", "").replace(")", "").split(sep=",")
         return pa.decimal128(precision=int(precision), scale=int(scale))
     if dtype.startswith("array") is True:
-        return pa.list_(value_type=athena2pyarrow(dtype=orig_dtype[6:-1]), list_size=-1)
+        return pa.list_(value_type=athena2pyarrow(dtype=_nested_inner(orig_dtype)), list_size=-1)
     if dtype.startswith("struct") is True:
         return pa.struct(
-            [(f.split(":", 1)[0].strip(), athena2pyarrow(f.split(":", 1)[1])) for f in _split_struct(orig_dtype[7:-1])]
+            [
+                (f.split(":", 1)[0].strip(), athena2pyarrow(f.split(":", 1)[1]))
+                for f in _split_struct(_nested_inner(orig_dtype))
+            ]
         )
     if dtype.startswith("map") is True:
-        parts: list[str] = _split_map(s=orig_dtype[4:-1])
+        parts: list[str] = _split_map(s=_nested_inner(orig_dtype))
         return pa.map_(athena2pyarrow(parts[0]), athena2pyarrow(parts[1]))
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 

@@ -39,6 +39,19 @@ def test_athena2pyarrow_rejects_binary_substrings(dtype):
 @pytest.mark.parametrize(
     "dtype,expected",
     [
+        ("array <int>", pa.list_(pa.int32())),
+        ("struct <a:int>", pa.struct([("a", pa.int32())])),
+        ("map <string,int>", pa.map_(pa.string(), pa.int32())),
+        ("struct<a:array <int>>", pa.struct([("a", pa.list_(pa.int32()))])),
+    ],
+)
+def test_athena2pyarrow_nested_types_with_space_before_bracket(dtype, expected):
+    assert athena2pyarrow(dtype) == expected
+
+
+@pytest.mark.parametrize(
+    "dtype,expected",
+    [
         ("struct<roleType:string>", pa.struct([("roleType", pa.string())])),
         ("ARRAY<STRUCT<roleType:STRING>>", pa.list_(pa.struct([("roleType", pa.string())]))),
         ("map<string,struct<firstName:int>>", pa.map_(pa.string(), pa.struct([("firstName", pa.int32())]))),
