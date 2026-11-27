@@ -48,6 +48,24 @@ def test_athena2pyarrow_preserves_nested_field_name_case(dtype, expected):
     assert athena2pyarrow(dtype) == expected
 
 
+@pytest.mark.parametrize(
+    "dtype,expected",
+    [
+        ("decimal(11,5)", pa.decimal128(11, 5)),
+        ("DECIMAL(38, 9)", pa.decimal128(38, 9)),
+        # The scale is optional in Athena and defaults to 0
+        ("decimal(15)", pa.decimal128(15, 0)),
+        ("array<decimal(15)>", pa.list_(pa.decimal128(15, 0))),
+        (
+            "struct<a:decimal(10),b:decimal(10,2)>",
+            pa.struct([("a", pa.decimal128(10, 0)), ("b", pa.decimal128(10, 2))]),
+        ),
+    ],
+)
+def test_athena2pyarrow_decimal(dtype, expected):
+    assert athena2pyarrow(dtype) == expected
+
+
 @pytest.mark.parametrize("dtype", ["binary", "varbinary"])
 def test_athena2pandas_binary_types(dtype):
     assert athena2pandas(dtype) == "bytes"

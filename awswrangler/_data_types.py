@@ -346,8 +346,9 @@ def athena2pyarrow(dtype: str, df_type: str | None = None) -> pa.DataType:  # no
     if dtype in ("binary", "varbinary"):
         return pa.binary()
     if dtype.startswith("decimal") is True:
-        precision, scale = dtype.replace("decimal(", "").replace(")", "").split(sep=",")
-        return pa.decimal128(precision=int(precision), scale=int(scale))
+        # The scale is optional in Athena and defaults to 0, e.g. decimal(15)
+        precision, _, scale = dtype.replace("decimal(", "").replace(")", "").partition(",")
+        return pa.decimal128(precision=int(precision), scale=int(scale or 0))
     if dtype.startswith("array") is True:
         return pa.list_(value_type=athena2pyarrow(dtype=orig_dtype[6:-1]), list_size=-1)
     if dtype.startswith("struct") is True:
